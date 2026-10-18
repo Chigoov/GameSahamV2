@@ -1,0 +1,219 @@
+{
+  "schema_version": 1,
+  "project_root": "C:\\Users\\HYPE AMD\\Downloads\\VIBE CODING\\GAME SAHAM",
+  "product": "Game Saham 2D Portrait",
+  "prepared_date": "2026-10-18",
+  "status": "READY_FOR_HERMES",
+  "current_task": "00",
+  "completed_tasks": [],
+  "hermes_session_id": null,
+  "next_action": "Baca AGENTS.md, kedua dokumen produk, Work/README.md; jalankan preflight task 00. OQ belum terjawab.",
+  "tasks": [
+    {
+      "id": "00",
+      "title": "Preflight dan keputusan",
+      "path": "Work/00-preflight-dan-keputusan/TASK.md",
+      "status": "PENDING",
+      "depends_on": [],
+      "evidence": []
+    },
+    {
+      "id": "01",
+      "title": "Fondasi domain akun waktu dan save",
+      "path": "Work/01-domain-akun-waktu-save/TASK.md",
+      "status": "PENDING",
+      "depends_on": [
+        "00"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "02",
+      "title": "Data katalog indeks dan kontrak historis",
+      "path": "Work/02-data-katalog-indeks/TASK.md",
+      "status": "PENDING",
+      "depends_on": [
+        "00",
+        "01"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "03",
+      "title": "Pasar NPC order dan halt",
+      "path": "Work/03-pasar-npc-order-halt/TASK.md",
+      "status": "PENDING",
+      "depends_on": [
+        "01",
+        "02"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "04",
+      "title": "UX portrait dan host Android",
+      "path": "Work/04-ux-portrait-dan-host-android/TASK.md",
+      "status": "PENDING",
+      "depends_on": [
+        "00",
+        "01"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "05",
+      "title": "Trading portofolio dan FX",
+      "path": "Work/05-trading-portofolio-fx/TASK.md",
+      "status": "PENDING",
+      "depends_on": [
+        "02",
+        "03",
+        "04"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "06",
+      "title": "Karier siklus hari dan lifecycle",
+      "path": "Work/06-karier-siklus-hari-lifecycle/TASK.md",
+      "status": "PENDING",
+      "depends_on": [
+        "01",
+        "04",
+        "05"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "07",
+      "title": "Firma klien mandat dan fee",
+      "path": "Work/07-firma-klien-mandat-fee/TASK.md",
+      "status": "PENDING",
+      "depends_on": [
+        "05",
+        "06"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "08",
+      "title": "Berita riset kalender dan terminal",
+      "path": "Work/08-berita-riset-kalender-terminal/TASK.md",
+      "status": "PENDING",
+      "depends_on": [
+        "02",
+        "03",
+        "04",
+        "06"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "09",
+      "title": "Multi aset dan fund builder",
+      "path": "Work/09-multi-aset-fund-builder/TASK.md",
+      "status": "PENDING",
+      "depends_on": [
+        "02",
+        "05",
+        "07"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "10",
+      "title": "Aksi korporasi IPO M&A dan voting",
+      "path": "Work/10-aksi-korporasi-ipo-ma-voting/TASK.md",
+      "status": "PENDING",
+      "depends_on": [
+        "02",
+        "05",
+        "07"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "11",
+      "title": "Risiko margin short dan compliance",
+      "path": "Work/11-risiko-margin-short-compliance/TASK.md",
+      "status": "PENDING",
+      "depends_on": [
+        "03",
+        "05",
+        "07",
+        "09"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "12",
+      "title": "Replay historis lab dan stress test",
+      "path": "Work/12-replay-historis-lab-stress/TASK.md",
+      "status": "PENDING",
+      "depends_on": [
+        "02",
+        "03",
+        "05",
+        "08",
+        "11"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "13",
+      "title": "QA performa dan APK rilis",
+      "path": "Work/13-qa-performa-apk-rilis/TASK.md",
+      "status": "PENDING",
+      "depends_on": [
+        "00",
+        "01",
+        "02",
+        "03",
+        "04",
+        "05",
+        "06",
+        "07",
+        "08",
+        "09",
+        "10",
+        "11",
+        "12"
+      ],
+      "evidence": []
+    }
+  ],
+  "evidence": {
+    "domain": "NOT_TESTED",
+    "browser": "NOT_TESTED",
+    "native_bridge": "NOT_TESTED",
+    "historical_dataset": "NOT_TESTED",
+    "apk_build": "NOT_TESTED",
+    "apk_install": "NOT_TESTED",
+    "physical_device": "NOT_TESTED",
+    "performance": "NOT_TESTED"
+  },
+  "last_checkpoint": null,
+  "blockers": [],
+  "open_product_decisions": [
+    "OQ-01",
+    "OQ-02",
+    "OQ-03",
+    "OQ-04",
+    "OQ-05",
+    "OQ-06",
+    "OQ-07",
+    "OQ-08",
+    "OQ-09",
+    "OQ-10",
+    "OQ-11",
+    "OQ-12",
+    "OQ-13",
+    "OQ-14",
+    "OQ-15",
+    "OQ-16",
+    "OQ-17",
+    "OQ-18",
+    "OQ-19",
+    "OQ-20"
+  ]
+}

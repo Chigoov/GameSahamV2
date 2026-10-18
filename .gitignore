@@ -1,0 +1,32 @@
+# Local build outputs and caches
+**/bin/
+**/obj/
+node_modules/
+.vs/
+.vscode/
+__pycache__/
+*.pyc
+*.user
+*.suo
+
+# Credentials and signing keys
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+*.pfx
+*.p12
+secrets/
+
+# Evidence, binaries and player state remain local unless reviewed
+Artifacts/**
+!Artifacts/README.md
+*.apk
+*.aab
+*.apks
+*.sav
+*.save
+*.bak
+*.tmp
+Data/Local/
