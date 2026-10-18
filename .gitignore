@@ -30,3 +30,12 @@ Artifacts/**
 *.bak
 *.tmp
 Data/Local/
+
+# Android local toolchain, Gradle caches and generated outputs
+android/.gradle/
+android/.kotlin/
+android/build/
+android/app/build/
+android/local.properties
+android/*.hprof
+android/captures/
