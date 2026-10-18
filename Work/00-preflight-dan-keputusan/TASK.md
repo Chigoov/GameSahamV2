@@ -8,6 +8,8 @@ Baca [PRD](../../Docs/Product/02-PRD-Game-Saham-2D-Portrait.md) dan [aturan repo
 
 ## Pekerjaan
 
+Baca [design brief](../../Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md) sebelum kode game. Pertahankan pemetaan 40 screen/26 cakupan lama, 20 journey dan 28 komponen. Keputusan token/UX telah ditetapkan; OQ ekonomi/data/perangkat tetap terbuka. Verifikasi kesiapan spesifikasi terlebih dahulu, tanpa mengklaim visual/runtime sudah lulus.
+
 Buktikan path absolut dan Git root; inventaris perubahan lokal dan toolchain aktual. Baca seluruh PRD dan OQ. Verifikasi baseline C# + MAUI HybridWebView + HTML/CSS/JS lokal atau pilih alternatif minimum dengan alasan. Rencanakan APK smoke awal. Triage setiap OQ tanpa menganggap rekomendasi sebagai jawaban pemilik. Petakan seluruh requirement dan 26 layar.
 
 ## Hasil yang harus tersedia

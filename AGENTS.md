@@ -1,7 +1,7 @@
 # Instruksi aktif Game Saham 2D Portrait
 
 Root yang diizinkan ditulis: C:/Users/HYPE AMD/Downloads/VIBE CODING/GAME SAHAM.
-Tanggal keputusan produk: 18 Oktober 2026. Baca Docs/Product/01-Konsep-Game-2D-Portrait.md, Docs/Product/02-PRD-Game-Saham-2D-Portrait.md, lalu Work/README.md sebelum implementasi.
+Tanggal keputusan produk: 18 Oktober 2026. Baca Docs/Product/01-Konsep-Game-2D-Portrait.md, Docs/Product/02-PRD-Game-Saham-2D-Portrait.md, Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md, lalu Work/README.md sebelum menulis kode game.
 
 ## Arah yang berlaku
 
@@ -11,6 +11,7 @@ Repo awal ini hanya paket dokumen dan tugas, bukan source game. Jangan mengklaim
 
 ## Cara kerja
 
+- Design brief wajib dibaca sebelum implementasi: tiga prinsip, token bersama, 40 tujuan screen, 20 journey, 28 komponen, state, responsive dan aksesibilitas berlaku pada seluruh UI. Desain telah ditetapkan melalui mandat desain; jangan menggantinya per screen atau menganggap OQ ekonomi/data selesai. Brief bukan bukti UI/native sudah diuji.
 - Buktikan cwd dan Git root sebelum edit. Pertahankan semua perubahan lokal. Jangan reset/clean/delete massal.
 - Mulai dari Work/STATUS.json dan task aktif. Jangan memakai checkpoint/session proyek lama. Jika butuh resume Hermes, catat exact session ID; jangan mengandalkan latest.
 - Satu writer. Jangan membuat launcher/scheduler/global automation baru. Jangan mengubah profil/provider/model/credentials atau pengaturan global Hermes.

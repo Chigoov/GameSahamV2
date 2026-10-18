@@ -7,8 +7,9 @@ Seluruh 14 paket wajib dituntaskan sesuai PRD. Repo disiapkan untuk implementasi
 1. [Aturan repo](../AGENTS.md)
 2. [Konsep](../Docs/Product/01-Konsep-Game-2D-Portrait.md)
 3. [PRD lengkap](../Docs/Product/02-PRD-Game-Saham-2D-Portrait.md)
-4. [Keputusan terbuka](DECISIONS.md)
-5. [Checkpoint](STATUS.json), [requirement](REQUIREMENTS.csv), [cakupan layar](SCREEN-COVERAGE.csv), dan [gate akhir](ACCEPTANCE.md)
+4. [Design brief sebelum kode game](../Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md)
+5. [Keputusan terbuka](DECISIONS.md)
+6. [Checkpoint](STATUS.json), [requirement](REQUIREMENTS.csv), [cakupan layar](SCREEN-COVERAGE.csv), dan [gate akhir](ACCEPTANCE.md)
 
 ## Paket pekerjaan
 
@@ -30,6 +31,8 @@ Seluruh 14 paket wajib dituntaskan sesuai PRD. Repo disiapkan untuk implementasi
 | 13 | [QA performa dan APK rilis](13-qa-performa-apk-rilis/TASK.md) | 00, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12 | Semua FR |
 
 ## Urutan pembuktian
+
+Sebelum satu baris kode game: baca design brief lengkap dan pemetaan screen. Desain sudah memiliki keputusan kerja yang tegas; tidak perlu membuat design system lain atau menunggu approval rutin. Pemeriksaan desain tidak meluluskan task implementasi.
 
 00 memverifikasi lingkungan dan keputusan; 01-04 menghasilkan fondasi, data, pasar dan bukti host/APK awal. 05-08 menyelesaikan trading, siklus hari, karier, klien serta riset. 09-12 menuntaskan seluruh fitur lanjutan dan historis. 13 menyatukan regresi, UX/performa dan APK akhir.
 

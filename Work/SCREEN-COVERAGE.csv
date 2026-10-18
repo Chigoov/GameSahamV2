@@ -1,27 +1,27 @@
-concept_screen_id,scope,requirements,tasks,status,implementation_path,evidence_path
-1,Dashboard pasar global,FR-01;FR-02;FR-18,04;06,NOT_TESTED,,
-2,Penjelajah indeks,FR-02,02;05,NOT_TESTED,,
-3,Detail emiten,FR-02;FR-04;FR-09,05;08,NOT_TESTED,,
-4,Portofolio pribadi,FR-05,05,NOT_TESTED,,
-5,Tiket order,FR-04,03;05;11,NOT_TESTED,,
-6,News dan events,FR-03;FR-09,03;08,NOT_TESTED,,
-7,Watchlist,FR-02,02;05,NOT_TESTED,,
-8,Misi dan karier,FR-07,06,NOT_TESTED,,
-9,Paket terminal riset,FR-09,08,NOT_TESTED,,
-10,Terminal pasar,FR-04,03;05,NOT_TESTED,,
-11,Riset emiten,FR-09,08,NOT_TESTED,,
-12,Kalender pasar,FR-01;FR-09,06;08,NOT_TESTED,,
-13,Ringkasan langganan USD,FR-09,08,NOT_TESTED,,
-14,Penukaran IDR/USD,FR-06,05,NOT_TESTED,,
-15,Dashboard fund manager,FR-08,07,NOT_TESTED,,
-16,Detail mandat klien,FR-08,07,NOT_TESTED,,
-17,Fund builder,FR-11,09,NOT_TESTED,,
-18,Meja multi-aset,FR-10,09,NOT_TESTED,,
-19,IPO dan M&A,FR-13,10,NOT_TESTED,,
-20,Voting pemegang saham,FR-14,10,NOT_TESTED,,
-21,Data alternatif,FR-09,08,NOT_TESTED,,
-22,Compliance dan audit,FR-08;FR-15,07;11,NOT_TESTED,,
-23,Market pulse dan stress,FR-03;FR-15;FR-17,03;11;12,NOT_TESTED,,
-24,Jeda perdagangan,FR-16,03;11,NOT_TESTED,,
-25,Aksi korporasi,FR-12,10,NOT_TESTED,,
-26,Short squeeze,FR-15,11,NOT_TESTED,,
+concept_screen_id,scope,requirements,tasks,status,implementation_path,evidence_path,design_screen_ids,design_brief_path
+1,Dashboard pasar global,FR-01;FR-02;FR-18,04;06,NOT_TESTED,,,S04,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+2,Penjelajah indeks,FR-02,02;05,NOT_TESTED,,,S07,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+3,Detail emiten,FR-02;FR-04;FR-09,05;08,NOT_TESTED,,,S08,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+4,Portofolio pribadi,FR-05,05,NOT_TESTED,,,S13,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+5,Tiket order,FR-04,03;05;11,NOT_TESTED,,,S09;S10,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+6,News dan events,FR-03;FR-09,03;08,NOT_TESTED,,,S25,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+7,Watchlist,FR-02,02;05,NOT_TESTED,,,S06,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+8,Misi dan karier,FR-07,06,NOT_TESTED,,,S18,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+9,Paket terminal riset,FR-09,08,NOT_TESTED,,,S29,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+10,Terminal pasar,FR-04,03;05,NOT_TESTED,,,S08,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+11,Riset emiten,FR-09,08,NOT_TESTED,,,S26,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+12,Kalender pasar,FR-01;FR-09,06;08,NOT_TESTED,,,S28,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+13,Ringkasan langganan USD,FR-09,08,NOT_TESTED,,,S30,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+14,Penukaran IDR/USD,FR-06,05,NOT_TESTED,,,S16,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+15,Dashboard fund manager,FR-08,07,NOT_TESTED,,,S19,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+16,Detail mandat klien,FR-08,07,NOT_TESTED,,,S21,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+17,Fund builder,FR-11,09,NOT_TESTED,,,S23,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+18,Meja multi-aset,FR-10,09,NOT_TESTED,,,S24,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+19,IPO dan M&A,FR-13,10,NOT_TESTED,,,S32,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+20,Voting pemegang saham,FR-14,10,NOT_TESTED,,,S33,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+21,Data alternatif,FR-09,08,NOT_TESTED,,,S27,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+22,Compliance dan audit,FR-08;FR-15,07;11,NOT_TESTED,,,S34,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+23,Market pulse dan stress,FR-03;FR-15;FR-17,03;11;12,NOT_TESTED,,,S34;S37,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+24,Jeda perdagangan,FR-16,03;11,NOT_TESTED,,,S36,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+25,Aksi korporasi,FR-12,10,NOT_TESTED,,,S31,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md
+26,Short squeeze,FR-15,11,NOT_TESTED,,,S35,Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md

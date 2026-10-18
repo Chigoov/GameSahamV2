@@ -8,6 +8,8 @@ Baca [PRD](../../Docs/Product/02-PRD-Game-Saham-2D-Portrait.md) dan [aturan repo
 
 ## Pekerjaan
 
+Terapkan [design brief](../../Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md) secara penuh: token navy/putih hangat/emas, IBM Plex Sans lokal, shell dan layout S01-S40, journey J01-J20, komponen C01-C28, state per screen dan aksesibilitas. Jangan membuat warna/font sendiri per screen. Form transaksi panjang adalah halaman penuh dan footer tidak menumpuk root navigation. Gambar/diagram spesifikasi tidak menggantikan screenshot implementasi.
+
 Bangun token visual bersama dan shell lima menu 2D portrait, detail/tab, form, loading/empty/error/locked, safe area, keyboard, Back, fokus dan font scale. Jika hybrid dipilih, gunakan bridge terbatas ke domain. Buktikan packaging lokal dan APK smoke sedini mungkin. Mock desain terpisah dan berlabel.
 
 ## Hasil yang harus tersedia

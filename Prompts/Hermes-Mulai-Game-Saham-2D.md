@@ -12,12 +12,14 @@ Baca berurutan:
 1. AGENTS.md
 2. Docs/Product/01-Konsep-Game-2D-Portrait.md
 3. Docs/Product/02-PRD-Game-Saham-2D-Portrait.md
-4. Work/README.md
-5. Work/DECISIONS.md, Work/STATUS.json, Work/REQUIREMENTS.csv, Work/SCREEN-COVERAGE.csv, Work/ACCEPTANCE.md
-6. Work/00-preflight-dan-keputusan/TASK.md, lalu task berikutnya sesuai dependensi.
+4. Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md, wajib sebelum satu baris kode game
+5. Work/README.md
+6. Work/DECISIONS.md, Work/STATUS.json, Work/REQUIREMENTS.csv, Work/SCREEN-COVERAGE.csv, Work/ACCEPTANCE.md
+7. Work/00-preflight-dan-keputusan/TASK.md, lalu task berikutnya sesuai dependensi.
 
 Keputusan produk yang sudah tetap:
 
+- Terapkan design brief secara konsisten: tiga prinsip, token bersama, layout 40 screen, 20 journey, 28 komponen, state, responsive dan aksesibilitas. Jangan menyatakan tampilan telah diuji hanya karena spesifikasinya lengkap.
 - Android 2D portrait, fokus pada pengalaman pengguna. Tidak ada ruang, kamera, meja, atau nuansa 3D; tanpa Unity/Three.js.
 - Trading dan karier menjadi fund manager sama penting.
 - Semua fitur lama dalam FR-01 sampai FR-20 wajib versi pertama. Ke-14 folder adalah paket kerja, bukan izin menunda fitur wajib ke v2.
@@ -27,7 +29,7 @@ Keputusan produk yang sudah tetap:
 
 Mulai dengan tindakan:
 
-1. Periksa repo dan toolchain aktual. Folder ini baru berisi dokumen/tugas, belum berisi source game atau dataset historis.
+1. Periksa repo dan toolchain aktual. Repo awal disiapkan hanya dengan dokumen/tugas; jangan mengasumsikan kondisi itu masih berlaku. Saat finalisasi design brief, folder android dan smoke APK sudah muncul dari pekerjaan lain. Inventaris perubahan yang ada dan selaraskan dengan brief sebelum menulis kode tambahan; jangan menghapus atau menganggapnya sudah memenuhi acceptance.
 2. Pilih implementasi minimum yang sesuai PRD. Baseline dokumen adalah C# + Android MAUI HybridWebView + HTML/CSS/JS lokal; buktikan feasibility dan APK smoke sedini mungkin. Keputusan teknis rutin boleh kamu ambil dengan alasan dan bukti. Jangan menambah engine/framework/dependency tanpa kebutuhan.
 3. Bangun fondasi domain, akun, waktu tunggal, ledger dan save; lalu lanjut sesuai urutan Work. Satu pemilik ekonomi; UI hanya presentasi dan input.
 4. Jangan berhenti pada analisis. Implementasikan pekerjaan independen yang sudah jelas, jalankan pemeriksaan yang relevan, checkpoint, dan lanjut.
