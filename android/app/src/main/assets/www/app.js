@@ -599,9 +599,10 @@
         flowText(panel, 'Mata uang / unit', `${stock.currency} / ${stock.lotSize} saham per unit`);
         flowText(panel, 'Harga pasar game', stock.currentPrice);
         flowText(panel, 'Grafik', 'Riwayat harga domain belum tersedia; tidak menampilkan grafik contoh.');
+        let book = null;
         if (bridge.getOrderBook) {
             try {
-                const book = JSON.parse(bridge.getOrderBook(stock.id));
+                book = JSON.parse(bridge.getOrderBook(stock.id));
                 flowText(panel, 'Status pasar', book.haltState);
                 for (const [key, name] of [['bids', 'Bid'], ['asks', 'Ask']]) {
                     flowText(panel, name, (book[key] || []).map(level => `${level.price} ${stock.currency} × ${level.quantity} saham`).join('; ') || 'Belum ada antrean');
@@ -622,8 +623,12 @@
             watchlist.className = 'btn-secondary';
             watchlist.setAttribute('aria-pressed', String(stock.isWatchlist));
         } else flowText(panel, 'Watchlist', 'Bridge watchlist belum tersedia pada pratinjau ini.');
+        const isHalted = book && book.haltState && book.haltState !== 'NORMAL';
+        if (isHalted) {
+            flowText(panel, 'Pemberitahuan suspensi (S36)', 'Perdagangan instrumen ini sedang di-halt / disuspensi bursa. Order baru tidak dapat diproses.');
+        }
         const create = flowButton(panel, 'Buat order', () => { closeFlow(); openOrderTicket(stock); });
-        create.disabled = !stock.isActiveTrading;
+        create.disabled = !stock.isActiveTrading || isHalted;
     }
     function showOrderReview(preview, draft) {
         closeOrderTicket();
