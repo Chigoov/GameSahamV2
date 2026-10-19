@@ -45,19 +45,24 @@ public final class GameClock {
      * Memajukan waktu game sebanyak seconds * speedMultiplier jika tidak di-pause.
      * Mengembalikan true jika terjadi pergantian hari bursa.
      */
-    public synchronized boolean tick(int elapsedRealSeconds) {
+    public synchronized boolean tick(int elapsedGameSeconds) {
+        if (elapsedGameSeconds < 0) throw new IllegalArgumentException("Waktu tidak boleh mundur");
         if (isPaused) return false;
-        int advancedSeconds = elapsedRealSeconds * speedMultiplier;
-        LocalTime nextTime = currentTime.plusSeconds(advancedSeconds);
+        return advanceGameSeconds(Math.multiplyExact((long) elapsedGameSeconds, speedMultiplier));
+    }
 
-        boolean dayChanged = false;
-        if (nextTime.isBefore(currentTime)) {
-            // Melewati tengah malam
-            currentDate = currentDate.plusDays(1);
-            dayChanged = true;
-        }
-        currentTime = nextTime;
+    /** Low-level simulation step; real elapsed time is converted once by TradingFacade. */
+    public synchronized boolean advanceGameSeconds(long seconds) {
+        if (seconds < 0) throw new IllegalArgumentException("Waktu tidak boleh mundur");
+        java.time.LocalDateTime next = currentDate.atTime(currentTime).plusSeconds(seconds);
+        boolean dayChanged = !next.toLocalDate().equals(currentDate);
+        currentDate = next.toLocalDate();
+        currentTime = next.toLocalTime();
         return dayChanged;
+    }
+
+    public long getGameTimestamp() {
+        return currentDate.atTime(currentTime).toInstant(java.time.ZoneOffset.ofHours(7)).toEpochMilli();
     }
 
     public MarketSession getCurrentMarketSession() {

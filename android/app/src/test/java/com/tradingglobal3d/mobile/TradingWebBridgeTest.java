@@ -882,6 +882,10 @@ public class TradingWebBridgeTest {
 
         // 2. Membaca artikel riset: idempoten, 5 artikel unik membuka 'reader' (150 XP)
         for (int i = 1; i <= 5; i++) {
+            facade.getResearchService().addNews(new com.tradingglobal3d.core.research.NewsArticle(
+                    "ART-00" + i, "Published article " + i, "Research content",
+                    com.tradingglobal3d.core.research.NewsArticle.Category.MACRO, null, 0,
+                    facade.getClock().getGameTimestamp() - 1000));
             bridge.recordResearchRead("ART-00" + i);
         }
         // Membaca ulang artikel yang sama tidak boleh memberi reward ganda

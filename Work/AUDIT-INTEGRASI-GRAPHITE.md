@@ -1,5 +1,7 @@
 # AUDIT INTEGRASI UI GRAPHITE TERMINAL KE GAME SAHAM
 
+> **Koreksi checkpoint owner 19 Oktober 2026:** isi di bawah adalah catatan integrasi revisi 2, bukan bukti seluruh UI V8/PRD selesai. Hasil terbaru, celah logika dan APK kandidat: [audit owner](OWNER-AUDIT-2026-10-19.md).
+
 Tanggal: 19 Oktober 2026
 Target Root: `C:/Users/HYPE AMD/Downloads/VIBE CODING/GAME SAHAM`
 Git Branch: `codex/rebuild-2d-portrait`

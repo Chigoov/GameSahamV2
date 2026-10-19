@@ -38,6 +38,18 @@ public final class CareerManager {
         initializeMissions();
     }
 
+    public void reset() {
+        currentRank = CareerRank.NOVICE_TRADER;
+        daysTraded = 1;
+        reputationScore = 20;
+        bailoutUsed = false;
+        startOfDayNetWorth = null;
+        startOfDayLedgerIndex = 0;
+        missions.clear();
+        sessionReports.clear();
+        initializeMissions();
+    }
+
     private void initializeMissions() {
         missions.put("MIS-01", new CareerMission(
                 "MIS-01", "Langkah Pertama di Bursa",

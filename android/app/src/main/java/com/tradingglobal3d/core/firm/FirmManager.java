@@ -9,6 +9,7 @@ import com.tradingglobal3d.core.model.Money;
 import com.tradingglobal3d.core.model.Position;
 import com.tradingglobal3d.core.trading.Order;
 import com.tradingglobal3d.core.trading.OrderSide;
+import com.tradingglobal3d.core.trading.MatchingEngine;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -131,14 +132,16 @@ public final class FirmManager {
 
         BigDecimal estPrice = order.getLimitPrice() != null ? order.getLimitPrice().getAmount() : instrument.getCurrentPrice().getAmount();
         BigDecimal orderNominal = estPrice.multiply(BigDecimal.valueOf(order.getTotalQuantity()));
-        Money orderMoney = new Money(orderNominal, instrument.getCurrency());
+        BigDecimal orderCost = orderNominal.multiply(BigDecimal.ONE.add(MatchingEngine.BUY_FEE_RATE));
 
         // 1. Validasi Batas Cadangan Kas Minimum
-        Money availableAfter = clientAccount.getAvailableCash(baseCur).subtract(orderMoney);
+        BigDecimal availableAfter = BigDecimal.ZERO;
+        for (Currency currency : Currency.values())
+            availableAfter = availableAfter.add(inBase(clientAccount.getAvailableCash(currency).getAmount(), currency, baseCur, fxRate));
+        availableAfter = availableAfter.subtract(inBase(orderCost, instrument.getCurrency(), baseCur, fxRate));
         BigDecimal minCashThreshold = totalAum.getAmount().multiply(BigDecimal.valueOf(mandate.getRiskProfile().getMinCashReserve()));
 
-        if (availableAfter.getAmount().compareTo(minCashThreshold) < 0) {
-            mandate.adjustTrust(-5); // Pelanggaran batas kas
+        if (availableAfter.compareTo(minCashThreshold) < 0) {
             return ValidationResult.fail("Order melanggar batas cadangan kas minimum mandat (" +
                     (mandate.getRiskProfile().getMinCashReserve() * 100) + "% dari AUM)");
         }
@@ -147,16 +150,39 @@ public final class FirmManager {
         Position currentPos = clientAccount.getPosition(instrument.getId());
         long currentQty = currentPos != null ? currentPos.getQuantity() : 0;
         long totalQtyAfter = currentQty + order.getTotalQuantity();
-        BigDecimal postValue = estPrice.multiply(BigDecimal.valueOf(totalQtyAfter));
+        BigDecimal postValue = inBase(estPrice.multiply(BigDecimal.valueOf(totalQtyAfter)), instrument.getCurrency(), baseCur, fxRate);
         BigDecimal maxConcentrationAllowed = totalAum.getAmount().multiply(BigDecimal.valueOf(mandate.getRiskProfile().getMaxConcentrationPerStock()));
 
         if (postValue.compareTo(maxConcentrationAllowed) > 0) {
-            mandate.adjustTrust(-5); // Pelanggaran konsentrasi
             return ValidationResult.fail("Order melanggar batas konsentrasi per saham mandat (" +
                     (mandate.getRiskProfile().getMaxConcentrationPerStock() * 100) + "% dari AUM)");
         }
 
         return ValidationResult.pass();
+    }
+
+    private static BigDecimal inBase(BigDecimal amount, Currency from, Currency to, BigDecimal fxRate) {
+        if (from == to) return amount;
+        if (fxRate == null || fxRate.signum() <= 0) throw new IllegalArgumentException("Kurs valuasi harus positif");
+        return from == Currency.USD ? amount.multiply(fxRate) : amount.divide(fxRate, 8, RoundingMode.HALF_UP);
+    }
+
+    public boolean isWithinLimits(ClientMandate mandate, Account account, BigDecimal fxRate) {
+        if (account == null || mandate.getStatus() != ClientMandate.MandateStatus.ACTIVE) return false;
+        Currency base = mandate.getInitialDeposit().getCurrency();
+        BigDecimal aum = account.getTotalPortfolioValue(base, fxRate).getAmount();
+        BigDecimal cash = BigDecimal.ZERO;
+        for (Currency currency : Currency.values())
+            cash = cash.add(inBase(account.getAvailableCash(currency).getAmount(), currency, base, fxRate));
+        if (aum.signum() <= 0 || cash.compareTo(aum.multiply(BigDecimal.valueOf(mandate.getRiskProfile().getMinCashReserve()))) < 0)
+            return false;
+        if (aum.compareTo(mandate.getHighWaterMark().getAmount().multiply(BigDecimal.ONE.subtract(
+                BigDecimal.valueOf(mandate.getRiskProfile().getMaxDrawdownLimit())))) < 0) return false;
+        for (Position position : account.getPositions().values()) {
+            if (inBase(position.getMarketValue().getAmount(), position.getCurrency(), base, fxRate).compareTo(
+                    aum.multiply(BigDecimal.valueOf(mandate.getRiskProfile().getMaxConcentrationPerStock()))) > 0) return false;
+        }
+        return true;
     }
 
     public static final class FeeResult {

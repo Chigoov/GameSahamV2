@@ -23,3 +23,14 @@ Status awal seluruh gate: NOT_TESTED. Dokumen bukan bukti runtime. Perbarui stat
 - OQ-18 masih menentukan batas penerimaan perangkat pemilik. Bukti fisik belum tersedia harus dinyatakan pending; jangan menyebut device-tested tanpa pengujian.
 - Tidak ada target MB/RAM/FPS yang ditetapkan diam-diam. Catat hasil aktual dan ambang yang disepakati. Angka perangkat 3D lama bukan syarat produk baru.
 - Sediakan panduan pemain singkat, catatan batas data, known issues dan pemulihan save bersama APK.
+
+
+## Checkpoint audit owner 19 Oktober 2026
+
+Status G01–G03/G05–G07 tetap PARTIAL; G04 dataset BLOCKED; G08 runtime/performa BLOCKED oleh ketiadaan emulator/perangkat. Bukti baru tidak meluluskan seluruh PRD.
+
+- 153 tes/14 suite/18 regresi baru; 13 browser checks pada host Java; 20 sampel portrait; 0 overflow horizontal. Scroll vertikal masih ada dan V8 fixed-page belum diintegrasikan.
+- Build APK debug dan signature PASS, 7 aset paket exact; lint 0 error/13 warning. Instalasi/native Back/keyboard/background/force-stop/performa NOT_TESTED.
+- G02/G03 masih memerlukan penutupan gate karier/sesi/entitlement, laporan klien dan acceptance fitur lanjutan. G06 native masih belum terverifikasi walau autosave source ditambahkan.
+- Target utama Poco X8 Pro 12/512, instalasi pertama; emulator diizinkan tetapi emulator binary/system image/AVD tidak tersedia saat audit.
+- Bukti terbaru dan daftar gap: [audit owner](OWNER-AUDIT-2026-10-19.md), [matrix UI](OWNER-UI-LOGIC-MATRIX.csv), `Artifacts/OwnerAudit-2026-10-19/verification.json`. Hash/ukuran APK lama di tabel historis di atas tidak mewakili kandidat terbaru.

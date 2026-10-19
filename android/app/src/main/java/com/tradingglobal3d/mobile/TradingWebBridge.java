@@ -42,7 +42,8 @@ public final class TradingWebBridge {
         try {
             return facade.getSnapshotJson();
         } catch (Exception e) {
-            return "{\"error\":\"" + e.getMessage() + "\"}";
+            try { return new JSONObject().put("success", false).put("error", e.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
         }
     }
 
@@ -910,7 +911,17 @@ public final class TradingWebBridge {
             facade.tick(seconds);
             return getSnapshot();
         } catch (Exception e) {
-            return "{\"error\":\"" + e.getMessage() + "\"}";
+            try { return new JSONObject().put("success", false).put("error", e.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String skipDay(String requestId) {
+        try { return facade.skipDay(requestId).toString(); }
+        catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
         }
     }
 
@@ -1049,6 +1060,8 @@ public final class TradingWebBridge {
             JSONObject cfg = jsonConfig != null && !jsonConfig.isEmpty() ? new JSONObject(jsonConfig) : new JSONObject();
             String modeStr = cfg.optString("mode", "INTERNAL_MARKET");
             com.tradingglobal3d.core.model.GameMode mode = com.tradingglobal3d.core.model.GameMode.valueOf(modeStr);
+            if (mode != com.tradingglobal3d.core.model.GameMode.INTERNAL_MARKET)
+                throw new IllegalStateException("Replay historis belum tersedia: dataset dan hak penggunaan belum terverifikasi");
             long capital = cfg.optLong("initialCapital", 50_000_000L);
             if (capital <= 0) capital = 50_000_000L;
             facade.initializeNewGame(mode, BigDecimal.valueOf(capital));

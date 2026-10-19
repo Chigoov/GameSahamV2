@@ -146,7 +146,7 @@ public final class PlayerProgressManager {
         if (xp < 1000) return 5;
         if (xp < 1350) return 6;
         if (xp < 1750) return 7;
-        return 7 + (xp - 1750) / 500;
+        return 8 + (xp - 1750) / 500;
     }
 
     public static int getNextLevelThreshold(int currentLevel) {
@@ -181,7 +181,7 @@ public final class PlayerProgressManager {
     public synchronized boolean onTradeExecuted(String exchange, long timestamp) {
         boolean xpGranted = false;
         if (exchange != null && !exchange.isEmpty()) {
-            tradedExchanges.add(exchange.toUpperCase());
+            tradedExchanges.add(exchange.toUpperCase(Locale.ROOT));
         }
 
         // Achievement 1: Transaksi Pertama
@@ -339,6 +339,8 @@ public final class PlayerProgressManager {
         currentXp = state.optInt("xp", 0);
         cleanSessionCloses = state.optInt("cleanSessionCloses", 0);
         clientReportsCompleted = state.optInt("clientReportsCompleted", 0);
+        if (currentXp < 0 || cleanSessionCloses < 0 || clientReportsCompleted < 0)
+            throw new JSONException("Progres pemain negatif");
 
         JSONArray readArr = state.optJSONArray("readArticles");
         if (readArr != null) {
@@ -351,18 +353,25 @@ public final class PlayerProgressManager {
         }
 
         JSONArray achArr = state.optJSONArray("achievements");
+        Set<String> restoredIds = new HashSet<>();
+        int earnedXp = 0;
         if (achArr != null) {
             for (int i = 0; i < achArr.length(); i++) {
                 JSONObject aObj = achArr.getJSONObject(i);
                 String id = aObj.getString("id");
                 Achievement a = achievements.get(id);
+                if (a == null || !restoredIds.add(id) || aObj.getInt("progress") < 0
+                        || aObj.getInt("progress") > a.getTargetProgress())
+                    throw new JSONException("Pencapaian save tidak valid");
                 if (a != null) {
                     a.setProgress(aObj.optInt("progress", 0));
                     if (aObj.optBoolean("unlocked", false)) {
                         a.unlock(aObj.optLong("unlockedTimestamp", 0));
+                        earnedXp += a.getXpReward();
                     }
                 }
             }
         }
+        if (currentXp != earnedXp) throw new JSONException("XP tidak cocok dengan pencapaian");
     }
 }

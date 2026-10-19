@@ -531,7 +531,7 @@
                 flowText(newsSection, 'Berita', 'Belum ada berita terbit saat ini.');
             } else {
                 feed.news.forEach(n => {
-                    if (bridge.recordResearchRead) bridge.recordResearchRead(n.headline);
+                    if (bridge.recordResearchRead) bridge.recordResearchRead(n.id);
                     const card = document.createElement('article');
                     card.className = 'card';
                     const h = document.createElement('h3');
@@ -1345,12 +1345,12 @@
                     h.textContent = `${r.clientName} (${r.mandateId || r.id})`;
                     card.append(h);
                     flowText(card, 'Status akun', r.statusLabel || r.status || (r.accountActive ? 'Aktif' : 'Tawaran'));
-                    flowText(card, 'Profil risiko & benchmark', `${r.riskProfile} (Benchmark: ${r.benchmark || 'IHSG'})`);
-                    flowText(card, 'Setoran modal awal', r.initialDeposit || r.initialCapital || 'Rp 0');
-                    flowText(card, 'High-Water Mark (HWM)', r.highWaterMark || 'Rp 0');
-                    flowText(card, 'Skor kepercayaan klien (Trust)', `${r.trustScore || 70} / 100`);
-                    flowText(card, 'Tarif management fee', `${(Number(r.managementFeeRate || r.managementFeeAnnualRate || 0.015) * 100).toFixed(1)}% p.a.`);
-                    flowText(card, 'Tarif performance fee', `${(Number(r.performanceFeeRate || 0.20) * 100).toFixed(0)}% di atas HWM`);
+                    flowText(card, 'Profil risiko & benchmark', `${r.riskProfile} (Benchmark: ${r.benchmark ?? 'Belum tersedia'})`);
+                    flowText(card, 'Setoran modal awal', r.initialDeposit ?? 'Belum tersedia');
+                    flowText(card, 'High-Water Mark (HWM)', r.highWaterMark ?? 'Belum tersedia');
+                    flowText(card, 'Skor kepercayaan klien (Trust)', r.trust != null ? `${r.trust} / 100` : 'Belum tersedia');
+                    flowText(card, 'Tarif management fee', r.managementFeeAnnualRate != null ? `${(Number(r.managementFeeAnnualRate) * 100).toFixed(1)}% p.a.` : 'Belum tersedia');
+                    flowText(card, 'Tarif performance fee', r.performanceFeeRate != null ? `${(Number(r.performanceFeeRate) * 100).toFixed(0)}% di atas HWM` : 'Belum tersedia');
                     panel.append(card);
                 });
             }
@@ -1874,7 +1874,7 @@
         flowText(panel, 'Waktu game', clock ? `${clock.date} ${clock.time} — ${clock.sessionLabel}` : 'Belum tersedia');
         flowText(panel, 'Akun', currentAccount ? currentAccount.name : 'Belum tersedia');
         flowText(panel, 'Batas informasi', 'Atribusi berita, kontribusi portofolio dan kalender belum terhubung. Tidak menyimpulkan penyebab pergerakan pasar.');
-        flowText(panel, 'Aturan waktu', 'Kontrol memakai clock game existing 1×/2×/5×; kebijakan ekonomi dan background masih sementara (OQ-06).');
+        flowText(panel, 'Waktu normal', '24 jam game = 5 menit nyata. Waktu dijeda saat aplikasi masuk latar belakang.');
         if (bridge.setClockState && clock) {
             const speed = document.createElement('select'); speed.className = 'input-field';
             speed.id = 'briefing-speed';
@@ -1884,6 +1884,7 @@
             const updateClock = playing => {
                 try {
                     const result = JSON.parse(bridge.setClockState(playing, Number(speed.value)));
+                    lastClockSample = performance.now();
                     if (!result.clock) throw new Error(result.message || 'Clock belum terkonfirmasi');
                     refreshSnapshot();
                     flowText(panel, 'Waktu terkonfirmasi', `${result.clock.isPaused ? 'Dijeda' : 'Berjalan'} ${result.clock.speed}×`);
@@ -1892,6 +1893,37 @@
             flowButton(panel, 'Mulai / lanjutkan waktu', () => updateClock(true));
             flowButton(panel, 'Jeda waktu', () => updateClock(false));
         } else flowText(panel, 'Kontrol', 'Bridge kontrol domain belum tersedia pada pratinjau ini.');
+        if (bridge.skipDay && clock) flowButton(panel, 'Lewati 24 jam game', () => {
+            const paused = JSON.parse(bridge.setClockState(false, clock.speed));
+            lastClockSample = performance.now();
+            if (!paused.clock) return;
+            const review = showFlow('Tinjau skip hari');
+            flowText(review, 'Durasi', '24 jam game dari waktu saat ini. Waktu tetap dijeda setelah selesai.');
+            flowText(review, 'Dampak', 'Order dapat terisi, pemicu diperiksa, serta biaya harian, fee klien, laporan dan aksi korporasi diproses.');
+            if (bridge.getOrders && currentAccount) {
+                const orders = JSON.parse(bridge.getOrders(currentAccount.id, true));
+                flowText(review, 'Order aktif pada akun terpilih', String(orders.length));
+            }
+            const requestId = 'REQ-SKIP-' + crypto.randomUUID();
+            let completed = false;
+            const confirm = flowButton(review, 'Konfirmasi skip 24 jam', event => {
+                event.currentTarget.disabled = true;
+                try {
+                    const result = JSON.parse(bridge.skipDay(requestId));
+                    if (!result.success) throw new Error(result.message || 'Skip perlu diperiksa; waktu tetap dijeda.');
+                    completed = true;
+                    flowText(review, 'Selesai', `${result.from} → ${result.to}`);
+                    flowText(review, 'Penyimpanan', 'Hasil tersimpan. Lihat laporan sesi untuk rincian.');
+                    refreshSnapshot();
+                } catch (error) {
+                    flowText(review, 'Belum terkonfirmasi', error.message);
+                    confirm.textContent = 'Periksa / coba ulang permintaan yang sama';
+                } finally {
+                    confirm.disabled = completed;
+                    lastClockSample = performance.now();
+                }
+            });
+        });
         if (bridge.closeDay) {
             flowButton(panel, 'Tutup Hari Bursa & Evaluasi Sesi (S08)', () => {
                 const reqId = 'REQ-DAY-CLOSE-' + Date.now();
@@ -2126,7 +2158,7 @@
                     closeFlow();
                     switchTab('pasar');
                     try {
-                        const stocks = JSON.parse(bridge.getInstruments('ALL', true));
+                        const stocks = JSON.parse(bridge.getInstruments('', '', null, true));
                         if (stocks && stocks.length > 0) openOrderTicket(stocks[0]);
                     } catch (e) {}
                 }
@@ -2287,6 +2319,7 @@
         flowButton(panel, 'Simpan permainan', () => {
             try {
                 const result = JSON.parse(bridge.saveGame());
+                if (result.success) document.getElementById('native-save-warning')?.remove();
                 flowText(panel, result.success ? 'Save terkonfirmasi' : 'Save gagal', result.message || 'Periksa status salinan valid terakhir');
             } catch (error) { flowText(panel, 'Save belum terkonfirmasi', error.message); }
         });
@@ -2306,12 +2339,33 @@
     // Initial Load
     refreshSnapshot();
 
-    // Loop tick otomatis (setiap 3 detik untuk simulasi pasar)
+    window.showNativeSaveFailure = () => {
+        if (document.getElementById('native-save-warning')) return;
+        const warning = document.createElement('p');
+        warning.id = 'native-save-warning'; warning.setAttribute('role', 'alert');
+        warning.className = 'mock-banner';
+        warning.textContent = 'Progres terakhir belum tersimpan. Buka Pengaturan untuk mencoba simpan ulang.';
+        document.body.prepend(warning);
+    };
+
+    // Measure elapsed active time only. Java owns the time ratio and market advancement.
+    let lastClockSample = performance.now();
+    document.addEventListener('visibilitychange', () => { lastClockSample = performance.now(); });
     setInterval(() => {
-        if (bridge && bridge.tickClock) {
-            bridge.tickClock(5); // majukan 5 detik game
+        const now = performance.now();
+        if (document.hidden) { lastClockSample = now; return; }
+        const elapsed = Math.floor((now - lastClockSample) / 1000);
+        if (elapsed > 0 && bridge && bridge.tickClock) {
+            lastClockSample += elapsed * 1000;
+            const tick = JSON.parse(bridge.tickClock(elapsed));
+            if (tick.success === false || tick.error) {
+                const error = document.getElementById('clock-error') || document.createElement('p');
+                error.id = 'clock-error'; error.setAttribute('role', 'alert');
+                error.textContent = 'Waktu dijeda: ' + (tick.error || tick.message || 'proses hari perlu diperiksa.');
+                if (!error.isConnected) document.querySelector('main').prepend(error);
+            }
             if (currentTab === 'beranda') refreshSnapshot();
         }
-    }, 3000);
+    }, 1000);
 
 })();

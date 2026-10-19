@@ -89,3 +89,17 @@ Pertanyaan berikut adalah daftar keputusan yang masih terbuka. Jawaban tidak dii
 **Keputusan yang menghalangi spesifikasi implementasi final:** cakupan data dan instrumen, perilaku replay, sistem waktu, parameter ekonomi, definisi instrumen multi-aset, aturan margin/short, serta perangkat dan kriteria penerimaan.
 
 **Status akhir dokumen:** PRD mencakup seluruh fitur wajib yang diminta. Produk dan APK belum dibangun melalui pekerjaan ini. Estimasi jadwal, ukuran APK, dan performa belum dapat ditetapkan sebagai komitmen sebelum keputusan terbuka yang memengaruhinya diselesaikan.
+
+
+## Keputusan pemilik yang dipakai pada audit 19 Oktober 2026
+
+- UI akhir kembali portrait; palet graphite + amber + teal. V8 menjadi referensi presentasi, belum integrasi produksi penuh.
+- Normal: 24 jam game = 5 menit nyata (288 detik game/detik nyata). Kontrol 1x/2x/5x existing dipertahankan. Skip = maju tepat 24 jam dengan proses dunia game dan receipt idempoten. Background memakai kebijakan pause existing, tanpa offline catch-up.
+- Level/XP dan badge tidak memberi uang; pembukaan fitur mengikuti karier. Enforcemen domain seluruh fitur masih gap audit.
+- Indeks simulasi dari saham tersedia diterima, dengan label serta anggota transparan; tidak menyatakan indeks resmi/semua pasar dunia sudah didukung.
+- Agen lain dinyatakan tidak bekerja. Owner mengizinkan audit + perbaikan source + uji ulang.
+- Target utama: Poco X8 Pro 12/512. Android dan ambang performa belum terukur. Ini melengkapi target utama OQ-16, bukan otomatis menetapkan minimum/performa.
+- Belum pernah memasang APK: siapkan instalasi pertama. Pengujian update APK lama bukan acceptance sesi ini; app ID/signing existing tetap dipertahankan.
+- Emulator yang tersedia boleh digunakan. Lingkungan audit tidak memiliki emulator runnable/system image/AVD atau perangkat ADB; tidak ada bukti native. Izin memakai emulator tidak berarti pengujian sudah dilakukan.
+
+Lihat Work/OWNER-AUDIT-2026-10-19.md untuk bukti dan bagian OQ lain yang tetap terbuka.

@@ -22,13 +22,20 @@ public final class ResearchService {
 
     private TerminalTier currentTier = TerminalTier.BASIC;
     private long subscriptionExpiresAt = Long.MAX_VALUE; // Basic gratis selamanya
+    private long contentEpoch;
 
     public ResearchService() {
-        initializeSampleData();
+        resetForGame(System.currentTimeMillis());
     }
 
-    private void initializeSampleData() {
-        long baseTime = System.currentTimeMillis();
+    public synchronized void resetForGame(long baseTime) {
+        contentEpoch = baseTime;
+        newsList.clear();
+        analystReports.clear();
+        calendarEvents.clear();
+        currentTier = TerminalTier.BASIC;
+        subscriptionExpiresAt = Long.MAX_VALUE;
+        LocalDate baseDate = java.time.Instant.ofEpochMilli(baseTime).atZone(java.time.ZoneId.of("Asia/Jakarta")).toLocalDate();
 
         // 1. Berita yang sudah terbit
         newsList.add(new NewsArticle(
@@ -48,6 +55,12 @@ public final class ResearchService {
                 "Rencana aksi korporasi besar yang baru akan diumumkan besok lusa.",
                 NewsArticle.Category.SECTOR, "ANTM", 0.90, baseTime + 86400_000L
         ));
+        newsList.add(new NewsArticle("NEWS-GAME-04", "Simulasi: membaca likuiditas pasar",
+                "Antrean tipis dapat menyebabkan partial fill. Periksa spread dan volume transaksi sebelum mengirim order.",
+                NewsArticle.Category.MACRO, null, 0, baseTime + 2L * 86400_000L));
+        newsList.add(new NewsArticle("NEWS-GAME-05", "Simulasi: menilai risiko lintas mata uang",
+                "Nilai saham USD dalam portofolio IDR juga berubah bersama kurs valuasi. Pisahkan laba saham dan eksposur kurs.",
+                NewsArticle.Category.MACRO, null, 0, baseTime + 3L * 86400_000L));
 
         // 2. Laporan Analis NPC
         analystReports.add(new AnalystReport(
@@ -65,20 +78,21 @@ public final class ResearchService {
 
         // 3. Kalender Finansial
         calendarEvents.add(new CalendarEvent(
-                "CAL-01", LocalDate.now(), "Rilis Laporan Keuangan BBCA Q3",
+                "CAL-01", baseDate, "Rilis Laporan Keuangan BBCA Q3",
                 CalendarEvent.EventCategory.EARNINGS_RELEASE, "BBCA", "Publikasi laporan keuangan kuartalan di keterbukaan informasi BEI"
         ));
         calendarEvents.add(new CalendarEvent(
-                "CAL-02", LocalDate.now().plusDays(2), "Rapat Kebijakan Moneter The Fed (FOMC)",
+                "CAL-02", baseDate.plusDays(2), "Rapat Kebijakan Moneter The Fed (FOMC)",
                 CalendarEvent.EventCategory.MACRO_POLICY, null, "Pengumuman suku bunga acuan Fed Funds Rate"
         ));
     }
 
     public org.json.JSONObject exportState() throws org.json.JSONException {
-        return new org.json.JSONObject().put("tier", currentTier.name()).put("expiresAt", subscriptionExpiresAt);
+        return new org.json.JSONObject().put("tier", currentTier.name()).put("expiresAt", subscriptionExpiresAt).put("contentEpoch", contentEpoch);
     }
 
     public void restoreState(org.json.JSONObject state) throws org.json.JSONException {
+        if (state.has("contentEpoch")) resetForGame(state.getLong("contentEpoch"));
         currentTier = TerminalTier.valueOf(state.getString("tier"));
         subscriptionExpiresAt = state.getLong("expiresAt");
     }
@@ -129,11 +143,10 @@ public final class ResearchService {
      * Entitlement Check: Memeriksa apakah fitur terminal tertentu diizinkan.
      */
     public synchronized boolean hasAccess(TerminalTier requiredTier, long currentTimestamp) {
-        if (requiredTier == TerminalTier.BASIC) return true;
-        if (currentTimestamp > subscriptionExpiresAt) {
+        if (currentTimestamp >= subscriptionExpiresAt) {
             this.currentTier = TerminalTier.BASIC; // Otomatis turun ke Basic jika expired
-            return false;
         }
+        if (requiredTier == TerminalTier.BASIC) return true;
         return currentTier.includes(requiredTier);
     }
 
@@ -148,6 +161,7 @@ public final class ResearchService {
 
         if (targetTier == TerminalTier.BASIC) {
             this.currentTier = TerminalTier.BASIC;
+            this.subscriptionExpiresAt = Long.MAX_VALUE;
             return true;
         }
 

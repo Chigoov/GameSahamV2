@@ -17,6 +17,12 @@ public final class FxExchangeService {
     private FxQuote currentQuote;
     private final java.util.Map<String, Receipt> receipts = new java.util.LinkedHashMap<>();
 
+    public synchronized void reset() {
+        currentMidRate = new BigDecimal("15800.00");
+        currentQuote = null;
+        receipts.clear();
+    }
+
     private static final class Receipt {
         final String accountId;
         final FxQuote.ConversionPreview preview;

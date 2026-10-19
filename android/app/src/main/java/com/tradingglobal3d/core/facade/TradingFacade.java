@@ -63,6 +63,7 @@ public final class TradingFacade {
     private final EconomyLedger ledger = new EconomyLedger();
     private final SaveManager saveManager;
     private InstrumentCatalog catalog = new InstrumentCatalog();
+    private JSONObject initialCatalogState;
     private final MarketEngine marketEngine = new MarketEngine();
     private final FxExchangeService fxService = new FxExchangeService();
     private final OrderManager orderManager = new OrderManager();
@@ -75,12 +76,13 @@ public final class TradingFacade {
     private final HistoricalReplayEngine replayEngine = new HistoricalReplayEngine();
     private final PlayerProgressManager progressManager = new PlayerProgressManager();
     private final Map<String, JSONObject> dayCloseReceipts = new LinkedHashMap<>();
+    private final Map<String, JSONObject> skipDayReceipts = new LinkedHashMap<>();
+    public static final int GAME_SECONDS_PER_REAL_SECOND = 288;
 
     public synchronized JSONObject closeDay(String requestId) throws JSONException {
         if (requestId == null || requestId.trim().isEmpty()) throw new IllegalArgumentException("ID penutupan wajib diisi");
         if (dayCloseReceipts.containsKey(requestId)) return dayCloseReceipts.get(requestId);
         DailySessionReport report = closeDayAndAdvance();
-        progressManager.onCleanSessionClosed(System.currentTimeMillis());
         JSONObject receipt = new JSONObject().put("success", true).put("date", report.getDate().toString())
                 .put("startingNetWorth", report.getStartingNetWorth().format())
                 .put("endingNetWorth", report.getEndingNetWorth().format()).put("investmentPnL", report.getDailyPnL().format())
@@ -99,7 +101,12 @@ public final class TradingFacade {
     }
 
     public synchronized boolean recordResearchRead(String articleId) {
-        return progressManager.onResearchRead(articleId, System.currentTimeMillis());
+        if (articleId == null) return false;
+        for (com.tradingglobal3d.core.research.NewsArticle article : getNewsFeed()) {
+            if (article.getId().equals(articleId))
+                return progressManager.onResearchRead(articleId, clock.getGameTimestamp());
+        }
+        return false;
     }
 
     public synchronized HistoricalReplayEngine getReplayEngine() {
@@ -119,6 +126,7 @@ public final class TradingFacade {
     }
 
     public synchronized ResearchService getResearchService() {
+        if (clock != null) researchService.hasAccess(TerminalTier.BASIC, clock.getGameTimestamp());
         return researchService;
     }
 
@@ -177,6 +185,8 @@ public final class TradingFacade {
 
     public synchronized void setCatalog(InstrumentCatalog catalog) {
         this.catalog = Objects.requireNonNull(catalog);
+        try { initialCatalogState = catalog.exportState(); }
+        catch (JSONException error) { throw new IllegalArgumentException("Katalog tidak dapat disiapkan", error); }
         Account mm = accounts.get("ACC-NPC-MM-01");
         if (mm != null) {
             for (Instrument inst : catalog.getActiveUniverse()) {
@@ -196,11 +206,14 @@ public final class TradingFacade {
     }
 
     public synchronized void initializeNewGame(GameMode mode, BigDecimal initialIdrCapital) {
+        if (initialIdrCapital == null || initialIdrCapital.signum() <= 0)
+            throw new IllegalArgumentException("Modal awal harus positif");
         this.gameMode = Objects.requireNonNull(mode);
         this.clock = GameClock.createDefault();
         this.accounts.clear();
         this.ledger.clear();
         this.dayCloseReceipts.clear();
+        this.skipDayReceipts.clear();
         this.firmManager.reset();
         this.corporateService.reset();
         this.riskService.reset();
@@ -208,6 +221,14 @@ public final class TradingFacade {
         this.orderManager.reset();
         this.marketEngine.reset();
         this.progressManager.reset();
+        this.careerManager.reset();
+        this.fxService.reset();
+        this.replayEngine.reset();
+        this.researchService.resetForGame(clock.getGameTimestamp());
+        if (initialCatalogState != null) {
+            try { catalog.restoreState(initialCatalogState); }
+            catch (JSONException error) { throw new IllegalStateException("Katalog awal tidak dapat dipulihkan", error); }
+        }
 
         // 1. Buat Akun Pribadi Pemain
         this.personalAccountId = "ACC-PERSONAL-001";
@@ -246,6 +267,7 @@ public final class TradingFacade {
         NpcAgent marketMaker = new NpcAgent("NPC-MM-01", "Bandar Likuiditas Prima", NpcStrategyType.MARKET_MAKER, mmAccount);
         marketEngine.registerNpcAgent(marketMaker);
         careerManager.beginDay(personal, fxService.getMidRate(), ledger);
+        recoveryRequired = false;
     }
 
     public synchronized String setClockState(boolean playing, int speed) throws JSONException {
@@ -354,6 +376,7 @@ public final class TradingFacade {
             if (mandate != null) {
                 FirmManager.ValidationResult val = firmManager.validateOrder(mandate, acc, order, inst, fxService.getMidRate());
                 if (!val.isValid) {
+                    mandate.adjustTrust(-5);
                     order.setStatus(OrderStatus.REJECTED);
                     orderManager.registerOrder(order);
                     return new MatchingEngine.OrderResult(order, false, "Ditolak Mandat Klien: " + val.reason, Collections.emptyList());
@@ -366,10 +389,7 @@ public final class TradingFacade {
             return new MatchingEngine.OrderResult(order, true, "Order pemicu tersimpan menunggu harga menyentuh trigger", Collections.emptyList());
         }
 
-        MatchingEngine.OrderResult result = marketEngine.submitOrder(order, acc, inst, ledger, accounts, System.currentTimeMillis());
-        if (result.order.getFilledQuantity() > 0 && result.order.getAccountId().equals(personalAccountId)) {
-            progressManager.onTradeExecuted(inst.getExchange().name(), System.currentTimeMillis());
-        }
+        MatchingEngine.OrderResult result = marketEngine.submitOrder(order, acc, inst, ledger, accounts, clock.getGameTimestamp());
         evaluateRecordedCareerProgress();
         return result;
     }
@@ -470,19 +490,24 @@ public final class TradingFacade {
     private void evaluateRecordedCareerProgress() {
         Account personal = getPersonalAccount();
         if (personal != null) careerManager.evaluateRecordedTrades(personal, ledger);
+        // All execution paths (resting orders, NPC matches and triggers) converge here.
+        for (Order order : orderManager.getOrdersForAccount(personalAccountId)) {
+            if (order.getFilledQuantity() > 0)
+                progressManager.onTradeExecuted(catalog.getById(order.getInstrumentId()).getExchange().name(), clock.getGameTimestamp());
+        }
     }
 
     public synchronized void generateNpcLiquidity() {
-        marketEngine.tick(System.currentTimeMillis(), catalog, ledger, accounts);
+        marketEngine.tick(clock.getGameTimestamp(), catalog, ledger, accounts);
         evaluateRecordedCareerProgress();
     }
 
     public synchronized List<NewsArticle> getNewsFeed() {
-        return researchService.getPublishedNews(System.currentTimeMillis());
+        return researchService.getPublishedNews(clock.getGameTimestamp());
     }
 
     public synchronized List<AnalystReport> getAnalystReports() {
-        return researchService.getPublishedReports(System.currentTimeMillis());
+        return researchService.getPublishedReports(clock.getGameTimestamp());
     }
 
     public synchronized List<CalendarEvent> getCalendar() {
@@ -492,7 +517,7 @@ public final class TradingFacade {
     public synchronized boolean subscribeTerminal(TerminalTier tier) {
         Account personal = getPersonalAccount();
         if (personal == null) return false;
-        return researchService.subscribeTerminal(personal, tier, ledger, System.currentTimeMillis());
+        return researchService.subscribeTerminal(personal, tier, ledger, clock.getGameTimestamp());
     }
 
     public synchronized FundAllocationPlan saveFundPlan(String planId, String accountId, String name, Map<String, Double> targetWeights, double cashWeight) {
@@ -641,9 +666,18 @@ public final class TradingFacade {
     }
 
     public synchronized DailySessionReport closeDayAndAdvance() {
+        return settleDay(true);
+    }
+
+    private DailySessionReport settleDay(boolean advanceToMorning) {
         Account personal = getPersonalAccount();
         if (personal == null) throw new IllegalStateException("Akun personal belum dibuat");
-        long now = System.currentTimeMillis();
+        // Validate before financing, fees or ledger mutations can occur.
+        if (!clock.getCurrentTime().isAfter(LocalTime.of(16, 0, 59)))
+            throw new IllegalStateException("Penutupan hari belum tersedia sebelum sesi selesai (16:01 WIB pada aturan sementara)");
+        for (DailySessionReport existing : careerManager.getSessionReports())
+            if (existing.getDate().equals(clock.getCurrentDate())) return existing;
+        long now = clock.getGameTimestamp();
 
         // 1. Bebankan biaya pembiayaan harian (short borrow fee & bunga pinjaman margin)
         riskService.accrueDailyFinancingCosts(personal, catalog, ledger, fxService.getMidRate(), now);
@@ -652,10 +686,19 @@ public final class TradingFacade {
                 clock, personal, catalog, ledger, fxService.getMidRate(), now
         );
 
-        // Pindahkan tanggal clock ke hari berikutnya dan set waktu ke 08:30:00 WIB
+        // Automatic calendar advancement must retain the time of day.
+        for (ClientMandate mandate : firmManager.getActiveMandates()) collectClientFees(mandate.getId());
+        if (!firmManager.getActiveMandates().isEmpty() && firmManager.getActiveMandates().stream().allMatch(mandate ->
+                firmManager.isWithinLimits(mandate, accounts.get(mandate.getClientAccountId()), fxService.getMidRate())))
+            progressManager.onCleanSessionClosed(now);
+        if (!advanceToMorning) return report;
         LocalDate nextDate = clock.getCurrentDate().plusDays(1);
         this.clock = new GameClock(nextDate, java.time.LocalTime.of(8, 30, 0));
+        processCalendarActions(nextDate);
+        return report;
+    }
 
+    private void processCalendarActions(LocalDate nextDate) {
         // 2. Eksekusi otomatis aksi korporasi yang jatuh tempo pada hari berikutnya
         for (com.tradingglobal3d.core.corporate.CorporateAction ca : corporateService.getCorporateActions()) {
             if (!ca.isExecuted() && !ca.getExecutionDate().isAfter(nextDate)) {
@@ -674,16 +717,10 @@ public final class TradingFacade {
             }
         }
 
-        // 4. Eksekusi pemungutan fee mandat klien aktif (Management Fee harian & HWM Performance Fee)
-        for (com.tradingglobal3d.core.firm.ClientMandate mandate : firmManager.getActiveMandates()) {
-            collectClientFees(mandate.getId());
-        }
-
-        return report;
     }
 
     public synchronized void evaluateTriggers() {
-        long now = System.currentTimeMillis();
+        long now = clock.getGameTimestamp();
         for (Instrument inst : catalog.getActiveUniverse()) {
             orderManager.checkAndActivateTriggers(inst, marketEngine, ledger, accounts, now);
         }
@@ -692,13 +729,56 @@ public final class TradingFacade {
 
     public synchronized boolean tick(int realSeconds) {
         if (clock == null || clock.isPaused() || realSeconds <= 0) return false;
-        boolean dayChanged = clock.tick(realSeconds);
-
-        if (clock.getCurrentMarketSession().isOpenForTrading()) {
-            generateNpcLiquidity();
+        try {
+            return advanceWorldSeconds(Math.multiplyExact((long) realSeconds,
+                    GAME_SECONDS_PER_REAL_SECOND * clock.getSpeedMultiplier()));
+        } catch (RuntimeException error) {
+            clock.pause();
+            throw error;
         }
-        evaluateTriggers();
-        return dayChanged;
+    }
+
+    private boolean advanceWorldSeconds(long remaining) {
+        // ponytail: minute steps suit the current date-based events; use event timestamps if sub-minute events are introduced.
+        LocalDate initialDate = clock.getCurrentDate();
+        while (remaining > 0) {
+            long midnight = 86400 - clock.getCurrentTime().toSecondOfDay();
+            long step = Math.min(remaining, Math.min(60, midnight));
+            if (step == midnight) {
+                clock.advanceGameSeconds(step - 1);
+                settleDay(false);
+                clock.advanceGameSeconds(1);
+                processCalendarActions(clock.getCurrentDate());
+            } else clock.advanceGameSeconds(step);
+            remaining -= step;
+            if (clock.getCurrentMarketSession().isOpenForTrading()) generateNpcLiquidity();
+            evaluateTriggers();
+        }
+        return !initialDate.equals(clock.getCurrentDate());
+    }
+
+    public synchronized JSONObject skipDay(String requestId) throws JSONException, IOException {
+        if (requestId == null || requestId.trim().isEmpty() || requestId.length() > 160)
+            throw new IllegalArgumentException("ID lewati hari tidak valid");
+        if (skipDayReceipts.containsKey(requestId)) {
+            save();
+            return skipDayReceipts.get(requestId);
+        }
+        if (clock == null || recoveryRequired) throw new IllegalStateException("Permainan belum siap");
+        clock.pause();
+        JSONObject receipt = new JSONObject().put("success", false).put("requestId", requestId)
+                .put("from", clock.getCurrentDate()+"T"+clock.getCurrentTime()).put("status", "PROCESSING");
+        skipDayReceipts.put(requestId, receipt);
+        try {
+            advanceWorldSeconds(86400);
+            receipt.put("success", true).put("status", "COMPLETED")
+                    .put("to", clock.getCurrentDate()+"T"+clock.getCurrentTime()).put("gameSeconds", 86400);
+        } catch (RuntimeException failure) {
+            clock.pause();
+            receipt.put("status", "NEEDS_REVIEW").put("message", "Kemajuan berhenti; periksa status sebelum mencoba lagi");
+        }
+        save();
+        return receipt;
     }
 
     /**
@@ -744,6 +824,7 @@ public final class TradingFacade {
         JSONObject closeReceipts = new JSONObject();
         for (Map.Entry<String, JSONObject> receipt : dayCloseReceipts.entrySet()) closeReceipts.put(receipt.getKey(), receipt.getValue());
         runtime.put("dayCloseReceipts", closeReceipts);
+        runtime.put("skipDayReceipts", new JSONObject(skipDayReceipts));
         state.setRuntimeState(runtime);
         saveManager.save(state);
     }
@@ -755,9 +836,28 @@ public final class TradingFacade {
         SaveState state = res.getState();
         // Validate the saved graph in detached managers before touching the live run.
         Map<String, JSONObject> restoredDayReceipts = new LinkedHashMap<>();
+        Map<String, JSONObject> restoredSkipReceipts = new LinkedHashMap<>();
         try {
             new GameClock(state.getGameDate(), state.getGameTime()).setSpeedMultiplier(state.getSpeedMultiplier());
             JSONObject runtime = state.getRuntimeState();
+            JSONObject skips = runtime.optJSONObject("skipDayReceipts");
+            if (skips != null) {
+                Iterator<String> keys = skips.keys();
+                while (keys.hasNext()) {
+                    String key = keys.next();
+                    JSONObject receipt = skips.getJSONObject(key);
+                    if (key.trim().isEmpty() || !key.equals(receipt.getString("requestId")))
+                        throw new JSONException("Receipt lewati hari tidak valid");
+                    receipt.getBoolean("success");
+                    java.time.LocalDateTime from = java.time.LocalDateTime.parse(receipt.getString("from"));
+                    if (receipt.getBoolean("success")) {
+                        java.time.LocalDateTime to = java.time.LocalDateTime.parse(receipt.getString("to"));
+                        if (receipt.getLong("gameSeconds") != 86400 || !from.plusDays(1).equals(to)
+                                || !"COMPLETED".equals(receipt.getString("status"))) throw new JSONException("Durasi lewati hari tidak valid");
+                    }
+                    restoredSkipReceipts.put(key, receipt);
+                }
+            }
             if (runtime.has("dayCloseReceipts")) {
                 JSONObject receipts = runtime.getJSONObject("dayCloseReceipts");
                 Iterator<String> keys = receipts.keys();
@@ -776,6 +876,7 @@ public final class TradingFacade {
             if (runtime.has("career")) new CareerManager().restoreState(runtime.getJSONObject("career"));
             if (runtime.has("mandates")) new FirmManager().restoreState(runtime.getJSONArray("mandates"));
             if (runtime.has("subscription")) new ResearchService().restoreState(runtime.getJSONObject("subscription"));
+            if (runtime.has("playerProgress")) new PlayerProgressManager().restoreState(runtime.getJSONObject("playerProgress"));
             if (runtime.has("fx")) new FxExchangeService().restoreState(runtime.getJSONObject("fx"));
             else for (LedgerEntry entry : state.getLedgerEntries()) {
                 if (entry.getType() == LedgerEntryType.FX_CONVERSION_DEBIT || entry.getType() == LedgerEntryType.FX_CONVERSION_CREDIT)
@@ -830,6 +931,8 @@ public final class TradingFacade {
             if (runtime.has("books")) marketEngine.restoreState(runtime.getJSONArray("books"), catalog, orderManager);
             dayCloseReceipts.clear();
             dayCloseReceipts.putAll(restoredDayReceipts);
+            skipDayReceipts.clear();
+            skipDayReceipts.putAll(restoredSkipReceipts);
             Account marketMakerAccount = accounts.get("ACC-NPC-MM-01");
             if (marketMakerAccount != null) marketEngine.registerNpcAgent(new NpcAgent("NPC-MM-01", "Bandar Likuiditas Prima", NpcStrategyType.MARKET_MAKER, marketMakerAccount));
         } catch (Exception invalidState) {

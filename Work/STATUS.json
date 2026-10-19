@@ -4,10 +4,10 @@
   "product": "Game Saham 2D Portrait",
   "prepared_date": "2026-10-18",
   "status": "PARTIAL",
-  "current_task": "REMEDIATION",
+  "current_task": "R04_UI_V8_AND_GAMEPLAY_GAPS",
   "completed_tasks": [],
   "hermes_session_id": "20261019_204502_5f1ffa",
-  "next_action": "Integrasi UI Graphite Terminal selesai (8/8 tahap). 135 tes unit domain lulus, 9 viewport responsif lulus, Playwright E2E finansial lulus, kandidat APK graphite-candidate terbangun byte-for-byte. Status produk PARTIAL (Gate native Android & dataset replay PENDING/BLOCKED by scope); tanpa ADB/push.",
+  "next_action": "Baca Work/OWNER-AUDIT-2026-10-19.md dan OWNER-UI-LOGIC-MATRIX.csv. Selesaikan gate karier/sesi/premium, laporan klien dan integrasi V8. Bukti host 153 tes + 13 browser checks; APK debug dibangun. Native BLOCKED: emulator binary/system image tidak ada; dataset historis belum tersedia.",
   "tasks": [
     {
       "id": "00",
@@ -245,20 +245,21 @@
     }
   ],
   "evidence": {
-    "domain": "NOT_TESTED",
-    "browser": "NOT_TESTED",
-    "native_bridge": "NOT_TESTED",
-    "historical_dataset": "NOT_TESTED",
-    "apk_build": "NOT_TESTED",
+    "domain": "PASS",
+    "browser": "PASS",
+    "native_bridge": "BLOCKED",
+    "historical_dataset": "BLOCKED",
+    "apk_build": "PASS",
     "apk_install": "NOT_TESTED",
     "physical_device": "NOT_TESTED",
     "performance": "NOT_TESTED"
   },
-  "last_checkpoint": "2026-10-18T18:39:42.998909+00:00",
+  "last_checkpoint": "2026-10-19T23:19:58.023317+07:00",
   "blockers": [
-    "OQ material ekonomi/data/target Android masih OPEN",
-    "Dataset nyata dan hak distribusi belum terbukti",
-    "Instalasi/native lifecycle/performa tetap PENDING: fase tanpa ADB"
+    "Celah akses karier/sesi/premium dan fitur UI V8 belum lengkap; lihat audit owner",
+    "Dataset historis/provenance/hak belum tersedia",
+    "Native belum diuji: emulator executable/system-image tidak ada dan daftar ADB kosong",
+    "Model Poco X8 Pro 12/512 diketahui; Android dan ambang performa belum terukur"
   ],
   "open_product_decisions": [
     "OQ-01",
@@ -291,5 +292,31 @@
     "read_before_game_code": true,
     "runtime_accessibility": "NOT_TESTED"
   },
-  "previous_checkpoint_archive": "Artifacts/Remediation/R01/before/STATUS.json"
+  "previous_checkpoint_archive": "Artifacts/Remediation/R01/before/STATUS.json",
+  "owner_audit": {
+    "status": "CHECKPOINT_VERIFIED_PRODUCT_PARTIAL",
+    "branch": "codex/owner-audit-portrait-v8",
+    "baseline": "0807e43",
+    "target_device": "Poco X8 Pro 12/512",
+    "installation": "FIRST_INSTALL",
+    "emulator_authorized": true,
+    "emulator_available": false,
+    "native_tests": "BLOCKED_NO_EMULATOR_OR_DEVICE",
+    "report": "Work/OWNER-AUDIT-2026-10-19.md",
+    "tests": 153,
+    "new_regressions": 18,
+    "browser_checks": 13,
+    "evidence_scope": "Subset host JVM/browser Java QA, bukan seluruh PRD/native",
+    "verification": "Artifacts/OwnerAudit-2026-10-19/verification.json",
+    "apk": {
+      "path": "Artifacts/OwnerAudit-2026-10-19/game-saham-owner-audit-debug.apk",
+      "bytes": 622716,
+      "sha256": "1f99218c636d8795cb11f4ce804516feaaf3a4a13fd141299487d102695d991a",
+      "matchedAssets": 7,
+      "signature": "VERIFIED_DEBUG",
+      "applicationId": "com.tradingglobal3d.mobile",
+      "minSdk": 26,
+      "targetSdk": 36
+    }
+  }
 }

@@ -1,0 +1,48 @@
+﻿route_v8,ui_v8,production_bridge,status,gap,native_acceptance
+home,Beranda,getSnapshot/getSessionReports,PARTIAL,Kartu snapshot produksi berbeda dari V8; attribution briefing/inbox belum utuh.,NOT_TESTED
+market,Pasar,getIndices/getInstruments/getOrders,PARTIAL,20 saham aktif IDX/US; regional lain belum memiliki universe/aturan transaksi.,NOT_TESTED
+assets,Aset,getPortfolio/getLedger,PARTIAL,Valuasi kas/posisi tersedia; UI fixed-page V8 belum terpasang.,NOT_TESTED
+firm,Firma,getFirmSnapshot,PARTIAL,AUM terpisah dari kekayaan pribadi; perjalanan karier/gate fitur belum utuh.,NOT_TESTED
+research,Riset,getResearchFeed,PARTIAL,Riset seed simulasi; bukan berita atau feed real-time dunia nyata.,NOT_TESTED
+instrument,Detail instrumen,getInstruments/getChartData/getOrderBook,PARTIAL,Candlestick dari matched fills game; belum seluruh terminal detail V8.,NOT_TESTED
+ticket,Susun order,previewOrder,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
+review,Tinjau order,previewOrder/submitOrder,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
+receipt,Status order,getOrderStatus/cancelOrder,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
+orders,Order & riwayat,getOrders/cancelOrder,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
+ledger,Aktivitas,getLedger,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
+position,Detail posisi,getPortfolio,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
+career,Perjalanan karier,getSnapshot/claimMission,PARTIAL,Misi dasar tersedia; promosi/akses fitur belum journey penerimaan penuh.,NOT_TESTED
+briefing,Briefing sesi,getSnapshot/setClockState/tickClock,PARTIAL,288 detik game/detik nyata; attribution dan inbox belum utuh.,NOT_TESTED
+dayclose,Tinjau penutupan,closeDay/skipDay,PARTIAL,Manual close dan skip 24 jam diuji; jam per bursa/libur belum lengkap.,NOT_TESTED
+report,Laporan harian,getSessionReports,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
+mandate,Detail mandat,getFirmSnapshot/acceptClientMandate,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
+clients,Klien & tawaran,getFirmSnapshot/acceptClientMandate,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
+clientreport,Laporan klien,getClientReports,PARTIAL,Hanya snapshot mandat; belum laporan periode/benchmark/risiko dan submit. onClientReportCompleted tidak punya caller.,NOT_TESTED
+fund,Rencana alokasi,getFundPlans/saveFundPlan/executeFundRebalance,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
+multiasset,Kelas aset,getMultiAssets,PARTIAL,Katalog/domain parsial; alur transaksi obligasi/komoditas/settlement belum utuh.,NOT_TESTED
+article,Catatan pasar,getResearchFeed/recordResearchRead,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
+analysts,Analis,getResearchFeed,PARTIAL,Laporan seed NPC; bukan track record akurasi yang dihitung dari outcome.,NOT_TESTED
+calendar,Kalender,getResearchFeed,PARTIAL,Kalender seed mengikuti epoch game; kalender seluruh bursa/libur belum lengkap.,NOT_TESTED
+packages,Paket riset,getResearchTiers/subscribeResearchTier,PARTIAL,Tarif/subscription/expiry ada; manfaat dan entitlement per layanan belum ditegakkan penuh.,NOT_TESTED
+subscription,Langganan,getResearchTiers/subscribeResearchTier,PARTIAL,Pembelian/expiry tersedia; manfaat paket belum seluruhnya fungsional.,NOT_TESTED
+corporate,Aksi korporasi,getCorporateActions,PARTIAL,Dividen/split subset ada; rights/reverse split/buyback/M&A belum lengkap.,NOT_TESTED
+ipo,IPO & penawaran,getIpoOfferings/orderIpo,PARTIAL,Pemesanan/refund IPO subset ada; tender M&A belum lengkap.,NOT_TESTED
+voting,Rapat pemegang saham,getShareholderAgendas/castShareholderVote,PARTIAL,Voting subset tersedia; konsekuensi agenda dan snapshot record-date perlu acceptance.,NOT_TESTED
+risk,Risiko & kepatuhan,getRiskSnapshot,PARTIAL,"Batas mandat dasar diperbaiki; agregasi order aktif, audit exposure lengkap dan cascade belum utuh.",NOT_TESTED
+margin,Fasilitas pinjaman,getRiskSnapshot/takeMarginLoan/repayMarginLoan/openShortPosition/closeShortPosition,PARTIAL,Loan/short subset; forced liquidation/recall/squeeze/shared liquidity perlu acceptance.,NOT_TESTED
+halt,Status perdagangan,getOrderBook,PARTIAL,State halt di domain; UI alasan/reopening dan semua jalur belum acceptance lengkap.,NOT_TESTED
+stress,Uji stres,getStressTestScenarios/runStressTest,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
+lab,Lab strategi,createStrategyLab/simulateLabTrade,PARTIAL,Sandbox terisolasi subset tersedia; replay keputusan lengkap belum.,NOT_TESTED
+replay,Replay historis,UNAVAILABLE_DATASET,BLOCKED_DATA,Tidak ada dataset berlisensi/terverifikasi; mode native ditolak dengan pesan jujur.,NOT_TESTED
+settings,Pengaturan,saveGame/loadGame,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
+recovery,Pemulihan progres,loadGame,PARTIAL,Host backup/corrupt/write-failure subset diuji; native force-stop belum.,NOT_TESTED
+entry,Permainanmu,loadGame/startNewGame,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
+newgame,Permainan baru,startNewGame,PARTIAL,Reset domain diperbaiki; replay berlisensi belum tersedia.,NOT_TESTED
+tutorial,Belajar sambil bermain,UI tutorial / existing bridge commands,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
+fx,Konversi mata uang,previewFx/confirmFx,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
+index,Indeks pasar,getIndices/getIndexDetail,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
+achievements,Level & pencapaian,getPlayerProgress/recordResearchRead,PARTIAL,5 badge punya event; badge report belum punya alur penyelesaian. XP tidak memberi uang/pembukaan fitur.,NOT_TESTED
+inbox,Kotak masuk,NONE,MISSING,Desain V8 saja; belum model pesan/tugas/keputusan tersimpan.,NOT_TESTED
+signals,Data alternatif,NONE,MISSING,Desain V8 saja; belum observasi data alternatif dengan sumber/waktu/ketidakpastian.,NOT_TESTED
+compare,Pantauan & perbandingan,NONE,MISSING,"Desain V8 saja; watchlist tersedia, perbandingan multi instrumen belum.",NOT_TESTED
+features,Jelajahi fitur,NONE,MISSING,Peta navigasi prototipe; belum dipasang pada shell produksi.,NOT_TESTED

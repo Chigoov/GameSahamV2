@@ -21,6 +21,8 @@ import java.util.*;
 public final class HistoricalReplayEngine {
     private final Map<String, StrategyLabSandbox> sandboxes = new HashMap<>();
 
+    public void reset() { sandboxes.clear(); }
+
     public StrategyLabSandbox createSandbox(String sandboxId, Account sourceAccount) {
         StrategyLabSandbox sb = new StrategyLabSandbox(sandboxId, sourceAccount);
         sandboxes.put(sandboxId, sb);
