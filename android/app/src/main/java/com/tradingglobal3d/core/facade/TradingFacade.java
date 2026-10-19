@@ -166,6 +166,17 @@ public final class TradingFacade {
 
     public synchronized void setCatalog(InstrumentCatalog catalog) {
         this.catalog = Objects.requireNonNull(catalog);
+        Account mm = accounts.get("ACC-NPC-MM-01");
+        if (mm != null) {
+            for (Instrument inst : catalog.getActiveUniverse()) {
+                if (mm.getPosition(inst.getId()) == null && mm.getPosition(inst.getTicker()) == null) {
+                    long initialShares = inst.getLotSize() * 200L;
+                    Position p = new Position(inst.getTicker(), inst.getExchange().name(), inst.getCurrency(),
+                            initialShares, inst.getCurrentPrice().getAmount(), inst.getCurrentPrice().getAmount());
+                    mm.addPosition(p);
+                }
+            }
+        }
     }
 
     public static TradingFacade createInMemory() {
@@ -543,7 +554,8 @@ public final class TradingFacade {
         Instrument inst = catalog.getById("IDX:" + ticker);
         if (inst == null) inst = catalog.getById("US:" + ticker);
         if (inst == null) throw new IllegalArgumentException("Saham tidak ditemukan: " + ticker);
-        return riskService.openShortPosition(personal, inst, shares, ledger, System.currentTimeMillis());
+        Account mm = accounts.get("ACC-NPC-MM-01");
+        return riskService.openShortPosition(personal, inst, shares, mm, ledger, System.currentTimeMillis());
     }
 
     public synchronized void closeShortPosition(String ticker, long shares) {
@@ -551,7 +563,8 @@ public final class TradingFacade {
         Instrument inst = catalog.getById("IDX:" + ticker);
         if (inst == null) inst = catalog.getById("US:" + ticker);
         if (inst == null) throw new IllegalArgumentException("Saham tidak ditemukan: " + ticker);
-        riskService.closeShortPosition(personal, inst, shares, ledger, System.currentTimeMillis());
+        Account mm = accounts.get("ACC-NPC-MM-01");
+        riskService.closeShortPosition(personal, inst, shares, mm, ledger, System.currentTimeMillis());
     }
 
     public synchronized RiskComplianceService.MarginHealthReport evaluateMarginHealth() {
@@ -599,11 +612,37 @@ public final class TradingFacade {
     public synchronized DailySessionReport closeDayAndAdvance() {
         Account personal = getPersonalAccount();
         if (personal == null) throw new IllegalStateException("Akun personal belum dibuat");
+        long now = System.currentTimeMillis();
+
+        // 1. Bebankan biaya pembiayaan harian (short borrow fee & bunga pinjaman margin)
+        riskService.accrueDailyFinancingCosts(personal, catalog, ledger, fxService.getMidRate(), now);
+
         DailySessionReport report = careerManager.closeDayAndAdvance(
-                clock, personal, catalog, ledger, fxService.getMidRate(), System.currentTimeMillis()
+                clock, personal, catalog, ledger, fxService.getMidRate(), now
         );
+
         // Pindahkan tanggal clock ke hari berikutnya dan set waktu ke 08:30:00 WIB
-        this.clock = new GameClock(clock.getCurrentDate().plusDays(1), java.time.LocalTime.of(8, 30, 0));
+        LocalDate nextDate = clock.getCurrentDate().plusDays(1);
+        this.clock = new GameClock(nextDate, java.time.LocalTime.of(8, 30, 0));
+
+        // 2. Eksekusi otomatis aksi korporasi yang jatuh tempo pada hari berikutnya
+        for (com.tradingglobal3d.core.corporate.CorporateAction ca : corporateService.getCorporateActions()) {
+            if (!ca.isExecuted() && !ca.getExecutionDate().isAfter(nextDate)) {
+                if (ca.getType() == com.tradingglobal3d.core.corporate.CorporateActionType.CASH_DIVIDEND) {
+                    executeCashDividend(ca);
+                } else if (ca.getType() == com.tradingglobal3d.core.corporate.CorporateActionType.STOCK_SPLIT) {
+                    executeStockSplit(ca);
+                }
+            }
+        }
+
+        // 3. Eksekusi otomatis penjatahan IPO yang jatuh tempo pada hari listing
+        for (com.tradingglobal3d.core.corporate.IpoOffering ipo : corporateService.getIpoOfferings()) {
+            if (!ipo.isAllotted() && !ipo.getListingDate().isAfter(nextDate)) {
+                allotIpo(ipo.getId(), 0.50); // Penjatahan 50% dan refund 50%
+            }
+        }
+
         return report;
     }
 

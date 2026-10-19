@@ -240,4 +240,73 @@ public class RiskMarginShortComplianceTest {
 
         assertTrue(facade.reconcileAll());
     }
+
+    @Test
+    public void testShortBorrowCheckedAgainstLenderPoolAndReturnsOnCover() {
+        Account personal = facade.getPersonalAccount();
+        Account mm = facade.getAccount("ACC-NPC-MM-01");
+        assertNotNull(mm);
+
+        Position mmPos = mm.getPosition("IDX:BBCA");
+        assertNotNull(mmPos);
+        long initialLenderQty = mmPos.getQuantity(); // e.g. 20.000 shares
+        assertTrue(initialLenderQty > 0);
+
+        // 1. Coba pinjam short melebihi stok yang tersedia di lender pool -> harus ditolak
+        try {
+            facade.openShortPosition("BBCA", initialLenderQty + 1000);
+            fail("Peminjaman short melebihi inventori lender harus ditolak");
+        } catch (IllegalStateException expected) {
+            assertTrue(expected.getMessage().contains("tidak mencukupi"));
+        }
+
+        // 2. Pinjam 1.000 lembar yang sah
+        ShortPosition shortPos = facade.openShortPosition("BBCA", 1000);
+        assertNotNull(shortPos);
+        assertEquals(1000, shortPos.getBorrowedShares());
+        assertEquals("Inventori lender berkurang saat dipinjam", initialLenderQty - 1000, mmPos.getQuantity());
+
+        // 3. Buy to cover -> saham kembali ke inventori lender
+        facade.closeShortPosition("BBCA", 1000);
+        assertNull(facade.getRiskService().getShortPosition(personal.getId(), "BBCA"));
+        assertEquals("Inventori lender pulih kembali saat cover", initialLenderQty, mmPos.getQuantity());
+        assertTrue(facade.reconcileAll());
+    }
+
+    @Test
+    public void testDailyBorrowFeeAndMarginInterestAccrualOnDayClose() {
+        Account personal = facade.getPersonalAccount();
+        // Pinjam margin Rp 10.000.000
+        facade.takeMarginLoan(Money.of(10_000_000, Currency.IDR));
+        // Buka short 500 lembar BBCA
+        facade.openShortPosition("BBCA", 500);
+
+        int ledgerCountBefore = facade.getLedger().getEntries().size();
+
+        // Majukan jam clock ke 16:01 WIB agar siap tutup hari
+        facade.getClock().play();
+        facade.getClock().tick((int) java.time.Duration.between(facade.getClock().getCurrentTime(), java.time.LocalTime.of(16, 1)).getSeconds());
+        facade.getClock().pause();
+        assertTrue(facade.getClock().getCurrentTime().isAfter(java.time.LocalTime.of(16, 0, 59)));
+
+        // Jalankan penutupan hari
+        com.tradingglobal3d.core.career.DailySessionReport report = facade.closeDayAndAdvance();
+        assertNotNull(report);
+
+        // Verifikasi mutasi biaya pembiayaan harian tercatat di ledger
+        List<com.tradingglobal3d.core.economy.LedgerEntry> entries = facade.getLedger().getEntries();
+        assertTrue(entries.size() > ledgerCountBefore);
+
+        boolean hasShortBorrowFee = entries.stream().anyMatch(e ->
+                e.getType() == com.tradingglobal3d.core.economy.LedgerEntryType.TRANSACTION_FEE &&
+                e.getDescription().contains("Biaya sewa pinjaman short harian"));
+        assertTrue("Biaya sewa pinjaman short harus tercatat di ledger", hasShortBorrowFee);
+
+        boolean hasMarginInterest = entries.stream().anyMatch(e ->
+                e.getType() == com.tradingglobal3d.core.economy.LedgerEntryType.TRANSACTION_FEE &&
+                e.getDescription().contains("Bunga harian pinjaman margin"));
+        assertTrue("Bunga pinjaman margin harus tercatat di ledger", hasMarginInterest);
+
+        assertTrue(facade.reconcileAll());
+    }
 }

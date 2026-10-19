@@ -172,4 +172,63 @@ public class CorporateActionIpoVotingTest {
         // Total suara tetap 500, tidak berlipat ganda
         assertEquals(500, agenda.getTotalVotesFor());
     }
+
+    @Test
+    public void testAutomaticDividendAndIpoAllotmentOnDayClose() {
+        Account personal = facade.getPersonalAccount();
+        LocalDate today = facade.getClock().getCurrentDate();
+        LocalDate tomorrow = today.plusDays(1);
+
+        // 1. Kepemilikan awal BBCA 1.000 lembar
+        personal.addPosition(new Position("BBCA", "IDX", Currency.IDR, 1000, BigDecimal.valueOf(10000), BigDecimal.valueOf(10250)));
+
+        // 2. Jadwalkan Dividen Tunai BBCA Rp 200/saham yang jatuh tempo besok
+        CorporateAction divAction = new CorporateAction(
+                "ACT-AUTO-DIV-01", "BBCA", CorporateActionType.CASH_DIVIDEND,
+                BigDecimal.valueOf(200), Currency.IDR, today, tomorrow
+        );
+        facade.getCorporateService().scheduleCorporateAction(divAction);
+
+        // 3. Jadwalkan IPO NCLD dengan tanggal listing besok dan pesan 20 lot
+        IpoOffering ipo = new IpoOffering(
+                "IPO-AUTO-NCLD", "NCLD", "Nusantara Cloud Tech Tbk", Currency.IDR,
+                Money.of(500, Currency.IDR), 100, 100_000, tomorrow
+        );
+        facade.getCorporateService().registerIpoOffering(ipo);
+        IpoSubscription sub = facade.orderIpo("IPO-AUTO-NCLD", 20);
+        assertNotNull(sub);
+        assertEquals(Money.of(1_000_000, Currency.IDR), personal.getReservedCash(Currency.IDR));
+
+        Money cashBefore = personal.getTotalCash(Currency.IDR);
+
+        // 4. Majukan waktu dan jalankan penutupan hari
+        facade.getClock().play();
+        facade.getClock().tick((int) java.time.Duration.between(facade.getClock().getCurrentTime(), java.time.LocalTime.of(16, 1)).getSeconds());
+        facade.getClock().pause();
+
+        com.tradingglobal3d.core.career.DailySessionReport report = facade.closeDayAndAdvance();
+        assertNotNull(report);
+        assertEquals(tomorrow, facade.getClock().getCurrentDate());
+
+        // 5. Verifikasi Dividen Tunai dieksekusi otomatis
+        assertTrue(divAction.isExecuted());
+        boolean divLedgerPresent = facade.getLedger().getEntries().stream().anyMatch(e ->
+                e.getType() == com.tradingglobal3d.core.economy.LedgerEntryType.DIVIDEND &&
+                e.getDescription().toLowerCase().contains("dividen"));
+        assertTrue("Dividen harus tercatat di ledger", divLedgerPresent);
+
+        // 6. Verifikasi IPO dialokasikan otomatis dan refund diproses
+        assertTrue(ipo.isAllotted());
+        assertEquals(IpoSubscription.SubscriptionStatus.ALLOTTED, sub.getStatus());
+        assertEquals(10, sub.getAllottedLots()); // 50% dari 20 lot = 10 lot
+        Position ncldPos = personal.getPosition("NCLD");
+        assertNotNull("Saham IPO harus masuk portofolio pemain", ncldPos);
+        assertEquals(1000, ncldPos.getQuantity());
+
+        // Kas tertahan harus kembali 0
+        assertEquals(Money.zero(Currency.IDR), personal.getReservedCash(Currency.IDR));
+
+        // Rekonsiliasi seluruh akun di buku besar
+        assertTrue(facade.reconcileAll());
+    }
 }

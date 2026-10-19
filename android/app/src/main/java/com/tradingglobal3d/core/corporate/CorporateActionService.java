@@ -57,6 +57,14 @@ public final class CorporateActionService {
     public IpoOffering getIpo(String id) { return ipoOfferings.get(id); }
     public ShareholderMeetingAgenda getAgenda(String id) { return agendas.get(id); }
 
+    public synchronized void scheduleCorporateAction(CorporateAction action) {
+        corporateActions.add(Objects.requireNonNull(action));
+    }
+
+    public synchronized void registerIpoOffering(IpoOffering ipo) {
+        ipoOfferings.put(ipo.getId(), Objects.requireNonNull(ipo));
+    }
+
     /**
      * Mengeksekusi pembagian dividen tunai ke seluruh akun yang memegang saham.
      */

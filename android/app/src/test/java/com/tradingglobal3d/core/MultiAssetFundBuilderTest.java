@@ -2,6 +2,7 @@ package com.tradingglobal3d.core;
 
 import com.tradingglobal3d.core.facade.TradingFacade;
 import com.tradingglobal3d.core.firm.ClientMandate;
+import com.tradingglobal3d.core.market.Instrument;
 import com.tradingglobal3d.core.market.InstrumentCatalog;
 import com.tradingglobal3d.core.model.Account;
 import com.tradingglobal3d.core.model.Currency;
@@ -233,6 +234,111 @@ public class MultiAssetFundBuilderTest {
         for (MatchingEngine.OrderResult result : results)
             assertEquals(com.tradingglobal3d.core.trading.OrderStatus.OPEN, result.order.getStatus());
 
+        assertTrue(facade.reconcileAll());
+    }
+
+    @Test
+    public void testFundRebalanceCompletesToExecutedWithReconciliation() {
+        Account personal = facade.getPersonalAccount();
+        Instrument bbca = catalog.getById("IDX:BBCA");
+        assertNotNull(bbca);
+
+        // Pasang antrean jual (Ask) dari Market Maker pada harga pasar saat ini
+        Account mm = facade.getAccount("ACC-NPC-MM-01");
+        assertNotNull(mm);
+        com.tradingglobal3d.core.trading.Order mmAsk = com.tradingglobal3d.core.trading.Order.createLimit(
+                "MM-ASK-BBCA-REBAL", "IDX:BBCA", mm.getId(),
+                com.tradingglobal3d.core.trading.OrderSide.SELL,
+                bbca.getCurrentPrice(), 5000, System.currentTimeMillis()
+        );
+        MatchingEngine.OrderResult askRes = facade.submitOrder(mmAsk);
+        assertTrue(askRes.isSuccess);
+
+        // Buat rencana alokasi: 20% BBCA, 80% Kas
+        Map<String, Double> weights = new HashMap<>();
+        weights.put("IDX:BBCA", 0.20);
+        facade.saveFundPlan("PLAN-FILL-RECON", personal.getId(), "Alokasi Eksekusi Tuntas", weights, 0.80);
+
+        // Eksekusi rencana rebalance
+        List<MatchingEngine.OrderResult> results = facade.executeFundRebalance("PLAN-FILL-RECON");
+        assertEquals(1, results.size());
+        MatchingEngine.OrderResult rebalOrderRes = results.get(0);
+        assertEquals(com.tradingglobal3d.core.trading.OrderStatus.FILLED, rebalOrderRes.order.getStatus());
+
+        // Verifikasi plan status menjadi EXECUTED
+        FundAllocationPlan executedPlan = facade.getFundBuilder().getPlan("PLAN-FILL-RECON");
+        assertEquals(FundAllocationPlan.PlanStatus.EXECUTED, executedPlan.getStatus());
+
+        // Verifikasi kepemilikan saham BBCA personal account
+        com.tradingglobal3d.core.model.Position bbcaPos = personal.getPosition("IDX:BBCA");
+        assertNotNull(bbcaPos);
+        assertEquals(1900, bbcaPos.getQuantity());
+
+        // Verifikasi kas tertahan kembali 0
+        assertEquals(Money.zero(Currency.IDR), personal.getReservedCash(Currency.IDR));
+
+        // Verifikasi rekonsiliasi seluruh akun di buku besar
+        assertTrue(facade.reconcileAll());
+
+        // Eksekusi ulang idempoten: tidak membuat order baru dan status tetap EXECUTED
+        List<MatchingEngine.OrderResult> retryResults = facade.executeFundRebalance("PLAN-FILL-RECON");
+        assertEquals(1, retryResults.size());
+        assertSame(rebalOrderRes.order, retryResults.get(0).order);
+        assertEquals(FundAllocationPlan.PlanStatus.EXECUTED, executedPlan.getStatus());
+        assertEquals(1900, personal.getPosition("IDX:BBCA").getQuantity());
+        assertTrue(facade.reconcileAll());
+    }
+
+    @Test
+    public void testFundRebalanceSellsExcessPositionAndReconciles() {
+        Account personal = facade.getPersonalAccount();
+        Instrument bbca = catalog.getById("IDX:BBCA");
+        assertNotNull(bbca);
+
+        // Berikan kepemilikan awal 4.000 lembar BBCA @ 10.000
+        personal.addPosition(new com.tradingglobal3d.core.model.Position(
+                "BBCA", "IDX", Currency.IDR, 4000,
+                BigDecimal.valueOf(10000), bbca.getCurrentPrice().getAmount()
+        ));
+
+        // Pasang antrean beli (Bid) dari Market Maker pada harga pasar saat ini
+        Account mm = facade.getAccount("ACC-NPC-MM-01");
+        assertNotNull(mm);
+        com.tradingglobal3d.core.trading.Order mmBid = com.tradingglobal3d.core.trading.Order.createLimit(
+                "MM-BID-BBCA-REBAL", "IDX:BBCA", mm.getId(),
+                com.tradingglobal3d.core.trading.OrderSide.BUY,
+                bbca.getCurrentPrice(), 5000, System.currentTimeMillis()
+        );
+        MatchingEngine.OrderResult bidRes = facade.submitOrder(mmBid);
+        assertTrue(bidRes.isSuccess);
+
+        Money initialCash = personal.getTotalCash(Currency.IDR);
+
+        // Buat rencana alokasi: target hanya 10% BBCA (sisanya 90% kas)
+        Map<String, Double> weights = new HashMap<>();
+        weights.put("IDX:BBCA", 0.10);
+        facade.saveFundPlan("PLAN-SELL-RECON", personal.getId(), "Alokasi Jual Rebalance", weights, 0.90);
+
+        // Eksekusi rebalancing
+        List<MatchingEngine.OrderResult> results = facade.executeFundRebalance("PLAN-SELL-RECON");
+        assertEquals(1, results.size());
+        MatchingEngine.OrderResult sellOrderRes = results.get(0);
+        assertEquals(com.tradingglobal3d.core.trading.OrderSide.SELL, sellOrderRes.order.getSide());
+        assertEquals(com.tradingglobal3d.core.trading.OrderStatus.FILLED, sellOrderRes.order.getStatus());
+
+        // Verifikasi plan status menjadi EXECUTED
+        FundAllocationPlan executedPlan = facade.getFundBuilder().getPlan("PLAN-SELL-RECON");
+        assertEquals(FundAllocationPlan.PlanStatus.EXECUTED, executedPlan.getStatus());
+
+        // Verifikasi kepemilikan berkurang sesuai penjualan
+        long soldQty = sellOrderRes.order.getTotalQuantity();
+        assertTrue("Harus menjual sebagian saham", soldQty > 0);
+        assertEquals(4000 - soldQty, personal.getPosition("IDX:BBCA").getQuantity());
+
+        // Verifikasi kas bertambah setelah penjualan bersih (gross - sell fee)
+        assertTrue(personal.getTotalCash(Currency.IDR).compareTo(initialCash) > 0);
+
+        // Verifikasi rekonsiliasi seluruh akun di buku besar
         assertTrue(facade.reconcileAll());
     }
 }

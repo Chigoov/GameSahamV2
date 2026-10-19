@@ -3,7 +3,7 @@
 **Tanggal Laporan:** 19 Oktober 2026  
 **Repositori Target:** `C:/Users/HYPE AMD/Downloads/VIBE CODING/GAME SAHAM`  
 **Branch Git:** `codex/rebuild-2d-portrait`  
-**Commit Checkpoint Dokumentasi:** `3778e4dcca376acc6eaa8182cb0cf5232b8118d1`  
+**Commit Checkpoint Dokumentasi:** `7b346a0ada140aa2a94f3c9c307c33f18393ae1b` (Source Android, domain Java, test suite & aset web ter-commit lokal)
 **Status Produk Keseluruhan:** **PARTIAL** (Gate Native Android & Dataset Replay PENDING/BLOCKED; Domain Finansial & Seluruh 40 Layar UI Terhubung di Host Java)
 
 ---
@@ -12,15 +12,15 @@
 
 Proyek ini telah melalui proses audit menyeluruh terhadap implementasi lama yang mengklaim 14/14 task selesai dan 230 status PASS tanpa dukungan bukti nyata. Seluruh klaim semu telah dicabut pada audit R01 dan digantikan dengan baseline faktual 228 requirement PRD dan 40 tujuan desain antarmuka (*screen goals*).
 
-Melalui 8 milestone remediasi sistematis berbasis prinsip TDD (*Test-Driven Development*), seluruh jalur shared domain finansial yang kritis telah diperbaiki, 121 pengujian otomatis dijalankan secara mandiri, dan seluruh 40 layar UI telah berhasil diimplementasikan dan dihubungkan ke jembatan domain Java `TradingWebBridge`:
+Melalui 8 milestone remediasi sistematis berbasis prinsip TDD (*Test-Driven Development*), seluruh jalur shared domain finansial yang kritis telah diperbaiki, 126 pengujian otomatis dijalankan secara mandiri, dan seluruh 40 layar UI telah berhasil diimplementasikan dan dihubungkan ke jembatan domain Java `TradingWebBridge`:
 
 * **Progres Milestone Remediasi:** **2 Selesai, 5 Berjalan/Terverifikasi Parsial, 1 Terblokir** (R01 `COMPLETED`, R04 `COMPLETED/PARTIAL-VERIFIED`, R02 `PARTIAL`, R03 `PARTIAL`, R06 `PARTIAL`, R07 `PARTIAL`, R08 `PARTIAL`, R05 `BLOCKED`).
 * **Kelengkapan Layar (40 Screen Goals PRD):**
   * **MISSING: 0 Layar** *(Seluruh 40 tujuan desain kini memiliki representasi antarmuka dan interaksi nyata)*.
   * **PARTIAL: 39 Layar** *(Terhubung ke jembatan domain Java dan tervalidasi via pengujian browser Playwright pada host QA lokal)*.
   * **UNAVAILABLE_NOTICE: 1 Layar** *(S39 Replay Historis, berstatus penolakan jujur mematuhi kepatuhan audit lisensi data OQ02–05)*.
-* **Test Suite JUnit Debug:** **121 tes EXECUTED, 0 failures, 0 errors, 0 skipped** (Exit Code 0).
-* **Kandidat APK Android Mandiri:** `Artifacts/Remediation/R07/stress-121/game-saham-remediation-candidate.apk` (204.459 byte, SHA-256 `8aeb71af97c77f9776ac6fba8a391ca4cd2cfdf7b347e7095e07cb652abaa804`, 5 aset terverifikasi byte-for-byte, lint 0 error / 9 warning).
+* **Test Suite JUnit Debug:** **126 tes EXECUTED, 0 failures, 0 errors, 0 skipped** (Exit Code 0).
+* **Kandidat APK Android Mandiri:** `Artifacts/Remediation/R07/candidate-126/game-saham-remediation-candidate.apk` (266.878 byte, SHA-256 `cba78a6a98e201838c0373184753aeeb32aee91c96a6cac73af8c677c1aeb5d6`, 5 aset terverifikasi byte-for-byte, lint 0 error / 9 warning).
 * **Gate Native Android & Perangkat Fisik:** Berstatus **PENDING by Scope** sesuai instruksi eksplisit pengguna untuk fase lingkungan tanpa ADB.
 
 ---
@@ -30,13 +30,13 @@ Melalui 8 milestone remediasi sistematis berbasis prinsip TDD (*Test-Driven Deve
 | Milestone | Target Scope | Status Aktual | Ringkasan Bukti Nyata & Verifikasi |
 | :--- | :--- | :--- | :--- |
 | **R01** | Audit Status & Bukti | **COMPLETED** | Membatalkan klaim 14/14 selesai lama; menduplikasi status; menetapkan baseline 228 requirement dan 40 cakupan layar PRD di `Work/REMEDIATION-STATUS.json` & `Artifacts/Remediation/R01/AUDIT.md`. |
-| **R02** | Verifikasi Domain Finansial | **PARTIAL** | Test suite berkembang dari baseline 58 tes menjadi **121 tes EXECUTED (100% lulus)**. Memperbaiki self-trade matching, pembulatan fee limit buy per lot, pemisahan utang multi-mata uang IDR & USD, identitas komposit bursa `exchange:ticker`, serta idempotensi reset ledger. |
+| **R02** | Verifikasi Domain Finansial | **PARTIAL** | Test suite berkembang dari baseline 58 tes menjadi **126 tes EXECUTED (100% lulus)**. Memperbaiki self-trade matching, pembulatan fee limit buy per lot, pemisahan utang multi-mata uang IDR & USD, identitas komposit bursa `exchange:ticker`, idempotensi reset ledger, penyelesaian rebalancing Buy/Sell sampai tuntas dengan rekonsiliasi total, shared liquidity short checking terhadap inventori lender pool MM, penagihan biaya sewa short & bunga margin harian pada close day, serta auto dividen tunai & penjatahan IPO pada penutupan sesi. |
 | **R03** | Perjalanan UI Browser Host | **PARTIAL** | 36 layar teruji melalui skrip Playwright headless pada server QA Host Java lokal (`127.0.0.1:8766`). Responsif 6 viewport (31 sampel) dan pengujian scroll font 200% lulus tanpa text-overlap. |
-| **R04** | Kelengkapan Fitur & Desain | **COMPLETED (PARTIAL-VERIFIED)** | **0 layar MISSING**. Seluruh 40 layar telah memiliki implementasi UI terhubung ke bridge; 39 layar PARTIAL, 1 layar berstatus penolakan jujur UNAVAILABLE_NOTICE. |
+| **R04** | Kelengkapan Fitur & Desain | **COMPLETED (PARTIAL-VERIFIED)** | **0 layar MISSING**. Seluruh 40 layar telah memiliki implementasi UI terhubung ke bridge; 39 layar PARTIAL, 1 layar berstatus penolakan jujur UNAVAILABLE_NOTICE. Panduan tutorial interaktif terhubung dengan tombol aksi langsung pada tiap langkah (S03), dan penutupan hari (S08) terhubung langsung ke `closeDay()`. |
 | **R05** | Dataset Historis & Replay | **BLOCKED** | Pertanyaan terbuka OQ-02 s/d OQ-05 belum memiliki lisensi/sumber resmi. Manifest dataset berstatus `UNAVAILABLE` secara jujur untuk mencegah penggunaan data fiktif. |
 | **R06** | Save / Restore State | **PARTIAL** | Persistensi mencakup akun, buku besar (*ledger*), utang margin, realized P/L, watchlist, order aktif/antrean lelang, paket riset, dan rencana alokasi dana. Pengujian reload terbukti idempoten. |
-| **R07** | Inspeksi Paket APK Kandidat | **PARTIAL** | Kandidat APK debug `stress-121` dibangun secara mandiri via Gradle wrapper offline (204.459 byte); seluruh 5 aset web/data cocok byte-for-byte dengan source lokal. |
-| **R08** | Rekonsiliasi & Handoff Git | **PARTIAL** | Repositori lokal disinkronkan berkala via commit Git lokal (commit terakhir `3778e4d`, tanpa push); aturan `.gitignore` melindungi artefak build, cache scratch, dan data sensitif. |
+| **R07** | Inspeksi Paket APK Kandidat | **PARTIAL** | Kandidat APK debug `candidate-126` dibangun secara mandiri via Gradle wrapper offline (266.878 byte); seluruh 5 aset web/data cocok byte-for-byte dengan source lokal. |
+| **R08** | Rekonsiliasi & Handoff Git | **PARTIAL** | Seluruh source Android, Java domain, test suite, dan aset web ter-commit di Git lokal (`7b346a0`, tanpa push); aturan `.gitignore` melindungi artefak build, cache scratch, dan data sensitif. |
 
 ---
 

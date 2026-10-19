@@ -1565,7 +1565,22 @@
             flowButton(panel, 'Mulai / lanjutkan waktu', () => updateClock(true));
             flowButton(panel, 'Jeda waktu', () => updateClock(false));
         } else flowText(panel, 'Kontrol', 'Bridge kontrol domain belum tersedia pada pratinjau ini.');
-        flowText(panel, 'Penutupan hari', 'Belum diaktifkan: review kewajiban dan batas sesi masih dalam verifikasi.');
+        if (bridge.closeDay) {
+            flowButton(panel, 'Tutup Hari Bursa & Evaluasi Sesi (S08)', () => {
+                const reqId = 'REQ-DAY-CLOSE-' + Date.now();
+                try {
+                    const res = JSON.parse(bridge.closeDay(reqId));
+                    if (!res.success) throw new Error(res.message || 'Penutupan hari gagal');
+                    flowText(panel, 'Rekapitulasi Sesi Berhasil (S08)',
+                        `Tanggal: ${res.date} | Starting Net Worth: ${res.startingNetWorth} | Ending Net Worth: ${res.endingNetWorth} | PnL Investasi: ${res.investmentPnL} | Gaji Pokok: ${res.salary} | Total Fee: ${res.fees} | Order Match: ${res.fills} | Evaluasi: ${res.note}`);
+                    refreshSnapshot();
+                } catch (err) {
+                    flowText(panel, 'Penutupan hari ditolak / gagal', err.message);
+                }
+            });
+        } else {
+            flowText(panel, 'Penutupan hari', 'Bridge closeDay belum tersedia.');
+        }
     });
 
     document.getElementById('btn-career').addEventListener('click', () => {
@@ -1760,23 +1775,52 @@
         const steps = [
             {
                 step: '1. Siklus Sesi & Briefing Pasar',
-                desc: 'Setiap hari bursa dimulai dengan Market Briefing pada pukul 08:30 WIB. Periksa sentimen berita makro dan emiten sebelum bel pembukaan pasar 09:00 WIB (FR-01).'
+                desc: 'Setiap hari bursa dimulai dengan Market Briefing pada pukul 08:30 WIB. Periksa sentimen berita makro dan emiten sebelum bel pembukaan pasar 09:00 WIB (FR-01).',
+                action: 'Buka Briefing Pasar (S04)',
+                handler: () => {
+                    if (flowPanel) { flowPanel.remove(); flowPanel = null; }
+                    document.getElementById('btn-briefing').click();
+                }
             },
             {
                 step: '2. Pembacaan Order Book Bid & Ask',
-                desc: 'Order Book menampilkan antrean beli (Bid) dan antrean jual (Ask) terbaik. Kuotasi bergerak dinamis berdasarkan permintaan pasar dan kuotasi Market Maker (FR-02 & FR-04).'
+                desc: 'Order Book menampilkan antrean beli (Bid) dan antrean jual (Ask) terbaik. Kuotasi bergerak dinamis berdasarkan permintaan pasar dan kuotasi Market Maker (FR-02 & FR-04).',
+                action: 'Buka Menu Saham (S05 & S06)',
+                handler: () => {
+                    if (flowPanel) { flowPanel.remove(); flowPanel = null; }
+                    switchTab('saham');
+                }
             },
             {
                 step: '3. Tiket Order & Eksekusi',
-                desc: 'Pilih order LIMIT untuk mengantre di harga tertentu, atau MARKET untuk eksekusi instan di harga pasar terbaik. Kas tertahan secara otomatis beserta estimasi komisi (FR-03 & FR-05).'
+                desc: 'Pilih order LIMIT untuk mengantre di harga tertentu, atau MARKET untuk eksekusi instan di harga pasar terbaik. Kas tertahan secara otomatis beserta estimasi komisi (FR-03 & FR-05).',
+                action: 'Buka Tiket Order Saham (S07)',
+                handler: () => {
+                    if (flowPanel) { flowPanel.remove(); flowPanel = null; }
+                    switchTab('saham');
+                    try {
+                        const stocks = JSON.parse(bridge.getInstruments('ALL', true));
+                        if (stocks && stocks.length > 0) openOrderTicket(stocks[0]);
+                    } catch (e) {}
+                }
             },
             {
                 step: '4. Portofolio, Risiko & Margin',
-                desc: 'Pantau posisi terbuka, keuntungan/kerugian mengambang, serta fasilitas pinjaman margin multi-mata uang IDR dan USD dengan batas rasio kesehatan ekuitas (FR-06 & FR-11).'
+                desc: 'Pantau posisi terbuka, keuntungan/kerugian mengambang, serta fasilitas pinjaman margin multi-mata uang IDR dan USD dengan batas rasio kesehatan ekuitas (FR-06 & FR-11).',
+                action: 'Periksa Portofolio & Risiko (S10 & S11)',
+                handler: () => {
+                    if (flowPanel) { flowPanel.remove(); flowPanel = null; }
+                    switchTab('portofolio');
+                }
             },
             {
                 step: '5. Penutupan Hari & Rekapitulasi Karir',
-                desc: 'Pasar reguler ditutup pukul 16:00 WIB. Lakukan tutup hari untuk menerima gaji pokok harian, memverifikasi laba/rugi terealisasi, dan membuka tingkatan karir baru (FR-08).'
+                desc: 'Pasar reguler ditutup pukul 16:00 WIB. Lakukan tutup hari untuk menerima gaji pokok harian, memverifikasi laba/rugi terealisasi, dan membuka tingkatan karir baru (FR-08).',
+                action: 'Buka Evaluasi Karir & Misi (S09 & S15)',
+                handler: () => {
+                    if (flowPanel) { flowPanel.remove(); flowPanel = null; }
+                    document.getElementById('btn-career').click();
+                }
             }
         ];
 
@@ -1787,6 +1831,9 @@
             h.textContent = s.step;
             card.append(h);
             flowText(card, 'Panduan', s.desc);
+            if (s.action && s.handler) {
+                flowButton(card, s.action, s.handler);
+            }
             panel.append(card);
         });
     }

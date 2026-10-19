@@ -182,17 +182,31 @@ public final class RiskComplianceService {
     /**
      * Membuka posisi Short Selling dengan meminjam saham.
      * Hasil penjualan short ditahan sebagai jaminan (Collateral Locked) (FR-15.05).
+     * Memeriksa ketersediaan saham pinjaman pada lender pool (Shared Liquidity).
      */
     public synchronized ShortPosition openShortPosition(
             Account account,
             Instrument instrument,
             long sharesToShort,
+            Account lenderPool,
             EconomyLedger ledger,
             long timestamp) {
 
         if (sharesToShort <= 0) throw new IllegalArgumentException("Jumlah lembar short harus positif");
         if (getShortPosition(account.getId(), instrument.getTicker()) != null) {
             throw new IllegalStateException("Posisi short masih aktif; tutup kewajiban sebelum membuka pinjaman baru");
+        }
+
+        // 0. Validasi ketersediaan inventori pinjaman pada lender pool
+        if (lenderPool != null) {
+            Position lenderPos = lenderPool.getPosition(instrument.getId());
+            if (lenderPos == null) lenderPos = lenderPool.getPosition(instrument.getTicker());
+            long availableLendable = (lenderPos != null) ? lenderPos.getQuantity() : 0;
+            if (sharesToShort > availableLendable) {
+                throw new IllegalStateException("Stok pinjaman saham (lendable inventory) tidak mencukupi untuk short: "
+                        + instrument.getTicker() + " (diminta: " + sharesToShort + ", tersedia: " + availableLendable + ")");
+            }
+            lenderPos.borrowShares(sharesToShort);
         }
 
         BigDecimal currentPrice = instrument.getCurrentPrice().getAmount();
@@ -245,6 +259,15 @@ public final class RiskComplianceService {
         return shortPos;
     }
 
+    public synchronized ShortPosition openShortPosition(
+            Account account,
+            Instrument instrument,
+            long sharesToShort,
+            EconomyLedger ledger,
+            long timestamp) {
+        return openShortPosition(account, instrument, sharesToShort, null, ledger, timestamp);
+    }
+
     /**
      * Menutup posisi short (Buy to Cover).
      */
@@ -252,6 +275,7 @@ public final class RiskComplianceService {
             Account account,
             Instrument instrument,
             long sharesToCover,
+            Account lenderPool,
             EconomyLedger ledger,
             long timestamp) {
 
@@ -305,12 +329,108 @@ public final class RiskComplianceService {
             userShorts.remove(instrument.getTicker());
         }
 
+        // Kembalikan saham ke inventori lender pool jika ada
+        if (lenderPool != null) {
+            Position lenderPos = lenderPool.getPosition(instrument.getId());
+            if (lenderPos == null) lenderPos = lenderPool.getPosition(instrument.getTicker());
+            if (lenderPos != null) {
+                lenderPos.returnShares(sharesToCover);
+            }
+        }
+
         auditLogs.add(new ComplianceAuditLog(
                 "LOG-" + System.nanoTime(), timestamp, account.getId(),
                 ComplianceAuditLog.AuditCategory.SHORT_BORROW,
                 "Penutupan posisi short " + instrument.getTicker() + " " + sharesToCover + " lembar",
-                "Jaminan dilepaskan dan saham pinjaman dikembalikan ke broker"
+                "Jaminan dilepaskan dan saham pinjaman dikembalikan ke broker/lender"
         ));
+    }
+
+    public synchronized void closeShortPosition(
+            Account account,
+            Instrument instrument,
+            long sharesToCover,
+            EconomyLedger ledger,
+            long timestamp) {
+        closeShortPosition(account, instrument, sharesToCover, null, ledger, timestamp);
+    }
+
+    public static final BigDecimal ANNUAL_MARGIN_LOAN_INTEREST_RATE = new BigDecimal("0.18"); // 18% p.a.
+
+    /**
+     * Membebankan biaya pembiayaan harian (Daily Financing Costs):
+     * 1. Biaya sewa pinjaman short harian (Short Borrow Fee).
+     * 2. Bunga harian pinjaman fasilitas margin (Margin Loan Interest).
+     */
+    public synchronized void accrueDailyFinancingCosts(
+            Account account,
+            InstrumentCatalog catalog,
+            EconomyLedger ledger,
+            BigDecimal usdRate,
+            long timestamp) {
+
+        // 1. Biaya pinjaman short harian (Borrow fee)
+        Map<String, ShortPosition> userShorts = shortPositions.get(account.getId());
+        if (userShorts != null) {
+            for (ShortPosition sp : userShorts.values()) {
+                Instrument inst = catalog.getById("IDX:" + sp.getTicker());
+                if (inst == null) inst = catalog.getById("US:" + sp.getTicker());
+                BigDecimal px = (inst != null) ? inst.getCurrentPrice().getAmount() : sp.getAverageShortPrice();
+                Money dailyFee = sp.calculateDailyBorrowFee(px);
+                if (dailyFee.isPositive() && account.getAvailableCash(dailyFee.getCurrency()).isGreaterThanOrEqual(dailyFee)) {
+                    ledger.recordMutation(
+                            "SHORT-BORROW-FEE-" + sp.getTicker() + "-" + timestamp,
+                            account,
+                            LedgerEntryType.TRANSACTION_FEE,
+                            dailyFee,
+                            false,
+                            timestamp,
+                            "Biaya sewa pinjaman short harian " + sp.getTicker()
+                    );
+                    auditLogs.add(new ComplianceAuditLog(
+                            "LOG-BORROW-FEE-" + System.nanoTime(), timestamp, account.getId(),
+                            ComplianceAuditLog.AuditCategory.SHORT_BORROW,
+                            "Debet biaya sewa short " + sp.getTicker() + ": " + dailyFee,
+                            "Dipotong dari kas tersedia harian"
+                    ));
+                }
+            }
+        }
+
+        // 2. Bunga harian pinjaman margin (18% p.a.)
+        Map<Currency, Money> debts = marginDebts.get(account.getId());
+        if (debts != null) {
+            for (Map.Entry<Currency, Money> entry : debts.entrySet()) {
+                Currency cur = entry.getKey();
+                Money debt = entry.getValue();
+                if (debt.isPositive()) {
+                    BigDecimal dailyRate = ANNUAL_MARGIN_LOAN_INTEREST_RATE.divide(BigDecimal.valueOf(360), 8, RoundingMode.HALF_UP);
+                    BigDecimal interestAmt = debt.getAmount().multiply(dailyRate).setScale(2, RoundingMode.HALF_UP);
+                    if (interestAmt.compareTo(BigDecimal.ZERO) > 0) {
+                        Money interest = new Money(interestAmt, cur);
+                        if (account.getAvailableCash(cur).isGreaterThanOrEqual(interest)) {
+                            ledger.recordMutation(
+                                    "MARGIN-INTEREST-" + cur.name() + "-" + timestamp,
+                                    account,
+                                    LedgerEntryType.TRANSACTION_FEE,
+                                    interest,
+                                    false,
+                                    timestamp,
+                                    "Bunga harian pinjaman margin " + cur.name()
+                            );
+                        } else {
+                            setMarginDebt(account.getId(), debt.add(interest));
+                            auditLogs.add(new ComplianceAuditLog(
+                                    "LOG-MARGIN-INT-" + System.nanoTime(), timestamp, account.getId(),
+                                    ComplianceAuditLog.AuditCategory.MARGIN_LOAN,
+                                    "Akumulasi bunga margin " + interest + " ke pokok utang",
+                                    "Kas tidak mencukupi untuk bayar bunga langsung"
+                            ));
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /**

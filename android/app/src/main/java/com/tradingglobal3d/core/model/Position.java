@@ -95,4 +95,15 @@ public final class Position {
 
         return new Money(realized, currency);
     }
+
+    public void borrowShares(long qty) {
+        if (qty <= 0) return;
+        if (qty > quantity) throw new IllegalStateException("Cannot borrow more than held: held=" + quantity + ", requested=" + qty);
+        this.quantity -= qty;
+    }
+
+    public void returnShares(long qty) {
+        if (qty <= 0) return;
+        this.quantity += qty;
+    }
 }
