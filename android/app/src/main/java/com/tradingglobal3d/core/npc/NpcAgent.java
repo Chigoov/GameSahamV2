@@ -45,16 +45,44 @@ public final class NpcAgent {
         BigDecimal tick = instrument.getExchange().getTickSize(currentPrice);
 
         if (strategy == NpcStrategyType.MARKET_MAKER) {
+            BigDecimal highestBid = book.getBids().isEmpty() ? null : book.getBids().firstKey();
+            BigDecimal lowestAsk = book.getAsks().isEmpty() ? null : book.getAsks().firstKey();
+
             // Market Maker pasang 2 level bid dan 2 level ask
             BigDecimal bid1 = currentPrice.subtract(tick);
-            BigDecimal bid2 = currentPrice.subtract(tick.multiply(BigDecimal.valueOf(2)));
             BigDecimal ask1 = currentPrice.add(tick);
-            BigDecimal ask2 = currentPrice.add(tick.multiply(BigDecimal.valueOf(2)));
 
-            // Order Bid (Buy) jika punya kas tersedia
+            if (lowestAsk != null && bid1.compareTo(lowestAsk) >= 0) {
+                bid1 = lowestAsk.subtract(tick);
+            }
+            if (highestBid != null && ask1.compareTo(highestBid) <= 0) {
+                ask1 = highestBid.add(tick);
+            }
+
+            boolean hasRestingBid = false;
+            if (book.getBids().containsKey(bid1)) {
+                for (Order o : book.getBids().get(bid1)) {
+                    if (account.getId().equals(o.getAccountId()) && !o.getStatus().isFinal()) {
+                        hasRestingBid = true;
+                        break;
+                    }
+                }
+            }
+
+            boolean hasRestingAsk = false;
+            if (book.getAsks().containsKey(ask1)) {
+                for (Order o : book.getAsks().get(ask1)) {
+                    if (account.getId().equals(o.getAccountId()) && !o.getStatus().isFinal()) {
+                        hasRestingAsk = true;
+                        break;
+                    }
+                }
+            }
+
+            // Order Bid (Buy) jika belum ada antrean dan punya kas tersedia
             long buyLot = instrument.getLotSize() * 5L;
             Money requiredCash = new Money(bid1.multiply(BigDecimal.valueOf(buyLot)), cur);
-            if (account.getAvailableCash(cur).isGreaterThanOrEqual(requiredCash)) {
+            if (!hasRestingBid && account.getAvailableCash(cur).isGreaterThanOrEqual(requiredCash)) {
                 orders.add(new Order(
                         "ORD-NPC-MM-B1-" + System.nanoTime(),
                         "REQ-MM-B1-" + System.nanoTime(),
@@ -64,10 +92,10 @@ public final class NpcAgent {
                 ));
             }
 
-            // Order Ask (Sell) jika punya saham di portofolio
+            // Order Ask (Sell) jika belum ada antrean dan punya saham di portofolio
             Position pos = account.getPosition(instrument.getId());
             long sellLot = instrument.getLotSize() * 5L;
-            if (pos != null && pos.getQuantity() >= sellLot) {
+            if (!hasRestingAsk && pos != null && pos.getQuantity() >= sellLot) {
                 orders.add(new Order(
                         "ORD-NPC-MM-S1-" + System.nanoTime(),
                         "REQ-MM-S1-" + System.nanoTime(),

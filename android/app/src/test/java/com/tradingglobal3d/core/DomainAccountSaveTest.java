@@ -477,14 +477,15 @@ public class DomainAccountSaveTest {
         assertNotNull(sub);
         assertEquals(Money.of(500_000, Currency.IDR), personal.getReservedCash(Currency.IDR));
 
-        // 3. Sampaikan suara RUPS (500 suara Setuju)
+        // 3. Daftarkan agenda RUPS dan sampaikan suara via facade (2.000 suara Setuju sesuai 2.000 lembar BBCA)
         ShareholderMeetingAgenda agenda = new ShareholderMeetingAgenda(
                 "RUPS-SAVE-01", "BBCA", "Agenda Tahunan Save Test",
                 "Resolusi pengujian persistensi agenda", today
         );
-        facade.getCorporateService().getAgendas(); // pastikan loadable
-        agenda.castVote(personal.getId(), ShareholderMeetingAgenda.VoteChoice.FOR, 500);
-        assertEquals(500, agenda.getTotalVotesFor());
+        facade.getCorporateService().registerAgenda(agenda);
+        facade.castShareholderVote("RUPS-SAVE-01", ShareholderMeetingAgenda.VoteChoice.FOR);
+        assertEquals(2000, agenda.getTotalVotesFor());
+        assertTrue(agenda.hasVoted(personal.getId()));
 
         // 4. Save ke disk
         facade.save();
@@ -509,7 +510,24 @@ public class DomainAccountSaveTest {
         assertNotNull("Offering IPO harus ada di save", restoredIpo);
         assertEquals(Money.of(500_000, Currency.IDR), restored.getPersonalAccount().getReservedCash(Currency.IDR));
 
-        // 8. Verifikasi rekonsiliasi seluruh akun
+        // 8. Verifikasi Agenda RUPS dan rekaman hak suara tersimpan utuh
+        ShareholderMeetingAgenda restoredAgenda = restored.getCorporateService().getAgenda("RUPS-SAVE-01");
+        assertNotNull("Agenda RUPS harus ada di save", restoredAgenda);
+        assertEquals(2000, restoredAgenda.getTotalVotesFor());
+        assertEquals(0, restoredAgenda.getTotalVotesAgainst());
+        assertEquals(0, restoredAgenda.getTotalVotesAbstain());
+        assertTrue("Akun pemilih harus tercatat di restored agenda", restoredAgenda.hasVoted(restored.getPersonalAccount().getId()));
+
+        // 9. Verifikasi pencegahan suara ganda (idempotensi hak suara) setelah reload
+        try {
+            restored.castShareholderVote("RUPS-SAVE-01", ShareholderMeetingAgenda.VoteChoice.AGAINST);
+            fail("Pemberian suara berulang setelah reload harus ditolak");
+        } catch (IllegalStateException expected) {
+            assertTrue(expected.getMessage().contains("sudah pernah"));
+        }
+        assertEquals("Total suara tidak boleh berubah saat retry ditolak", 2000, restoredAgenda.getTotalVotesFor());
+
+        // 10. Verifikasi rekonsiliasi seluruh akun
         assertTrue(restored.reconcileAll());
     }
 

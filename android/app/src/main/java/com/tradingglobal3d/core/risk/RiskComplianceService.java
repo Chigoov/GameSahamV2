@@ -54,6 +54,12 @@ public final class RiskComplianceService {
     private final Map<String, Map<String, ShortPosition>> shortPositions = new HashMap<>();
     private final List<ComplianceAuditLog> auditLogs = new ArrayList<>();
 
+    public synchronized void reset() {
+        marginDebts.clear();
+        shortPositions.clear();
+        auditLogs.clear();
+    }
+
     public synchronized org.json.JSONObject exportState() throws org.json.JSONException {
         org.json.JSONObject state = new org.json.JSONObject();
         org.json.JSONArray debts = new org.json.JSONArray();

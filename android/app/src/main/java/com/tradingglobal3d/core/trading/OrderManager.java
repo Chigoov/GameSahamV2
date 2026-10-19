@@ -23,6 +23,11 @@ public final class OrderManager {
         }
     }
 
+    public synchronized void reset() {
+        ordersByAccount.clear();
+        activeTriggerOrders.clear();
+    }
+
     public synchronized org.json.JSONArray exportState() throws org.json.JSONException {
         org.json.JSONArray result = new org.json.JSONArray();
         for (List<Order> list : ordersByAccount.values()) for (Order o : list) {

@@ -107,7 +107,11 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 16px;
-    padding-bottom: 100px; /* Ruang untuk Bottom Nav 80px + margin */
+    padding-bottom: 120px; /* Ruang aman untuk Bottom Nav 80px + margin */
+}
+
+#stock-list-container {
+    padding-bottom: 24px;
 }
 
 .screen-view {

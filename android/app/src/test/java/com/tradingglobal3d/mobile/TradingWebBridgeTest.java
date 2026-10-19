@@ -778,4 +778,31 @@ public class TradingWebBridgeTest {
         assertFalse("Preview harus menolak pelanggaran batas mandat", previewJson.getBoolean("success"));
         assertTrue(previewJson.getString("message").contains("Ditolak Mandat Klien"));
     }
+
+    @Test
+    public void testShortSellingAndCoverViaBridge() throws Exception {
+        Account mm = facade.getAccount("ACC-NPC-MM-01");
+        assertNotNull(mm);
+        Position mmPos = mm.getPosition("IDX:BBCA");
+        assertNotNull(mmPos);
+        long initialLenderQty = mmPos.getQuantity();
+
+        // 1. Buka posisi short 500 lembar via bridge
+        JSONObject shortReq = new JSONObject().put("ticker", "BBCA").put("shares", 500);
+        String shortResStr = bridge.openShortPosition(shortReq.toString());
+        JSONObject shortRes = new JSONObject(shortResStr);
+        assertTrue(shortRes.getBoolean("success"));
+        assertEquals("BBCA", shortRes.getString("ticker"));
+        assertEquals(500, shortRes.getLong("shares"));
+        assertEquals("Inventori lender harus berkurang 500 lembar", initialLenderQty - 500, mmPos.getQuantity());
+
+        // 2. Buy to Cover via bridge
+        JSONObject coverReq = new JSONObject().put("ticker", "BBCA").put("shares", 500);
+        String coverResStr = bridge.closeShortPosition(coverReq.toString());
+        JSONObject coverRes = new JSONObject(coverResStr);
+        assertTrue(coverRes.getBoolean("success"));
+        assertEquals("Inventori lender harus pulih kembali setelah cover", initialLenderQty, mmPos.getQuantity());
+
+        assertTrue(facade.reconcileAll());
+    }
 }

@@ -51,6 +51,14 @@ public final class CorporateActionService {
         corporateActions.add(div1);
     }
 
+    public synchronized void reset() {
+        corporateActions.clear();
+        ipoOfferings.clear();
+        ipoSubscriptions.clear();
+        agendas.clear();
+        initializeSampleActions();
+    }
+
     public List<CorporateAction> getCorporateActions() { return Collections.unmodifiableList(corporateActions); }
     public List<IpoOffering> getIpoOfferings() { return new ArrayList<>(ipoOfferings.values()); }
     public List<ShareholderMeetingAgenda> getAgendas() { return new ArrayList<>(agendas.values()); }
@@ -63,6 +71,10 @@ public final class CorporateActionService {
 
     public synchronized void registerIpoOffering(IpoOffering ipo) {
         ipoOfferings.put(ipo.getId(), Objects.requireNonNull(ipo));
+    }
+
+    public synchronized void registerAgenda(ShareholderMeetingAgenda agenda) {
+        agendas.put(agenda.getId(), Objects.requireNonNull(agenda));
     }
 
     public synchronized org.json.JSONObject exportState() throws org.json.JSONException {

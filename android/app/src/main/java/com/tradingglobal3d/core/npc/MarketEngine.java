@@ -18,6 +18,11 @@ public final class MarketEngine {
     private final MatchingEngine matchingEngine = new MatchingEngine();
     private final List<NpcAgent> npcAgents = new ArrayList<>();
 
+    public synchronized void reset() {
+        books.clear();
+        npcAgents.clear();
+    }
+
     public synchronized OrderBook getOrCreateBook(Instrument instrument) {
         return books.computeIfAbsent(instrument.getId(), id -> new OrderBook(id, instrument.getCurrentPrice()));
     }

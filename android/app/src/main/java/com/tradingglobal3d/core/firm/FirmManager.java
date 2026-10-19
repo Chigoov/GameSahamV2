@@ -48,6 +48,11 @@ public final class FirmManager {
         ));
     }
 
+    public synchronized void reset() {
+        mandates.clear();
+        initializeOfferedMandates();
+    }
+
     public org.json.JSONArray exportState() throws org.json.JSONException {
         org.json.JSONArray result = new org.json.JSONArray();
         for (ClientMandate m : mandates.values()) result.put(new org.json.JSONObject().put("id", m.getId())

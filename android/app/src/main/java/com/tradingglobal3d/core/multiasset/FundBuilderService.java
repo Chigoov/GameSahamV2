@@ -49,6 +49,10 @@ public final class FundBuilderService {
         commodities.put(gold.getId(), gold);
     }
 
+    public synchronized void reset() {
+        savedPlans.clear();
+    }
+
     public List<BondInstrument> getAllBonds() {
         return new ArrayList<>(bonds.values());
     }

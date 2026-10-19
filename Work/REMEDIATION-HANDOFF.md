@@ -10,19 +10,19 @@ Pemetaan terkini: `Artifacts/Remediation/R04/design-screen-coverage-current.csv`
 
 ## Selesai sejak checkpoint sebelumnya
 
-- Sampai 130 tes JUnit/Gradle EXECUTED: posisi ID bursa:ticker, P/L realized gross persisted, mark seluruh pemegang, debt IDR/USD dan negative repayment guard, continuous/auction preflight untuk own crossing/maker rusak, reserve fee rounding per lot, watchlist, detail indeks, fasilitas margin & risiko, aksi korporasi/IPO/voting, fund builder/katalog multi-aset/client fee reports, research feed/tiers/billing, entry picker/new game setup/reset ledger, macro stress test & strategy lab sandbox isolation, rebalancing alokasi Buy/Sell sampai tuntas dengan rekonsiliasi total, shared liquidity short checking terhadap inventori lender pool Market Maker, penagihan biaya sewa short & bunga margin harian pada close day, eksekusi dividen tunai dan penjatahan IPO otomatis pada penutupan sesi, alur penutupan hari bursa (S08) terhubung ke bridge `closeDay()`, 5 tahap tutorial interaktif terpandu dengan tombol aksi langsung, persistensi penuh corporate action receipts, IPO subscriptions, shareholder votes, lender inventory recovery, day-close idempotency, serta penerimaan mandat klien resmi (S20 & S21) via jembatan bridge. `R02/STEP-INTEGRITY.md` merekam RED/GREEN dan batasnya.
+- Sampai 133 tes JUnit/Gradle EXECUTED: posisi ID bursa:ticker, P/L realized gross persisted, mark seluruh pemegang, debt IDR/USD dan negative repayment guard, continuous/auction preflight untuk own crossing/maker rusak, reserve fee rounding per lot, watchlist, detail indeks, fasilitas margin & risiko, aksi korporasi/IPO/voting, fund builder/katalog multi-aset/client fee reports, research feed/tiers/billing, entry picker/new game setup/reset ledger, macro stress test & strategy lab sandbox isolation, rebalancing alokasi Buy/Sell sampai tuntas dengan rekonsiliasi total, shared liquidity short checking terhadap inventori lender pool Market Maker, penagihan biaya sewa short & bunga margin harian pada close day, eksekusi dividen tunai dan penjatahan IPO otomatis pada penutupan sesi, alur penutupan hari bursa (S08) terhubung ke bridge `closeDay()`, 5 tahap tutorial interaktif terpandu dengan tombol aksi langsung, persistensi penuh corporate action receipts, IPO subscriptions, shareholder votes, lender inventory recovery, day-close idempotency, penerimaan mandat klien resmi (S20 & S21) via jembatan bridge, validasi hard limit mandat klien pada preview & submit order, pemungutan fee manajemen klien otomatis pada saat penutupan hari bursa, pencegahan kebocoran state lama melalui `reset()` pada seluruh subsystem domain saat `initializeNewGame()`, serta pembuktian siklus pemesanan, pembatalan dan pelepasan reservasi kas secara eksak. `R02/STEP-INTEGRITY.md` merekam RED/GREEN dan batasnya.
 - Runner evidence membedakan EXECUTED/CACHED/NOT_RUN/MISSING_RESULTS; compile gagal tidak lagi menyalin XML lama. `verify_runner.py` RED→GREEN.
-- Host Java snapshot 130: skrip Playwright `full-e2e-regressions.cjs` membuktikan 3 alur utama (Trading pribadi & day-close, Karier & Penerimaan mandat klien firma B.3, Multi-aset & risiko makro) 100% PASS pada host Java 127.0.0.1:8766. Fixture trading/recovery/static exit 0. Bukan WebView.
-- Label pencarian/bursa dan scroll viewport pendek RED→GREEN. 31 sampel responsive dan 10 scroll subset lulus; screenshot diverifikasi via vision.
+- Host Java snapshot 133: skrip Playwright `full-e2e-regressions.cjs` membuktikan 4 alur utama (A: Transaksi pribadi, settlement eksak, partial fill & cancel reservasi; B: Akun kelolaan klien, penolakan pelanggaran mandat pada preview & submit, serta isolasi kas manajer; C: Tutup hari, debit fee klien & kredit manajer, serta idempotensi reload; D: Hak suara RUPS BBCA, pemesanan IPO NCLD, pinjaman short, dan recovery inventori lender saat cover) 100% PASS pada host Java 127.0.0.1:8766. Fixture trading/recovery/static exit 0. Bukan WebView.
+- Label pencarian/bursa dan scroll viewport pendek RED→GREEN. 31 sampel responsive dan 10 scroll subset lulus; screenshot diverifikasi via vision. Margin safe-area bawah ditambahkan untuk mencegah overlap kartu instrumen dengan bottom nav.
 - `.gitignore` mengecualikan cache/build/local.properties Android. Source Android kini disimpan dalam commit lokal.
 
 ## Kandidat nyata terbaru pada checkpoint
 
-`Artifacts/Remediation/R07/candidate-132-final/game-saham-remediation-candidate.apk`
+`Artifacts/Remediation/R07/candidate-133/game-saham-remediation-candidate.apk`
 
-- Build `assembleDebug` + `testDebugUnitTest` exit 0, 132 tes (100% PASS).
-- 286406 byte; SHA-256 `9f6b6d012049d4a50267005094b70670817d8e740129acb98e7d7ec1ce9063ad`.
-- Source manifest `a59b258310e6008c3fe08e8f3b2c5fd8ca0b1ef44b3f69b2a5a11841e2f2c79e`; HEAD `3022ecb` + source lokal uncommitted.
+- Build `assembleDebug` + `testDebugUnitTest` exit 0, 133 tes (100% PASS, EXECUTED fresh).
+- 268.338 byte; SHA-256 `2d4b43465eea85203143c8bae427bc90e242fb0eddbd53868a3d2aa8cf007f9c`.
+- Source manifest `1f292d2f4fb1211725247eaf489115e2d49635dfc71c45481ce901f403d3169d`.
 - 5 aset exact, ZIP/DEX/debug signature valid. AppID `com.tradingglobal3d.mobile`, version 1 / `1.0.0-2d-portrait`, min 26 / target 36, portrait/debug.
 - Lint 0 error / 9 warning. Report dan inspection dalam folder sama. Perubahan source berikutnya mengusangkan snapshot ini.
 

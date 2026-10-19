@@ -380,6 +380,41 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String openShortPosition(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            String ticker = req.getString("ticker");
+            long shares = req.getLong("shares");
+            com.tradingglobal3d.core.risk.ShortPosition sp = facade.openShortPosition(ticker, shares);
+            return new JSONObject().put("success", true)
+                    .put("ticker", sp.getTicker())
+                    .put("shares", sp.getBorrowedShares())
+                    .put("collateral", sp.getCollateralLocked().format())
+                    .put("message", "Posisi short berhasil dibuka: " + shares + " lembar " + ticker).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String closeShortPosition(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            String ticker = req.getString("ticker");
+            long shares = req.getLong("shares");
+            facade.closeShortPosition(ticker, shares);
+            return new JSONObject().put("success", true)
+                    .put("ticker", ticker)
+                    .put("shares", shares)
+                    .put("message", "Posisi short berhasil ditutup (Buy to cover): " + shares + " lembar " + ticker).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
     public String getIpoOfferings() {
         try {
             JSONArray result = new JSONArray();

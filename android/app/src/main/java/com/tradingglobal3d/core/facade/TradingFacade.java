@@ -190,6 +190,12 @@ public final class TradingFacade {
         this.accounts.clear();
         this.ledger.clear();
         this.dayCloseReceipts.clear();
+        this.firmManager.reset();
+        this.corporateService.reset();
+        this.riskService.reset();
+        this.fundBuilder.reset();
+        this.orderManager.reset();
+        this.marketEngine.reset();
 
         // 1. Buat Akun Pribadi Pemain
         this.personalAccountId = "ACC-PERSONAL-001";
