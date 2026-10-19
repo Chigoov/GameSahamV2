@@ -1,5 +1,7 @@
 # Handoff aktif: Game Saham 2D Portrait
 
+Update UI terbaru: [acuan screenshot HP dan keputusan scroll](PHONE-UI-REFERENCE.md). Pemilik memilih **isi boleh scroll, navigasi bawah tetap**; ini menggantikan target fixed-page di catatan sebelumnya. HP fisik kini tersedia untuk inspeksi aplikasi referensi, tetapi APK game baru belum dipasang/diuji. Prioritas UI berikutnya adalah shared shell dan layar utama berdasarkan referensi; source belum diubah pada checkpoint inspeksi ini.
+
 Checkpoint terbaru: [akses karier](CAREER-ACCESS-CHECKPOINT.md), sesudah audit owner 19 Oktober 2026. **Produk PARTIAL; belum siap disebut APK final atau UI V8 lengkap.** Laporan ini menggantikan klaim historis 14/14 dan 8/8 sebagai acceptance produk. Dokumen lama tersedia pada Git baseline `0807e43`; jangan memakai hash/ukuran APK lama sebagai hasil audit baru.
 
 - Root: `C:/Users/HYPE AMD/Downloads/VIBE CODING/GAME SAHAM`.

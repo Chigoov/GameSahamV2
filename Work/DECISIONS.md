@@ -106,3 +106,9 @@ Lihat Work/OWNER-AUDIT-2026-10-19.md untuk bukti dan bagian OQ lain yang tetap t
 
 
 Implementasi checkpoint karier (baseline existing, bukan persetujuan final angka OQ): kalender dan pembelian terminal premium memerlukan Senior Analyst; mandat, Fund Builder, margin baru dan short baru memerlukan Portfolio Manager. Repayment/penutupan short tetap tersedia untuk mengurangi kewajiban. Threshold promosi existing dipakai tanpa perubahan nominal dan ditampilkan dari sumber yang sama; nilai kekayaan untuk misi/promosi adalah ekuitas bersih. Sesi per bursa dan manfaat data premium tetap pekerjaan terpisah.
+
+## Koreksi UI dari referensi HP, 19 Oktober 2026
+
+CONFIRMED oleh pemilik: “Ikuti pola aplikasi lama: isi boleh scroll, navigasi tetap.” Portrait tetap berlaku; preferensi fixed-page/tanpa scroll sebelumnya diganti. Pola visual dari screenshot HP menjadi acuan komposisi, bukan izin menyalin seluruh fitur/ekonomi/aset aplikasi referensi. Graphite + amber + teal, aturan karier, serta Java sebagai pemilik data tetap berlaku. Rincian: [acuan UI HP](PHONE-UI-REFERENCE.md).
+
+Perangkat fisik kini terhubung dan dipakai menginspeksi aplikasi referensi pada Android 16. Pernyataan ADB kosong di checkpoint terdahulu adalah kondisi historis. Ini belum membuktikan instalasi, lifecycle, save, atau performa APK baru; gate native produk tetap pending.
