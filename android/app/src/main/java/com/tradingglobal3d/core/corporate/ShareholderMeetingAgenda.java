@@ -53,6 +53,18 @@ public final class ShareholderMeetingAgenda {
         return votedAccountIds.contains(accountId);
     }
 
+    public synchronized Set<String> getVotedAccountIds() {
+        return Collections.unmodifiableSet(votedAccountIds);
+    }
+
+    public synchronized void restoreVotes(long votesFor, long votesAgainst, long votesAbstain, Collection<String> votedIds) {
+        this.totalVotesFor = votesFor;
+        this.totalVotesAgainst = votesAgainst;
+        this.totalVotesAbstain = votesAbstain;
+        this.votedAccountIds.clear();
+        if (votedIds != null) this.votedAccountIds.addAll(votedIds);
+    }
+
     /**
      * Menyampaikan hak suara pemegang saham.
      */

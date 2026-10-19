@@ -266,7 +266,8 @@ body {
     min-height: 48px;
     border: none;
     border-radius: 8px;
-    padding: 12px 20px;
+    padding: 10px 16px;
+    margin-bottom: 8px;
     cursor: pointer;
     display: inline-flex;
     justify-content: center;
@@ -286,7 +287,8 @@ body {
     border: 1px solid var(--border-interactive);
     min-height: 48px;
     border-radius: 8px;
-    padding: 12px 20px;
+    padding: 10px 16px;
+    margin-bottom: 8px;
     font-size: 0.95rem;
     font-weight: 500;
     cursor: pointer;

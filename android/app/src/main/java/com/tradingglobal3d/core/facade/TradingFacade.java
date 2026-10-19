@@ -703,6 +703,7 @@ public final class TradingFacade {
         runtime.put("subscription", researchService.exportState());
         runtime.put("fx", fxService.exportState());
         runtime.put("fundPlans", fundBuilder.exportState());
+        runtime.put("corporate", corporateService.exportState());
         JSONObject closeReceipts = new JSONObject();
         for (Map.Entry<String, JSONObject> receipt : dayCloseReceipts.entrySet()) closeReceipts.put(receipt.getKey(), receipt.getValue());
         runtime.put("dayCloseReceipts", closeReceipts);
@@ -760,6 +761,7 @@ public final class TradingFacade {
                         throw new IllegalArgumentException("Order rencana save tidak cocok");
                 }
             }
+            if (runtime.has("corporate")) new CorporateActionService().restoreState(runtime.getJSONObject("corporate"));
         } catch (Exception invalidState) {
             return false;
         }
@@ -783,6 +785,7 @@ public final class TradingFacade {
             if (runtime.has("subscription")) researchService.restoreState(runtime.getJSONObject("subscription"));
             fxService.restoreState(runtime.has("fx") ? runtime.getJSONObject("fx") : new FxExchangeService().exportState());
             fundBuilder.restoreState(runtime.has("fundPlans") ? runtime.getJSONArray("fundPlans") : new JSONArray());
+            if (runtime.has("corporate")) corporateService.restoreState(runtime.getJSONObject("corporate"));
             riskService.restoreState(runtime.optJSONObject("risk") != null ? runtime.getJSONObject("risk") : new JSONObject());
             marketEngine.clearState();
             orderManager.restoreState(runtime.optJSONArray("orders") != null ? runtime.getJSONArray("orders") : new JSONArray(), catalog, marketEngine);

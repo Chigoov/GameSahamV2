@@ -45,4 +45,8 @@ public final class CorporateAction {
     public void markExecuted() {
         this.isExecuted = true;
     }
+
+    public void setExecuted(boolean executed) {
+        this.isExecuted = executed;
+    }
 }

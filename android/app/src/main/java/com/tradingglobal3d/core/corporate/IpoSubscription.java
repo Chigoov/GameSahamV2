@@ -52,4 +52,8 @@ public final class IpoSubscription {
         this.refundMoney = refundMoney;
         this.status = SubscriptionStatus.ALLOTTED;
     }
+
+    public void setAllottedLots(long allottedLots) { this.allottedLots = allottedLots; }
+    public void setRefundMoney(Money refundMoney) { this.refundMoney = refundMoney; }
+    public void setStatus(SubscriptionStatus status) { this.status = status; }
 }

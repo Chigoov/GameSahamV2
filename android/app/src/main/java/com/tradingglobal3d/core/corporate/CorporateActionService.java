@@ -65,6 +65,162 @@ public final class CorporateActionService {
         ipoOfferings.put(ipo.getId(), Objects.requireNonNull(ipo));
     }
 
+    public synchronized org.json.JSONObject exportState() throws org.json.JSONException {
+        org.json.JSONObject root = new org.json.JSONObject();
+
+        // 1. corporateActions
+        org.json.JSONArray actionsArray = new org.json.JSONArray();
+        for (CorporateAction ca : corporateActions) {
+            org.json.JSONObject obj = new org.json.JSONObject();
+            obj.put("id", ca.getId());
+            obj.put("ticker", ca.getTicker());
+            obj.put("type", ca.getType().name());
+            obj.put("valueOrRatio", ca.getValueOrRatio().toPlainString());
+            obj.put("currency", ca.getCurrency() != null ? ca.getCurrency().name() : org.json.JSONObject.NULL);
+            obj.put("recordingDate", ca.getRecordingDate().toString());
+            obj.put("executionDate", ca.getExecutionDate().toString());
+            obj.put("isExecuted", ca.isExecuted());
+            actionsArray.put(obj);
+        }
+        root.put("corporateActions", actionsArray);
+
+        // 2. ipoOfferings
+        org.json.JSONArray iposArray = new org.json.JSONArray();
+        for (IpoOffering ipo : ipoOfferings.values()) {
+            org.json.JSONObject obj = new org.json.JSONObject();
+            obj.put("id", ipo.getId());
+            obj.put("ticker", ipo.getTicker());
+            obj.put("companyName", ipo.getCompanyName());
+            obj.put("currency", ipo.getCurrency().name());
+            obj.put("offeringPrice", ipo.getOfferingPrice().getAmount().toPlainString());
+            obj.put("lotSize", ipo.getLotSize());
+            obj.put("sharesOffered", ipo.getSharesOffered());
+            obj.put("listingDate", ipo.getListingDate().toString());
+            obj.put("isAllotted", ipo.isAllotted());
+            iposArray.put(obj);
+        }
+        root.put("ipoOfferings", iposArray);
+
+        // 3. ipoSubscriptions
+        org.json.JSONArray subsArray = new org.json.JSONArray();
+        for (IpoSubscription sub : ipoSubscriptions) {
+            org.json.JSONObject obj = new org.json.JSONObject();
+            obj.put("id", sub.getId());
+            obj.put("ipoId", sub.getIpoId());
+            obj.put("accountId", sub.getAccountId());
+            obj.put("orderedLots", sub.getOrderedLots());
+            obj.put("reservedAmount", sub.getReservedMoney().getAmount().toPlainString());
+            obj.put("reservedCurrency", sub.getReservedMoney().getCurrency().name());
+            obj.put("allottedLots", sub.getAllottedLots());
+            obj.put("refundAmount", sub.getRefundMoney() != null ? sub.getRefundMoney().getAmount().toPlainString() : org.json.JSONObject.NULL);
+            obj.put("status", sub.getStatus().name());
+            subsArray.put(obj);
+        }
+        root.put("ipoSubscriptions", subsArray);
+
+        // 4. agendas
+        org.json.JSONArray agendasArray = new org.json.JSONArray();
+        for (ShareholderMeetingAgenda a : agendas.values()) {
+            org.json.JSONObject obj = new org.json.JSONObject();
+            obj.put("id", a.getId());
+            obj.put("ticker", a.getTicker());
+            obj.put("title", a.getTitle());
+            obj.put("resolutionText", a.getResolutionText());
+            obj.put("recordingDate", a.getRecordingDate().toString());
+            obj.put("votesFor", a.getTotalVotesFor());
+            obj.put("votesAgainst", a.getTotalVotesAgainst());
+            obj.put("votesAbstain", a.getTotalVotesAbstain());
+            org.json.JSONArray voters = new org.json.JSONArray();
+            for (String voter : a.getVotedAccountIds()) voters.put(voter);
+            obj.put("votedAccountIds", voters);
+            agendasArray.put(obj);
+        }
+        root.put("agendas", agendasArray);
+
+        return root;
+    }
+
+    public synchronized void restoreState(org.json.JSONObject root) throws org.json.JSONException {
+        corporateActions.clear();
+        ipoOfferings.clear();
+        ipoSubscriptions.clear();
+        agendas.clear();
+
+        if (root.has("corporateActions")) {
+            org.json.JSONArray arr = root.getJSONArray("corporateActions");
+            for (int i = 0; i < arr.length(); i++) {
+                org.json.JSONObject obj = arr.getJSONObject(i);
+                Currency c = obj.isNull("currency") ? null : Currency.valueOf(obj.getString("currency"));
+                CorporateAction ca = new CorporateAction(
+                        obj.getString("id"), obj.getString("ticker"),
+                        CorporateActionType.valueOf(obj.getString("type")),
+                        new BigDecimal(obj.getString("valueOrRatio")),
+                        c,
+                        LocalDate.parse(obj.getString("recordingDate")),
+                        LocalDate.parse(obj.getString("executionDate"))
+                );
+                if (obj.optBoolean("isExecuted", false)) ca.markExecuted();
+                corporateActions.add(ca);
+            }
+        }
+
+        if (root.has("ipoOfferings")) {
+            org.json.JSONArray arr = root.getJSONArray("ipoOfferings");
+            for (int i = 0; i < arr.length(); i++) {
+                org.json.JSONObject obj = arr.getJSONObject(i);
+                Currency c = Currency.valueOf(obj.getString("currency"));
+                Money price = new Money(new BigDecimal(obj.getString("offeringPrice")), c);
+                IpoOffering ipo = new IpoOffering(
+                        obj.getString("id"), obj.getString("ticker"), obj.getString("companyName"), c,
+                        price, obj.getInt("lotSize"), obj.getLong("sharesOffered"),
+                        LocalDate.parse(obj.getString("listingDate"))
+                );
+                if (obj.optBoolean("isAllotted", false)) ipo.markAllotted();
+                ipoOfferings.put(ipo.getId(), ipo);
+            }
+        }
+
+        if (root.has("ipoSubscriptions")) {
+            org.json.JSONArray arr = root.getJSONArray("ipoSubscriptions");
+            for (int i = 0; i < arr.length(); i++) {
+                org.json.JSONObject obj = arr.getJSONObject(i);
+                Currency cur = Currency.valueOf(obj.getString("reservedCurrency"));
+                Money reserved = new Money(new BigDecimal(obj.getString("reservedAmount")), cur);
+                IpoSubscription sub = new IpoSubscription(
+                        obj.getString("id"), obj.getString("ipoId"), obj.getString("accountId"),
+                        obj.getLong("orderedLots"), reserved
+                );
+                long allotted = obj.optLong("allottedLots", 0);
+                Money refund = obj.isNull("refundAmount") ? null : new Money(new BigDecimal(obj.getString("refundAmount")), cur);
+                sub.setAllottedLots(allotted);
+                sub.setRefundMoney(refund);
+                sub.setStatus(IpoSubscription.SubscriptionStatus.valueOf(obj.getString("status")));
+                ipoSubscriptions.add(sub);
+            }
+        }
+
+        if (root.has("agendas")) {
+            org.json.JSONArray arr = root.getJSONArray("agendas");
+            for (int i = 0; i < arr.length(); i++) {
+                org.json.JSONObject obj = arr.getJSONObject(i);
+                ShareholderMeetingAgenda agenda = new ShareholderMeetingAgenda(
+                        obj.getString("id"), obj.getString("ticker"), obj.getString("title"),
+                        obj.getString("resolutionText"), LocalDate.parse(obj.getString("recordingDate"))
+                );
+                long forVotes = obj.optLong("votesFor", 0);
+                long againstVotes = obj.optLong("votesAgainst", 0);
+                long abstainVotes = obj.optLong("votesAbstain", 0);
+                Set<String> voters = new HashSet<>();
+                org.json.JSONArray vArr = obj.optJSONArray("votedAccountIds");
+                if (vArr != null) {
+                    for (int j = 0; j < vArr.length(); j++) voters.add(vArr.getString(j));
+                }
+                agenda.restoreVotes(forVotes, againstVotes, abstainVotes, voters);
+                agendas.put(agenda.getId(), agenda);
+            }
+        }
+    }
+
     /**
      * Mengeksekusi pembagian dividen tunai ke seluruh akun yang memegang saham.
      */

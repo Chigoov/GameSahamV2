@@ -10,19 +10,19 @@ Pemetaan terkini: `Artifacts/Remediation/R04/design-screen-coverage-current.csv`
 
 ## Selesai sejak checkpoint sebelumnya
 
-- Sampai 126 tes JUnit/Gradle EXECUTED: posisi ID bursa:ticker, P/L realized gross persisted, mark seluruh pemegang, debt IDR/USD dan negative repayment guard, continuous/auction preflight untuk own crossing/maker rusak, reserve fee rounding per lot, watchlist, detail indeks, fasilitas margin & risiko, aksi korporasi/IPO/voting, fund builder/katalog multi-aset/client fee reports, research feed/tiers/billing, entry picker/new game setup/reset ledger, macro stress test & strategy lab sandbox isolation, rebalancing alokasi Buy/Sell sampai tuntas dengan rekonsiliasi total, shared liquidity short checking terhadap inventori lender pool Market Maker, penagihan biaya sewa short & bunga margin harian pada close day, eksekusi dividen tunai dan penjatahan IPO otomatis pada penutupan sesi, alur penutupan hari bursa (S08) terhubung ke bridge `closeDay()`, dan 5 tahap tutorial interaktif terpandu dengan tombol aksi langsung. `R02/STEP-INTEGRITY.md` merekam RED/GREEN dan batasnya.
+- Sampai 129 tes JUnit/Gradle EXECUTED: posisi ID bursa:ticker, P/L realized gross persisted, mark seluruh pemegang, debt IDR/USD dan negative repayment guard, continuous/auction preflight untuk own crossing/maker rusak, reserve fee rounding per lot, watchlist, detail indeks, fasilitas margin & risiko, aksi korporasi/IPO/voting, fund builder/katalog multi-aset/client fee reports, research feed/tiers/billing, entry picker/new game setup/reset ledger, macro stress test & strategy lab sandbox isolation, rebalancing alokasi Buy/Sell sampai tuntas dengan rekonsiliasi total, shared liquidity short checking terhadap inventori lender pool Market Maker, penagihan biaya sewa short & bunga margin harian pada close day, eksekusi dividen tunai dan penjatahan IPO otomatis pada penutupan sesi, alur penutupan hari bursa (S08) terhubung ke bridge `closeDay()`, 5 tahap tutorial interaktif terpandu dengan tombol aksi langsung, persistensi penuh corporate action receipts, IPO subscriptions, shareholder votes, lender inventory recovery, serta day-close idempotency. `R02/STEP-INTEGRITY.md` merekam RED/GREEN dan batasnya.
 - Runner evidence membedakan EXECUTED/CACHED/NOT_RUN/MISSING_RESULTS; compile gagal tidak lagi menyalin XML lama. `verify_runner.py` RED→GREEN.
-- Host Java snapshot 126 telah rerun seluruh perjalanan UI host. Fixture trading/recovery/static exit 0. Bukan WebView.
+- Host Java snapshot 129: skrip Playwright `full-e2e-regressions.cjs` membuktikan 3 alur utama (Trading pribadi & day-close, Karier & Firma mandat, Multi-aset & risiko makro) 100% PASS pada host Java 127.0.0.1:8766. Fixture trading/recovery/static exit 0. Bukan WebView.
 - Label pencarian/bursa dan scroll viewport pendek RED→GREEN. 31 sampel responsive dan 10 scroll subset lulus; screenshot diverifikasi via vision.
 - `.gitignore` mengecualikan cache/build/local.properties Android. Source Android kini disimpan dalam commit lokal.
 
 ## Kandidat nyata terbaru pada checkpoint
 
-`Artifacts/Remediation/R07/candidate-126/game-saham-remediation-candidate.apk`
+`Artifacts/Remediation/R07/candidate-129/game-saham-remediation-candidate.apk`
 
-- Build `assembleDebug` exit 0, 126 tes EXECUTED/0 failure/error/skipped.
-- 266878 byte; SHA-256 `cba78a6a98e201838c0373184753aeeb32aee91c96a6cac73af8c677c1aeb5d6`.
-- Source manifest `0d02f9348ed7f617e6c396414c7d7b0a2b002a6fa0123674aff12cc9de9fbf12`; HEAD `7b346a0ada140aa2a94f3c9c307c33f18393ae1b` + source lokal uncommitted.
+- Build `assembleDebug` + `testDebugUnitTest` exit 0, 129 tes (100% PASS).
+- 266947 byte; SHA-256 `b87078937751be1535dedcc8072115e10930fdc7f480e55b98592ba2350f5bfa`.
+- Source manifest `7d5bf9c93807911225488181f374763cc51ffb2c258e3424d980104a846d8a9f`; HEAD `707f4f0` + source lokal uncommitted.
 - 5 aset exact, ZIP/DEX/debug signature valid. AppID `com.tradingglobal3d.mobile`, version 1 / `1.0.0-2d-portrait`, min 26 / target 36, portrait/debug.
 - Lint 0 error / 9 warning. Report dan inspection dalam folder sama. Perubahan source berikutnya mengusangkan snapshot ini.
 

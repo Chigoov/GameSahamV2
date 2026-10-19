@@ -9,6 +9,9 @@ import com.tradingglobal3d.core.facade.TradingFacade;
 import com.tradingglobal3d.core.model.*;
 import com.tradingglobal3d.core.storage.SaveManager;
 import com.tradingglobal3d.core.storage.SaveState;
+import com.tradingglobal3d.core.corporate.*;
+import com.tradingglobal3d.core.risk.ShortPosition;
+import com.tradingglobal3d.core.career.DailySessionReport;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -446,5 +449,150 @@ public class DomainAccountSaveTest {
         // Saldo yang dipulihkan berasal dari snapshot valid sebelum save terakhir
         assertTrue(facade3.getPersonalAccount().getTotalCash(Currency.IDR).isPositive());
         assertTrue(facade3.reconcileAll());
+    }
+
+    @Test
+    public void testCorporateActionsIpoAndVotingSurviveSaveAndReload() throws Exception {
+        Account personal = facade.getPersonalAccount();
+        personal.addPosition(new Position("BBCA", "IDX", Currency.IDR, 2000, BigDecimal.valueOf(10000), BigDecimal.valueOf(10250)));
+
+        LocalDate today = facade.getClock().getCurrentDate();
+        LocalDate future = today.plusDays(5);
+
+        // 1. Jadwalkan Dividen Tunai dan tandai sudah dieksekusi
+        CorporateAction divAction = new CorporateAction(
+                "ACT-SAVE-DIV", "BBCA", CorporateActionType.CASH_DIVIDEND,
+                BigDecimal.valueOf(300), Currency.IDR, today, future
+        );
+        divAction.markExecuted();
+        facade.getCorporateService().scheduleCorporateAction(divAction);
+
+        // 2. Daftarkan IPO dan pesan 10 lot (kas tertahan Rp 500.000)
+        IpoOffering ipo = new IpoOffering(
+                "IPO-SAVE-TEST", "TEST", "Test Company Tbk", Currency.IDR,
+                Money.of(500, Currency.IDR), 100, 50_000, future
+        );
+        facade.getCorporateService().registerIpoOffering(ipo);
+        IpoSubscription sub = facade.orderIpo("IPO-SAVE-TEST", 10);
+        assertNotNull(sub);
+        assertEquals(Money.of(500_000, Currency.IDR), personal.getReservedCash(Currency.IDR));
+
+        // 3. Sampaikan suara RUPS (500 suara Setuju)
+        ShareholderMeetingAgenda agenda = new ShareholderMeetingAgenda(
+                "RUPS-SAVE-01", "BBCA", "Agenda Tahunan Save Test",
+                "Resolusi pengujian persistensi agenda", today
+        );
+        facade.getCorporateService().getAgendas(); // pastikan loadable
+        agenda.castVote(personal.getId(), ShareholderMeetingAgenda.VoteChoice.FOR, 500);
+        assertEquals(500, agenda.getTotalVotesFor());
+
+        // 4. Save ke disk
+        facade.save();
+
+        // 5. Muat pada facade baru
+        TradingFacade restored = new TradingFacade(saveManager);
+        assertTrue(restored.load());
+
+        // 6. Verifikasi Aksi Korporasi status dieksekusi tetap dipertahankan
+        CorporateAction restoredDiv = null;
+        for (CorporateAction ca : restored.getCorporateService().getCorporateActions()) {
+            if ("ACT-SAVE-DIV".equals(ca.getId())) {
+                restoredDiv = ca;
+                break;
+            }
+        }
+        assertNotNull("Aksi korporasi harus ada di save", restoredDiv);
+        assertTrue("Status isExecuted dividen harus tersimpan true", restoredDiv.isExecuted());
+
+        // 7. Verifikasi IPO & Subscriptions tersimpan dan dana tertahan tetap konsisten
+        IpoOffering restoredIpo = restored.getCorporateService().getIpo("IPO-SAVE-TEST");
+        assertNotNull("Offering IPO harus ada di save", restoredIpo);
+        assertEquals(Money.of(500_000, Currency.IDR), restored.getPersonalAccount().getReservedCash(Currency.IDR));
+
+        // 8. Verifikasi rekonsiliasi seluruh akun
+        assertTrue(restored.reconcileAll());
+    }
+
+    @Test
+    public void testShortPositionAndLenderInventorySurviveSaveAndCover() throws Exception {
+        com.tradingglobal3d.core.market.InstrumentCatalog catalog = com.tradingglobal3d.core.market.InstrumentCatalog.fromJsonString(
+                new String(java.nio.file.Files.readAllBytes(new File("src/main/assets/data/market_universe.json").toPath()), java.nio.charset.StandardCharsets.UTF_8));
+        facade.setCatalog(catalog);
+
+        Account personal = facade.getPersonalAccount();
+        Account mm = facade.getAccount("ACC-NPC-MM-01");
+        assertNotNull(mm);
+
+        Position mmPos = mm.getPosition("IDX:BBCA");
+        assertNotNull(mmPos);
+        long initialLenderQty = mmPos.getQuantity();
+
+        // Buka posisi short 500 lembar
+        ShortPosition shortPos = facade.openShortPosition("BBCA", 500);
+        assertNotNull(shortPos);
+        assertEquals(initialLenderQty - 500, mmPos.getQuantity());
+
+        // Save ke disk
+        facade.save();
+
+        // Muat ke facade baru
+        TradingFacade restored = new TradingFacade(saveManager);
+        restored.setCatalog(catalog);
+        assertTrue(restored.load());
+
+        Account restoredPersonal = restored.getPersonalAccount();
+        Account restoredMm = restored.getAccount("ACC-NPC-MM-01");
+        assertNotNull(restoredMm);
+
+        Position restoredMmPos = restoredMm.getPosition("IDX:BBCA");
+        assertNotNull(restoredMmPos);
+        assertEquals("Inventori lender harus tetap berkurang setelah reload", initialLenderQty - 500, restoredMmPos.getQuantity());
+
+        ShortPosition restoredShort = restored.getRiskService().getShortPosition(restoredPersonal.getId(), "BBCA");
+        assertNotNull("Posisi short harus tetap aktif setelah reload", restoredShort);
+        assertEquals(500, restoredShort.getBorrowedShares());
+
+        // Buy to Cover pada facade yang di-restore
+        restored.closeShortPosition("BBCA", 500);
+        assertNull("Short harus tertutup setelah cover", restored.getRiskService().getShortPosition(restoredPersonal.getId(), "BBCA"));
+        assertEquals("Inventori lender harus pulih kembali setelah cover", initialLenderQty, restoredMmPos.getQuantity());
+
+        assertTrue(restored.reconcileAll());
+    }
+
+    @Test
+    public void testDayCloseAfterReloadDoesNotDuplicateSalaryFeeDividend() throws Exception {
+        Account personal = facade.getPersonalAccount();
+
+        // Majukan waktu ke 16:01 WIB
+        facade.getClock().play();
+        facade.getClock().tick((int) java.time.Duration.between(facade.getClock().getCurrentTime(), LocalTime.of(16, 1)).getSeconds());
+        facade.getClock().pause();
+
+        String requestId = "REQ-DAY-CLOSE-ONCE";
+        org.json.JSONObject receipt1 = facade.closeDay(requestId);
+        assertNotNull(receipt1);
+        int ledgerCountBefore = facade.getLedger().getEntries().size();
+        Money netWorthBefore = personal.getTotalCash(Currency.IDR);
+
+        // Save ke disk
+        facade.save();
+
+        // Muat ke facade baru
+        TradingFacade restored = new TradingFacade(saveManager);
+        assertTrue(restored.load());
+
+        // Panggil closeDay dengan requestId yang sama -> harus idempoten (mengembalikan receipt yang sama tanpa menambah mutasi)
+        org.json.JSONObject receipt2 = restored.closeDay(requestId);
+        assertNotNull(receipt2);
+        assertEquals(receipt1.getString("endingNetWorth"), receipt2.getString("endingNetWorth"));
+        assertEquals(receipt1.getString("salary"), receipt2.getString("salary"));
+
+        assertEquals("Ledger tidak boleh bertambah saat request idempoten dipanggil ulang",
+                ledgerCountBefore, restored.getLedger().getEntries().size());
+        assertEquals("Net worth tidak boleh berubah saat request idempoten",
+                netWorthBefore, restored.getPersonalAccount().getTotalCash(Currency.IDR));
+
+        assertTrue(restored.reconcileAll());
     }
 }
