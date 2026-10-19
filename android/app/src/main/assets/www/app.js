@@ -331,8 +331,21 @@
                 flowText(panel, 'Tarif performance fee (rasio)', mandate.performanceFeeRate);
                 flowText(panel, 'High-water mark', mandate.highWaterMark);
                 flowText(panel, 'Trust (0–100)', mandate.trust);
-                flowText(panel, 'Belum tersedia', 'Horizon, likuiditas terjadwal, aturan akses karier, laporan/penarikan dan hard limit lengkap masih diremediasi. Penerimaan belum diaktifkan di UI.');
-                flowText(panel, 'Parameter sementara', 'Kontrak existing belum persetujuan produk final OQ-11. Membuka kontrak tidak menerima mandat atau memindahkan uang.');
+                if (mandate.status === 'OFFERED' && bridge.acceptClientMandate) {
+                    flowButton(panel, 'Terima Mandat Kelolaan Klien (S20 & S21)', () => {
+                        try {
+                            const res = JSON.parse(bridge.acceptClientMandate(mandate.id));
+                            if (!res.success) throw new Error(res.message);
+                            flowText(panel, 'Status Penerimaan', `${res.message} (Akun: ${res.accountId})`);
+                            refreshSnapshot();
+                            loadFirmaView();
+                        } catch (err) {
+                            flowText(panel, 'Penerimaan Mandat Ditolak', err.message);
+                        }
+                    });
+                } else if (mandate.status === 'ACTIVE') {
+                    flowText(panel, 'Status Mandat', `Mandat aktif dikelola. Akun kelolaan: ${mandate.accountId}`);
+                }
             }));
         } catch (error) { flowText(view, 'Firma gagal dimuat', error.message); }
     }

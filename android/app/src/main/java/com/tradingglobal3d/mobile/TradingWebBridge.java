@@ -268,6 +268,23 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String acceptClientMandate(String mandateId) {
+        try {
+            Account clientAcc = facade.acceptClientMandate(mandateId);
+            JSONObject res = new JSONObject();
+            res.put("success", true);
+            res.put("mandateId", mandateId);
+            res.put("accountId", clientAcc.getId());
+            res.put("accountName", clientAcc.getName());
+            res.put("message", "Mandat berhasil diterima. Akun kelolaan telah dibuka.");
+            return res.toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
     public String getRiskSnapshot() {
         try {
             Account personal = facade.getPersonalAccount();

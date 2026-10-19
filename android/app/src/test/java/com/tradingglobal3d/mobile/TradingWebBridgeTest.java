@@ -733,4 +733,25 @@ public class TradingWebBridgeTest {
         JSONObject loadJson = new JSONObject(loadRes);
         assertTrue(loadJson.getBoolean("success"));
     }
+
+    @Test
+    public void testAcceptClientMandateViaBridge() throws Exception {
+        String resStr = bridge.acceptClientMandate("MANDATE-01");
+        JSONObject res = new JSONObject(resStr);
+        assertTrue(res.getBoolean("success"));
+        assertEquals("MANDATE-01", res.getString("mandateId"));
+        assertNotNull(res.getString("accountId"));
+
+        // Coba terima lagi mandat yang sama -> idempoten, mengembalikan akun yang sama
+        String resStr2 = bridge.acceptClientMandate("MANDATE-01");
+        JSONObject res2 = new JSONObject(resStr2);
+        assertTrue(res2.getBoolean("success"));
+        assertEquals(res.getString("accountId"), res2.getString("accountId"));
+
+        // Periksa snapshot firma mencatat 1 klien aktif dan saldo AUM
+        JSONObject firmSnap = new JSONObject(bridge.getFirmSnapshot());
+        assertEquals(1, firmSnap.getInt("activeClientCount"));
+        assertEquals("Rp 100.000.000", firmSnap.getString("aumIdr"));
+        assertTrue(facade.reconcileAll());
+    }
 }

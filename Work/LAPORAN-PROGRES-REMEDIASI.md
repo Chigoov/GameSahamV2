@@ -12,15 +12,15 @@
 
 Proyek ini telah melalui proses audit menyeluruh terhadap implementasi lama yang mengklaim 14/14 task selesai dan 230 status PASS tanpa dukungan bukti nyata. Seluruh klaim semu telah dicabut pada audit R01 dan digantikan dengan baseline faktual 228 requirement PRD dan 40 tujuan desain antarmuka (*screen goals*).
 
-Melalui 8 milestone remediasi sistematis berbasis prinsip TDD (*Test-Driven Development*), seluruh jalur shared domain finansial yang kritis telah diperbaiki, 129 pengujian otomatis dijalankan secara mandiri, dan seluruh 40 layar UI telah berhasil diimplementasikan dan dihubungkan ke jembatan domain Java `TradingWebBridge`:
+Melalui 8 milestone remediasi sistematis berbasis prinsip TDD (*Test-Driven Development*), seluruh jalur shared domain finansial yang kritis telah diperbaiki, 130 pengujian otomatis dijalankan secara mandiri, dan seluruh 40 layar UI telah berhasil diimplementasikan dan dihubungkan ke jembatan domain Java `TradingWebBridge`:
 
 * **Progres Milestone Remediasi:** **2 Selesai, 5 Berjalan/Terverifikasi Parsial, 1 Terblokir** (R01 `COMPLETED`, R04 `COMPLETED/PARTIAL-VERIFIED`, R02 `PARTIAL`, R03 `PARTIAL`, R06 `PARTIAL`, R07 `PARTIAL`, R08 `PARTIAL`, R05 `BLOCKED`).
 * **Kelengkapan Layar (40 Screen Goals PRD):**
   * **MISSING: 0 Layar** *(Seluruh 40 tujuan desain kini memiliki representasi antarmuka dan interaksi nyata)*.
   * **PARTIAL: 39 Layar** *(Terhubung ke jembatan domain Java dan tervalidasi via pengujian browser Playwright pada host QA lokal)*.
   * **UNAVAILABLE_NOTICE: 1 Layar** *(S39 Replay Historis, berstatus penolakan jujur mematuhi kepatuhan audit lisensi data OQ02–05)*.
-* **Test Suite JUnit Debug:** **129 tes EXECUTED, 0 failures, 0 errors, 0 skipped** (Exit Code 0).
-* **Kandidat APK Android Mandiri:** `Artifacts/Remediation/R07/candidate-129/game-saham-remediation-candidate.apk` (266.947 byte, SHA-256 `b87078937751be1535dedcc8072115e10930fdc7f480e55b98592ba2350f5bfa`, 5 aset terverifikasi byte-for-byte, lint 0 error / 9 warning).
+* **Test Suite JUnit Debug:** **130 tes EXECUTED, 0 failures, 0 errors, 0 skipped** (Exit Code 0).
+* **Kandidat APK Android Mandiri:** `Artifacts/Remediation/R07/candidate-130/game-saham-remediation-candidate.apk` (286.406 byte, SHA-256 `bb38c0d7db3b3e914c0c695dc2e85eafb273811ae8f40741ae9a88e7b82fa73c`, 5 aset terverifikasi byte-for-byte, lint 0 error / 9 warning).
 * **Gate Native Android & Perangkat Fisik:** Berstatus **PENDING by Scope** sesuai instruksi eksplisit pengguna untuk fase lingkungan tanpa ADB.
 
 ---
@@ -30,12 +30,12 @@ Melalui 8 milestone remediasi sistematis berbasis prinsip TDD (*Test-Driven Deve
 | Milestone | Target Scope | Status Aktual | Ringkasan Bukti Nyata & Verifikasi |
 | :--- | :--- | :--- | :--- |
 | **R01** | Audit Status & Bukti | **COMPLETED** | Membatalkan klaim 14/14 selesai lama; menduplikasi status; menetapkan baseline 228 requirement dan 40 cakupan layar PRD di `Work/REMEDIATION-STATUS.json` & `Artifacts/Remediation/R01/AUDIT.md`. |
-| **R02** | Verifikasi Domain Finansial | **PARTIAL** | Test suite berkembang dari baseline 58 tes menjadi **129 tes EXECUTED (100% lulus)**. Memperbaiki self-trade matching, pembulatan fee limit buy per lot, pemisahan utang multi-mata uang IDR & USD, identitas komposit bursa `exchange:ticker`, idempotensi reset ledger, penyelesaian rebalancing Buy/Sell sampai tuntas dengan rekonsiliasi total, shared liquidity short checking terhadap inventori lender pool MM, penagihan biaya sewa short & bunga margin harian pada close day, auto dividen tunai & penjatahan IPO pada penutupan sesi, serta persistensi penuh aksi korporasi/IPO/voting/lender recovery. |
-| **R03** | Perjalanan UI Browser Host | **PARTIAL** | 3 alur utama (Trading pribadi & day-close, Karier & Firma mandat, Multi-aset & risiko makro) 100% PASS via skrip Playwright `full-e2e-regressions.cjs` pada server QA Host Java lokal (`127.0.0.1:8766`). Responsif 6 viewport (31 sampel) dan pengujian scroll font 200% lulus tanpa text-overlap; layout tombol emas terverifikasi rapi via `vision_analyze`. |
-| **R04** | Kelengkapan Fitur & Desain | **COMPLETED (PARTIAL-VERIFIED)** | **0 layar MISSING**. Seluruh 40 layar telah memiliki implementasi UI terhubung ke bridge; 39 layar PARTIAL, 1 layar berstatus penolakan jujur UNAVAILABLE_NOTICE. Panduan tutorial interaktif terhubung dengan tombol aksi langsung pada tiap langkah (S03), dan penutupan hari (S08) terhubung langsung ke `closeDay()`. |
+| **R02** | Verifikasi Domain Finansial | **PARTIAL** | Test suite berkembang dari baseline 58 tes menjadi **130 tes EXECUTED (100% lulus)**. Memperbaiki self-trade matching, pembulatan fee limit buy per lot, pemisahan utang multi-mata uang IDR & USD, identitas komposit bursa `exchange:ticker`, idempotensi reset ledger, penyelesaian rebalancing Buy/Sell sampai tuntas dengan rekonsiliasi total, shared liquidity short checking terhadap inventori lender pool MM, penagihan biaya sewa short & bunga margin harian pada close day, auto dividen tunai & penjatahan IPO pada penutupan sesi, persistensi penuh aksi korporasi/IPO/voting/lender recovery, serta penerimaan mandat klien resmi (S20 & S21) via jembatan bridge. |
+| **R03** | Perjalanan UI Browser Host | **PARTIAL** | 3 alur utama (Trading pribadi & day-close, Karier & Penerimaan mandat klien firma B.3, Multi-aset & risiko makro) 100% PASS via skrip Playwright `full-e2e-regressions.cjs` pada server QA Host Java lokal (`127.0.0.1:8766`). Responsif 6 viewport (31 sampel) dan pengujian scroll font 200% lulus tanpa text-overlap; layout tombol emas terverifikasi rapi via `vision_analyze`. |
+| **R04** | Kelengkapan Fitur & Desain | **COMPLETED (PARTIAL-VERIFIED)** | **0 layar MISSING**. Seluruh 40 layar telah memiliki implementasi UI terhubung ke bridge; 39 layar PARTIAL, 1 layar berstatus penolakan jujur UNAVAILABLE_NOTICE. Panduan tutorial interaktif terhubung dengan tombol aksi langsung pada tiap langkah (S03), penutupan hari (S08) terhubung langsung ke `closeDay()`, dan penerimaan mandat kelolaan klien resmi diaktifkan (S20 & S21). |
 | **R05** | Dataset Historis & Replay | **BLOCKED** | Pertanyaan terbuka OQ-02 s/d OQ-05 belum memiliki lisensi/sumber resmi. Manifest dataset berstatus `UNAVAILABLE` secara jujur untuk mencegah penggunaan data fiktif. |
 | **R06** | Save / Restore State | **PARTIAL** | Persistensi mencakup akun, buku besar (*ledger*), utang margin, realized P/L, watchlist, order aktif/antrean lelang, paket riset, rencana alokasi dana, receipts aksi korporasi, langganan IPO, suara RUPS, dan pemulihan inventori lender MM. Pengujian reload terbukti idempoten. |
-| **R07** | Inspeksi Paket APK Kandidat | **PARTIAL** | Kandidat APK debug `candidate-129` dibangun secara mandiri via Gradle wrapper offline (266.947 byte); seluruh 5 aset web/data cocok byte-for-byte dengan source lokal. |
+| **R07** | Inspeksi Paket APK Kandidat | **PARTIAL** | Kandidat APK debug `candidate-130` dibangun secara mandiri via Gradle wrapper offline (286.406 byte); seluruh 5 aset web/data cocok byte-for-byte dengan source lokal. |
 | **R08** | Rekonsiliasi & Handoff Git | **PARTIAL** | Seluruh source Android, Java domain, test suite, dan aset web ter-commit di Git lokal (tanpa push); aturan `.gitignore` melindungi artefak build, cache scratch, dan data sensitif. |
 
 ---
@@ -114,9 +114,9 @@ Selama proses remediasi, sejumlah kelemahan struktural pada domain finansial ber
 
 ## 5. Ringkasan Kandidat Paket APK & Inspeksi Aset
 
-* **Path File:** `Artifacts/Remediation/R07/candidate-126/game-saham-remediation-candidate.apk`
-* **Ukuran APK:** **266.878 byte**
-* **Checksum SHA-256:** `cba78a6a98e201838c0373184753aeeb32aee91c96a6cac73af8c677c1aeb5d6`
+* **Path File:** `Artifacts/Remediation/R07/candidate-130/game-saham-remediation-candidate.apk`
+* **Ukuran APK:** **286.406 byte**
+* **Checksum SHA-256:** `bb38c0d7db3b3e914c0c695dc2e85eafb273811ae8f40741ae9a88e7b82fa73c`
 * **Identitas Aplikasi:**
   * Package Name: `com.tradingglobal3d.mobile`
   * Version Code: `1`
@@ -127,9 +127,9 @@ Selama proses remediasi, sejumlah kelemahan struktural pada domain finansial ber
 * **Verifikasi Integritas Aset (Byte-for-Byte Match):**
   1. `assets/data/dataset_manifest.json` (730 byte, SHA-256 `cca7b8c743...`) — Cocok 100%.
   2. `assets/data/market_universe.json` (8.548 byte, SHA-256 `ff0e102fc4...`) — Cocok 100%.
-  3. `assets/www/app.js` (106.286 byte, SHA-256 `698d2aaa8b...`) — Cocok 100%.
+  3. `assets/www/app.js` (106.536 byte, SHA-256 `862dcca42e...`) — Cocok 100%.
   4. `assets/www/index.html` (9.603 byte, SHA-256 `0e5e8e6b69...`) — Cocok 100%.
-  5. `assets/www/style.css` (9.744 byte, SHA-256 `f44d7d1eb9...`) — Cocok 100%.
+  5. `assets/www/style.css` (9.792 byte, SHA-256 `7231145118...`) — Cocok 100%.
 * **Android Lint Analysis:** 0 fatal error, 9 warnings (5 Locale formatting internal, 2 orientasi layar locked, 1 JavaScript interface WebView, 1 default application icon). Bebas dari error fatal.
 
 ---
@@ -172,7 +172,7 @@ C:/Users/HYPE AMD/Downloads/VIBE CODING/GAME SAHAM/
 │   │   └── stress/                       <-- Pengujian stress test, strategy lab, & replay notice
 │   ├── R05/                              <-- Laporan investigasi dataset historis (BLOCKED)
 │   ├── R06/                              <-- Pengujian persistensi save/load & backup
-│   ├── R07/candidate-126/                <-- Kandidat APK 126 tes & package-inspection.json
+│   ├── R07/candidate-130/                <-- Kandidat APK 130 tes & package-inspection.json
 │   └── R08/verify_checkpoint.py          <-- Skrip verifikasi integritas checkpoint
 └── android/app/src/main/
     ├── java/com/tradingglobal3d/         <-- Implementasi domain Java & bridge native
