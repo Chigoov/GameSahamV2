@@ -7,7 +7,7 @@
   "current_task": "REMEDIATION",
   "completed_tasks": [],
   "hermes_session_id": "20261019_012813_c4c8b3",
-  "next_action": "Lanjut R04 slice watchlist bridge/UI dan gap independen setelah checkpoint113tes; hasil aktif di Work/REMEDIATION-STATUS.json dan Work/REMEDIATION-HANDOFF.md. R01 saja COMPLETE, produk PARTIAL; tanpa ADB/push.",
+  "next_action": "Lanjut verifikasi dan penyelesaian gap domain finansial (fund rebalancing settlement, short shared liquidity, loan fee/liquidation), save recovery, dan guided tutorial; tracking aktif di Work/REMEDIATION-STATUS.json dan Work/REMEDIATION-HANDOFF.md. R01 saja COMPLETE, produk PARTIAL; tanpa ADB/push.",
   "tasks": [
     {
       "id": "00",

@@ -1,0 +1,23 @@
+{
+  "manifestVersion": "1.0.0",
+  "historicalDataAvailable": false,
+  "sourceFiles": [],
+  "blockingReason": "Data historis nyata belum tersedia dan belum diverifikasi. OQ-03, OQ-04, OQ-05 masih OPEN: kontrak replay, sumber/periode/resolusi, dan hak penggunaan/distribusi.",
+  "provenance": {
+    "source": null,
+    "license": "UNVERIFIED — no dataset distribution permission established",
+    "retrievedDate": null,
+    "datasetType": "UNAVAILABLE",
+    "priceBasis": "UNVERIFIED",
+    "timezone": {
+      "IDX": "Asia/Jakarta (UTC+07:00)",
+      "US": "America/New_York (UTC-05:00/04:00)"
+    }
+  },
+  "universe": {
+    "activeCountIDX": 10,
+    "activeCountUS": 10,
+    "passiveCatalogCount": 6,
+    "indicesCount": 3
+  }
+}

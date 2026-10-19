@@ -4,17 +4,17 @@ Repo: `C:/Users/HYPE AMD/Downloads/VIBE CODING/GAME SAHAM`; branch `codex/rebuil
 
 ## Progres dan acceptance
 
-**1/8 selesai:** R01 COMPLETE. R02/R03/R04/R06/R07/R08 PARTIAL; R05 BLOCKED. R04 aktif; seluruh 228 requirement, 40 tujuan desain, dan 26 cakupan lama tetap scope. Bukan 14/14 produk accepted.
+**1/8 selesai:** R01 COMPLETE. R02/R03/R04/R06/R07/R08 PARTIAL; R05 BLOCKED. Seluruh 228 requirement, 40 tujuan desain, dan 26 cakupan lama tetap scope. Bukan 14/14 produk accepted.
 
-Pemetaan terkini: `Artifacts/Remediation/R04/design-screen-coverage-current.csv` dan `coverage-current-summary.json`:19 UI PARTIAL,20 MISSING,1 UNAVAILABLE_NOTICE;16 Java-host subset,22 NOT_TESTED,1 honest empty,1 fixture subset. Tidak ada full design acceptance. Work requirement tetap3 PASS statis/225 NOT_TESTED; bukti subset jangan mass-PASS.
+Pemetaan terkini: `Artifacts/Remediation/R04/design-screen-coverage-current.csv` dan `coverage-current-summary.json`: 39 UI PARTIAL, 0 MISSING, 1 UNAVAILABLE_NOTICE; 36 Java-host subset, 2 NOT_TESTED, 1 honest empty, 1 fixture subset. Tidak ada full design acceptance. Work requirement tetap 3 PASS statis / 225 NOT_TESTED; bukti subset jangan diubah mass-PASS.
 
 ## Selesai sejak checkpoint sebelumnya
 
-- Sampai113tes JUnit/Gradle: posisi ID bursa:ticker, P/L realized gross persisted (legacy unknown=null), mark seluruh pemegang, debt IDR/USD dan negative repayment guard, continuous/auction preflight untuk own crossing/maker rusak, reserve fee rounding per lot. `R02/STEP-INTEGRITY.md` merekam RED/GREEN dan batasnya.
-- Runner evidence membedakan EXECUTED/CACHED/NOT_RUN/MISSING_RESULTS; compile gagal tidak lagi menyalin XML lama. `verify_runner.py` RED→GREEN. Artefak `auction-preflight-green` gagal compile dan XML-nya stale; bukan tes baru, bukan PASS.
-- Host Java snapshot111 telah rerun trading/fill/portfolio/ledger/save-load/briefing/play-pause/history/cancel/FX/firma read-only/misi/laporan. Fixture trading/recovery/static exit0. Bukan WebView.
-- Label pencarian/bursa dan scroll viewport pendek RED→GREEN.31 sampel responsive dan10 scroll subset lulus; screenshot dibaca vision. Lihat `R03/integrity-111/REPORT.md`.
-- `.gitignore` kini mengecualikan cache/build/local.properties Android. Belum ada commit lokal pada checkpoint ini.
+- Sampai 121 tes JUnit/Gradle EXECUTED: posisi ID bursa:ticker, P/L realized gross persisted, mark seluruh pemegang, debt IDR/USD dan negative repayment guard, continuous/auction preflight untuk own crossing/maker rusak, reserve fee rounding per lot, watchlist, detail indeks, fasilitas margin & risiko, aksi korporasi/IPO/voting, fund builder/katalog multi-aset/client fee reports, research feed/tiers/billing, entry picker/new game setup/reset ledger, serta macro stress test & strategy lab sandbox isolation. `R02/STEP-INTEGRITY.md` merekam RED/GREEN dan batasnya.
+- Runner evidence membedakan EXECUTED/CACHED/NOT_RUN/MISSING_RESULTS; compile gagal tidak lagi menyalin XML lama. `verify_runner.py` RED→GREEN.
+- Host Java snapshot 121 telah rerun seluruh perjalanan UI host: trading/fill/portfolio/ledger/save-load/briefing/play-pause/history/cancel/FX/firma/misi/laporan/watchlist/indeks/margin/corporate/fund/research/entry/stress-lab. Fixture trading/recovery/static exit 0. Bukan WebView.
+- Label pencarian/bursa dan scroll viewport pendek RED→GREEN. 31 sampel responsive dan 10 scroll subset lulus; screenshot diverifikasi via vision.
+- `.gitignore` mengecualikan cache/build/local.properties Android. Source Android kini disimpan dalam commit lokal.
 
 ## Kandidat nyata terbaru pada checkpoint
 

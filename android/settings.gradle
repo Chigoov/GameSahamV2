@@ -1,0 +1,2 @@
+rootProject.name = 'TradingGlobal3D2D'
+include ':app'

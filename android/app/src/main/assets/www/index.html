@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Game Saham 2D Portrait</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Top Header -->
+    <header class="app-header">
+        <div class="brand-title">
+            <span>GAME SAHAM</span>
+            <span class="brand-badge">2D PORTRAIT</span>
+        </div>
+        <div style="font-size:0.8rem; color:var(--text-muted);" id="clock-display">08:30:00 WIB</div>
+    </header>
+
+    <div style="display:flex; gap:8px; margin-bottom:8px;">
+        <button id="btn-settings" class="btn-secondary" style="flex:1;">Pengaturan / save</button>
+        <button id="btn-entry-game" class="btn-secondary" style="flex:1;">Menu awal & karir</button>
+    </div>
+    <!-- Context Strip -->
+    <div class="context-strip">
+        <div class="session-indicator">
+            <span id="session-dot" class="status-dot"></span>
+            <span id="session-label">Memeriksa Sesi...</span>
+        </div>
+        <div id="mode-label" style="font-weight:600; color:var(--action);">Pasar Internal Game</div>
+    </div>
+
+    <!-- Mock Banner jika berjalan di Browser biasa -->
+    <div id="mock-banner" class="mock-banner" style="display:none;">
+        [MOCK BROWSER - STANDALONE PREVIEW] Data disimulasikan secara lokal untuk pengujian UI.
+    </div>
+
+    <!-- Main Container Viewports -->
+    <main class="main-container">
+
+        <!-- 1. VIEW: BERANDA (S04) -->
+        <section id="view-beranda" class="screen-view active">
+            <!-- Ringkasan Kas Pribadi -->
+            <div class="card">
+                <div class="card-title">Kekayaan Kas Pribadi (IDR)</div>
+                <div id="home-total-cash" class="metric-hero">Belum dimuat</div>
+                <div class="flex-row" style="margin-top:12px; font-size:0.85rem;">
+                    <span style="color:var(--text-muted);">Tersedia untuk Trading:</span>
+                    <span id="home-avail-cash" style="font-weight:600; color:var(--positive);">Belum dimuat</span>
+                </div>
+                <div class="flex-row" style="font-size:0.85rem;">
+                    <span style="color:var(--text-muted);">Tertahan dalam Order:</span>
+                    <span id="home-reserved-cash" style="font-weight:600; color:var(--warning);">Belum dimuat</span>
+                </div>
+            </div>
+
+            <section class="card" aria-labelledby="trading-agenda-title">
+                <h2 id="trading-agenda-title" class="card-title">Agenda trading</h2>
+                <p id="home-clock-state">Menunggu snapshot domain.</p>
+                <button id="btn-briefing" class="btn-primary">Buka briefing</button>
+                <button id="btn-reports" class="btn-secondary">Lihat laporan tersimpan</button>
+            </section>
+            <section class="card" aria-labelledby="career-agenda-title">
+                <h2 id="career-agenda-title" class="card-title">Agenda karier</h2>
+                <p id="home-career-state">Karier belum dimuat.</p>
+                <button id="btn-career" class="btn-primary">Lihat karier / misi</button>
+            </section>
+        </section>
+
+        <!-- 2. VIEW: PASAR (S06) -->
+        <section id="view-pasar" class="screen-view">
+            <!-- Indeks Gabungan -->
+            <h2 class="card-title">Indeks simulasi game</h2>
+            <div id="indices-row" style="display:flex; margin-bottom:12px;"></div>
+
+            <!-- Search & Filter Controls -->
+            <div style="margin-bottom:12px; display:flex; flex-wrap:wrap; gap:8px;">
+                <div style="flex:2 1 160px; min-width:0;">
+                    <label for="search-stock-input">Cari instrumen</label>
+                    <input id="search-stock-input" class="input-field" style="margin:0;" type="text" placeholder="Ticker / nama">
+                </div>
+                <div style="flex:1 1 120px; min-width:0;">
+                    <label for="filter-exchange-select">Bursa</label>
+                    <select id="filter-exchange-select" class="input-field" style="margin:0;">
+                        <option value="">Semua</option>
+                        <option value="IDX">IDX (Indonesia)</option>
+                        <option value="US">US (Wall St)</option>
+                    </select>
+                </div>
+            </div>
+
+            <label for="filter-list-select">Daftar instrumen</label>
+            <select id="filter-list-select" class="input-field">
+                <option value="all">Semua instrumen aktif</option>
+                <option value="watchlist">Watchlist</option>
+            </select>
+            <button id="btn-order-history" class="btn-secondary">Order aktif / riwayat</button>
+            <button id="btn-ipo-center" class="btn-secondary" style="margin-top:8px;">Pusat IPO (Pasar perdana)</button>
+            <button id="btn-multiasset" class="btn-secondary" style="margin-top:8px;">Katalog multi-aset (obligasi & komoditas)</button>
+            <p id="stock-list-status" role="status"></p>
+            <!-- Stock List -->
+            <div id="stock-list-container"></div>
+        </section>
+
+        <!-- 3. VIEW: ASET (S13) -->
+        <section id="view-aset" class="screen-view">
+            <div class="card">
+                <div class="card-title">Ringkasan Portofolio & FX</div>
+                <p>Snapshot akun belum dimuat.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Posisi Instrumen Saham</div>
+                <div id="portfolio-positions-list"></div>
+            </div>
+        </section>
+
+        <!-- 4. VIEW: FIRMA & KLIEN (S19) -->
+        <section id="view-firma" class="screen-view">
+            <p>Snapshot firma belum dimuat.</p>
+        </section>
+
+        <!-- 5. VIEW: RISET & TERMINAL (S25) -->
+        <section id="view-riset" class="screen-view">
+            <div class="card">
+                <h2 class="card-title">Riset belum terhubung</h2>
+                <p>Feed dengan waktu game dan asal konten yang tervalidasi belum terhubung ke layar ini. Tidak menampilkan berita contoh sebagai peristiwa aktual.</p>
+                <p>Berita, analis, kalender, paket terminal, dan replay tetap fitur wajib yang belum lengkap.</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar (5 Root Tabs) -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" data-tab="beranda">
+            <span class="nav-icon">🏠</span>
+            <span>Beranda</span>
+        </button>
+        <button class="nav-item" data-tab="pasar">
+            <span class="nav-icon">📈</span>
+            <span>Pasar</span>
+        </button>
+        <button class="nav-item" data-tab="aset">
+            <span class="nav-icon">💼</span>
+            <span>Aset</span>
+        </button>
+        <button class="nav-item" data-tab="firma">
+            <span class="nav-icon">🏛️</span>
+            <span>Firma</span>
+        </button>
+        <button class="nav-item" data-tab="riset">
+            <span class="nav-icon">📰</span>
+            <span>Riset</span>
+        </button>
+    </nav>
+
+    <!-- Modal Tiket Order (Bottom Sheet) -->
+    <div id="order-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-stock-ticker">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <div>
+                    <div id="modal-stock-ticker" style="font-size:1.1rem; font-weight:600; color:var(--action);">BBCA (IDX)</div>
+                    <div id="modal-stock-price" style="font-size:0.9rem; color:var(--text-secondary);">Rp 10.250</div>
+                </div>
+                <button id="btn-close-modal" aria-label="Tutup tiket order" style="background:transparent; border:none; color:var(--text-muted); font-size:1.4rem; padding:4px 8px; cursor:pointer;">✕</button>
+            </div>
+
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+                <button class="btn-secondary side-btn active" data-side="BUY" style="background:var(--positive); color:#0F1720; font-weight:700;">BELI</button>
+                <button class="btn-secondary side-btn" data-side="SELL" style="font-weight:700;">JUAL</button>
+            </div>
+
+            <label for="order-type">Jenis order</label>
+            <select id="order-type" class="input-field">
+                <option value="LIMIT">Limit</option><option value="MARKET">Market</option>
+                <option value="STOP_LOSS">Stop-loss (market setelah pemicu)</option>
+                <option value="TAKE_PROFIT">Take-profit (market setelah pemicu)</option>
+            </select>
+            <div id="order-account-context"></div>
+            <label id="order-unit-label" for="order-qty" style="font-size:0.85rem; color:var(--text-secondary);">Jumlah unit</label>
+            <input id="order-qty" class="input-field" type="number" min="1" value="1">
+
+            <label id="order-price-label" for="order-limit-price" style="font-size:0.85rem; color:var(--text-secondary);">Harga limit</label>
+            <input id="order-limit-price" class="input-field" type="number" value="10250">
+
+            <p id="order-est-total">Biaya dan dampak kas dihitung domain pada langkah review.</p>
+            <p id="order-error" role="alert" tabindex="-1"></p>
+            <button id="btn-submit-order" class="btn-primary" style="margin-top:12px;">Tinjau order</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

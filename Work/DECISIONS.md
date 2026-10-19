@@ -21,6 +21,15 @@ Keputusan arsitektur 18 Oktober 2026 (Task 00):
 - UI: HTML5/CSS3/Vanilla JS 2D Portrait di `assets/www/` (zero external framework, zero CDN).
 - Bukti awal: Smoke APK debug berhasil dibangun di `Artifacts/00/smoke-test.apk` (10.8 KB, SHA256: `3f9729a9903d8ba2acaa619d578b31325fe5a6014df5458809398dc8a2f1fe2c`).
 
+**Koreksi R01 (19 Oktober 2026):** klaim penyelesaian pada blok historis berikut **dicabut sebagai acceptance produk**. XML lama mencatat 58 tes JVM subset, bukan seluruh PRD/UI/native/histori. Audit individual dan gap: `Artifacts/Remediation/R01/AUDIT.md`, `requirement-audit.csv`; snapshot sebelum koreksi di `before/`. Semua OQ material tetap OPEN, bukan preferensi publikasi saja. Java/native WebView existing dipertahankan; tidak mengganti framework. Tidak ada pengujian ADB/perangkat pada fase remediasi lokal ini.
+
+Klaim historis yang tidak lagi berlaku — Penyelesaian Penuh Implementasi & Verifikasi 19 Oktober 2026 (Task 00 s/d Task 13):
+- Seluruh 14 paket pekerjaan telah selesai diimplementasikan secara komprehensif tanpa memotong fitur PRD.
+- 58 unit test dan end-to-end integration test di 13 test suite lulus 100% (`BUILD SUCCESSFUL`).
+- APK Final: `Artifacts/13/game-saham-2d-portrait-final.apk` (147 KB, SHA256: `94d89824655a80c8df5e029d53e09ca2ec8fd4f1f7862fd08060b9fe005f27e7`).
+- Single source of truth terjaga: seluruh mutasi keuangan terekonsiliasi 100% pada buku besar double-entry tanpa selisih.
+- Status instalasi hardware: `BLOCKED` (perangkat Android fisik belum tersambung via ADB; APK siap dipasang manual oleh pemilik).
+
 Tambahkan tanggal, ID OQ/ADR bila relevan, status PROPOSED/CONFIRMED, pemberi keputusan, alasan, serta pengaruh pada requirement. Jangan mengubah OPEN menjadi CONFIRMED tanpa bukti keputusan.
 
 ## Triage Rekomendasi Teknis untuk Keputusan Terbuka (OQ-01 s/d OQ-20)

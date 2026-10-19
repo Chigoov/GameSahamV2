@@ -1,0 +1,953 @@
+package com.tradingglobal3d.mobile;
+
+import android.webkit.JavascriptInterface;
+import com.tradingglobal3d.core.facade.TradingFacade;
+import com.tradingglobal3d.core.market.Instrument;
+import com.tradingglobal3d.core.market.MarketIndex;
+import com.tradingglobal3d.core.model.Account;
+import com.tradingglobal3d.core.model.Currency;
+import com.tradingglobal3d.core.model.Money;
+import com.tradingglobal3d.core.model.Position;
+import com.tradingglobal3d.core.trading.*;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.math.BigDecimal;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+/**
+ * Jembatan Komunikasi Native Android WebView (@JavascriptInterface) ke TradingFacade.
+ * Mengekspos API bertipe JSON ke frontend 2D portrait.
+ */
+public final class TradingWebBridge {
+    private final TradingFacade facade;
+    private final Map<String, com.tradingglobal3d.core.replay.StrategyLabSandbox> activeSandboxes = new LinkedHashMap<>();
+
+    public TradingWebBridge(TradingFacade facade) {
+        this.facade = Objects.requireNonNull(facade);
+    }
+
+    @JavascriptInterface
+    public String getPlatformInfo() {
+        return "{\"platform\":\"Android\",\"nativeHost\":true,\"version\":\"1.0.0-2d-portrait\"}";
+    }
+
+    @JavascriptInterface
+    public String getSnapshot() {
+        try {
+            return facade.getSnapshotJson();
+        } catch (Exception e) {
+            return "{\"error\":\"" + e.getMessage() + "\"}";
+        }
+    }
+
+    @JavascriptInterface
+    public String getInstruments(String query, String exchange, String sector, boolean activeOnly) {
+        try {
+            List<Instrument> list = facade.getCatalog().search(
+                    query != null && !query.isEmpty() ? query : null,
+                    exchange != null && !exchange.isEmpty() ? com.tradingglobal3d.core.market.MarketExchange.valueOf(exchange) : null,
+                    sector != null && !sector.isEmpty() ? sector : null,
+                    activeOnly ? Boolean.TRUE : null
+            );
+
+            JSONArray array = new JSONArray();
+            for (Instrument inst : list) {
+                JSONObject obj = new JSONObject();
+                obj.put("id", inst.getId());
+                obj.put("ticker", inst.getTicker());
+                obj.put("name", inst.getName());
+                obj.put("exchange", inst.getExchange().name());
+                obj.put("sector", inst.getSector());
+                obj.put("currency", inst.getCurrency().name());
+                obj.put("lotSize", inst.getLotSize());
+                obj.put("currentPrice", inst.getCurrentPrice().format());
+                obj.put("currentPriceRaw", inst.getCurrentPrice().getAmount().toPlainString());
+                obj.put("dailyChangePercent", String.format(java.util.Locale.US, "%.2f", inst.getDailyChangePercent()));
+                obj.put("isActiveTrading", inst.isActiveTrading());
+                obj.put("isWatchlist", facade.getCatalog().isInWatchlist(inst.getId()));
+                array.put(obj);
+            }
+            return array.toString();
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    @JavascriptInterface
+    public String getIndices() {
+        try {
+            facade.getCatalog().recalculateAllIndices();
+            JSONArray array = new JSONArray();
+
+            for (MarketIndex idx : facade.getCatalog().getAllIndices()) {
+                JSONObject obj = new JSONObject();
+                obj.put("id", idx.getId());
+                obj.put("ticker", idx.getTicker());
+                obj.put("name", idx.getName());
+                obj.put("value", String.format(java.util.Locale.US, "%.2f", idx.getCurrentValue()));
+                array.put(obj);
+            }
+            return array.toString();
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    @JavascriptInterface
+    public String getIndexDetail(String indexId) {
+        try {
+            MarketIndex index = facade.getCatalog().getIndex(indexId);
+            if (index == null) return new JSONObject().put("success", false)
+                    .put("message", "Indeks tidak ditemukan").toString();
+            facade.getCatalog().recalculateAllIndices();
+            JSONArray members = new JSONArray();
+            for (String instrumentId : index.getMemberIds()) {
+                Instrument instrument = facade.getCatalog().getById(instrumentId);
+                if (instrument == null) throw new IllegalStateException("Anggota indeks tidak ditemukan");
+                members.put(new JSONObject().put("instrumentId", instrument.getId())
+                        .put("ticker", instrument.getTicker()).put("name", instrument.getName())
+                        .put("exchange", instrument.getExchange().name())
+                        .put("currency", instrument.getCurrency().name())
+                        .put("price", instrument.getCurrentPrice().format())
+                        .put("isActiveTrading", instrument.isActiveTrading()));
+            }
+            return new JSONObject().put("success", true).put("id", index.getId())
+                    .put("ticker", index.getTicker()).put("name", index.getName())
+                    .put("exchange", index.getExchange().name()).put("method", index.getMethod().name())
+                    .put("value", String.format(java.util.Locale.US, "%.2f", index.getCurrentValue()))
+                    .put("unit", "poin").put("baseValue", index.getBaseValue())
+                    .put("sourceLabel", "Indeks simulasi game dari anggota katalog, bukan nilai indeks resmi bursa")
+                    .put("gameDate", facade.getClock().getCurrentDate().toString())
+                    .put("gameTime", facade.getClock().getFormattedTime())
+                    .put("validFrom", JSONObject.NULL).put("historyAvailable", false)
+                    .put("limitations", "Bobot efektif, periode berlaku dan histori indeks belum tersedia. Metode memakai harga sekarang dibanding previous close dan kapitalisasi anggota katalog; bukan metodologi indeks resmi.")
+                    .put("members", members).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String getOrderBook(String instrumentId) {
+        try {
+            Instrument inst = facade.getCatalog().getById(instrumentId);
+            if (inst == null) return "{}";
+
+            OrderBook book = facade.getMarketEngine().getOrCreateBook(inst);
+            JSONObject root = new JSONObject();
+            root.put("instrumentId", instrumentId);
+            root.put("haltState", book.getHaltState().name());
+            root.put("lastPrice", book.getLastTradedPrice() != null ? book.getLastTradedPrice().format() : "-");
+
+            JSONArray bids = new JSONArray();
+            for (OrderBook.BookLevel lvl : book.getBidLevels(5)) {
+                JSONObject b = new JSONObject();
+                b.put("price", lvl.price.toPlainString());
+                b.put("quantity", lvl.totalQuantity);
+                b.put("count", lvl.orderCount);
+                bids.put(b);
+            }
+            root.put("bids", bids);
+
+            JSONArray asks = new JSONArray();
+            for (OrderBook.BookLevel lvl : book.getAskLevels(5)) {
+                JSONObject a = new JSONObject();
+                a.put("price", lvl.price.toPlainString());
+                a.put("quantity", lvl.totalQuantity);
+                a.put("count", lvl.orderCount);
+                asks.put(a);
+            }
+            root.put("asks", asks);
+
+            return root.toString();
+        } catch (Exception e) {
+            return "{}";
+        }
+    }
+
+    @JavascriptInterface
+    public String toggleWatchlist(String instrumentId) {
+        if (facade.getCatalog().getById(instrumentId) == null)
+            return "{\"success\":false,\"inWatchlist\":false,\"message\":\"Instrumen tidak ditemukan\"}";
+        synchronized (facade.getCatalog()) {
+            boolean in = facade.getCatalog().isInWatchlist(instrumentId);
+            if (in) facade.getCatalog().removeFromWatchlist(instrumentId);
+            else facade.getCatalog().addToWatchlist(instrumentId);
+            return "{\"success\":true,\"inWatchlist\":" + facade.getCatalog().isInWatchlist(instrumentId) + "}";
+        }
+    }
+
+    private Order parseOrder(String json) throws JSONException {
+        JSONObject obj = new JSONObject(json);
+        String accountId = obj.optString("accountId", facade.getPersonalAccount().getId());
+        Instrument instrument = facade.getCatalog().getById(obj.getString("instrumentId"));
+        if (instrument == null) throw new IllegalArgumentException("Instrumen tidak ditemukan");
+        OrderType type = OrderType.valueOf(obj.getString("type"));
+        Money limit = type == OrderType.LIMIT ? new Money(new BigDecimal(obj.getString("limitPrice")), instrument.getCurrency()) : null;
+        Money trigger = type == OrderType.STOP_LOSS || type == OrderType.TAKE_PROFIT
+                ? new Money(new BigDecimal(obj.getString("triggerPrice")), instrument.getCurrency()) : null;
+        return new Order("ORD-" + java.util.UUID.randomUUID(), obj.getString("requestId"), accountId, instrument.getId(),
+                OrderSide.valueOf(obj.getString("side")), type, limit, trigger, obj.getLong("quantity"), System.currentTimeMillis(), null);
+    }
+
+    @JavascriptInterface
+    public String previewOrder(String json) {
+        try { return facade.previewOrder(parseOrder(json)).toString(); }
+        catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String submitOrder(String jsonOrderStr) {
+        try {
+            Order order = parseOrder(jsonOrderStr);
+
+            MatchingEngine.OrderResult res = facade.submitOrder(order);
+            JSONObject result = new JSONObject();
+            result.put("success", res.isSuccess);
+            result.put("message", res.message);
+            result.put("orderId", res.order.getId());
+            result.put("status", res.order.getStatus().name());
+            result.put("filledQuantity", res.order.getFilledQuantity());
+            result.put("remainingQuantity", res.order.getRemainingQuantity());
+            return result.toString();
+        } catch (Exception e) {
+            return "{\"success\":false,\"message\":\"" + e.getMessage() + "\"}";
+        }
+    }
+
+    private String fxCommand(String json, boolean confirm) {
+        try {
+            JSONObject request = new JSONObject(json);
+            Currency from = Currency.valueOf(request.getString("from"));
+            Currency to = Currency.valueOf(request.getString("to"));
+            Money amount = new Money(new BigDecimal(request.getString("amount")), from);
+            String accountId = request.getString("accountId");
+            return (confirm ? facade.confirmFx(request.getString("requestId"), request.getString("quoteId"), accountId, from, to, amount)
+                    : facade.previewFx(accountId, from, to, amount)).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String previewFx(String json) { return fxCommand(json, false); }
+
+    @JavascriptInterface
+    public String confirmFx(String json) { return fxCommand(json, true); }
+
+    @JavascriptInterface
+    public String claimMission(String missionId) {
+        try {
+            Money reward = facade.claimMission(missionId);
+            return new JSONObject().put("success", true).put("missionId", missionId)
+                    .put("reward", reward.format()).put("status", "CLAIMED").toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String getFirmSnapshot() {
+        try { return facade.getFirmSnapshot().toString(); }
+        catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String getRiskSnapshot() {
+        try {
+            Account personal = facade.getPersonalAccount();
+            if (personal == null) return "{\"success\":false,\"message\":\"Akun belum tersedia\"}";
+            com.tradingglobal3d.core.risk.RiskComplianceService.MarginHealthReport health = facade.evaluateMarginHealth();
+            Money debtIdr = facade.getRiskService().getMarginDebt(personal.getId(), Currency.IDR);
+            Money debtUsd = facade.getRiskService().getMarginDebt(personal.getId(), Currency.USD);
+            JSONObject result = new JSONObject();
+            result.put("success", true);
+            result.put("accountId", personal.getId());
+            result.put("accountName", personal.getName());
+            result.put("equity", health.getEquity().format());
+            result.put("equityRaw", health.getEquity().getAmount().toPlainString());
+            result.put("marginDebtTotal", health.getMarginDebt().format());
+            result.put("marginDebtIdr", debtIdr.format());
+            result.put("marginDebtUsd", debtUsd.format());
+            result.put("totalExposure", health.getTotalExposure().format());
+            result.put("marginRatio", health.getMarginRatio().toPlainString());
+            result.put("marginRatioPercent", health.getMarginRatio().multiply(BigDecimal.valueOf(100)).setScale(2, java.math.RoundingMode.HALF_UP).toPlainString() + "%");
+            result.put("status", health.getStatus().name());
+            String statusLabel;
+            switch (health.getStatus()) {
+                case HEALTHY: statusLabel = "Sehat (Aman)"; break;
+                case MARGIN_CALL: statusLabel = "Margin Call (Jaminan Kurang)"; break;
+                case LIQUIDATION_REQUIRED: statusLabel = "Perlu Likuidasi"; break;
+                default: statusLabel = health.getStatus().name();
+            }
+            result.put("statusLabel", statusLabel);
+            result.put("valuationRateUsdIdr", facade.getFxService().getMidRate().toPlainString());
+            result.put("availableCashIdr", personal.getAvailableCash(Currency.IDR).format());
+            result.put("availableCashUsd", personal.getAvailableCash(Currency.USD).format());
+
+            JSONArray logs = new JSONArray();
+            List<com.tradingglobal3d.core.risk.ComplianceAuditLog> allLogs = facade.getRiskService().getAuditLogs();
+            for (int i = allLogs.size() - 1; i >= 0 && logs.length() < 20; i--) {
+                com.tradingglobal3d.core.risk.ComplianceAuditLog l = allLogs.get(i);
+                if (l.getAccountId().equals(personal.getId())) {
+                    logs.put(new JSONObject()
+                            .put("id", l.getId())
+                            .put("category", l.getCategory().name())
+                            .put("categoryLabel", l.getCategory().getLabel())
+                            .put("description", l.getDescription())
+                            .put("mitigation", l.getMitigationAction())
+                            .put("timestamp", l.getTimestamp()));
+                }
+            }
+            result.put("auditLogs", logs);
+            return result.toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String takeMarginLoan(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            Currency cur = Currency.valueOf(req.getString("currency"));
+            BigDecimal amount = new BigDecimal(req.getString("amount"));
+            Money loan = new Money(amount, cur);
+            facade.takeMarginLoan(loan);
+            Money debt = facade.getRiskService().getMarginDebt(facade.getPersonalAccount().getId(), cur);
+            return new JSONObject().put("success", true)
+                    .put("currency", cur.name())
+                    .put("amount", loan.format())
+                    .put("currentDebt", debt.format())
+                    .put("message", "Pencairan pinjaman margin berhasil: " + loan.format()).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String repayMarginLoan(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            Currency cur = Currency.valueOf(req.getString("currency"));
+            BigDecimal amount = new BigDecimal(req.getString("amount"));
+            Money repay = new Money(amount, cur);
+            facade.repayMarginLoan(repay);
+            Money debt = facade.getRiskService().getMarginDebt(facade.getPersonalAccount().getId(), cur);
+            return new JSONObject().put("success", true)
+                    .put("currency", cur.name())
+                    .put("amount", repay.format())
+                    .put("currentDebt", debt.format())
+                    .put("message", "Pelunasan utang margin berhasil: " + repay.format()).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String getIpoOfferings() {
+        try {
+            JSONArray result = new JSONArray();
+            for (com.tradingglobal3d.core.corporate.IpoOffering ipo : facade.getCorporateService().getIpoOfferings()) {
+                result.put(new JSONObject()
+                        .put("id", ipo.getId())
+                        .put("ticker", ipo.getTicker())
+                        .put("companyName", ipo.getCompanyName())
+                        .put("currency", ipo.getCurrency().name())
+                        .put("offeringPrice", ipo.getOfferingPrice().format())
+                        .put("offeringPriceRaw", ipo.getOfferingPrice().getAmount().toPlainString())
+                        .put("lotSize", ipo.getLotSize())
+                        .put("sharesOffered", ipo.getSharesOffered())
+                        .put("listingDate", ipo.getListingDate().toString())
+                        .put("isAllotted", ipo.isAllotted()));
+            }
+            return result.toString();
+        } catch (Exception error) { return "[]"; }
+    }
+
+    @JavascriptInterface
+    public String orderIpo(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            String ipoId = req.getString("ipoId");
+            long lots = req.getLong("lots");
+            if (lots <= 0) return new JSONObject().put("success", false).put("message", "Jumlah lot harus positif").toString();
+            com.tradingglobal3d.core.corporate.IpoSubscription sub = facade.orderIpo(ipoId, lots);
+            return new JSONObject().put("success", true)
+                    .put("subscriptionId", sub.getId())
+                    .put("ipoId", sub.getIpoId())
+                    .put("orderedLots", sub.getOrderedLots())
+                    .put("reservedMoney", sub.getReservedMoney().format())
+                    .put("status", sub.getStatus().name())
+                    .put("message", "Pemesanan IPO berhasil diajukan (" + lots + " lot)").toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String getShareholderAgendas() {
+        try {
+            Account personal = facade.getPersonalAccount();
+            String accountId = personal != null ? personal.getId() : "";
+            JSONArray result = new JSONArray();
+            for (com.tradingglobal3d.core.corporate.ShareholderMeetingAgenda a : facade.getCorporateService().getAgendas()) {
+                result.put(new JSONObject()
+                        .put("id", a.getId())
+                        .put("ticker", a.getTicker())
+                        .put("title", a.getTitle())
+                        .put("resolutionText", a.getResolutionText())
+                        .put("recordingDate", a.getRecordingDate().toString())
+                        .put("votesFor", a.getTotalVotesFor())
+                        .put("votesAgainst", a.getTotalVotesAgainst())
+                        .put("votesAbstain", a.getTotalVotesAbstain())
+                        .put("hasVoted", a.hasVoted(accountId)));
+            }
+            return result.toString();
+        } catch (Exception error) { return "[]"; }
+    }
+
+    @JavascriptInterface
+    public String castShareholderVote(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            String agendaId = req.getString("agendaId");
+            com.tradingglobal3d.core.corporate.ShareholderMeetingAgenda.VoteChoice choice =
+                    com.tradingglobal3d.core.corporate.ShareholderMeetingAgenda.VoteChoice.valueOf(req.getString("choice"));
+            facade.castShareholderVote(agendaId, choice);
+            return new JSONObject().put("success", true)
+                    .put("agendaId", agendaId)
+                    .put("choice", choice.name())
+                    .put("choiceLabel", choice.getLabel())
+                    .put("message", "Hak suara berhasil disampaikan: " + choice.getLabel()).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String getCorporateActions() {
+        try {
+            JSONArray result = new JSONArray();
+            for (com.tradingglobal3d.core.corporate.CorporateAction ca : facade.getCorporateService().getCorporateActions()) {
+                result.put(new JSONObject()
+                        .put("id", ca.getId())
+                        .put("ticker", ca.getTicker())
+                        .put("type", ca.getType().name())
+                        .put("valueOrRatio", ca.getValueOrRatio().toPlainString())
+                        .put("currency", ca.getCurrency() != null ? ca.getCurrency().name() : JSONObject.NULL)
+                        .put("recordingDate", ca.getRecordingDate().toString())
+                        .put("executionDate", ca.getExecutionDate().toString())
+                        .put("isExecuted", ca.isExecuted()));
+            }
+            return result.toString();
+        } catch (Exception error) { return "[]"; }
+    }
+
+    @JavascriptInterface
+    public String getMultiAssets() {
+        try {
+            JSONObject result = new JSONObject();
+            JSONArray bonds = new JSONArray();
+            for (com.tradingglobal3d.core.multiasset.BondInstrument b : facade.getFundBuilder().getAllBonds()) {
+                bonds.put(new JSONObject()
+                        .put("id", b.getId())
+                        .put("ticker", b.getTicker())
+                        .put("name", b.getName())
+                        .put("currency", b.getCurrency().name())
+                        .put("parValue", b.getParValue().format())
+                        .put("couponRateAnnual", b.getCouponAnnualRate().toPlainString())
+                        .put("maturityDate", b.getMaturityDate().toString())
+                        .put("cleanPrice", b.getCurrentCleanPrice().format())
+                        .put("status", "Katalog pasif/simulasi")
+                        .put("note", "Perdagangan sekunder obligasi belum aktif"));
+            }
+            JSONArray comms = new JSONArray();
+            for (com.tradingglobal3d.core.multiasset.CommodityInstrument c : facade.getFundBuilder().getAllCommodities()) {
+                comms.put(new JSONObject()
+                        .put("id", c.getId())
+                        .put("ticker", c.getCode())
+                        .put("name", c.getName())
+                        .put("currency", c.getCurrency().name())
+                        .put("unit", c.getUnitOfMeasure())
+                        .put("spotPrice", c.getSpotPricePerUnit().format())
+                        .put("status", "Katalog pasif/simulasi")
+                        .put("note", "Perdagangan fisik/futures komoditas belum aktif"));
+            }
+            result.put("bonds", bonds);
+            result.put("commodities", comms);
+            return result.toString();
+        } catch (Exception error) { return "{\"bonds\":[],\"commodities\":[]}"; }
+    }
+
+    @JavascriptInterface
+    public String getFundPlans() {
+        try {
+            JSONArray result = new JSONArray();
+            for (com.tradingglobal3d.core.multiasset.FundAllocationPlan p : facade.getFundBuilder().getAllPlans()) {
+                JSONObject planObj = new JSONObject()
+                        .put("id", p.getId())
+                        .put("accountId", p.getAccountId())
+                        .put("name", p.getName())
+                        .put("status", p.getStatus().name())
+                        .put("cashWeight", p.getTargetCashWeight())
+                        .put("weights", new JSONObject(p.getTargetWeights()));
+                result.put(planObj);
+            }
+            return result.toString();
+        } catch (Exception error) { return "[]"; }
+    }
+
+    @JavascriptInterface
+    public String saveFundPlan(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            String planId = req.getString("planId");
+            String name = req.getString("name");
+            double cashWeight = req.getDouble("cashWeight");
+            String accountId = req.optString("accountId", facade.getPersonalAccount().getId());
+
+            JSONObject weightsJson = req.getJSONObject("weights");
+            Map<String, Double> weights = new LinkedHashMap<>();
+            double totalWeight = cashWeight;
+            Iterator<String> keys = weightsJson.keys();
+            while (keys.hasNext()) {
+                String key = keys.next();
+                double w = weightsJson.getDouble(key);
+                weights.put(key, w);
+                totalWeight += w;
+            }
+
+            if (Math.abs(totalWeight - 1.0) > 0.001) {
+                return new JSONObject().put("success", false)
+                        .put("message", "Total bobot harus tepat 100% (saat ini " + Math.round(totalWeight * 100) + "%)").toString();
+            }
+
+            com.tradingglobal3d.core.multiasset.FundAllocationPlan plan = facade.saveFundPlan(planId, accountId, name, weights, cashWeight);
+            return new JSONObject().put("success", true)
+                    .put("planId", plan.getId())
+                    .put("status", plan.getStatus().name())
+                    .put("message", "Rencana alokasi dana berhasil disimpan: " + plan.getName()).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String executeFundRebalance(String planId) {
+        try {
+            List<com.tradingglobal3d.core.trading.MatchingEngine.OrderResult> results = facade.executeFundRebalance(planId);
+            com.tradingglobal3d.core.multiasset.FundAllocationPlan plan = facade.getFundBuilder().getPlan(planId);
+            JSONArray orders = new JSONArray();
+            for (com.tradingglobal3d.core.trading.MatchingEngine.OrderResult res : results) {
+                orders.put(new JSONObject()
+                        .put("orderId", res.order.getId())
+                        .put("ticker", res.order.getInstrumentId())
+                        .put("side", res.order.getSide().name())
+                        .put("status", res.order.getStatus().name())
+                        .put("filledQuantity", res.order.getFilledQuantity())
+                        .put("remainingQuantity", res.order.getRemainingQuantity()));
+            }
+            return new JSONObject().put("success", true)
+                    .put("planId", planId)
+                    .put("planStatus", plan != null ? plan.getStatus().name() : "UNKNOWN")
+                    .put("results", orders)
+                    .put("message", "Rebalancing rencana dieksekusi (" + results.size() + " order dibuat)").toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String getClientReports() {
+        try {
+            JSONObject snapshot = facade.getFirmSnapshot();
+            return snapshot.optJSONArray("mandates") != null ? snapshot.getJSONArray("mandates").toString() : "[]";
+        } catch (Exception error) { return "[]"; }
+    }
+
+    @JavascriptInterface
+    public String getResearchFeed() {
+        try {
+            com.tradingglobal3d.core.research.ResearchService rs = facade.getResearchService();
+            com.tradingglobal3d.core.research.TerminalTier tier = rs.getCurrentTier();
+            JSONObject result = new JSONObject();
+            result.put("tier", tier.name());
+            result.put("tierTitle", tier.getTitle());
+            result.put("expiresAt", rs.getSubscriptionExpiresAt());
+
+            JSONArray news = new JSONArray();
+            for (com.tradingglobal3d.core.research.NewsArticle a : facade.getNewsFeed()) {
+                news.put(new JSONObject()
+                        .put("id", a.getId())
+                        .put("headline", a.getHeadline())
+                        .put("content", a.getContent())
+                        .put("category", a.getCategory().name())
+                        .put("categoryLabel", a.getCategory().getLabel())
+                        .put("relatedTicker", a.getRelatedTicker() != null ? a.getRelatedTicker() : JSONObject.NULL)
+                        .put("sentimentImpact", a.getSentimentImpact())
+                        .put("publishedAt", a.getPublishedAt()));
+            }
+            result.put("news", news);
+
+            JSONArray analysts = new JSONArray();
+            for (com.tradingglobal3d.core.research.AnalystReport r : facade.getAnalystReports()) {
+                analysts.put(new JSONObject()
+                        .put("id", r.getId())
+                        .put("analystName", r.getAnalystName())
+                        .put("firmName", r.getFirmName())
+                        .put("ticker", r.getTicker())
+                        .put("recommendation", r.getRecommendation().name())
+                        .put("recommendationLabel", r.getRecommendation().getLabel())
+                        .put("targetPrice", r.getTargetPrice().format())
+                        .put("accuracyHistoryPercent", r.getAccuracyHistoryPercent())
+                        .put("thesisSummary", r.getThesisSummary()));
+            }
+            result.put("analysts", analysts);
+
+            JSONArray calendar = new JSONArray();
+            for (com.tradingglobal3d.core.research.CalendarEvent e : facade.getCalendar()) {
+                calendar.put(new JSONObject()
+                        .put("id", e.getId())
+                        .put("date", e.getDate().toString())
+                        .put("title", e.getTitle())
+                        .put("category", e.getCategory().name())
+                        .put("categoryLabel", e.getCategory().getLabel())
+                        .put("relatedTicker", e.getRelatedTicker() != null ? e.getRelatedTicker() : JSONObject.NULL)
+                        .put("details", e.getDetails()));
+            }
+            result.put("calendar", calendar);
+            return result.toString();
+        } catch (Exception error) {
+            return "{\"tier\":\"BASIC\",\"tierTitle\":\"Basic Terminal\",\"news\":[],\"analysts\":[],\"calendar\":[]}";
+        }
+    }
+
+    @JavascriptInterface
+    public String getResearchTiers() {
+        try {
+            com.tradingglobal3d.core.research.ResearchService rs = facade.getResearchService();
+            com.tradingglobal3d.core.research.TerminalTier current = rs.getCurrentTier();
+            JSONArray tiers = new JSONArray();
+            for (com.tradingglobal3d.core.research.TerminalTier t : com.tradingglobal3d.core.research.TerminalTier.values()) {
+                tiers.put(new JSONObject()
+                        .put("name", t.name())
+                        .put("title", t.getTitle())
+                        .put("level", t.getLevel())
+                        .put("feeUsd", t.getMonthlyFeeUsd().format())
+                        .put("feeUsdRaw", t.getMonthlyFeeUsd().getAmount().toPlainString())
+                        .put("features", t.getFeatures())
+                        .put("isCurrent", t == current));
+            }
+            return tiers.toString();
+        } catch (Exception error) { return "[]"; }
+    }
+
+    @JavascriptInterface
+    public String subscribeResearchTier(String tierName) {
+        try {
+            com.tradingglobal3d.core.research.TerminalTier tier =
+                    com.tradingglobal3d.core.research.TerminalTier.valueOf(tierName);
+            boolean ok = facade.subscribeTerminal(tier);
+            if (!ok) {
+                return new JSONObject().put("success", false)
+                        .put("message", "Gagal berlangganan " + tier.getTitle() + ": saldo kas USD tidak mencukupi (" + tier.getMonthlyFeeUsd().format() + ")").toString();
+            }
+            return new JSONObject().put("success", true)
+                    .put("tier", tier.name())
+                    .put("tierTitle", tier.getTitle())
+                    .put("message", "Berhasil berlangganan paket " + tier.getTitle()).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String getSessionReports() {
+        try {
+            JSONArray result = new JSONArray();
+            for (com.tradingglobal3d.core.career.DailySessionReport report : facade.getCareerManager().getSessionReports())
+                result.put(new JSONObject().put("date", report.getDate().toString())
+                        .put("accountId", facade.getPersonalAccount().getId())
+                        .put("startingNetWorth", report.getStartingNetWorth().format())
+                        .put("endingNetWorth", report.getEndingNetWorth().format())
+                        .put("investmentPnL", report.getDailyPnL().format())
+                        .put("nonInvestmentFlows", report.getNonInvestmentFlows().format())
+                        .put("fees", report.getFeesPaid().format()).put("salary", report.getSalaryReceived().format())
+                        .put("fills", report.getTotalFillsCount()).put("note", report.getSummaryNote()));
+            return result.toString();
+        } catch (Exception error) { return "[]"; }
+    }
+
+    @JavascriptInterface
+    public String closeDay(String requestId) {
+        try { return facade.closeDay(requestId).toString(); }
+        catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String getPortfolio(String accountId) {
+        try {
+            Account account = facade.getAccount(accountId);
+            if (account == null) return new JSONObject().put("success", false).put("message", "Akun tidak ditemukan").toString();
+            JSONObject result = new JSONObject().put("success", true).put("accountId", account.getId())
+                    .put("accountName", account.getName()).put("accountType", account.getType().name());
+            JSONObject cash = new JSONObject();
+            for (Currency c : Currency.values()) cash.put(c.name(), new JSONObject()
+                    .put("total", account.getTotalCash(c).format()).put("available", account.getAvailableCash(c).format())
+                    .put("reserved", account.getReservedCash(c).format()));
+            result.put("cash", cash);
+            JSONArray positions = new JSONArray();
+            for (Position p : account.getPositions().values()) positions.put(new JSONObject()
+                    .put("instrumentId", p.getExchange() + ":" + p.getTicker()).put("quantity", p.getQuantity())
+                    .put("currency", p.getCurrency().name()).put("averageCost", p.getAverageCost().toPlainString())
+                    .put("currentPrice", p.getCurrentPrice().toPlainString()).put("marketValue", p.getMarketValue().format())
+                    .put("unrealizedPnL", p.getUnrealizedPnL().format())
+                    .put("realizedPnLGross", p.getRealizedPnL() == null ? JSONObject.NULL : p.getRealizedPnL().format()));
+            return result.put("positions", positions).put("valuationRateUsdIdr", facade.getFxService().getMidRate().toPlainString())
+                    .put("timestamp", System.currentTimeMillis()).toString();
+        } catch (Exception error) { return "{\"success\":false}"; }
+    }
+
+    @JavascriptInterface
+    public String getLedger(String accountId) {
+        try {
+            JSONArray result = new JSONArray();
+            for (com.tradingglobal3d.core.economy.LedgerEntry entry : facade.getLedger().getEntriesForAccount(accountId)) {
+                result.put(new JSONObject().put("accountId", entry.getAccountId()).put("id", entry.getId())
+                        .put("requestId", entry.getRequestId()).put("timestamp", entry.getTimestamp())
+                        .put("type", entry.getType().name()).put("amount", entry.getAmount().format())
+                        .put("credit", entry.isCredit()).put("balanceAfter", entry.getBalanceAfter().format())
+                        .put("description", entry.getDescription()));
+            }
+            return result.toString();
+        } catch (Exception error) { return "[]"; }
+    }
+
+    @JavascriptInterface
+    public String getOrders(String accountId, boolean activeOnly) {
+        try {
+            JSONArray result = new JSONArray();
+            List<Order> orders = activeOnly ? facade.getOrderManager().getActiveOrdersForAccount(accountId)
+                    : facade.getOrderManager().getOrdersForAccount(accountId);
+            for (Order order : orders) result.put(new JSONObject(getOrderStatus(order.getRequestId())));
+            return result.toString();
+        } catch (Exception error) { return "[]"; }
+    }
+
+    @JavascriptInterface
+    public String getOrderStatus(String requestId) {
+        try {
+            Order order = facade.getOrderManager().getOrderByRequest(requestId);
+            if (order == null) return new JSONObject().put("success", false).put("message", "Order tidak ditemukan").toString();
+            return new JSONObject().put("success", true).put("orderId", order.getId()).put("requestId", order.getRequestId())
+                    .put("accountId", order.getAccountId()).put("instrumentId", order.getInstrumentId())
+                    .put("status", order.getStatus().name()).put("filledQuantity", order.getFilledQuantity())
+                    .put("remainingQuantity", order.getRemainingQuantity()).put("canCancel", !order.getStatus().isFinal())
+                    .put("side", order.getSide().name()).put("type", order.getType().name())
+                    .put("quantity", order.getTotalQuantity()).put("createdAt", order.getCreatedAt())
+                    .put("currency", facade.getCatalog().getById(order.getInstrumentId()).getCurrency().name()).toString();
+        } catch (Exception error) { return "{\"success\":false}"; }
+    }
+
+    @JavascriptInterface
+    public String cancelOrder(String requestId) {
+        Order order = facade.getOrderManager().getOrderByRequest(requestId);
+        if (order != null) facade.cancelOrder(order);
+        return getOrderStatus(requestId);
+    }
+
+    @JavascriptInterface
+    public String setClockState(boolean playing, int speed) {
+        try { return facade.setClockState(playing, speed); }
+        catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String tickClock(int seconds) {
+        try {
+            facade.tick(seconds);
+            return getSnapshot();
+        } catch (Exception e) {
+            return "{\"error\":\"" + e.getMessage() + "\"}";
+        }
+    }
+
+    @JavascriptInterface
+    public String saveGame() {
+        try {
+            facade.save();
+            return "{\"success\":true,\"message\":\"Game berhasil disimpan secara atomik\"}";
+        } catch (Exception e) {
+            return "{\"success\":false,\"message\":\"" + e.getMessage() + "\"}";
+        }
+    }
+
+    @JavascriptInterface
+    public String loadGame() {
+        try {
+            boolean ok = facade.load();
+            return "{\"success\":" + ok + "}";
+        } catch (Exception e) {
+            return "{\"success\":false,\"message\":\"" + e.getMessage() + "\"}";
+        }
+    }
+
+    @JavascriptInterface
+    public String getStressTestScenarios() {
+        try {
+            JSONArray result = new JSONArray();
+            com.tradingglobal3d.core.replay.StressTestScenario crash =
+                    com.tradingglobal3d.core.replay.StressTestScenario.defaultMarketCrash();
+            result.put(new JSONObject()
+                    .put("id", crash.getId())
+                    .put("name", crash.getName())
+                    .put("type", crash.getType().name())
+                    .put("assetDropMultiplier", crash.getAssetDropMultiplier().toPlainString())
+                    .put("fxRateMultiplier", crash.getFxRateMultiplier().toPlainString())
+                    .put("description", crash.getDescription()));
+
+            com.tradingglobal3d.core.replay.StressTestScenario fx =
+                    com.tradingglobal3d.core.replay.StressTestScenario.defaultFxShock();
+            result.put(new JSONObject()
+                    .put("id", fx.getId())
+                    .put("name", fx.getName())
+                    .put("type", fx.getType().name())
+                    .put("assetDropMultiplier", fx.getAssetDropMultiplier().toPlainString())
+                    .put("fxRateMultiplier", fx.getFxRateMultiplier().toPlainString())
+                    .put("description", fx.getDescription()));
+
+            return result.toString();
+        } catch (Exception error) { return "[]"; }
+    }
+
+    @JavascriptInterface
+    public String runStressTest(String scenarioId) {
+        try {
+            com.tradingglobal3d.core.replay.StressTestScenario scenario =
+                    "STRESS-FX-DEPRECIATION".equalsIgnoreCase(scenarioId)
+                            ? com.tradingglobal3d.core.replay.StressTestScenario.defaultFxShock()
+                            : com.tradingglobal3d.core.replay.StressTestScenario.defaultMarketCrash();
+
+            com.tradingglobal3d.core.replay.StressTestResult res = facade.runStressTest(scenario);
+            return new JSONObject().put("success", true)
+                    .put("scenarioId", res.getScenarioId())
+                    .put("baselineValue", res.getBaselineValue().format())
+                    .put("stressedValue", res.getStressedValue().format())
+                    .put("potentialLoss", res.getPotentialLoss().format())
+                    .put("percentageDrop", (res.getPercentageDrop().multiply(BigDecimal.valueOf(100)).setScale(1, java.math.RoundingMode.HALF_UP)) + "%")
+                    .put("wouldTriggerMarginCall", res.wouldTriggerMarginCall())
+                    .put("riskAssessment", res.getRiskAssessment())
+                    .put("message", "Uji stres " + scenario.getName() + " selesai.").toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String createStrategyLab(String sandboxId) {
+        try {
+            String sid = sandboxId != null && !sandboxId.trim().isEmpty() ? sandboxId : "LAB-" + System.currentTimeMillis();
+            com.tradingglobal3d.core.replay.StrategyLabSandbox sandbox = facade.createStrategySandbox(sid);
+            activeSandboxes.put(sid, sandbox);
+            return new JSONObject().put("success", true)
+                    .put("sandboxId", sid)
+                    .put("accountName", sandbox.getClonedAccount().getName())
+                    .put("cashIdr", sandbox.getClonedAccount().getTotalCash(Currency.IDR).format())
+                    .put("cashUsd", sandbox.getClonedAccount().getTotalCash(Currency.USD).format())
+                    .put("positionsCount", sandbox.getClonedAccount().getPositions().size())
+                    .put("message", "Sandbox lab strategi " + sid + " berhasil dibuat (terisolasi dari akun utama)").toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String simulateLabTrade(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            String sid = req.getString("sandboxId");
+            com.tradingglobal3d.core.replay.StrategyLabSandbox sandbox = activeSandboxes.get(sid);
+            if (sandbox == null) {
+                sandbox = facade.createStrategySandbox(sid);
+                activeSandboxes.put(sid, sandbox);
+            }
+            String instId = req.getString("instrumentId");
+            Instrument inst = facade.getCatalog().getById(instId);
+            if (inst == null) return new JSONObject().put("success", false).put("message", "Instrumen tidak ditemukan: " + instId).toString();
+            long shares = req.getLong("shares");
+            BigDecimal price = new BigDecimal(req.get("price").toString());
+            String side = req.optString("side", "BUY").toUpperCase();
+
+            boolean ok;
+            if ("BUY".equals(side)) {
+                ok = sandbox.simulateBuy(inst, shares, price);
+            } else {
+                ok = sandbox.simulateSell(inst, shares, price);
+            }
+
+            if (!ok) return new JSONObject().put("success", false).put("message", "Simulasi transaksi lab gagal (saldo kas atau posisi tidak mencukupi)").toString();
+
+            return new JSONObject().put("success", true)
+                    .put("sandboxId", sid)
+                    .put("simulatedTradesCount", sandbox.getSimulatedTradesCount())
+                    .put("simulatedRealizedPnL", sandbox.getSimulatedRealizedPnL().toPlainString())
+                    .put("availableCashIdr", sandbox.getClonedAccount().getAvailableCash(Currency.IDR).format())
+                    .put("message", "Simulasi " + side + " " + shares + " lembar " + inst.getTicker() + " berhasil dieksekusi di lab").toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String startNewGame(String jsonConfig) {
+        try {
+            JSONObject cfg = jsonConfig != null && !jsonConfig.isEmpty() ? new JSONObject(jsonConfig) : new JSONObject();
+            String modeStr = cfg.optString("mode", "INTERNAL_MARKET");
+            com.tradingglobal3d.core.model.GameMode mode = com.tradingglobal3d.core.model.GameMode.valueOf(modeStr);
+            long capital = cfg.optLong("initialCapital", 50_000_000L);
+            if (capital <= 0) capital = 50_000_000L;
+            facade.initializeNewGame(mode, BigDecimal.valueOf(capital));
+            facade.save();
+            return new JSONObject().put("success", true)
+                    .put("mode", mode.name())
+                    .put("initialCapital", capital)
+                    .put("message", "Permainan baru berhasil dimulai dengan modal awal " + Money.of(capital, Currency.IDR).format()).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+}
