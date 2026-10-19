@@ -22,6 +22,7 @@ import com.tradingglobal3d.core.multiasset.*;
 import com.tradingglobal3d.core.npc.MarketEngine;
 import com.tradingglobal3d.core.npc.NpcAgent;
 import com.tradingglobal3d.core.npc.NpcStrategyType;
+import com.tradingglobal3d.core.player.PlayerProgressManager;
 import com.tradingglobal3d.core.replay.*;
 import com.tradingglobal3d.core.research.*;
 import com.tradingglobal3d.core.risk.*;
@@ -72,12 +73,14 @@ public final class TradingFacade {
     private final CorporateActionService corporateService = new CorporateActionService();
     private final RiskComplianceService riskService = new RiskComplianceService();
     private final HistoricalReplayEngine replayEngine = new HistoricalReplayEngine();
+    private final PlayerProgressManager progressManager = new PlayerProgressManager();
     private final Map<String, JSONObject> dayCloseReceipts = new LinkedHashMap<>();
 
     public synchronized JSONObject closeDay(String requestId) throws JSONException {
         if (requestId == null || requestId.trim().isEmpty()) throw new IllegalArgumentException("ID penutupan wajib diisi");
         if (dayCloseReceipts.containsKey(requestId)) return dayCloseReceipts.get(requestId);
         DailySessionReport report = closeDayAndAdvance();
+        progressManager.onCleanSessionClosed(System.currentTimeMillis());
         JSONObject receipt = new JSONObject().put("success", true).put("date", report.getDate().toString())
                 .put("startingNetWorth", report.getStartingNetWorth().format())
                 .put("endingNetWorth", report.getEndingNetWorth().format()).put("investmentPnL", report.getDailyPnL().format())
@@ -89,6 +92,14 @@ public final class TradingFacade {
 
     public TradingFacade(SaveManager saveManager) {
         this.saveManager = Objects.requireNonNull(saveManager);
+    }
+
+    public synchronized PlayerProgressManager getProgressManager() {
+        return progressManager;
+    }
+
+    public synchronized boolean recordResearchRead(String articleId) {
+        return progressManager.onResearchRead(articleId, System.currentTimeMillis());
     }
 
     public synchronized HistoricalReplayEngine getReplayEngine() {
@@ -196,6 +207,7 @@ public final class TradingFacade {
         this.fundBuilder.reset();
         this.orderManager.reset();
         this.marketEngine.reset();
+        this.progressManager.reset();
 
         // 1. Buat Akun Pribadi Pemain
         this.personalAccountId = "ACC-PERSONAL-001";
@@ -355,6 +367,9 @@ public final class TradingFacade {
         }
 
         MatchingEngine.OrderResult result = marketEngine.submitOrder(order, acc, inst, ledger, accounts, System.currentTimeMillis());
+        if (result.order.getFilledQuantity() > 0 && result.order.getAccountId().equals(personalAccountId)) {
+            progressManager.onTradeExecuted(inst.getExchange().name(), System.currentTimeMillis());
+        }
         evaluateRecordedCareerProgress();
         return result;
     }
@@ -370,6 +385,7 @@ public final class TradingFacade {
         }
         Account clientAcc = createClientAccount(mandate.getClientName(), mandate.getId(), mandate.getInitialDeposit());
         mandate.setClientAccountId(clientAcc.getId());
+        progressManager.onMandateAccepted(System.currentTimeMillis());
         return clientAcc;
     }
 
@@ -724,6 +740,7 @@ public final class TradingFacade {
         runtime.put("fx", fxService.exportState());
         runtime.put("fundPlans", fundBuilder.exportState());
         runtime.put("corporate", corporateService.exportState());
+        runtime.put("playerProgress", progressManager.exportState());
         JSONObject closeReceipts = new JSONObject();
         for (Map.Entry<String, JSONObject> receipt : dayCloseReceipts.entrySet()) closeReceipts.put(receipt.getKey(), receipt.getValue());
         runtime.put("dayCloseReceipts", closeReceipts);
@@ -806,6 +823,7 @@ public final class TradingFacade {
             fxService.restoreState(runtime.has("fx") ? runtime.getJSONObject("fx") : new FxExchangeService().exportState());
             fundBuilder.restoreState(runtime.has("fundPlans") ? runtime.getJSONArray("fundPlans") : new JSONArray());
             if (runtime.has("corporate")) corporateService.restoreState(runtime.getJSONObject("corporate"));
+            if (runtime.has("playerProgress")) progressManager.restoreState(runtime.optJSONObject("playerProgress"));
             riskService.restoreState(runtime.optJSONObject("risk") != null ? runtime.getJSONObject("risk") : new JSONObject());
             marketEngine.clearState();
             orderManager.restoreState(runtime.optJSONArray("orders") != null ? runtime.getJSONArray("orders") : new JSONArray(), catalog, marketEngine);
@@ -857,6 +875,14 @@ public final class TradingFacade {
                 cashObj.put(c.name(), cObj);
             }
             personalObj.put("cash", cashObj);
+
+            BigDecimal usdRate = fxService != null ? fxService.getMidRate() : BigDecimal.valueOf(15500);
+            Money netWorth = (riskService != null && catalog != null)
+                    ? riskService.evaluateMarginHealth(personal, catalog, usdRate).getEquity()
+                    : personal.getTotalPortfolioValue(Currency.IDR, usdRate);
+            personalObj.put("netWorth", netWorth.format());
+            personalObj.put("netWorthRaw", netWorth.getAmount().toPlainString());
+
             root.put("personalAccount", personalObj);
         }
 
@@ -888,8 +914,107 @@ public final class TradingFacade {
                     .put("completed", mission.isCompleted()).put("claimed", mission.isClaimed()));
         }
         root.put("career", career.put("missions", missions));
+        root.put("playerProgress", progressManager.toSnapshotJson());
         root.put("accountCount", accounts.size());
         root.put("ledgerEntryCount", ledger.getEntries().size());
         return root.toString();
+    }
+
+    public synchronized JSONObject getChartData(String instrumentId, String timeframe) throws JSONException {
+        Instrument inst = catalog.getById(instrumentId);
+        if (inst == null) {
+            return new JSONObject().put("success", false).put("message", "Instrumen tidak ditemukan: " + instrumentId);
+        }
+        OrderBook book = marketEngine.getOrCreateBook(inst);
+        List<TradeFill> fills = book.getTradeHistory();
+
+        long intervalMs;
+        String tf = timeframe != null ? timeframe.toUpperCase() : "M5";
+        switch (tf) {
+            case "M1":
+                intervalMs = 60_000L;
+                break;
+            case "M5":
+                intervalMs = 300_000L;
+                break;
+            case "M15":
+                intervalMs = 900_000L;
+                break;
+            case "H1":
+                intervalMs = 3_600_000L;
+                break;
+            case "D1":
+            default:
+                intervalMs = 86_400_000L;
+                break;
+        }
+
+        JSONArray bars = new JSONArray();
+        if (fills.isEmpty()) {
+            BigDecimal refPrice = inst.getCurrentPrice().getAmount();
+            JSONObject bar = new JSONObject();
+            bar.put("time", "Ref 09:00");
+            bar.put("open", refPrice.doubleValue());
+            bar.put("high", refPrice.doubleValue());
+            bar.put("low", refPrice.doubleValue());
+            bar.put("close", refPrice.doubleValue());
+            bar.put("volume", 0);
+            bar.put("isReference", true);
+            bars.put(bar);
+        } else {
+            Map<Long, List<TradeFill>> buckets = new LinkedHashMap<>();
+            for (TradeFill fill : fills) {
+                long bucketKey = (fill.getTimestamp() / intervalMs) * intervalMs;
+                buckets.computeIfAbsent(bucketKey, k -> new ArrayList<>()).add(fill);
+            }
+
+            int barIndex = 1;
+            for (Map.Entry<Long, List<TradeFill>> entry : buckets.entrySet()) {
+                List<TradeFill> bucketFills = entry.getValue();
+                BigDecimal open = bucketFills.get(0).getPrice().getAmount();
+                BigDecimal close = bucketFills.get(bucketFills.size() - 1).getPrice().getAmount();
+                BigDecimal high = open;
+                BigDecimal low = open;
+                long volume = 0;
+
+                for (TradeFill fill : bucketFills) {
+                    BigDecimal p = fill.getPrice().getAmount();
+                    if (p.compareTo(high) > 0) high = p;
+                    if (p.compareTo(low) < 0) low = p;
+                    volume += fill.getQuantity();
+                }
+
+                JSONObject bar = new JSONObject();
+                if ("D1".equals(tf)) {
+                    bar.put("time", "Sesi " + barIndex);
+                } else if ("H1".equals(tf)) {
+                    bar.put("time", "Jam " + barIndex);
+                } else {
+                    java.time.Instant instant = java.time.Instant.ofEpochMilli(entry.getKey());
+                    java.time.ZonedDateTime zdt = instant.atZone(java.time.ZoneId.of("Asia/Jakarta"));
+                    bar.put("time", String.format(java.util.Locale.US, "%02d:%02d", zdt.getHour(), zdt.getMinute()));
+                }
+                bar.put("open", open.doubleValue());
+                bar.put("high", high.doubleValue());
+                bar.put("low", low.doubleValue());
+                bar.put("close", close.doubleValue());
+                bar.put("volume", volume);
+                bar.put("isReference", false);
+                bars.put(bar);
+                barIndex++;
+            }
+        }
+
+        JSONObject result = new JSONObject();
+        result.put("success", true);
+        result.put("instrumentId", inst.getId());
+        result.put("ticker", inst.getTicker());
+        result.put("currency", inst.getCurrency().name());
+        result.put("lotSize", inst.getLotSize());
+        result.put("timeframe", tf);
+        result.put("totalTrades", fills.size());
+        result.put("bars", bars);
+        result.put("source", "Matched trades domain engine internal");
+        return result;
     }
 }

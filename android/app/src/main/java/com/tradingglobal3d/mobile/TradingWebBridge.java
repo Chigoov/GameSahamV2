@@ -90,7 +90,14 @@ public final class TradingWebBridge {
                 obj.put("id", idx.getId());
                 obj.put("ticker", idx.getTicker());
                 obj.put("name", idx.getName());
+                obj.put("exchange", idx.getExchange().name());
                 obj.put("value", String.format(java.util.Locale.US, "%.2f", idx.getCurrentValue()));
+                obj.put("baseValue", idx.getBaseValue());
+                double changePct = idx.getBaseValue() > 0 ? ((idx.getCurrentValue() - idx.getBaseValue()) / idx.getBaseValue()) * 100.0 : 0.0;
+                obj.put("changePercent", String.format(java.util.Locale.US, "%+.2f%%", changePct));
+                obj.put("up", changePct >= 0);
+                obj.put("source", "Model simulasi game (" + idx.getMemberIds().size() + " anggota)");
+                obj.put("available", true);
                 array.put(obj);
             }
             return array.toString();
@@ -103,8 +110,19 @@ public final class TradingWebBridge {
     public String getIndexDetail(String indexId) {
         try {
             MarketIndex index = facade.getCatalog().getIndex(indexId);
-            if (index == null) return new JSONObject().put("success", false)
-                    .put("message", "Indeks tidak ditemukan").toString();
+            if (index == null) {
+                if ("N225".equalsIgnoreCase(indexId) || "HSI".equalsIgnoreCase(indexId)
+                        || "FTSE".equalsIgnoreCase(indexId) || "DAX".equalsIgnoreCase(indexId)
+                        || "JP:N225".equalsIgnoreCase(indexId) || "HK:HSI".equalsIgnoreCase(indexId)
+                        || "UK:FTSE".equalsIgnoreCase(indexId) || "DE:DAX".equalsIgnoreCase(indexId)) {
+                    return new JSONObject().put("success", false).put("unavailable", true)
+                            .put("id", indexId)
+                            .put("message", "Kawasan sudah dipetakan, data emiten belum disediakan. Game belum mendukung aturan transaksi dan mata uang bursa regional ini.")
+                            .put("members", new JSONArray()).toString();
+                }
+                return new JSONObject().put("success", false)
+                        .put("message", "Indeks tidak ditemukan").toString();
+            }
             facade.getCatalog().recalculateAllIndices();
             JSONArray members = new JSONArray();
             for (String instrumentId : index.getMemberIds()) {
@@ -147,7 +165,7 @@ public final class TradingWebBridge {
             root.put("lastPrice", book.getLastTradedPrice() != null ? book.getLastTradedPrice().format() : "-");
 
             JSONArray bids = new JSONArray();
-            for (OrderBook.BookLevel lvl : book.getBidLevels(5)) {
+            for (OrderBook.BookLevel lvl : book.getBidLevels(10)) {
                 JSONObject b = new JSONObject();
                 b.put("price", lvl.price.toPlainString());
                 b.put("quantity", lvl.totalQuantity);
@@ -157,7 +175,7 @@ public final class TradingWebBridge {
             root.put("bids", bids);
 
             JSONArray asks = new JSONArray();
-            for (OrderBook.BookLevel lvl : book.getAskLevels(5)) {
+            for (OrderBook.BookLevel lvl : book.getAskLevels(10)) {
                 JSONObject a = new JSONObject();
                 a.put("price", lvl.price.toPlainString());
                 a.put("quantity", lvl.totalQuantity);
@@ -166,9 +184,51 @@ public final class TradingWebBridge {
             }
             root.put("asks", asks);
 
+            JSONArray tape = new JSONArray();
+            List<TradeFill> trades = book.getTradeHistory();
+            int start = Math.max(0, trades.size() - 20);
+            for (int i = trades.size() - 1; i >= start; i--) {
+                TradeFill f = trades.get(i);
+                JSONObject t = new JSONObject();
+                t.put("fillId", f.getFillId());
+                t.put("price", f.getPrice().format());
+                t.put("quantity", f.getQuantity());
+                t.put("timestamp", f.getTimestamp());
+                tape.put(t);
+            }
+            root.put("recentTrades", tape);
+
             return root.toString();
         } catch (Exception e) {
             return "{}";
+        }
+    }
+
+    @JavascriptInterface
+    public String getChartData(String instrumentId, String timeframe) {
+        try {
+            return facade.getChartData(instrumentId, timeframe).toString();
+        } catch (Exception e) {
+            return "{\"success\":false,\"message\":\"" + e.getMessage() + "\"}";
+        }
+    }
+
+    @JavascriptInterface
+    public String getPlayerProgress() {
+        try {
+            return facade.getProgressManager().toSnapshotJson().toString();
+        } catch (Exception e) {
+            return "{\"error\":\"" + e.getMessage() + "\"}";
+        }
+    }
+
+    @JavascriptInterface
+    public String recordResearchRead(String articleId) {
+        try {
+            boolean unlocked = facade.recordResearchRead(articleId);
+            return "{\"success\":true,\"newAchievementUnlocked\":" + unlocked + "}";
+        } catch (Exception e) {
+            return "{\"success\":false,\"message\":\"" + e.getMessage() + "\"}";
         }
     }
 

@@ -69,6 +69,42 @@
         },
         saveGame: function () {
             return JSON.stringify({ success: true, message: 'Mock save berhasil' });
+        },
+        getChartData: function (instId, tf) {
+            return JSON.stringify({
+                success: true,
+                instrumentId: instId,
+                timeframe: tf || 'M5',
+                bars: [
+                    { time: '09:05', open: 10100, high: 10150, low: 10075, close: 10125, volume: 142000 },
+                    { time: '09:10', open: 10125, high: 10200, low: 10100, close: 10175, volume: 186000 },
+                    { time: '09:15', open: 10175, high: 10250, low: 10150, close: 10225, volume: 246000 },
+                    { time: '09:20', open: 10225, high: 10275, low: 10200, close: 10250, volume: 298000 }
+                ]
+            });
+        },
+        getPlayerProgress: function () {
+            return JSON.stringify({
+                level: 1,
+                currentXp: 0,
+                baseLevelXp: 0,
+                nextLevelXp: 100,
+                xpInCurrentLevel: 0,
+                levelSpanXp: 100,
+                achievementsUnlocked: 0,
+                totalAchievements: 6,
+                achievements: [
+                    { id: 'first', name: 'Transaksi pertama', desc: 'Selesaikan satu transaksi dan baca receipt-nya.', xp: '100 XP', icon: 'market', progress: '0 / 1', unlocked: false },
+                    { id: 'reader', name: 'Pembaca pasar', desc: 'Pelajari konteks dari lima catatan riset.', xp: '150 XP', icon: 'book', progress: '0 / 5', unlocked: false },
+                    { id: 'mandate', name: 'Kepercayaan pertama', desc: 'Terima mandat setelah memenuhi syarat karier.', xp: '200 XP', icon: 'users', progress: '0 / 1', unlocked: false },
+                    { id: 'risk', name: 'Penjaga risiko', desc: 'Tutup lima sesi dengan seluruh batas mandat terjaga.', xp: '250 XP', icon: 'shield', progress: '0 / 5', unlocked: false },
+                    { id: 'global', name: 'Lintas pasar', desc: 'Pahami transaksi IDR dan USD beserta risikonya.', xp: '200 XP', icon: 'globe', progress: '0 / 2', unlocked: false },
+                    { id: 'report', name: 'Laporan tepercaya', desc: 'Tuntaskan tiga laporan klien dengan data yang dapat ditelusuri.', xp: '300 XP', icon: 'file', progress: '0 / 3', unlocked: false }
+                ]
+            });
+        },
+        recordResearchRead: function (id) {
+            return JSON.stringify({ success: true, newAchievementUnlocked: false });
         }
     };
 
@@ -168,6 +204,23 @@
                 document.getElementById('home-total-cash').textContent = idrCash.total;
                 document.getElementById('home-avail-cash').textContent = idrCash.available;
                 document.getElementById('home-reserved-cash').textContent = idrCash.reserved;
+
+                const wealthEl = document.getElementById('header-net-worth');
+                if (wealthEl) {
+                    wealthEl.textContent = snap.personalAccount.netWorth || idrCash.total;
+                }
+            }
+
+            if (snap.playerProgress) {
+                const lvlEl = document.getElementById('header-level-val');
+                const xpEl = document.getElementById('header-xp-val');
+                if (lvlEl) lvlEl.textContent = `Lv. ${snap.playerProgress.level}`;
+                if (xpEl) xpEl.textContent = `${snap.playerProgress.currentXp} / ${snap.playerProgress.nextLevelXp} XP`;
+            }
+
+            const accNameEl = document.getElementById('context-account-name');
+            if (accNameEl) {
+                accNameEl.textContent = currentAccount ? (currentAccount.name || currentAccount.id) : 'Pribadi';
             }
         } catch (e) {
             console.error('Gagal memuat snapshot:', e);
@@ -179,17 +232,36 @@
             // Muat Indeks
             const indicesRaw = bridge.getIndices();
             const indices = JSON.parse(indicesRaw);
+
+            // Tambahkan kartu kawasan global jika belum ada di list
+            const regionalCards = [
+                { id: 'N225', ticker: 'N225', name: 'Nikkei 225', value: 'Kawasan JP', changePercent: 'Data emiten belum disediakan', available: false },
+                { id: 'HSI', ticker: 'HSI', name: 'Hang Seng', value: 'Kawasan HK', changePercent: 'Data emiten belum disediakan', available: false },
+                { id: 'FTSE', ticker: 'FTSE', name: 'FTSE 100', value: 'Kawasan UK', changePercent: 'Data emiten belum disediakan', available: false },
+                { id: 'DAX', ticker: 'DAX', name: 'DAX', value: 'Kawasan DE', changePercent: 'Data emiten belum disediakan', available: false }
+            ];
+
+            const allIndices = [...indices];
+            regionalCards.forEach(rc => {
+                if (!allIndices.some(x => x.ticker === rc.ticker)) allIndices.push(rc);
+            });
+
             const idxContainer = document.getElementById('indices-row');
             idxContainer.innerHTML = '';
-            indices.forEach(idx => {
+            idxContainer.className = 'market-ribbon';
+            allIndices.forEach(idx => {
                 const item = document.createElement('div');
-                item.className = 'card';
-                item.style.flex = '1';
-                item.style.margin = '0 4px';
-                item.style.padding = '10px';
+                item.className = 'index-card';
                 item.innerHTML = `
-                    <div style="font-size:0.75rem; color:var(--text-muted);">${idx.ticker}</div>
-                    <div style="font-size:1.1rem; font-weight:600; color:var(--action);">${idx.value} poin</div>
+                    <div class="index-top">
+                        <span>${idx.ticker}</span>
+                        <span style="font-size:0.65rem; color:var(--text-muted);">${idx.available === false ? 'Global' : 'Model'}</span>
+                    </div>
+                    <strong>${idx.value}</strong>
+                    <div style="font-size:0.75rem; color:${idx.up ? 'var(--positive)' : idx.available === false ? 'var(--text-muted)' : 'var(--negative)'};">
+                        ${idx.changePercent || ''}
+                    </div>
+                    <div class="index-caption">${idx.source || idx.name}</div>
                 `;
                 item.tabIndex = 0;
                 item.setAttribute('role', 'button');
@@ -459,6 +531,7 @@
                 flowText(newsSection, 'Berita', 'Belum ada berita terbit saat ini.');
             } else {
                 feed.news.forEach(n => {
+                    if (bridge.recordResearchRead) bridge.recordResearchRead(n.headline);
                     const card = document.createElement('article');
                     card.className = 'card';
                     const h = document.createElement('h3');
@@ -470,6 +543,7 @@
                     flowText(card, 'Sentimen pasar', sent);
                     newsSection.append(card);
                 });
+                refreshSnapshot();
             }
             view.append(newsSection);
 
@@ -568,6 +642,11 @@
         }
         try {
             const detail = JSON.parse(bridge.getIndexDetail(index.id));
+            if (detail.unavailable) {
+                flowText(panel, 'Status Kawasan', 'Kawasan sudah dipetakan, data emiten belum disediakan.');
+                flowText(panel, 'Penjelasan', detail.message || 'Game belum mendukung aturan perdagangan dan mata uang bursa regional ini.');
+                return;
+            }
             if (!detail.success) throw new Error(detail.message || 'Detail indeks belum tersedia');
             flowText(panel, 'Indeks / bursa', `${detail.ticker} — ${detail.name} (${detail.exchange})`);
             flowText(panel, 'Sumber', detail.sourceLabel);
@@ -598,17 +677,199 @@
         flowText(panel, 'Mode', isNativeHost ? modeLabel.textContent : 'Pratinjau UI — bukan data ekonomi');
         flowText(panel, 'Mata uang / unit', `${stock.currency} / ${stock.lotSize} saham per unit`);
         flowText(panel, 'Harga pasar game', stock.currentPrice);
-        flowText(panel, 'Grafik', 'Riwayat harga domain belum tersedia; tidak menampilkan grafik contoh.');
+
+        // Chart Container
+        let currentTimeframe = 'M5';
+        let currentChartType = 'candle';
+        const chartWrapper = document.createElement('div');
+        chartWrapper.id = 'instrument-chart-section';
+        chartWrapper.style.margin = '12px 0';
+        panel.appendChild(chartWrapper);
+
+        function renderChart() {
+            chartWrapper.innerHTML = '';
+            if (!bridge.getChartData) {
+                flowText(chartWrapper, 'Grafik', 'Bridge riwayat harga domain belum tersedia.');
+                return;
+            }
+            try {
+                const chartData = JSON.parse(bridge.getChartData(stock.id, currentTimeframe));
+                if (!chartData.success) {
+                    flowText(chartWrapper, 'Grafik', chartData.message || 'Data grafik belum tersedia.');
+                    return;
+                }
+
+                // Chart Controls
+                const controls = document.createElement('div');
+                controls.className = 'chart-controls';
+
+                const tfButtons = document.createElement('div');
+                tfButtons.className = 'timeframe-buttons';
+                ['M1', 'M5', 'M15', 'H1', 'D1'].forEach(tf => {
+                    const btn = document.createElement('button');
+                    btn.textContent = tf;
+                    btn.dataset.timeframe = tf;
+                    if (tf === currentTimeframe) btn.classList.add('active');
+                    btn.setAttribute('aria-pressed', String(tf === currentTimeframe));
+                    btn.onclick = () => {
+                        currentTimeframe = tf;
+                        renderChart();
+                    };
+                    tfButtons.appendChild(btn);
+                });
+                controls.appendChild(tfButtons);
+
+                const typeButtons = document.createElement('div');
+                typeButtons.className = 'chart-type';
+                ['candle', 'line'].forEach(ct => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn-secondary';
+                    btn.style.minHeight = '48px';
+                    btn.style.padding = '6px 12px';
+                    btn.textContent = ct === 'candle' ? 'Candle' : 'Garis';
+                    btn.onclick = () => {
+                        currentChartType = ct;
+                        renderChart();
+                    };
+                    typeButtons.appendChild(btn);
+                });
+                controls.appendChild(typeButtons);
+                chartWrapper.appendChild(controls);
+
+                // OHLC Readout
+                const bars = chartData.bars || [];
+                const lastBar = bars[bars.length - 1] || { time: '-', open: 0, high: 0, low: 0, close: 0, volume: 0 };
+                const readout = document.createElement('div');
+                readout.id = 'ohlc-readout';
+                readout.className = 'ohlc-readout';
+                readout.innerHTML = `
+                    <span><strong>Waktu:</strong> ${lastBar.time}</span>
+                    <span><strong>O:</strong> ${lastBar.open}</span>
+                    <span><strong>H:</strong> ${lastBar.high}</span>
+                    <span><strong>L:</strong> ${lastBar.low}</span>
+                    <span><strong>C:</strong> ${lastBar.close}</span>
+                    <span><strong>Vol:</strong> ${lastBar.volume}</span>
+                `;
+                chartWrapper.appendChild(readout);
+
+                // SVG Plot
+                const minPrice = Math.min(...bars.map(b => b.low));
+                const maxPrice = Math.max(...bars.map(b => b.high));
+                const priceRange = (maxPrice - minPrice) || 1;
+                const maxVol = Math.max(1, ...bars.map(b => b.volume));
+
+                const svgWidth = 600;
+                const svgHeight = 220;
+                const chartH = 150;
+                const step = bars.length > 0 ? svgWidth / bars.length : svgWidth;
+
+                const y = v => 20 + ((maxPrice - v) / priceRange) * chartH;
+
+                let svgContent = `<path d="M0 20H600M0 70H600M0 120H600M0 170H600" stroke="var(--divider)" stroke-dasharray="3 6" fill="none" />`;
+
+                if (currentChartType === 'candle') {
+                    bars.forEach((b, i) => {
+                        const x = i * step + step / 2;
+                        const isUp = b.close >= b.open;
+                        const color = isUp ? 'var(--positive)' : 'var(--negative)';
+                        const bodyY = Math.min(y(b.open), y(b.close));
+                        const bodyH = Math.max(2, Math.abs(y(b.close) - y(b.open)));
+                        const volH = (b.volume / maxVol) * 40;
+                        svgContent += `
+                            <g>
+                                <line class="candle-wick" x1="${x}" x2="${x}" y1="${y(b.high)}" y2="${y(b.low)}" stroke="${color}" stroke-width="1.5" />
+                                <rect class="candle-body" x="${x - 4}" y="${bodyY}" width="8" height="${bodyH}" fill="${color}" />
+                                <rect x="${x - 4}" y="${svgHeight - volH}" width="8" height="${volH}" fill="${color}" opacity="0.4" />
+                            </g>
+                        `;
+                    });
+                } else {
+                    const pts = bars.map((b, i) => `${i ? 'L' : 'M'}${i * step + step / 2} ${y(b.close)}`).join(' ');
+                    svgContent += `<path d="${pts}" fill="none" stroke="var(--teal)" stroke-width="2" />`;
+                }
+
+                const chartLayout = document.createElement('div');
+                chartLayout.className = 'candle-layout';
+                chartLayout.innerHTML = `
+                    <svg class="candle-svg" viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="none">${svgContent}</svg>
+                    <div class="candle-axis">
+                        <span>${maxPrice.toFixed(0)}</span>
+                        <span>${((maxPrice + minPrice) / 2).toFixed(0)}</span>
+                        <span>${minPrice.toFixed(0)}</span>
+                    </div>
+                `;
+                chartWrapper.appendChild(chartLayout);
+
+                // Alternative Table Toggle
+                const tableToggleBtn = document.createElement('button');
+                tableToggleBtn.className = 'btn-secondary';
+                tableToggleBtn.style.marginTop = '6px';
+                tableToggleBtn.textContent = 'Tabel OHLCV Alternatif';
+                const tableContainer = document.createElement('div');
+                tableContainer.id = 'chart-table';
+                tableContainer.style.display = 'none';
+                tableContainer.style.margin = '8px 0';
+                tableContainer.innerHTML = `
+                    <table class="depth-table">
+                        <thead><tr><th>Waktu</th><th>Open</th><th>High</th><th>Low</th><th>Close</th><th>Vol</th></tr></thead>
+                        <tbody>${bars.map(b => `<tr><td>${b.time}</td><td>${b.open}</td><td>${b.high}</td><td>${b.low}</td><td>${b.close}</td><td>${b.volume}</td></tr>`).join('')}</tbody>
+                    </table>
+                `;
+                tableToggleBtn.onclick = () => {
+                    const isHidden = tableContainer.style.display === 'none';
+                    tableContainer.style.display = isHidden ? 'block' : 'none';
+                    tableToggleBtn.textContent = isHidden ? 'Tutup Tabel OHLCV' : 'Tabel OHLCV Alternatif';
+                };
+                chartWrapper.appendChild(tableToggleBtn);
+                chartWrapper.appendChild(tableContainer);
+            } catch (e) {
+                flowText(chartWrapper, 'Grafik gagal dimuat', e.message);
+            }
+        }
+        renderChart();
+
+        // Order Book & Tape
         let book = null;
         if (bridge.getOrderBook) {
             try {
                 book = JSON.parse(bridge.getOrderBook(stock.id));
-                flowText(panel, 'Status pasar', book.haltState);
-                for (const [key, name] of [['bids', 'Bid'], ['asks', 'Ask']]) {
-                    flowText(panel, name, (book[key] || []).map(level => `${level.price} ${stock.currency} × ${level.quantity} saham`).join('; ') || 'Belum ada antrean');
+                flowText(panel, 'Status pasar', book.haltState || 'NORMAL');
+
+                const bookSection = document.createElement('div');
+                bookSection.innerHTML = `
+                    <h3 style="margin: 12px 0 6px; font-size: 0.95rem;">Order Book (10 Tingkat)</h3>
+                    <table class="depth-table">
+                        <thead><tr><th>Bid Qty</th><th>Bid</th><th>Ask</th><th>Ask Qty</th></tr></thead>
+                        <tbody>
+                            ${Array.from({ length: Math.max((book.bids || []).length, (book.asks || []).length) }).map((_, i) => {
+                                const b = (book.bids || [])[i] || { price: '-', quantity: '-' };
+                                const a = (book.asks || [])[i] || { price: '-', quantity: '-' };
+                                return `<tr>
+                                    <td class="depth-bid">${b.quantity}</td>
+                                    <td class="positive">${b.price}</td>
+                                    <td class="negative">${a.price}</td>
+                                    <td class="depth-ask">${a.quantity}</td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+                panel.appendChild(bookSection);
+
+                // Tape (Recent Trades)
+                if (book.recentTrades && book.recentTrades.length) {
+                    const tapeSection = document.createElement('div');
+                    tapeSection.innerHTML = `
+                        <h3 style="margin: 12px 0 6px; font-size: 0.95rem;">Tape Transaksi Terakhir</h3>
+                        <div style="font-size:0.8rem; font-variant-numeric: tabular-nums;">
+                            ${book.recentTrades.map(t => `<div class="flex-row"><span>${new Date(t.timestamp).toLocaleTimeString('id-ID')}</span><span>${t.quantity} lembar</span><strong class="positive">${t.price}</strong></div>`).join('')}
+                        </div>
+                    `;
+                    panel.appendChild(tapeSection);
                 }
             } catch (error) { flowText(panel, 'Antrean gagal dimuat', error.message); }
         } else flowText(panel, 'Antrean', 'Bridge domain tidak tersedia pada pratinjau ini');
+
         if (bridge.toggleWatchlist) {
             const watchlist = flowButton(panel, stock.isWatchlist ? 'Hapus dari watchlist' : 'Tambah ke watchlist', () => {
                 try {
@@ -622,7 +883,8 @@
             });
             watchlist.className = 'btn-secondary';
             watchlist.setAttribute('aria-pressed', String(stock.isWatchlist));
-        } else flowText(panel, 'Watchlist', 'Bridge watchlist belum tersedia pada pratinjau ini.');
+        }
+
         const isHalted = book && book.haltState && book.haltState !== 'NORMAL';
         if (isHalted) {
             flowText(panel, 'Pemberitahuan suspensi (S36)', 'Perdagangan instrumen ini sedang di-halt / disuspensi bursa. Order baru tidak dapat diproses.');
@@ -1906,11 +2168,122 @@
     const entryGameBtn = document.getElementById('btn-entry-game');
     if (entryGameBtn) entryGameBtn.addEventListener('click', openEntryPicker);
 
+    function openAchievementsModal() {
+        const panel = showFlow('Level & Pencapaian');
+        if (!bridge.getPlayerProgress) {
+            flowText(panel, 'Progres', 'Bridge progres pemain belum tersedia.');
+            return;
+        }
+        try {
+            const prog = JSON.parse(bridge.getPlayerProgress());
+            flowText(panel, 'Level Pemain', `Level ${prog.level}`);
+            flowText(panel, 'Total XP', `${prog.currentXp} XP (${prog.xpInCurrentLevel} / ${prog.levelSpanXp} XP menuju Level ${prog.level + 1})`);
+
+            // Progress bar
+            const track = document.createElement('div');
+            track.className = 'xp-track';
+            track.setAttribute('role', 'progressbar');
+            track.setAttribute('aria-valuenow', prog.xpInCurrentLevel);
+            track.setAttribute('aria-valuemin', 0);
+            track.setAttribute('aria-valuemax', prog.levelSpanXp);
+            const fill = document.createElement('span');
+            const pct = Math.min(100, Math.max(0, (prog.xpInCurrentLevel / (prog.levelSpanXp || 1)) * 100));
+            fill.style.width = `${pct}%`;
+            track.appendChild(fill);
+            panel.appendChild(track);
+
+            flowText(panel, 'Pencapaian Terbuka', `${prog.achievementsUnlocked} dari ${prog.totalAchievements} selesai`);
+
+            // Filter buttons
+            const filterWrap = document.createElement('div');
+            filterWrap.style.display = 'flex';
+            filterWrap.style.gap = '8px';
+            filterWrap.style.margin = '12px 0';
+            let currentFilter = 'all';
+
+            const grid = document.createElement('div');
+            grid.className = 'achievement-grid';
+
+            function renderAchievements() {
+                grid.innerHTML = '';
+                const filtered = (prog.achievements || []).filter(a => {
+                    if (currentFilter === 'open') return a.unlocked;
+                    if (currentFilter === 'locked') return !a.unlocked;
+                    return true;
+                });
+
+                filtered.forEach(a => {
+                    const card = document.createElement('article');
+                    card.className = `achievement-card ${a.unlocked ? '' : 'locked'}`;
+                    card.innerHTML = `
+                        <div class="flex-row">
+                            <span class="achievement-medal ${a.unlocked ? '' : 'locked'}">${a.icon === 'market' ? '📈' : a.icon === 'book' ? '📖' : a.icon === 'users' ? '👥' : a.icon === 'shield' ? '🛡️' : a.icon === 'globe' ? '🌐' : '📄'}</span>
+                            <span class="change-pill ${a.unlocked ? 'positive' : ''}">${a.unlocked ? 'Terbuka' : 'Dalam Proses'}</span>
+                        </div>
+                        <h3 style="margin: 8px 0 4px; font-size: 1rem;">${a.name}</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px;">${a.desc}</p>
+                        <div class="flex-row" style="font-size: 0.8rem; color: var(--teal);">
+                            <span>${a.progress}</span>
+                            <strong>+${a.xp}</strong>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            }
+
+            ['all', 'open', 'locked'].forEach(f => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-secondary';
+                btn.style.flex = '1';
+                btn.style.fontSize = '0.85rem';
+                btn.textContent = f === 'all' ? 'Semua' : f === 'open' ? 'Terbuka' : 'Dalam Proses';
+                btn.onclick = () => {
+                    currentFilter = f;
+                    renderAchievements();
+                };
+                filterWrap.appendChild(btn);
+            });
+
+            panel.appendChild(filterWrap);
+            panel.appendChild(grid);
+            renderAchievements();
+
+            flowText(panel, 'Aturan Ekonomi', 'Level dan achievement adalah pencapaian kemampuan pemain; tidak memberikan saldo uang tunai game atau bypass syarat promosi karier.');
+        } catch (e) {
+            flowText(panel, 'Gagal memuat progres', e.message);
+        }
+    }
+
+    function openAccountPicker() {
+        if (!latestSnapshot || !latestSnapshot.tradingAccounts) return;
+        const panel = showFlow('Pilih Akun Transaksi');
+        flowText(panel, 'Keterangan', 'Pilih akun yang digunakan untuk portofolio dan penempatan order. Kekayaan pribadi di kanan atas tetap terpisah dari dana klien (AUM).');
+        latestSnapshot.tradingAccounts.forEach(acc => {
+            const isSelected = currentAccount && currentAccount.id === acc.id;
+            flowButton(panel, `${acc.name} (${acc.type})${isSelected ? ' [Aktif]' : ''}`, () => {
+                currentAccount = { id: acc.id, name: acc.name, type: acc.type };
+                closeFlow();
+                refreshSnapshot();
+                if (currentTab === 'aset') loadAsetView();
+            });
+        });
+    }
+
+    const achBtn = document.getElementById('btn-achievements');
+    if (achBtn) achBtn.addEventListener('click', openAchievementsModal);
+    const lvlChip = document.getElementById('header-level-chip');
+    if (lvlChip) lvlChip.addEventListener('click', openAchievementsModal);
+    const wealthChip = document.getElementById('header-wealth-chip');
+    if (wealthChip) wealthChip.addEventListener('click', () => switchTab('aset'));
+    const accBtn = document.getElementById('context-account-btn');
+    if (accBtn) accBtn.addEventListener('click', openAccountPicker);
+
     document.getElementById('btn-settings').addEventListener('click', () => {
         const panel = showFlow('Pengaturan / save');
         flowText(panel, 'Batas kandidat', 'Save lokal masih dalam remediasi. Histori nyata belum tersedia; jangan gunakan sebagai update progres APK lama.');
         flowButton(panel, 'Menu awal & mulai baru (S01 & S02)', openEntryPicker);
         flowButton(panel, 'Panduan tutorial interaktif (S03)', openTutorialModal);
+        flowButton(panel, 'Level & pencapaian (Achievement)', openAchievementsModal);
         flowButton(panel, 'Simpan permainan', () => {
             try {
                 const result = JSON.parse(bridge.saveGame());

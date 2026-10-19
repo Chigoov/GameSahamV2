@@ -1,28 +1,53 @@
-/* Design Tokens - Jurnal Investasi 2D Portrait */
+/* Graphite Terminal Design Tokens (Revisi 2) - Game Saham 2D Portrait */
+@font-face {
+    font-family: 'Plex';
+    src: url('assets/IBMPlexSans.ttf') format('truetype');
+    font-weight: 100 700;
+    font-style: normal;
+    font-display: swap;
+}
+
 :root {
-    --bg-page: #0F1720;
-    --surface: #172330;
-    --surface-raised: #203140;
-    --text-primary: #F5F1E8;
-    --text-secondary: #B6C2CC;
-    --text-muted: #94A5B5;
-    --action: #E0BD7A;
-    --on-action: #111A24;
-    --action-hover: #EACB91;
-    --action-pressed: #CFAA68;
-    --positive: #79D3B0;
-    --negative: #FF9A91;
-    --warning: #F0C477;
-    --information: #9CC9EF;
-    --positive-surface: #19392F;
-    --negative-surface: #462B31;
-    --warning-surface: #3A3326;
-    --information-surface: #1D3345;
-    --border-interactive: #7B8FA1;
-    --divider: #334655;
-    --focus: #E0BD7A;
-    --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.24);
-    --shadow-2: 0 12px 32px rgba(0, 0, 0, 0.48);
+    --bg-page: #101214;
+    --background: #101214;
+    --surface: #191D21;
+    --surface-raised: #252B31;
+    --raised: #252B31;
+    --text-primary: #F4F6F8;
+    --text: #F4F6F8;
+    --text-secondary: #B9C3CB;
+    --secondary: #B9C3CB;
+    --text-muted: #98A7B2;
+    --muted: #98A7B2;
+    --action: #FFBD59;
+    --gold: #FFBD59;
+    --on-action: #21170A;
+    --on-gold: #21170A;
+    --action-hover: #FFD083;
+    --gold-hover: #FFD083;
+    --action-pressed: #EAA442;
+    --gold-pressed: #EAA442;
+    --positive: #54DDAD;
+    --negative: #FF8A98;
+    --warning: #FFD077;
+    --information: #97C8FF;
+    --positive-surface: #14392E;
+    --positive-bg: #14392E;
+    --negative-surface: #40252F;
+    --negative-bg: #40252F;
+    --warning-surface: #3D3020;
+    --warning-bg: #3D3020;
+    --information-surface: #20334B;
+    --information-bg: #20334B;
+    --border-interactive: #758791;
+    --border: #758791;
+    --divider: #343E46;
+    --teal: #66E4D5;
+    --teal-bg: #183A39;
+    --amber-bg: #392C1B;
+    --focus: #FFBD59;
+    --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.32);
+    --shadow-2: 0 12px 32px rgba(0, 0, 0, 0.6);
 }
 
 * {
@@ -35,26 +60,34 @@
 body {
     background-color: var(--bg-page);
     color: var(--text-primary);
-    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: Plex, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     min-height: 100vh;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     overflow-x: hidden;
+    overflow-y: hidden;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
 }
 
 /* Header & Context Strip */
 .app-header {
-    background-color: var(--surface);
+    background-color: var(--background);
     border-bottom: 1px solid var(--divider);
-    padding: 12px 16px;
+    padding: 10px 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     position: sticky;
     top: 0;
     z-index: 100;
+    flex-shrink: 0;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-height: 60px;
 }
 
 .brand-title {
@@ -64,6 +97,7 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap;
 }
 
 .brand-badge {
@@ -75,15 +109,107 @@ body {
     border-radius: 4px;
 }
 
+.header-tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Wealth Chip: Selalu mencerminkan nilai bersih pribadi di kanan atas */
+.wealth-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 6px 12px;
+    border: 1px solid #84673C;
+    border-radius: 8px;
+    background: var(--amber-bg);
+    color: var(--action);
+    cursor: pointer;
+    text-align: right;
+    font-size: 0.8rem;
+    transition: background-color 0.12s, border-color 0.12s;
+}
+
+.wealth-chip:hover {
+    border-color: var(--action);
+}
+
+.wealth-chip small {
+    display: block;
+    color: #D4C6AD;
+    font-size: 0.65rem;
+    letter-spacing: 0.02em;
+}
+
+.wealth-chip strong {
+    font-size: 1rem;
+    color: var(--action);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* Level & XP Chip */
+.level-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 48px;
+    border: 1px solid #3D736D;
+    background: var(--teal-bg);
+    border-radius: 8px;
+    padding: 6px 10px;
+    text-align: left;
+    color: var(--teal);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: border-color 0.12s;
+}
+
+.level-chip:hover {
+    border-color: var(--teal);
+}
+
+.level-chip small {
+    display: block;
+    color: #A9D6D0;
+    font-size: 0.65rem;
+}
+
+.level-chip strong {
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
 .context-strip {
-    background: var(--surface-raised);
-    padding: 8px 16px;
+    background: var(--surface);
+    padding: 6px 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-size: 0.8rem;
     color: var(--text-secondary);
     border-bottom: 1px solid var(--divider);
+    flex-shrink: 0;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-height: 40px;
+}
+
+.context-account {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 48px;
+    padding: 4px 10px;
+    border: 1px solid #4F6868;
+    border-radius: 6px;
+    background: var(--teal-bg);
+    color: var(--teal);
+    font-size: 0.75rem;
+    cursor: pointer;
 }
 
 .session-indicator {
@@ -362,17 +488,252 @@ body {
 .flow-page p { margin: 8px 0; overflow-wrap: anywhere; line-height: 1.4; }
 .flow-page button { margin: 6px 0; }
 /* Shared accessibility and compact portrait corrections */
-body { height: 100dvh; overflow: hidden; }
 body > header, .context-strip, .mock-banner, .bottom-nav { flex-shrink: 0; }
 .bottom-nav { position: static; min-height: 80px; height: auto; flex-wrap: wrap; }
 .nav-item { flex: 1 1 auto; min-width: max-content; height: auto; min-height: 80px; padding: 8px; white-space: nowrap; }
 .main-container { min-height: 0; padding-bottom: 24px; }
+
+/* Index Ribbon & Cards */
+.market-ribbon {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 4px 0 12px;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+}
+
+.index-card {
+    flex: 0 0 148px;
+    background: var(--surface);
+    border: 1px solid var(--divider);
+    border-radius: 8px;
+    padding: 10px;
+    cursor: pointer;
+    text-align: left;
+    color: var(--text-primary);
+    scroll-snap-align: start;
+    transition: border-color 0.12s, transform 0.12s;
+    min-height: 48px;
+}
+
+.index-card:hover {
+    border-color: var(--border-interactive);
+}
+
+.index-card .index-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.index-card strong {
+    display: block;
+    font-size: 1.05rem;
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 2px;
+}
+
+.index-card .index-caption {
+    display: block;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.sparkline-svg {
+    width: 100%;
+    height: 32px;
+    display: block;
+}
+
+/* Candlestick & Chart Layout */
+.chart-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.timeframe-buttons {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.timeframe-buttons button {
+    min-height: 48px;
+    min-width: 48px;
+    padding: 6px 12px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border-interactive);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.timeframe-buttons button.active, .timeframe-buttons button[aria-pressed="true"] {
+    background: var(--teal-bg);
+    border-color: var(--teal);
+    color: var(--teal);
+}
+
+.ohlc-readout {
+    display: flex;
+    gap: 12px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+    flex-wrap: wrap;
+    padding: 6px 0;
+}
+
+.candle-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 56px;
+    gap: 8px;
+    margin: 8px 0;
+}
+
+.candle-svg {
+    width: 100%;
+    height: 220px;
+    display: block;
+    background: var(--surface);
+    border: 1px solid var(--divider);
+    border-radius: 6px;
+}
+
+.candle-axis {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    padding: 8px 0;
+}
+
+/* Order Book 10 Levels */
+.depth-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    margin: 8px 0;
+}
+
+.depth-table th, .depth-table td {
+    padding: 6px 8px;
+    text-align: right;
+    border-bottom: 1px solid var(--divider);
+}
+
+.depth-table th {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.depth-bid {
+    color: var(--positive);
+    background: linear-gradient(to left, var(--positive-surface) var(--depth, 20%), transparent 0);
+}
+
+.depth-ask {
+    color: var(--negative);
+    background: linear-gradient(to right, var(--negative-surface) var(--depth, 20%), transparent 0);
+}
+
+/* Achievements & Progress */
+.achievement-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+    margin: 12px 0;
+}
+
+.achievement-card {
+    background: var(--surface);
+    border: 1px solid var(--divider);
+    border-radius: 8px;
+    padding: 16px;
+    position: relative;
+}
+
+.achievement-card.locked {
+    opacity: 0.75;
+    border-style: dashed;
+}
+
+.achievement-medal {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--amber-bg);
+    color: var(--action);
+    font-size: 1.1rem;
+    margin-right: 8px;
+}
+
+.achievement-medal.locked {
+    background: var(--surface-raised);
+    color: var(--text-muted);
+}
+
+.xp-track {
+    width: 100%;
+    height: 8px;
+    background: var(--surface-raised);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 8px 0;
+}
+
+.xp-track > span {
+    display: block;
+    height: 100%;
+    background: var(--teal);
+    transition: width 0.3s ease;
+}
+
+button:disabled, .btn-primary:disabled, .btn-secondary:disabled {
+    cursor: not-allowed;
+    background-color: var(--surface-raised) !important;
+    color: var(--text-muted) !important;
+    border: 1px dashed var(--divider) !important;
+    opacity: 0.65;
+}
+
 /* Short viewports must not trap enlarged text in a tiny nested scroller. */
+@media (max-height: 480px) {
+    .app-header { padding: 4px 12px; min-height: 48px; }
+    .brand-title { font-size: 0.95rem; }
+    .context-strip { padding: 4px 12px; font-size: 0.75rem; min-height: 36px; }
+    .bottom-nav { min-height: 52px; height: 52px; padding-bottom: 2px; }
+    .nav-item { min-height: 48px; font-size: 0.7rem; gap: 2px; }
+    .nav-icon { font-size: 1rem; }
+    .main-container { padding: 8px; }
+    .candle-svg { height: 160px; }
+}
+
 @media (max-height: 44rem) {
     body { height: auto; min-height: 100dvh; overflow-y: auto; }
     .app-header { position: static; }
     .main-container { flex: none; overflow-y: visible; }
 }
+
 #indices-row { flex-wrap: wrap; gap: 8px; }
 #indices-row > .card { flex: 1 1 120px !important; min-width: 0; overflow-wrap: anywhere; }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }

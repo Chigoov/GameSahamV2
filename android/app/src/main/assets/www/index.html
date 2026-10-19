@@ -13,12 +13,23 @@
             <span>GAME SAHAM</span>
             <span class="brand-badge">2D PORTRAIT</span>
         </div>
-        <div style="font-size:0.8rem; color:var(--text-muted);" id="clock-display">08:30:00 WIB</div>
+        <div class="header-tools">
+            <button id="header-level-chip" class="level-chip" aria-label="Buka level dan pencapaian">
+                <span>⭐</span>
+                <span><strong id="header-level-val">Lv. 1</strong><small id="header-xp-val">0 / 100 XP</small></span>
+            </button>
+            <button id="header-wealth-chip" class="wealth-chip" aria-label="Total kekayaan pribadi, buka rincian">
+                <span>💼</span>
+                <span><small>Kekayaan Pribadi</small><strong id="header-net-worth">Rp 50.000.000</strong></span>
+            </button>
+            <div style="font-size:0.8rem; color:var(--text-muted);" id="clock-display">08:30:00 WIB</div>
+        </div>
     </header>
 
-    <div style="display:flex; gap:8px; margin-bottom:8px;">
-        <button id="btn-settings" class="btn-secondary" style="flex:1;">Pengaturan / save</button>
-        <button id="btn-entry-game" class="btn-secondary" style="flex:1;">Menu awal & karir</button>
+    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; padding: 0 16px;">
+        <button id="btn-settings" class="btn-secondary" style="flex:1 1 90px; min-width:0; padding:10px 8px; font-size:0.85rem;">Pengaturan / save</button>
+        <button id="btn-entry-game" class="btn-secondary" style="flex:1 1 90px; min-width:0; padding:10px 8px; font-size:0.85rem;">Menu awal & karir</button>
+        <button id="btn-achievements" class="btn-secondary" style="flex:1 1 90px; min-width:0; padding:10px 8px; font-size:0.85rem;">Level & pencapaian</button>
     </div>
     <!-- Context Strip -->
     <div class="context-strip">
@@ -26,6 +37,11 @@
             <span id="session-dot" class="status-dot"></span>
             <span id="session-label">Memeriksa Sesi...</span>
         </div>
+        <button id="context-account-btn" class="context-account" aria-label="Pilih akun transaksi">
+            <span>👤</span>
+            <span id="context-account-name">Portofolio Pribadi</span>
+            <span style="font-size:0.7rem;">▾</span>
+        </button>
         <div id="mode-label" style="font-weight:600; color:var(--action);">Pasar Internal Game</div>
     </div>
 

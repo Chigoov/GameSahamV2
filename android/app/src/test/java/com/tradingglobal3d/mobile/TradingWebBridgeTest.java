@@ -84,6 +84,10 @@ public class TradingWebBridgeTest {
         assertEquals("Rp 50.000.000", idr.getString("total"));
         assertEquals("Rp 50.000.000", idr.getString("available"));
         assertEquals("Rp 0", idr.getString("reserved"));
+
+        assertTrue(personal.has("netWorth"));
+        assertEquals("Rp 50.000.000", personal.getString("netWorth"));
+        assertEquals("50000000", personal.getString("netWorthRaw"));
     }
 
     @Test
@@ -95,6 +99,16 @@ public class TradingWebBridgeTest {
         String idxRaw = bridge.getIndices();
         JSONArray indices = new JSONArray(idxRaw);
         assertEquals(3, indices.length()); // IHSG, LQ45, SP500
+        JSONObject ihsg = indices.getJSONObject(0);
+        assertTrue(ihsg.has("changePercent"));
+        assertTrue(ihsg.has("source"));
+        assertTrue(ihsg.getBoolean("available"));
+
+        // Verifikasi detail indeks jujur kawasan belum tersedia
+        JSONObject nikkeiDetail = new JSONObject(bridge.getIndexDetail("N225"));
+        assertFalse(nikkeiDetail.getBoolean("success"));
+        assertTrue(nikkeiDetail.getBoolean("unavailable"));
+        assertTrue(nikkeiDetail.getString("message").contains("data emiten belum disediakan"));
     }
 
     @Test
@@ -804,5 +818,123 @@ public class TradingWebBridgeTest {
         assertEquals("Inventori lender harus pulih kembali setelah cover", initialLenderQty, mmPos.getQuantity());
 
         assertTrue(facade.reconcileAll());
+    }
+
+    @Test
+    public void testChartDataPipelineAndOrderBookTape() throws Exception {
+        // 1. Sebelum trade: bar referensi tanpa volume palsu
+        String chartEmptyRaw = bridge.getChartData("IDX:BBCA", "M5");
+        JSONObject chartEmpty = new JSONObject(chartEmptyRaw);
+        assertTrue(chartEmpty.getBoolean("success"));
+        assertEquals("IDX:BBCA", chartEmpty.getString("instrumentId"));
+        assertEquals("M5", chartEmpty.getString("timeframe"));
+        assertEquals(0, chartEmpty.getInt("totalTrades"));
+        JSONArray emptyBars = chartEmpty.getJSONArray("bars");
+        assertEquals(1, emptyBars.length());
+        assertTrue(emptyBars.getJSONObject(0).getBoolean("isReference"));
+        assertEquals(0, emptyBars.getJSONObject(0).getLong("volume"));
+
+        // 2. Siapkan likuiditas market maker dan eksekusi transaksi beli 1 lot BBCA (@ Rp 10.250)
+        facade.generateNpcLiquidity();
+        JSONObject buyReq = new JSONObject()
+                .put("requestId", "REQ-CHART-TEST-1")
+                .put("instrumentId", "IDX:BBCA")
+                .put("side", "BUY")
+                .put("type", "LIMIT")
+                .put("quantity", 100)
+                .put("limitPrice", "10500");
+        String buyResStr = bridge.submitOrder(buyReq.toString());
+        JSONObject buyRes = new JSONObject(buyResStr);
+        assertTrue(buyRes.getBoolean("success"));
+
+        // 3. Setelah trade: bar memuat data matched trade nyata
+        String chartFilledRaw = bridge.getChartData("IDX:BBCA", "M5");
+        JSONObject chartFilled = new JSONObject(chartFilledRaw);
+        assertTrue(chartFilled.getBoolean("success"));
+        assertTrue(chartFilled.getInt("totalTrades") >= 1);
+        JSONArray bars = chartFilled.getJSONArray("bars");
+        assertTrue(bars.length() >= 1);
+        JSONObject firstBar = bars.getJSONObject(0);
+        assertFalse(firstBar.getBoolean("isReference"));
+        assertTrue(firstBar.getLong("volume") >= 100);
+
+        // 4. Periksa Order Book dan Tape
+        String bookRaw = bridge.getOrderBook("IDX:BBCA");
+        JSONObject book = new JSONObject(bookRaw);
+        assertTrue(book.has("bids"));
+        assertTrue(book.has("asks"));
+        assertTrue(book.has("recentTrades"));
+        JSONArray tape = book.getJSONArray("recentTrades");
+        assertTrue(tape.length() >= 1);
+        JSONObject latestTrade = tape.getJSONObject(0);
+        assertEquals(100, latestTrade.getLong("quantity"));
+    }
+
+    @Test
+    public void testPlayerProgressXpAchievementsAndPersistence() throws Exception {
+        // 1. Awal permainan: Level 1, 0 XP, 6 achievements
+        String progressRaw = bridge.getPlayerProgress();
+        JSONObject progress = new JSONObject(progressRaw);
+        assertEquals(1, progress.getInt("level"));
+        assertEquals(0, progress.getInt("currentXp"));
+        assertEquals(6, progress.getInt("totalAchievements"));
+        assertEquals(0, progress.getInt("achievementsUnlocked"));
+
+        // 2. Membaca artikel riset: idempoten, 5 artikel unik membuka 'reader' (150 XP)
+        for (int i = 1; i <= 5; i++) {
+            bridge.recordResearchRead("ART-00" + i);
+        }
+        // Membaca ulang artikel yang sama tidak boleh memberi reward ganda
+        bridge.recordResearchRead("ART-001");
+
+        JSONObject progAfterReader = new JSONObject(bridge.getPlayerProgress());
+        assertEquals(150, progAfterReader.getInt("currentXp"));
+        assertEquals(2, progAfterReader.getInt("level")); // 150 XP mencapai Level 2 (ambang 100)
+        assertEquals(1, progAfterReader.getInt("achievementsUnlocked"));
+
+        // 3. Menerima mandat klien resmi: membuka 'mandate' (200 XP)
+        JSONObject mandateRes = new JSONObject(bridge.acceptClientMandate("MANDATE-01"));
+        assertTrue(mandateRes.getBoolean("success"));
+        JSONObject progAfterMandate = new JSONObject(bridge.getPlayerProgress());
+        assertEquals(350, progAfterMandate.getInt("currentXp"));
+        assertEquals(2, progAfterMandate.getInt("achievementsUnlocked"));
+
+        // 4. Transaksi pertama: membuka 'first' (100 XP)
+        facade.generateNpcLiquidity();
+        JSONObject buyReq = new JSONObject()
+                .put("requestId", "REQ-PROG-TEST-1")
+                .put("instrumentId", "IDX:BBCA")
+                .put("side", "BUY")
+                .put("type", "LIMIT")
+                .put("quantity", 100)
+                .put("limitPrice", "10500");
+        bridge.submitOrder(buyReq.toString());
+
+        JSONObject progAfterTrade = new JSONObject(bridge.getPlayerProgress());
+        assertEquals(450, progAfterTrade.getInt("currentXp"));
+        assertEquals(4, progAfterTrade.getInt("level")); // 450 XP mencapai Level 4 (ambang 450)
+        assertEquals(3, progAfterTrade.getInt("achievementsUnlocked"));
+
+        // 5. Verifikasi Save dan Restore State
+        String saveRes = bridge.saveGame();
+        assertTrue(new JSONObject(saveRes).getBoolean("success"));
+
+        // Buat facade baru dan muat save
+        TradingFacade reloadedFacade = new TradingFacade(SaveManager.forDirectory(testDir));
+        reloadedFacade.setCatalog(facade.getCatalog());
+        assertTrue(reloadedFacade.load());
+
+        TradingWebBridge reloadedBridge = new TradingWebBridge(reloadedFacade);
+        JSONObject reloadedProg = new JSONObject(reloadedBridge.getPlayerProgress());
+        assertEquals(450, reloadedProg.getInt("currentXp"));
+        assertEquals(4, reloadedProg.getInt("level"));
+        assertEquals(3, reloadedProg.getInt("achievementsUnlocked"));
+
+        // 6. New Game: mereset progres
+        reloadedFacade.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(50_000_000));
+        JSONObject resetProg = new JSONObject(reloadedBridge.getPlayerProgress());
+        assertEquals(0, resetProg.getInt("currentXp"));
+        assertEquals(1, resetProg.getInt("level"));
+        assertEquals(0, resetProg.getInt("achievementsUnlocked"));
     }
 }

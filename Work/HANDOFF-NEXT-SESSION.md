@@ -1,12 +1,10 @@
 # Handoff Dokumen Sesi: Game Saham Android 2D Portrait
 
-> **Checkpoint remediasi terbaru:** baca `Work/REMEDIATION-HANDOFF.md` dan `Work/REMEDIATION-STATUS.json` lebih dahulu. Snapshot terkini 121 tes/produk PARTIAL; R01 saja COMPLETE. Teks di bawah mempertahankan riwayat audit dan klaim lama, bukan petunjuk aktif untuk ADB/signing.
-
-> **Koreksi aktif R01:** produk **PARTIAL**, bukan 14/14 accepted. Snapshot isi lama disimpan di `Artifacts/Remediation/R01/before/HANDOFF-NEXT-SESSION.md`. HEAD aktual saat audit `0c65c01affe29b5dba55103fb8608ec9a43ce37b`; branch tetap `codex/rebuild-2d-portrait`. Ada 228 requirement (188 PASS lama/40 NOT_TESTED), bukan 230 PASS; banyak PASS lama tidak memenuhi butir penuh. Tidak ada screenshot/data historis nyata terverifikasi. Source Java/UI existing dipertahankan. Tracking aktif adalah R01–R08 pada `Work/REMEDIATION-STATUS.json`; definisinya mengikuti instruksi pemilik, bukan daftar R01–R08 lama di bawah. Lihat `Artifacts/Remediation/R01/AUDIT.md` dan audit individual. **Jangan menjalankan bagian ADB/signing dari handoff lama**: fase ini tanpa perangkat/ADB, tanpa signing baru. Lanjut R02 tes existing dan reproduksi integritas; setelahnya journey/fitur/save/build lokal. Semua bagian lama di bawah adalah riwayat klaim, bukan bukti acceptance saat ini.
+> **Checkpoint integrasi UI Graphite Terminal (Revisi 2):** Integrasi desain Graphite Terminal telah selesai menyeluruh pada source produksi (8/8 tahap). Test suite JUnit mencapai **135 tes EXECUTED (100% PASS, 0 failure/error/skipped)**. Pengujian browser Playwright mencakup 9 viewport (320x568 s/d 1024x768) dan Playwright full E2E finansial lulus 100%. Kandidat APK `game-saham-graphite-candidate.apk` (586.090 byte, SHA-256 `8f39dd8d...`) terbangun mandiri dengan 11 berkas source/aset cocok byte-for-byte. Status produk PARTIAL (Gate native Android & dataset replay PENDING/BLOCKED by scope); tanpa ADB/push.
 
 **Tanggal Penyusunan:** 19 Oktober 2026  
-**Status Sesi:** SELESAI & AMAN DI-CHECKPOINT (Siap dilanjutkan oleh sesi/model berikutnya)  
-**ID Sesi Hermes Terakhir:** `20261018_224636_6709dc`  
+**Status Sesi:** SELESAI TAHAP INTEGRASI GRAPHITE TERMINAL  
+**ID Sesi Hermes Terakhir:** `20261019_204502_5f1ffa`  
 
 ---
 
