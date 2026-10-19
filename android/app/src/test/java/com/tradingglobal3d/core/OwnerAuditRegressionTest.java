@@ -27,6 +27,7 @@ public class OwnerAuditRegressionTest {
 
     @Test public void rejectedEarlyCloseMustNotChargeInterest() throws Exception {
         TradingFacade game = game();
+        GameTestSupport.unlockManager(game);
         game.takeMarginLoan(Money.of(1_000_000, Currency.IDR));
         Money cash = game.getPersonalAccount().getTotalCash(Currency.IDR);
         int entries = game.getLedger().getEntries().size();
@@ -97,6 +98,7 @@ public class OwnerAuditRegressionTest {
 
     @Test public void previewCannotPenalizeClientTrust() throws Exception {
         TradingFacade game = game();
+        GameTestSupport.unlockManager(game);
         com.tradingglobal3d.core.model.Account client = game.acceptClientMandate("MANDATE-01");
         com.tradingglobal3d.core.firm.ClientMandate mandate = game.getFirmManager().getMandate("MANDATE-01");
         com.tradingglobal3d.core.trading.Order order = com.tradingglobal3d.core.trading.Order.createLimit(
@@ -113,6 +115,7 @@ public class OwnerAuditRegressionTest {
 
     @Test public void mandateLimitsConvertBothCashAndPositionToBaseCurrency() throws Exception {
         TradingFacade game = game();
+        GameTestSupport.unlockManager(game);
         com.tradingglobal3d.core.model.Account client = game.acceptClientMandate("MANDATE-01");
         game.deposit("USD-TEST", client.getId(), Money.of(10_000, Currency.USD), "TEST ONLY");
         com.tradingglobal3d.core.market.Instrument instrument = game.getCatalog().getById("US:AAPL");
@@ -135,6 +138,7 @@ public class OwnerAuditRegressionTest {
         assertEquals(3, game.getNewsFeed().size());
         assertTrue(game.load());
         assertEquals(3, game.getNewsFeed().size());
+        GameTestSupport.unlockManager(game);
         assertEquals(game.getClock().getCurrentDate().minusDays(1), game.getCalendar().get(0).getDate());
     }
 
@@ -144,6 +148,7 @@ public class OwnerAuditRegressionTest {
         game.getCatalog().addToWatchlist("IDX:BBCA");
         game.createStrategySandbox("OLD-LAB");
         game.deposit("SUB-USD", game.getPersonalAccount().getId(), Money.of(10_000, Currency.USD), "TEST ONLY");
+        GameTestSupport.unlockManager(game);
         assertTrue(game.subscribeTerminal(com.tradingglobal3d.core.research.TerminalTier.PRO));
         game.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(50_000_000));
         assertEquals(1, game.getCareerManager().getDaysTraded());
@@ -159,6 +164,7 @@ public class OwnerAuditRegressionTest {
         TradingFacade game = game();
         for (int i=0; i<5; i++) game.skipDay("NO-MANDATE-"+i);
         assertFalse(game.getProgressManager().getAchievement("risk").isUnlocked());
+        GameTestSupport.unlockManager(game);
         game.acceptClientMandate("MANDATE-01");
         for (int i=0; i<4; i++) game.skipDay("CLEAN-"+i);
         assertFalse(game.getProgressManager().getAchievement("risk").isUnlocked());
@@ -199,6 +205,7 @@ public class OwnerAuditRegressionTest {
     @Test public void terminalSubscriptionExpiresAtGameTimeBoundary() throws Exception {
         TradingFacade game = game();
         game.deposit("TERMINAL-USD", game.getPersonalAccount().getId(), Money.of(1000, Currency.USD), "TEST ONLY");
+        GameTestSupport.unlockManager(game);
         assertTrue(game.subscribeTerminal(com.tradingglobal3d.core.research.TerminalTier.PRO));
         game.getClock().advanceGameSeconds(30L*86400);
         assertEquals(com.tradingglobal3d.core.research.TerminalTier.BASIC, game.getResearchService().getCurrentTier());

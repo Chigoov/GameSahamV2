@@ -37,6 +37,7 @@ public class DomainAccountSaveTest {
         saveManager = SaveManager.forDirectory(testDir);
         facade = new TradingFacade(saveManager);
         facade.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(50_000_000));
+        com.tradingglobal3d.core.GameTestSupport.unlockManager(facade);
     }
 
     @After

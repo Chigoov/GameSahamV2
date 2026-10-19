@@ -410,7 +410,7 @@
             flowText(summary, 'Klien aktif', firm.activeClientCount);
             flowText(summary, 'Kurs valuasi USD/IDR', firm.valuationRateUsdIdr);
             flowText(summary, 'Snapshot perangkat', new Date(firm.timestamp).toLocaleString('id-ID'));
-            flowButton(summary, 'Fund Builder & alokasi portofolio', () => openFundBuilder());
+            flowButton(summary, 'Fund Builder & alokasi portofolio', () => openFundBuilder(), 'fundBuilder');
             flowButton(summary, 'Laporan klien & fee mandat', () => openClientReports());
             flowText(summary, 'Batas', 'Parameter mandat existing masih sementara (OQ-11). Ringkasan kewajiban dan pendapatan manajer belum lengkap.');
             view.append(summary);
@@ -437,7 +437,7 @@
                         } catch (err) {
                             flowText(panel, 'Penerimaan Mandat Ditolak', err.message);
                         }
-                    });
+                    }, 'mandates');
                 } else if (mandate.status === 'ACTIVE') {
                     flowText(panel, 'Status Mandat', `Mandat aktif dikelola. Akun kelolaan: ${mandate.accountId}`);
                 }
@@ -471,6 +471,7 @@
                     subBtn.className = 'btn-primary';
                     subBtn.style.marginTop = '8px';
                     subBtn.textContent = `Berlangganan ${t.title} (${t.feeUsd})`;
+                    applyCareerGate(subBtn, 'terminal');
                     const subMsg = document.createElement('p');
                     subMsg.setAttribute('role', 'alert');
 
@@ -581,7 +582,9 @@
             calTitle.textContent = 'Kalender bursa & ekonomi makro (S28)';
             calSection.append(calTitle);
 
-            if (!feed.calendar || !feed.calendar.length) {
+            if (latestSnapshot.featureAccess && !latestSnapshot.featureAccess.calendar.unlocked) {
+                flowText(calSection, 'Kalender terkunci', `Terbuka pada jabatan ${latestSnapshot.featureAccess.calendar.requiredTitle}.`);
+            } else if (!feed.calendar || !feed.calendar.length) {
                 flowText(calSection, 'Kalender', 'Belum ada agenda kalender mendatang.');
             } else {
                 feed.calendar.forEach(c => {
@@ -631,9 +634,18 @@
         const p = document.createElement('p'); p.textContent = `${label}: ${value == null ? 'Belum tersedia' : value}`;
         panel.append(p);
     }
-    function flowButton(panel, label, action) {
+    function applyCareerGate(button, feature) {
+        const access = latestSnapshot && latestSnapshot.featureAccess && latestSnapshot.featureAccess[feature];
+        if (!access || !access.unlocked) {
+            button.disabled = true;
+            button.textContent += access ? ` — ${access.requiredTitle}` : ' — syarat karier belum tersedia';
+        }
+    }
+    function flowButton(panel, label, action, feature) {
         const button = document.createElement('button'); button.className = 'btn-primary';
-        button.textContent = label; button.onclick = action; panel.append(button); return button;
+        button.textContent = label; button.onclick = action;
+        if (feature) applyCareerGate(button, feature);
+        panel.append(button); return button;
     }
     function openIndexDetail(index) {
         const panel = showFlow('Detail indeks');
@@ -1572,6 +1584,7 @@
             const btnBorrow = document.createElement('button');
             btnBorrow.className = 'btn-primary';
             btnBorrow.textContent = 'Tarik pinjaman margin';
+            applyCareerGate(btnBorrow, 'margin');
             btnBorrow.style.marginBottom = '8px';
             btnBorrow.onclick = () => {
                 const val = Number(amtInput.value);
@@ -1950,6 +1963,10 @@
         if (!career) { flowText(panel, 'Progres', 'Snapshot karier domain belum tersedia.'); return; }
         flowText(panel, 'Pangkat / reputasi', `${career.title} / ${career.reputation}`);
         flowText(panel, 'Hari', career.days);
+        if (career.nextPromotion) {
+            const next = career.nextPromotion;
+            flowText(panel, `Syarat ${next.title}`, `Hari ${next.days}, reputasi ${next.reputation}, kekayaan pribadi ${Number(next.netWorthIdr).toLocaleString('id-ID', {style:'currency',currency:'IDR',maximumFractionDigits:0})}`);
+        }
         flowText(panel, 'Parameter sementara', 'Reward dan ambang karier berasal implementasi existing, belum keputusan final OQ-10. Membuka layar tidak menyelesaikan misi.');
         career.missions.forEach(mission => {
             const section = document.createElement('article'); section.className = 'card'; section.dataset.missionId = mission.id;
@@ -1981,7 +1998,7 @@
             }
             panel.append(section);
         });
-        flowText(panel, 'Batas', 'Pemenuhan otomatis misi, syarat promosi lengkap, klaim dan recovery karier masih dalam remediasi.');
+        flowText(panel, 'Progres', 'Misi dinilai dari transaksi dan posisi. Promosi diperiksa setelah klaim dan penutupan hari; XP tidak membuka fitur.');
     });
 
     document.getElementById('btn-reports').addEventListener('click', () => {

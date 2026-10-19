@@ -4,10 +4,10 @@
   "product": "Game Saham 2D Portrait",
   "prepared_date": "2026-10-18",
   "status": "PARTIAL",
-  "current_task": "R04_UI_V8_AND_GAMEPLAY_GAPS",
+  "current_task": "R04_EXCHANGE_SESSIONS_AND_UI_V8",
   "completed_tasks": [],
   "hermes_session_id": "20261019_204502_5f1ffa",
-  "next_action": "Baca Work/OWNER-AUDIT-2026-10-19.md dan OWNER-UI-LOGIC-MATRIX.csv. Selesaikan gate karier/sesi/premium, laporan klien dan integrasi V8. Bukti host 153 tes + 13 browser checks; APK debug dibangun. Native BLOCKED: emulator binary/system image tidak ada; dataset historis belum tersedia.",
+  "next_action": "Career access checkpoint verified: 157 tests, 15 Java-host browser checks. Next: exchange-session validation for all execution paths, premium data entitlement, client reports and V8 presentation. Native/dataset gates remain open.",
   "tasks": [
     {
       "id": "00",
@@ -111,7 +111,8 @@
       ],
       "evidence": [
         "Artifacts/06/TEST-CareerDayLifecycleTest.xml",
-        "Artifacts/06/karier-siklus-hari-lifecycle-report.md"
+        "Artifacts/06/karier-siklus-hari-lifecycle-report.md",
+        "Work/CAREER-ACCESS-CHECKPOINT.md"
       ],
       "audit_note": "R01: bukti lama dipertahankan, belum memenuhi seluruh TASK/PRD. Lihat Artifacts/Remediation/R01/AUDIT.md."
     },
@@ -126,7 +127,8 @@
       ],
       "evidence": [
         "Artifacts/07/TEST-FirmClientMandateFeeTest.xml",
-        "Artifacts/07/firma-klien-mandat-fee-report.md"
+        "Artifacts/07/firma-klien-mandat-fee-report.md",
+        "Work/CAREER-ACCESS-CHECKPOINT.md"
       ],
       "audit_note": "R01: bukti lama dipertahankan, belum memenuhi seluruh TASK/PRD. Lihat Artifacts/Remediation/R01/AUDIT.md."
     },
@@ -254,9 +256,9 @@
     "physical_device": "NOT_TESTED",
     "performance": "NOT_TESTED"
   },
-  "last_checkpoint": "2026-10-19T23:19:58.023317+07:00",
+  "last_checkpoint": "2026-10-19T23:35:47.854304+07:00",
   "blockers": [
-    "Celah akses karier/sesi/premium dan fitur UI V8 belum lengkap; lihat audit owner",
+    "Sesi per bursa, premium data entitlement, laporan klien dan UI V8 belum lengkap; career access dasar sudah teruji.",
     "Dataset historis/provenance/hak belum tersedia",
     "Native belum diuji: emulator executable/system-image tidak ada dan daftar ADB kosong",
     "Model Poco X8 Pro 12/512 diketahui; Android dan ambang performa belum terukur"
@@ -318,5 +320,21 @@
       "minSdk": 26,
       "targetSdk": 36
     }
+  },
+  "career_checkpoint": {
+    "status": "VERIFIED_SUBTASK",
+    "report": "Work/CAREER-ACCESS-CHECKPOINT.md",
+    "verification": "Artifacts/CareerAccess-2026-10-19/verification.json",
+    "tests": 157,
+    "browser_checks": 15,
+    "new_tests": 4,
+    "apk": {
+      "path": "Artifacts/CareerAccess-2026-10-19/game-saham-career-access-debug.apk",
+      "bytes": 623140,
+      "sha256": "5e0629e200846fe2fa9718865b2cfb23baccefee322d48b83107c71d36497be9",
+      "assetsMatched": 7,
+      "signature": "VERIFIED_DEBUG"
+    },
+    "native": "NOT_TESTED"
   }
 }

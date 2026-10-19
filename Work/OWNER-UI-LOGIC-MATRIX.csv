@@ -2,7 +2,7 @@
 home,Beranda,getSnapshot/getSessionReports,PARTIAL,Kartu snapshot produksi berbeda dari V8; attribution briefing/inbox belum utuh.,NOT_TESTED
 market,Pasar,getIndices/getInstruments/getOrders,PARTIAL,20 saham aktif IDX/US; regional lain belum memiliki universe/aturan transaksi.,NOT_TESTED
 assets,Aset,getPortfolio/getLedger,PARTIAL,Valuasi kas/posisi tersedia; UI fixed-page V8 belum terpasang.,NOT_TESTED
-firm,Firma,getFirmSnapshot,PARTIAL,AUM terpisah dari kekayaan pribadi; perjalanan karier/gate fitur belum utuh.,NOT_TESTED
+firm,Firma,getFirmSnapshot,PARTIAL,AUM terpisah; career gate mandat/Fund Builder ditegakkan domain dan UI; laporan periode dan penerimaan native belum lengkap.,NOT_TESTED
 research,Riset,getResearchFeed,PARTIAL,Riset seed simulasi; bukan berita atau feed real-time dunia nyata.,NOT_TESTED
 instrument,Detail instrumen,getInstruments/getChartData/getOrderBook,PARTIAL,Candlestick dari matched fills game; belum seluruh terminal detail V8.,NOT_TESTED
 ticket,Susun order,previewOrder,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
@@ -11,7 +11,7 @@ receipt,Status order,getOrderStatus/cancelOrder,PARTIAL,Perintah/domain subset t
 orders,Order & riwayat,getOrders/cancelOrder,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
 ledger,Aktivitas,getLedger,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
 position,Detail posisi,getPortfolio,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED
-career,Perjalanan karier,getSnapshot/claimMission,PARTIAL,Misi dasar tersedia; promosi/akses fitur belum journey penerimaan penuh.,NOT_TESTED
+career,Perjalanan karier,getSnapshot/claimMission,PARTIAL,"Misi 1-3 otomatis, promosi/6 career gates dan earned journey Novice -> Portfolio Manager diuji host; UI V8/full CIO journey/native masih pending.",NOT_TESTED
 briefing,Briefing sesi,getSnapshot/setClockState/tickClock,PARTIAL,288 detik game/detik nyata; attribution dan inbox belum utuh.,NOT_TESTED
 dayclose,Tinjau penutupan,closeDay/skipDay,PARTIAL,Manual close dan skip 24 jam diuji; jam per bursa/libur belum lengkap.,NOT_TESTED
 report,Laporan harian,getSessionReports,PARTIAL,Perintah/domain subset tersedia; layout V8 dan seluruh state/journey belum acceptance penuh.,NOT_TESTED

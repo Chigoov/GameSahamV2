@@ -34,3 +34,8 @@ Status G01–G03/G05–G07 tetap PARTIAL; G04 dataset BLOCKED; G08 runtime/perfo
 - G02/G03 masih memerlukan penutupan gate karier/sesi/entitlement, laporan klien dan acceptance fitur lanjutan. G06 native masih belum terverifikasi walau autosave source ditambahkan.
 - Target utama Poco X8 Pro 12/512, instalasi pertama; emulator diizinkan tetapi emulator binary/system image/AVD tidak tersedia saat audit.
 - Bukti terbaru dan daftar gap: [audit owner](OWNER-AUDIT-2026-10-19.md), [matrix UI](OWNER-UI-LOGIC-MATRIX.csv), `Artifacts/OwnerAudit-2026-10-19/verification.json`. Hash/ukuran APK lama di tabel historis di atas tidak mewakili kandidat terbaru.
+
+
+## Checkpoint akses karier
+
+G03 tetap PARTIAL, dengan bukti tambahan: misi 1–3 otomatis, promosi dan enam akses dasar ditegakkan domain/UI, earned journey profil baru sampai Portfolio Manager menerima klien/save/load/reset lulus. 157 tes/15 suite dan 15 checks browser Java PASS; tidak memakai fixture saldo/pangkat pada earned journey. Tes finansial terisolasi memakai fixture Manager yang dilabeli. G01/G02/G04–G08 tidak diluluskan oleh hasil ini. Rincian: [checkpoint karier](CAREER-ACCESS-CHECKPOINT.md).

@@ -40,6 +40,7 @@ public class TradingWebBridgeTest {
         facade = new TradingFacade(SaveManager.forDirectory(testDir));
         facade.setCatalog(catalog);
         facade.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(50_000_000));
+        com.tradingglobal3d.core.GameTestSupport.unlockManager(facade);
 
         bridge = new TradingWebBridge(facade);
     }
@@ -472,6 +473,7 @@ public class TradingWebBridgeTest {
 
     @Test
     public void testClockAndCareerSnapshotCanDriveBriefing() throws Exception {
+        facade.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(50_000_000));
         JSONObject snapshot = new JSONObject(bridge.getSnapshot());
         assertEquals("NOVICE_TRADER", snapshot.getJSONObject("career").getString("rank"));
         assertEquals(3, snapshot.getJSONObject("career").getJSONArray("missions").length());

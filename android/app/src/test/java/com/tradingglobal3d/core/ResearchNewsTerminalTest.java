@@ -38,6 +38,7 @@ public class ResearchNewsTerminalTest {
         facade = new TradingFacade(SaveManager.forDirectory(testDir));
         facade.setCatalog(catalog);
         facade.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(50_000_000));
+        com.tradingglobal3d.core.GameTestSupport.unlockManager(facade);
     }
 
     @After

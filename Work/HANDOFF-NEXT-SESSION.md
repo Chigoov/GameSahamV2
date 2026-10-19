@@ -1,6 +1,6 @@
 # Handoff aktif: Game Saham 2D Portrait
 
-Checkpoint: audit owner 19 Oktober 2026. **Produk PARTIAL; belum siap disebut APK final atau UI V8 lengkap.** Laporan ini menggantikan klaim historis 14/14 dan 8/8 sebagai acceptance produk. Dokumen lama tersedia pada Git baseline `0807e43`; jangan memakai hash/ukuran APK lama sebagai hasil audit baru.
+Checkpoint terbaru: [akses karier](CAREER-ACCESS-CHECKPOINT.md), sesudah audit owner 19 Oktober 2026. **Produk PARTIAL; belum siap disebut APK final atau UI V8 lengkap.** Laporan ini menggantikan klaim historis 14/14 dan 8/8 sebagai acceptance produk. Dokumen lama tersedia pada Git baseline `0807e43`; jangan memakai hash/ukuran APK lama sebagai hasil audit baru.
 
 - Root: `C:/Users/HYPE AMD/Downloads/VIBE CODING/GAME SAHAM`.
 - Branch: `codex/owner-audit-portrait-v8`, berangkat dari `0807e43ca7ac2cd827626446dab8c20b68caa3de`.
@@ -10,13 +10,13 @@ Checkpoint: audit owner 19 Oktober 2026. **Produk PARTIAL; belum siap disebut AP
 
 ## Hasil yang sudah diperiksa
 
-153 tes JVM pada 14 suite lulus, termasuk 18 regresi audit baru. Browser dengan host Java fresh: 13 pemeriksaan lulus, 20 sampel portrait tanpa overflow horizontal. Scroll vertikal masih ada; layout fixed-page V8 belum terpasang. Lint 0 error/13 warning. Kandidat debug dibangun dan tanda tangan diverifikasi; 7 aset cocok byte-for-byte dengan source. Rincian dan SHA-256 pada audit owner dan `Artifacts/OwnerAudit-2026-10-19/verification.json`.
+157 tes JVM pada 15 suite lulus, termasuk 4 tes akses karier baru sesudah 18 regresi audit. Browser dengan host Java fresh: 15 pemeriksaan lulus, 20 sampel portrait tanpa overflow horizontal. Scroll vertikal masih ada; layout fixed-page V8 belum terpasang. Lint 0 error/13 warning. Kandidat debug dibangun dan tanda tangan diverifikasi; 7 aset cocok byte-for-byte dengan source. Rincian dan SHA-256 pada audit owner dan `Artifacts/CareerAccess-2026-10-19/verification.json`.
 
 Perbaikan meliputi validasi sebelum bunga close hari, clock/rasio 288x, skip 24 jam dengan receipt/retry/save, validasi mandat tanpa efek preview serta konversi mata uang, XP/artikel/level/risk/resting fill, reset newgame, riset/expiry mengikuti waktu game, validasi save progress, tutorial dan angka trust UI. Native asset loading/autosave/error/insets/navigation diperbaiki di source dan berhasil dibangun; native runtime belum terbukti.
 
 ## Pekerjaan berikutnya
 
-1. Tegakkan kontrak karier dan sesi per bursa pada semua jalur domain; manfaat premium harus diperiksa pada layanan data.
+1. Career gates dasar dan earned journey Novice sampai Portfolio Manager sudah teruji. Berikutnya tegakkan sesi per bursa pada semua jalur domain; manfaat premium masih harus diperiksa pada layanan data.
 2. Port presentasi UI V8 ke produksi dengan data Java; inbox, data alternatif, perbandingan dan fixed-page belum lengkap.
 3. Selesaikan laporan klien periode/completion; badge report belum memiliki event completion produksi.
 4. Tutup gap NPC/event, multi-aset, korporasi/M&A, voting, risiko dan save sesuai PRD; gunakan bukti per journey.

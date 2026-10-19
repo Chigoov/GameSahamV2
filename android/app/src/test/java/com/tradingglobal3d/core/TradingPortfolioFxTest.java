@@ -43,6 +43,7 @@ public class TradingPortfolioFxTest {
         facade = new TradingFacade(SaveManager.forDirectory(testDir));
         facade.setCatalog(catalog);
         facade.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(50_000_000));
+        GameTestSupport.unlockManager(facade);
 
         bbca = catalog.getById("IDX:BBCA");
         aapl = catalog.getById("US:AAPL");

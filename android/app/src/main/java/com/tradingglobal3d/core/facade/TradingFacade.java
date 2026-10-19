@@ -295,6 +295,7 @@ public final class TradingFacade {
     }
 
     public synchronized Account createClientAccount(String name, String clientMandateId, Money initialDeposit) {
+        careerManager.requireRank(CareerRank.PORTFOLIO_MANAGER, "Mandat klien");
         String id = "ACC-CLIENT-" + (accounts.size() + 1);
         Account clientAcc = new Account(id, name, AccountType.CLIENT, clientMandateId);
         accounts.put(id, clientAcc);
@@ -329,6 +330,8 @@ public final class TradingFacade {
         Account account = accounts.get(order.getAccountId());
         Instrument instrument = catalog.getById(order.getInstrumentId());
         if (account == null || instrument == null) return new JSONObject().put("success", false).put("message", "Akun atau instrumen tidak ditemukan");
+        if (account.getType() == AccountType.CLIENT && !careerManager.hasRank(CareerRank.PORTFOLIO_MANAGER))
+            return new JSONObject().put("success", false).put("message", "Trading klien terbuka pada jabatan Portfolio Manager");
         if (account.getType() == AccountType.CLIENT && account.getClientMandateId() != null) {
             ClientMandate mandate = firmManager.getMandate(account.getClientMandateId());
             if (mandate != null) {
@@ -360,6 +363,7 @@ public final class TradingFacade {
         }
         Account acc = accounts.get(order.getAccountId());
         if (acc == null) throw new IllegalArgumentException("Akun tidak ditemukan: " + order.getAccountId());
+        if (acc.getType() == AccountType.CLIENT) careerManager.requireRank(CareerRank.PORTFOLIO_MANAGER, "Trading klien");
         Instrument inst = catalog.getById(order.getInstrumentId());
         if (inst == null) throw new IllegalArgumentException("Instrumen tidak ditemukan: " + order.getInstrumentId());
 
@@ -490,6 +494,16 @@ public final class TradingFacade {
     private void evaluateRecordedCareerProgress() {
         Account personal = getPersonalAccount();
         if (personal != null) careerManager.evaluateRecordedTrades(personal, ledger);
+        if (personal != null) {
+            Set<String> sectors = new HashSet<>();
+            for (Position position : personal.getPositions().values()) {
+                Instrument instrument = catalog.getById(position.getExchange() + ":" + position.getTicker());
+                if (position.getQuantity() > 0 && instrument != null) sectors.add(instrument.getSector());
+            }
+            if (sectors.size() >= 2) careerManager.completeMission("MIS-02");
+            if (personalNetWorth().getAmount().compareTo(BigDecimal.valueOf(75_000_000)) >= 0)
+                careerManager.completeMission("MIS-03");
+        }
         // All execution paths (resting orders, NPC matches and triggers) converge here.
         for (Order order : orderManager.getOrdersForAccount(personalAccountId)) {
             if (order.getFilledQuantity() > 0)
@@ -511,16 +525,18 @@ public final class TradingFacade {
     }
 
     public synchronized List<CalendarEvent> getCalendar() {
-        return researchService.getCalendarEvents();
+        return careerManager.hasRank(CareerRank.SENIOR_ANALYST) ? researchService.getCalendarEvents() : Collections.emptyList();
     }
 
     public synchronized boolean subscribeTerminal(TerminalTier tier) {
+        if (tier != TerminalTier.BASIC) careerManager.requireRank(CareerRank.SENIOR_ANALYST, "Terminal premium");
         Account personal = getPersonalAccount();
         if (personal == null) return false;
         return researchService.subscribeTerminal(personal, tier, ledger, clock.getGameTimestamp());
     }
 
     public synchronized FundAllocationPlan saveFundPlan(String planId, String accountId, String name, Map<String, Double> targetWeights, double cashWeight) {
+        careerManager.requireRank(CareerRank.PORTFOLIO_MANAGER, "Fund Builder");
         Account acc = accounts.get(accountId);
         if (acc == null) throw new IllegalArgumentException("Akun tidak ditemukan: " + accountId);
 
@@ -532,6 +548,7 @@ public final class TradingFacade {
     }
 
     public synchronized List<MatchingEngine.OrderResult> executeFundRebalance(String planId) {
+        careerManager.requireRank(CareerRank.PORTFOLIO_MANAGER, "Fund Builder");
         FundAllocationPlan plan = fundBuilder.getPlan(planId);
         if (plan == null) throw new IllegalArgumentException("Plan tidak ditemukan: " + planId);
 
@@ -596,6 +613,7 @@ public final class TradingFacade {
     }
 
     public synchronized void takeMarginLoan(Money amount) {
+        careerManager.requireRank(CareerRank.PORTFOLIO_MANAGER, "Pinjaman margin");
         Account personal = getPersonalAccount();
         riskService.takeMarginLoan(personal, amount, ledger, System.currentTimeMillis());
     }
@@ -606,6 +624,7 @@ public final class TradingFacade {
     }
 
     public synchronized ShortPosition openShortPosition(String ticker, long shares) {
+        careerManager.requireRank(CareerRank.PORTFOLIO_MANAGER, "Short selling");
         Account personal = getPersonalAccount();
         Instrument inst = catalog.getById("IDX:" + ticker);
         if (inst == null) inst = catalog.getById("US:" + ticker);
@@ -648,15 +667,18 @@ public final class TradingFacade {
     }
 
     public synchronized Money claimMission(String missionId) {
+        evaluateRecordedCareerProgress();
         Account personal = getPersonalAccount();
         if (personal == null) throw new IllegalStateException("Akun personal belum dibuat");
-        return careerManager.claimMissionReward(missionId, personal, ledger, System.currentTimeMillis());
+        Money reward = careerManager.claimMissionReward(missionId, personal, ledger, clock.getGameTimestamp());
+        evaluateCareerPromotion();
+        return reward;
     }
 
     public synchronized CareerRank evaluateCareerPromotion() {
         Account personal = getPersonalAccount();
         if (personal == null) return careerManager.getCurrentRank();
-        return careerManager.evaluatePromotion(personal, fxService.getMidRate());
+        return careerManager.evaluatePromotion(personalNetWorth());
     }
 
     public synchronized Money requestBailoutRecovery() {
@@ -685,6 +707,8 @@ public final class TradingFacade {
         DailySessionReport report = careerManager.closeDayAndAdvance(
                 clock, personal, catalog, ledger, fxService.getMidRate(), now
         );
+        evaluateRecordedCareerProgress();
+        evaluateCareerPromotion();
 
         // Automatic calendar advancement must retain the time of day.
         for (ClientMandate mandate : firmManager.getActiveMandates()) collectClientFees(mandate.getId());
@@ -979,10 +1003,7 @@ public final class TradingFacade {
             }
             personalObj.put("cash", cashObj);
 
-            BigDecimal usdRate = fxService != null ? fxService.getMidRate() : BigDecimal.valueOf(15500);
-            Money netWorth = (riskService != null && catalog != null)
-                    ? riskService.evaluateMarginHealth(personal, catalog, usdRate).getEquity()
-                    : personal.getTotalPortfolioValue(Currency.IDR, usdRate);
+            Money netWorth = personalNetWorth();
             personalObj.put("netWorth", netWorth.format());
             personalObj.put("netWorthRaw", netWorth.getAmount().toPlainString());
 
@@ -1017,10 +1038,30 @@ public final class TradingFacade {
                     .put("completed", mission.isCompleted()).put("claimed", mission.isClaimed()));
         }
         root.put("career", career.put("missions", missions));
+        CareerRank nextRank = careerManager.getCurrentRank().getNextRank();
+        if (nextRank != null) career.put("nextPromotion", new JSONObject().put("title", nextRank.getTitle())
+                .put("days", nextRank.getRequiredDays()).put("reputation", nextRank.getRequiredReputation())
+                .put("netWorthIdr", nextRank.getRequiredNetWorth()));
+        root.put("featureAccess", new JSONObject()
+                .put("calendar", careerAccess(CareerRank.SENIOR_ANALYST))
+                .put("terminal", careerAccess(CareerRank.SENIOR_ANALYST))
+                .put("mandates", careerAccess(CareerRank.PORTFOLIO_MANAGER))
+                .put("fundBuilder", careerAccess(CareerRank.PORTFOLIO_MANAGER))
+                .put("margin", careerAccess(CareerRank.PORTFOLIO_MANAGER))
+                .put("short", careerAccess(CareerRank.PORTFOLIO_MANAGER)));
         root.put("playerProgress", progressManager.toSnapshotJson());
         root.put("accountCount", accounts.size());
         root.put("ledgerEntryCount", ledger.getEntries().size());
         return root.toString();
+    }
+
+    private JSONObject careerAccess(CareerRank required) throws JSONException {
+        return new JSONObject().put("unlocked", careerManager.hasRank(required)).put("requiredRank", required.name())
+                .put("requiredTitle", required.getTitle());
+    }
+
+    private Money personalNetWorth() {
+        return riskService.evaluateMarginHealth(getPersonalAccount(), catalog, fxService.getMidRate()).getEquity();
     }
 
     public synchronized JSONObject getChartData(String instrumentId, String timeframe) throws JSONException {

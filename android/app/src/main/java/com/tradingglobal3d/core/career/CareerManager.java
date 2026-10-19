@@ -118,6 +118,10 @@ public final class CareerManager {
     }
 
     public CareerRank getCurrentRank() { return currentRank; }
+    public boolean hasRank(CareerRank required) { return currentRank.getLevel() >= required.getLevel(); }
+    public void requireRank(CareerRank required, String feature) {
+        if (!hasRank(required)) throw new IllegalStateException(feature + " terbuka pada jabatan " + required.getTitle());
+    }
     public int getDaysTraded() { return daysTraded; }
     public int getReputationScore() { return reputationScore; }
     public boolean isBailoutUsed() { return bailoutUsed; }
@@ -177,28 +181,16 @@ public final class CareerManager {
      * Evaluasi promosi kenaikan pangkat karier.
      */
     public synchronized CareerRank evaluatePromotion(Account personalAccount, BigDecimal fxRate) {
+        return evaluatePromotion(personalAccount.getTotalPortfolioValue(Currency.IDR, fxRate));
+    }
+
+    public synchronized CareerRank evaluatePromotion(Money netWorth) {
+        if (netWorth.getCurrency() != Currency.IDR) throw new IllegalArgumentException("Kekayaan karier harus dinilai dalam IDR");
         CareerRank next = currentRank.getNextRank();
         if (next == null) return currentRank;
 
-        Money netWorth = personalAccount.getTotalPortfolioValue(Currency.IDR, fxRate);
-        boolean eligible = false;
-
-        if (next == CareerRank.SENIOR_ANALYST) {
-            // Syarat Senior Analyst: >= 2 hari trading dan reputasi >= 30
-            if (daysTraded >= 2 && reputationScore >= 30) {
-                eligible = true;
-            }
-        } else if (next == CareerRank.PORTFOLIO_MANAGER) {
-            // Syarat Portfolio Manager: >= 4 hari trading, kekayaan >= Rp 75.000.000, reputasi >= 50
-            if (daysTraded >= 4 && netWorth.getAmount().compareTo(BigDecimal.valueOf(75_000_000)) >= 0 && reputationScore >= 50) {
-                eligible = true;
-            }
-        } else if (next == CareerRank.CHIEF_INVESTMENT_OFFICER) {
-            // Syarat CIO: >= 7 hari trading, kekayaan >= Rp 200.000.000, reputasi >= 80
-            if (daysTraded >= 7 && netWorth.getAmount().compareTo(BigDecimal.valueOf(200_000_000)) >= 0 && reputationScore >= 80) {
-                eligible = true;
-            }
-        }
+        boolean eligible = daysTraded >= next.getRequiredDays() && reputationScore >= next.getRequiredReputation()
+                && netWorth.getAmount().compareTo(BigDecimal.valueOf(next.getRequiredNetWorth())) >= 0;
 
         if (eligible) {
             this.currentRank = next;

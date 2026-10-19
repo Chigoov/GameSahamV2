@@ -44,6 +44,7 @@ public class RiskMarginShortComplianceTest {
         facade = new TradingFacade(SaveManager.forDirectory(testDir));
         facade.setCatalog(catalog);
         facade.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(50_000_000));
+        com.tradingglobal3d.core.GameTestSupport.unlockManager(facade);
 
         bbca = catalog.getById("IDX:BBCA");
         assertNotNull(bbca);

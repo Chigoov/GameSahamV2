@@ -47,6 +47,7 @@ public class HistoricalReplayStressLabTest {
         facade = new TradingFacade(SaveManager.forDirectory(testDir));
         facade.setCatalog(catalog);
         facade.initializeNewGame(GameMode.HISTORICAL_REPLAY, BigDecimal.valueOf(50_000_000));
+        GameTestSupport.unlockManager(facade);
 
         bbca = catalog.getById("IDX:BBCA");
         assertNotNull(bbca);

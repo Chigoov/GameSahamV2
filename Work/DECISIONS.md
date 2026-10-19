@@ -103,3 +103,6 @@ Pertanyaan berikut adalah daftar keputusan yang masih terbuka. Jawaban tidak dii
 - Emulator yang tersedia boleh digunakan. Lingkungan audit tidak memiliki emulator runnable/system image/AVD atau perangkat ADB; tidak ada bukti native. Izin memakai emulator tidak berarti pengujian sudah dilakukan.
 
 Lihat Work/OWNER-AUDIT-2026-10-19.md untuk bukti dan bagian OQ lain yang tetap terbuka.
+
+
+Implementasi checkpoint karier (baseline existing, bukan persetujuan final angka OQ): kalender dan pembelian terminal premium memerlukan Senior Analyst; mandat, Fund Builder, margin baru dan short baru memerlukan Portfolio Manager. Repayment/penutupan short tetap tersedia untuk mengurangi kewajiban. Threshold promosi existing dipakai tanpa perubahan nominal dan ditampilkan dari sumber yang sama; nilai kekayaan untuk misi/promosi adalah ekuitas bersih. Sesi per bursa dan manfaat data premium tetap pekerjaan terpisah.

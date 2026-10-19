@@ -64,6 +64,7 @@ public class EndToEndGrandIntegrationTest {
         facade = new TradingFacade(SaveManager.forDirectory(testDir));
         facade.setCatalog(catalog);
         facade.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(100_000_000));
+        GameTestSupport.unlockManager(facade);
 
         bbca = catalog.getById("IDX:BBCA");
         aapl = catalog.getById("US:AAPL");
@@ -84,7 +85,7 @@ public class EndToEndGrandIntegrationTest {
     }
 
     @Test
-    public void testFullGameEconomyAndFeatureJourney() throws Exception {
+    public void testFinancialSubsystemsWithUnlockedCareerFixture() throws Exception {
         Account personal = facade.getPersonalAccount();
         assertNotNull(personal);
         assertEquals(Money.of(100_000_000, Currency.IDR), personal.getTotalCash(Currency.IDR));
