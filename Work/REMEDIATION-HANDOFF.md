@@ -18,13 +18,13 @@ Pemetaan terkini: `Artifacts/Remediation/R04/design-screen-coverage-current.csv`
 
 ## Kandidat nyata terbaru pada checkpoint
 
-`Artifacts/Remediation/R07/auction-scroll-113/game-saham-remediation-candidate.apk`
+`Artifacts/Remediation/R07/margin-risk-116/game-saham-remediation-candidate.apk`
 
-- Build `assembleDebug lintDebug testDebugUnitTest --rerun-tasks` exit0,113tes EXECUTED/0failure/error/skipped.
--178047byte; SHA-256 `a001322fc44bc70c267293025790b2e90cd2cab1a29f9df6e6915055708d8ca7`.
-- Source manifest `d1ed111f8eae63a4717dbde5fb877b88bbe5c06165aa5a422e6da36f251a4747`; HEAD awal `0c65c01affe29b5dba55103fb8608ec9a43ce37b` + source lokal.
--5aset exact,ZIP/DEX/debug signature valid. AppID `com.tradingglobal3d.mobile`,version1/`1.0.0-2d-portrait`,min26/target36,portrait/debug.
-- Lint0error/8warning. Report dan inspection dalam folder sama. Perubahan source berikutnya mengusangkan snapshot ini.
+- Build `assembleDebug lintDebug testDebugUnitTest --rerun-tasks` exit 0, 116 tes EXECUTED/0 failure/error/skipped.
+- 183587 byte; SHA-256 `ddf98bcd852adbabc50ba45507429417d46b308c2f125e7a96bd16de68d2baab`.
+- Source manifest `0855596a59d30a51d0c2a8e31c8cfd86c9d8a3fc67dde37111532a78784a530c`; HEAD `614015cc4bcc1210393c9fd3ce0081e7377cea33` + source lokal.
+- 5 aset exact, ZIP/DEX/debug signature valid. AppID `com.tradingglobal3d.mobile`, version 1 / `1.0.0-2d-portrait`, min 26 / target 36, portrait/debug.
+- Lint 0 error / 8 warning. Report dan inspection dalam folder sama. Perubahan source berikutnya mengusangkan snapshot ini.
 
 ## Blocker dan sisa
 
