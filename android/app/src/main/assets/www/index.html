@@ -7,42 +7,16 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Top Header -->
+    <a class="skip-link" href="#main-content">Lewati ke konten</a>
     <header class="app-header">
-        <div class="brand-title">
-            <span>GAME SAHAM</span>
-            <span class="brand-badge">2D PORTRAIT</span>
-        </div>
-        <div class="header-tools">
-            <button id="header-level-chip" class="level-chip" aria-label="Buka level dan pencapaian">
-                <span>⭐</span>
-                <span><strong id="header-level-val">Lv. 1</strong><small id="header-xp-val">0 / 100 XP</small></span>
-            </button>
-            <button id="header-wealth-chip" class="wealth-chip" aria-label="Total kekayaan pribadi, buka rincian">
-                <span>💼</span>
-                <span><small>Kekayaan Pribadi</small><strong id="header-net-worth">Rp 50.000.000</strong></span>
-            </button>
-            <div style="font-size:0.8rem; color:var(--text-muted);" id="clock-display">08:30:00 WIB</div>
-        </div>
+        <button id="btn-settings" class="brand-button" aria-label="Buka pengaturan dan simpan permainan"><span class="brand-mark">G<span>↗</span></span></button>
+        <div class="header-identity"><span class="eyebrow">GLOBAL TRADER</span><strong id="header-title">Beranda</strong></div>
+        <button id="header-wealth-chip" class="wealth-chip" aria-label="Total kekayaan pribadi, buka rincian"><small>Kekayaan pribadi ↗</small><strong id="header-net-worth">Memuat…</strong></button>
     </header>
-
-    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; padding: 0 16px;">
-        <button id="btn-settings" class="btn-secondary" style="flex:1 1 90px; min-width:0; padding:10px 8px; font-size:0.85rem;">Pengaturan / save</button>
-        <button id="btn-entry-game" class="btn-secondary" style="flex:1 1 90px; min-width:0; padding:10px 8px; font-size:0.85rem;">Menu awal & karir</button>
-        <button id="btn-achievements" class="btn-secondary" style="flex:1 1 90px; min-width:0; padding:10px 8px; font-size:0.85rem;">Level & pencapaian</button>
-    </div>
-    <!-- Context Strip -->
     <div class="context-strip">
-        <div class="session-indicator">
-            <span id="session-dot" class="status-dot"></span>
-            <span id="session-label">Memeriksa Sesi...</span>
-        </div>
-        <button id="context-account-btn" class="context-account" aria-label="Pilih akun transaksi">
-            <span>👤</span>
-            <span id="context-account-name">Portofolio Pribadi</span>
-            <span style="font-size:0.7rem;">▾</span>
-        </button>
-        <div id="mode-label" style="font-weight:600; color:var(--action);">Pasar Internal Game</div>
+        <div class="session-indicator"><span id="session-dot" class="status-dot"></span><span id="session-label">Memuat sesi</span><time id="clock-display"></time></div>
+        <button id="context-account-btn" class="context-account" aria-label="Pilih akun transaksi"><span id="context-account-name">Pribadi</span><span aria-hidden="true">⌄</span></button>
+        <span id="mode-label" class="sr-only">Pasar Internal Game</span>
     </div>
 
     <!-- Mock Banner jika berjalan di Browser biasa -->
@@ -51,42 +25,39 @@
     </div>
 
     <!-- Main Container Viewports -->
-    <main class="main-container">
+    <main id="main-content" class="main-container" tabindex="-1">
 
         <!-- 1. VIEW: BERANDA (S04) -->
         <section id="view-beranda" class="screen-view active">
-            <!-- Ringkasan Kas Pribadi -->
-            <div class="card">
-                <div class="card-title">Kekayaan Kas Pribadi (IDR)</div>
-                <div id="home-total-cash" class="metric-hero">Belum dimuat</div>
-                <div class="flex-row" style="margin-top:12px; font-size:0.85rem;">
-                    <span style="color:var(--text-muted);">Tersedia untuk Trading:</span>
-                    <span id="home-avail-cash" style="font-weight:600; color:var(--positive);">Belum dimuat</span>
-                </div>
-                <div class="flex-row" style="font-size:0.85rem;">
-                    <span style="color:var(--text-muted);">Tertahan dalam Order:</span>
-                    <span id="home-reserved-cash" style="font-weight:600; color:var(--warning);">Belum dimuat</span>
-                </div>
-            </div>
-
-            <section class="card" aria-labelledby="trading-agenda-title">
-                <h2 id="trading-agenda-title" class="card-title">Agenda trading</h2>
-                <p id="home-clock-state">Menunggu snapshot domain.</p>
-                <button id="btn-briefing" class="btn-primary">Buka briefing</button>
-                <button id="btn-reports" class="btn-secondary">Lihat laporan tersimpan</button>
+            <div class="page-heading"><div><span class="eyebrow" id="home-date">HARI PERDAGANGAN</span><h1>Bangun langkahmu.</h1></div><span class="live-badge">Simulasi</span></div>
+            <section class="card wealth-hero" aria-label="Ringkasan kekayaan pribadi">
+                <div class="hero-top"><span class="eyebrow">TOTAL KEKAYAAN BERSIH</span><span class="hero-symbol" aria-hidden="true">↗</span></div>
+                <div id="home-net-worth" class="metric-hero">Memuat…</div>
+                <p class="hero-caption">Aset pribadi dikurangi kewajiban · IDR</p>
+                <div class="hero-cash"><div><small>Kas IDR</small><strong id="home-total-cash">Memuat…</strong></div><div><small>Tersedia</small><strong id="home-avail-cash">Memuat…</strong></div><div><small>Tertahan</small><strong id="home-reserved-cash">Memuat…</strong></div></div>
             </section>
-            <section class="card" aria-labelledby="career-agenda-title">
-                <h2 id="career-agenda-title" class="card-title">Agenda karier</h2>
-                <p id="home-career-state">Karier belum dimuat.</p>
-                <button id="btn-career" class="btn-primary">Lihat karier / misi</button>
+            <section class="card career-card" aria-labelledby="career-agenda-title">
+                <div class="section-heading"><div><span class="eyebrow">PERJALANAN KARIER</span><h2 id="career-agenda-title">Kariermu</h2></div><button id="header-level-chip" class="level-chip" aria-label="Buka level dan pencapaian"><strong id="header-level-val">Lv. 1</strong><small id="header-xp-val">Memuat XP</small></button></div>
+                <p id="home-career-state">Memuat progres…</p>
+                <div class="xp-track" id="home-xp-track" role="progressbar" aria-label="XP menuju level berikutnya" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+                <div class="section-heading"><span id="home-mission-progress" class="metric-sub">Memuat misi</span><button id="btn-career" class="text-button">Lihat misi <span aria-hidden="true">→</span></button></div>
             </section>
+            <div class="section-heading"><h2>Langkah berikutnya</h2><span class="eyebrow">HARI INI</span></div>
+            <section class="card session-card" aria-labelledby="trading-agenda-title"><span class="icon-tile" aria-hidden="true">◷</span><div><h2 id="trading-agenda-title">Atur sesi pasarmu</h2><p id="home-clock-state">Memuat waktu game…</p></div><button id="btn-briefing" class="btn-primary">Buka briefing</button></section>
+            <div class="quick-grid"><button id="btn-reports" class="shortcut"><span aria-hidden="true">▤</span><strong>Laporan harian</strong><small>Hasil & aktivitas <span aria-hidden="true">↗</span></small></button><button id="btn-achievements" class="shortcut"><span aria-hidden="true">◇</span><strong>Pencapaian</strong><small id="home-achievement-count">Progres & badge ↗</small></button></div>
+            <div class="section-heading"><h2>Pantauan pasar</h2><button id="btn-home-market" class="text-button">Semua <span aria-hidden="true">→</span></button></div>
+            <div id="home-market-list" class="compact-market"></div>
+            <button id="btn-entry-game" class="text-button">Permainan & panduan <span aria-hidden="true">↗</span></button>
         </section>
 
         <!-- 2. VIEW: PASAR (S06) -->
         <section id="view-pasar" class="screen-view">
+            <div class="page-heading"><div><span class="eyebrow">IDX · US</span><h1>Pasar</h1></div><span class="live-badge">Harga game</span></div>
             <!-- Indeks Gabungan -->
             <h2 class="card-title">Indeks simulasi game</h2>
-            <div id="indices-row" style="display:flex; margin-bottom:12px;"></div>
+            <div id="indices-row" class="market-ribbon"></div>
+            <div class="market-highlights" id="market-highlights"></div>
+            <div class="market-tools"><button id="btn-order-history" class="shortcut"><span aria-hidden="true">≡</span><strong>Order</strong></button><button id="btn-ipo-center" class="shortcut"><span aria-hidden="true">↗</span><strong>IPO</strong></button><button id="btn-multiasset" class="shortcut"><span aria-hidden="true">◈</span><strong>Multi-aset</strong></button></div>
 
             <!-- Search & Filter Controls -->
             <div style="margin-bottom:12px; display:flex; flex-wrap:wrap; gap:8px;">
@@ -109,9 +80,6 @@
                 <option value="all">Semua instrumen aktif</option>
                 <option value="watchlist">Watchlist</option>
             </select>
-            <button id="btn-order-history" class="btn-secondary">Order aktif / riwayat</button>
-            <button id="btn-ipo-center" class="btn-secondary" style="margin-top:8px;">Pusat IPO (Pasar perdana)</button>
-            <button id="btn-multiasset" class="btn-secondary" style="margin-top:8px;">Katalog multi-aset (obligasi & komoditas)</button>
             <p id="stock-list-status" role="status"></p>
             <!-- Stock List -->
             <div id="stock-list-container"></div>
@@ -119,13 +87,14 @@
 
         <!-- 3. VIEW: ASET (S13) -->
         <section id="view-aset" class="screen-view">
+            <div class="page-heading"><div><span class="eyebrow">ASET & KEWAJIBAN</span><h1>Portofolio</h1></div></div>
             <div class="card">
                 <div class="card-title">Ringkasan Portofolio & FX</div>
                 <p>Snapshot akun belum dimuat.</p>
             </div>
 
             <div class="card">
-                <div class="card-title">Posisi Instrumen Saham</div>
+                <h2 class="card-title">Kepemilikan saham</h2>
                 <div id="portfolio-positions-list"></div>
             </div>
         </section>
@@ -147,25 +116,20 @@
     </main>
 
     <!-- Bottom Navigation Bar (5 Root Tabs) -->
-    <nav class="bottom-nav">
-        <button class="nav-item active" data-tab="beranda">
-            <span class="nav-icon">🏠</span>
+    <nav class="bottom-nav" aria-label="Navigasi utama">
+        <button class="nav-item active" data-tab="beranda" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3zM9 20v-7h6v7"/></svg>
             <span>Beranda</span>
         </button>
-        <button class="nav-item" data-tab="pasar">
-            <span class="nav-icon">📈</span>
+        <button class="nav-item" data-tab="pasar"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 20V4M4 20h17M7 15l5-5 4 2 5-7M17 5h4v4"/></svg>
             <span>Pasar</span>
         </button>
-        <button class="nav-item" data-tab="aset">
-            <span class="nav-icon">💼</span>
+        <button class="nav-item" data-tab="aset"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 9V5a2 2 0 0 1 2-2h12M16 12h5v5h-5z"/></svg>
             <span>Aset</span>
         </button>
-        <button class="nav-item" data-tab="firma">
-            <span class="nav-icon">🏛️</span>
+        <button class="nav-item" data-tab="firma"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 21V5h10v16M14 10h6v11M2 21h20M7 8h4M7 12h4M7 16h4M17 13v2"/></svg>
             <span>Firma</span>
         </button>
-        <button class="nav-item" data-tab="riset">
-            <span class="nav-icon">📰</span>
+        <button class="nav-item" data-tab="riset"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 3h16v18H4zM8 7h8M8 11h8M8 15h4"/></svg>
             <span>Riset</span>
         </button>
     </nav>
@@ -182,8 +146,8 @@
             </div>
 
             <div style="display:flex; gap:8px; margin-bottom:12px;">
-                <button class="btn-secondary side-btn active" data-side="BUY" style="background:var(--positive); color:#0F1720; font-weight:700;">BELI</button>
-                <button class="btn-secondary side-btn" data-side="SELL" style="font-weight:700;">JUAL</button>
+                <button class="btn-secondary side-btn" data-side="BUY" aria-pressed="false">BELI</button>
+                <button class="btn-secondary side-btn" data-side="SELL" aria-pressed="false">JUAL</button>
             </div>
 
             <label for="order-type">Jenis order</label>
@@ -199,7 +163,7 @@
             <label id="order-price-label" for="order-limit-price" style="font-size:0.85rem; color:var(--text-secondary);">Harga limit</label>
             <input id="order-limit-price" class="input-field" type="number" value="10250">
 
-            <p id="order-est-total">Biaya dan dampak kas dihitung domain pada langkah review.</p>
+            <p id="order-est-total">Biaya dan perkiraan kas ditampilkan sebelum order dikirim.</p>
             <p id="order-error" role="alert" tabindex="-1"></p>
             <button id="btn-submit-order" class="btn-primary" style="margin-top:12px;">Tinjau order</button>
         </div>

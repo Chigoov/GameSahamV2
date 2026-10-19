@@ -1,5 +1,7 @@
 # Gate penerimaan Game Saham 2D Portrait
 
+Checkpoint terbaru: [UI portrait 20 Oktober](PORTRAIT-UI-CHECKPOINT-2026-10-20.md). 158 tes JVM dan tiga runner browser PASS; APK kandidat terbaru sudah build/signature/7 aset exact. Seluruh gate tetap PARTIAL/BLOCKED sesuai cakupan produk; hasil runtime Android belum ada. Angka/lokasi lama di tabel dipertahankan sebagai riwayat, bukan metadata APK terbaru.
+
 Status awal seluruh gate: NOT_TESTED. Dokumen bukan bukti runtime. Perbarui status beserta path bukti, lingkungan, metode, build/source revision dan batas hasil.
 
 | Gate | Bukti yang diperlukan | Status | Catatan / Path Bukti |

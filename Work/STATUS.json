@@ -4,10 +4,10 @@
   "product": "Game Saham 2D Portrait",
   "prepared_date": "2026-10-18",
   "status": "PARTIAL",
-  "current_task": "R04_EXCHANGE_SESSIONS_AND_UI_V8",
+  "current_task": "R04_PORTRAIT_PHONE_REFERENCE_UI_VERIFIED",
   "completed_tasks": [],
   "hermes_session_id": "20261019_204502_5f1ffa",
-  "next_action": "Career access checkpoint verified: 157 tests, 15 Java-host browser checks. Next: exchange-session validation for all execution paths, premium data entitlement, client reports and V8 presentation. Native/dataset gates remain open.",
+  "next_action": "Phone-reference UI implemented on existing Java bridge; 158 JVM tests and 3 browser suites pass. Next: Android WebView installation/lifecycle/accessibility verification when a device is connected; remaining exchange sessions, premium entitlement, client report completion and historical dataset gates remain open.",
   "tasks": [
     {
       "id": "00",
@@ -79,7 +79,9 @@
       "evidence": [
         "Artifacts/04/game-saham-2d-portrait-debug.apk",
         "Artifacts/04/TEST-TradingWebBridgeTest.xml",
-        "Artifacts/04/ux-portrait-dan-host-android-report.md"
+        "Artifacts/04/ux-portrait-dan-host-android-report.md",
+        "Work/PORTRAIT-UI-CHECKPOINT-2026-10-20.md",
+        "Artifacts/UI-Refresh-2026-10-20/verification.json"
       ],
       "audit_note": "R01: bukti lama dipertahankan, belum memenuhi seluruh TASK/PRD. Lihat Artifacts/Remediation/R01/AUDIT.md."
     },
@@ -336,5 +338,13 @@
       "signature": "VERIFIED_DEBUG"
     },
     "native": "NOT_TESTED"
+  },
+  "ui_checkpoint": {
+    "date": "2026-10-20",
+    "report": "Work/PORTRAIT-UI-CHECKPOINT-2026-10-20.md",
+    "reference": "Work/PHONE-UI-REFERENCE.md",
+    "root_navigation": "portrait, scrolling content, persistent bottom navigation; financial confirmations isolated",
+    "browser_scope": "Java-host browser, not native runtime",
+    "native_runtime": "NOT_TESTED"
   }
 }

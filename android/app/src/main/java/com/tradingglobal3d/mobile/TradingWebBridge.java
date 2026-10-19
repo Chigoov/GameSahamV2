@@ -831,6 +831,16 @@ public final class TradingWebBridge {
             if (account == null) return new JSONObject().put("success", false).put("message", "Akun tidak ditemukan").toString();
             JSONObject result = new JSONObject().put("success", true).put("accountId", account.getId())
                     .put("accountName", account.getName()).put("accountType", account.getType().name());
+            BigDecimal rate = facade.getFxService().getMidRate();
+            Money assets = account.getTotalPortfolioValue(Currency.IDR, rate);
+            Money equity = facade.getRiskService().evaluateMarginHealth(account, facade.getCatalog(), rate).getEquity();
+            Money cashValue = account.getTotalCash(Currency.IDR).add(
+                    new Money(account.getTotalCash(Currency.USD).getAmount().multiply(rate), Currency.IDR));
+            result.put("netWorth", equity.format()).put("grossAssets", assets.format())
+                    .put("liabilities", assets.subtract(equity).format()).put("cashValueIdr", cashValue.format())
+                    .put("positionsValueIdr", assets.subtract(cashValue).format())
+                    .put("positionsSharePercent", assets.isZero() ? "0" : assets.subtract(cashValue).getAmount()
+                            .multiply(BigDecimal.valueOf(100)).divide(assets.getAmount(), 2, java.math.RoundingMode.HALF_UP).toPlainString());
             JSONObject cash = new JSONObject();
             for (Currency c : Currency.values()) cash.put(c.name(), new JSONObject()
                     .put("total", account.getTotalCash(c).format()).put("available", account.getAvailableCash(c).format())

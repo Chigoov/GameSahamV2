@@ -45,6 +45,26 @@ public class TradingWebBridgeTest {
         bridge = new TradingWebBridge(facade);
     }
 
+    @Test
+    public void portfolioSummarySeparatesBorrowedCashFromEquityAndClientAssets() throws Exception {
+        Account personal = facade.getPersonalAccount();
+        JSONObject initial = new JSONObject(bridge.getPortfolio(personal.getId()));
+        assertEquals("Rp 50.000.000", initial.getString("netWorth"));
+        assertEquals(0, new BigDecimal(initial.getString("positionsSharePercent")).signum());
+        facade.takeMarginLoan(Money.of(1_000_000, Currency.IDR));
+        JSONObject borrowed = new JSONObject(bridge.getPortfolio(personal.getId()));
+        assertEquals("Rp 51.000.000", borrowed.getString("grossAssets"));
+        assertEquals(initial.getString("netWorth"), borrowed.getString("netWorth"));
+        assertEquals("Rp 1.000.000", borrowed.getString("liabilities"));
+        assertEquals("Rp 51.000.000", borrowed.getString("cashValueIdr"));
+        assertEquals("Rp 0", borrowed.getString("positionsValueIdr"));
+        Account client = facade.acceptClientMandate("MANDATE-01");
+        JSONObject clientSummary = new JSONObject(bridge.getPortfolio(client.getId()));
+        assertEquals("CLIENT", clientSummary.getString("accountType"));
+        assertNotEquals(borrowed.getString("netWorth"), clientSummary.getString("netWorth"));
+        assertEquals(borrowed.getString("netWorth"), new JSONObject(bridge.getPortfolio(personal.getId())).getString("netWorth"));
+    }
+
     @After
     public void tearDown() {
         deleteDir(testDir);
