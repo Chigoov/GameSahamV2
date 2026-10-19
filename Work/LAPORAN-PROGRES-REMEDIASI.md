@@ -114,9 +114,9 @@ Selama proses remediasi, sejumlah kelemahan struktural pada domain finansial ber
 
 ## 5. Ringkasan Kandidat Paket APK & Inspeksi Aset
 
-* **Path File:** `Artifacts/Remediation/R07/stress-121/game-saham-remediation-candidate.apk`
-* **Ukuran APK:** **204.459 byte**
-* **Checksum SHA-256:** `8aeb71af97c77f9776ac6fba8a391ca4cd2cfdf7b347e7095e07cb652abaa804`
+* **Path File:** `Artifacts/Remediation/R07/candidate-126/game-saham-remediation-candidate.apk`
+* **Ukuran APK:** **266.878 byte**
+* **Checksum SHA-256:** `cba78a6a98e201838c0373184753aeeb32aee91c96a6cac73af8c677c1aeb5d6`
 * **Identitas Aplikasi:**
   * Package Name: `com.tradingglobal3d.mobile`
   * Version Code: `1`
@@ -127,7 +127,7 @@ Selama proses remediasi, sejumlah kelemahan struktural pada domain finansial ber
 * **Verifikasi Integritas Aset (Byte-for-Byte Match):**
   1. `assets/data/dataset_manifest.json` (730 byte, SHA-256 `cca7b8c743...`) — Cocok 100%.
   2. `assets/data/market_universe.json` (8.548 byte, SHA-256 `ff0e102fc4...`) — Cocok 100%.
-  3. `assets/www/app.js` (103.854 byte, SHA-256 `65d78f18d9...`) — Cocok 100%.
+  3. `assets/www/app.js` (106.286 byte, SHA-256 `698d2aaa8b...`) — Cocok 100%.
   4. `assets/www/index.html` (9.603 byte, SHA-256 `0e5e8e6b69...`) — Cocok 100%.
   5. `assets/www/style.css` (9.744 byte, SHA-256 `f44d7d1eb9...`) — Cocok 100%.
 * **Android Lint Analysis:** 0 fatal error, 9 warnings (5 Locale formatting internal, 2 orientasi layar locked, 1 JavaScript interface WebView, 1 default application icon). Bebas dari error fatal.
@@ -172,7 +172,7 @@ C:/Users/HYPE AMD/Downloads/VIBE CODING/GAME SAHAM/
 │   │   └── stress/                       <-- Pengujian stress test, strategy lab, & replay notice
 │   ├── R05/                              <-- Laporan investigasi dataset historis (BLOCKED)
 │   ├── R06/                              <-- Pengujian persistensi save/load & backup
-│   ├── R07/stress-121/                   <-- Kandidat APK 121 tes & package-inspection.json
+│   ├── R07/candidate-126/                <-- Kandidat APK 126 tes & package-inspection.json
 │   └── R08/verify_checkpoint.py          <-- Skrip verifikasi integritas checkpoint
 └── android/app/src/main/
     ├── java/com/tradingglobal3d/         <-- Implementasi domain Java & bridge native
