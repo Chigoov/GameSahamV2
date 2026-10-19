@@ -18,11 +18,11 @@ Pemetaan terkini: `Artifacts/Remediation/R04/design-screen-coverage-current.csv`
 
 ## Kandidat nyata terbaru pada checkpoint
 
-`Artifacts/Remediation/R07/research-119/game-saham-remediation-candidate.apk`
+`Artifacts/Remediation/R07/entry-120/game-saham-remediation-candidate.apk`
 
-- Build `assembleDebug lintDebug testDebugUnitTest --rerun-tasks` exit 0, 119 tes EXECUTED/0 failure/error/skipped.
-- 197279 byte; SHA-256 `6aae38ec410ff9318d9cf4391c8601cd87662ba2e5d211a9415644a46ca27a58`.
-- Source manifest `683a000153abda918557355273b5543482fb5b9fcef658e11ce8c1c9ea3f39e1`; HEAD `7fa4fcd21c1cbbfe1bd35e97edc8eab691718252` + source lokal uncommitted.
+- Build `assembleDebug lintDebug testDebugUnitTest --rerun-tasks` exit 0, 120 tes EXECUTED/0 failure/error/skipped.
+- 200159 byte; SHA-256 `e6a9652ea5262455260f29c00822c5e1b34d5fdc891a3f07deaf27993a753bec`.
+- Source manifest `c44717a67bb239a4d7ba2457f360a1342974bf61193d93d835eb95ea095976c1`; HEAD `11a1ace6612047109d28f35bcbc3b9175d0c3127` + source lokal uncommitted.
 - 5 aset exact, ZIP/DEX/debug signature valid. AppID `com.tradingglobal3d.mobile`, version 1 / `1.0.0-2d-portrait`, min 26 / target 36, portrait/debug.
 - Lint 0 error / 8 warning. Report dan inspection dalam folder sama. Perubahan source berikutnya mengusangkan snapshot ini.
 
