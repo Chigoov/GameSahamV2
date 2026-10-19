@@ -1,7 +1,9 @@
 package com.tradingglobal3d.mobile;
 
 import com.tradingglobal3d.core.facade.TradingFacade;
+import com.tradingglobal3d.core.market.Instrument;
 import com.tradingglobal3d.core.market.InstrumentCatalog;
+import com.tradingglobal3d.core.model.Account;
 import com.tradingglobal3d.core.model.Currency;
 import com.tradingglobal3d.core.model.GameMode;
 import com.tradingglobal3d.core.model.Money;
@@ -753,5 +755,27 @@ public class TradingWebBridgeTest {
         assertEquals(1, firmSnap.getInt("activeClientCount"));
         assertEquals("Rp 100.000.000", firmSnap.getString("aumIdr"));
         assertTrue(facade.reconcileAll());
+    }
+
+    @Test
+    public void testClientAccountOrderPreviewRejectsMandateViolation() throws Exception {
+        Account clientAcc = facade.acceptClientMandate("MANDATE-01"); // Max konsentrasi 15%, Min kas 20%
+        Instrument bbca = facade.getCatalog().getById("IDX:BBCA");
+        assertNotNull(bbca);
+
+        // Beli melebihi batas konsentrasi 15% (3.000 lembar * 10.250 = ~Rp 30.750.000 > 15jt)
+        JSONObject req = new JSONObject();
+        req.put("accountId", clientAcc.getId());
+        req.put("instrumentId", "IDX:BBCA");
+        req.put("side", "BUY");
+        req.put("type", "LIMIT");
+        req.put("quantity", 3000);
+        req.put("limitPrice", "10250");
+        req.put("requestId", "REQ-CLIENT-PREVIEW-VIOLATE");
+
+        String previewStr = bridge.previewOrder(req.toString());
+        JSONObject previewJson = new JSONObject(previewStr);
+        assertFalse("Preview harus menolak pelanggaran batas mandat", previewJson.getBoolean("success"));
+        assertTrue(previewJson.getString("message").contains("Ditolak Mandat Klien"));
     }
 }

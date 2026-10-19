@@ -161,7 +161,9 @@
                 modeLabel.textContent = snap.gameModeLabel;
             }
             if (snap.personalAccount) {
-                currentAccount = snap.personalAccount;
+                if (!currentAccount || currentAccount.type === 'PERSONAL' || !currentAccount.id) {
+                    currentAccount = snap.personalAccount;
+                }
                 const idrCash = snap.personalAccount.cash.IDR;
                 document.getElementById('home-total-cash').textContent = idrCash.total;
                 document.getElementById('home-avail-cash').textContent = idrCash.available;
@@ -258,6 +260,27 @@
             summary.textContent = 'Portofolio domain belum tersedia pada pratinjau ini.'; return;
         }
         try {
+            if (latestSnapshot && latestSnapshot.tradingAccounts && latestSnapshot.tradingAccounts.length > 1) {
+                const accSelect = document.createElement('select');
+                accSelect.className = 'input-field';
+                accSelect.style.marginBottom = '12px';
+                latestSnapshot.tradingAccounts.forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = a.id;
+                    opt.textContent = `Akun: ${a.name} (${a.type === 'CLIENT' ? 'Klien' : 'Pribadi'})`;
+                    if (currentAccount && currentAccount.id === a.id) opt.selected = true;
+                    accSelect.appendChild(opt);
+                });
+                accSelect.onchange = () => {
+                    const chosen = latestSnapshot.tradingAccounts.find(x => x.id === accSelect.value);
+                    if (chosen) {
+                        currentAccount = { id: chosen.id, name: chosen.name, type: chosen.type };
+                        loadAsetView();
+                    }
+                };
+                summary.appendChild(accSelect);
+            }
+
             const portfolio = JSON.parse(bridge.getPortfolio(currentAccount.id));
             if (!portfolio.success) throw new Error(portfolio.message || 'Snapshot akun gagal');
             flowText(summary, 'Akun', `${portfolio.accountName} (${portfolio.accountId})`);
@@ -1417,7 +1440,31 @@
         updateOrderEstimate();
         orderModal.classList.add('active');
         document.querySelectorAll('body > :not(#order-modal):not(script)').forEach(node => node.inert = true);
-        document.getElementById('order-account-context').textContent = currentAccount ? `${currentAccount.name} (${currentAccount.id})` : 'Akun belum tersedia';
+        const accContext = document.getElementById('order-account-context');
+        accContext.innerHTML = '';
+        if (latestSnapshot && latestSnapshot.tradingAccounts && latestSnapshot.tradingAccounts.length > 1) {
+            const accSelect = document.createElement('select');
+            accSelect.id = 'order-account-select';
+            accSelect.className = 'input-field';
+            accSelect.style.marginBottom = '8px';
+            latestSnapshot.tradingAccounts.forEach(a => {
+                const opt = document.createElement('option');
+                opt.value = a.id;
+                opt.textContent = `Akun: ${a.name} (${a.type === 'CLIENT' ? 'Klien' : 'Pribadi'})`;
+                if (currentAccount && currentAccount.id === a.id) opt.selected = true;
+                accSelect.appendChild(opt);
+            });
+            accSelect.onchange = () => {
+                const chosen = latestSnapshot.tradingAccounts.find(x => x.id === accSelect.value);
+                if (chosen) {
+                    currentAccount = { id: chosen.id, name: chosen.name, type: chosen.type };
+                    updateOrderEstimate();
+                }
+            };
+            accContext.appendChild(accSelect);
+        } else {
+            accContext.textContent = currentAccount ? `${currentAccount.name} (${currentAccount.id})` : 'Akun belum tersedia';
+        }
         document.querySelectorAll('.side-btn').forEach(button => { button.classList.remove('active'); button.style.background = ''; button.style.color = ''; });
         document.getElementById('order-error').textContent = '';
         btnCloseModal.focus();

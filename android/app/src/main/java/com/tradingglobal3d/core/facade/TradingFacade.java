@@ -289,6 +289,15 @@ public final class TradingFacade {
         Account account = accounts.get(order.getAccountId());
         Instrument instrument = catalog.getById(order.getInstrumentId());
         if (account == null || instrument == null) return new JSONObject().put("success", false).put("message", "Akun atau instrumen tidak ditemukan");
+        if (account.getType() == AccountType.CLIENT && account.getClientMandateId() != null) {
+            ClientMandate mandate = firmManager.getMandate(account.getClientMandateId());
+            if (mandate != null) {
+                FirmManager.ValidationResult val = firmManager.validateOrder(mandate, account, order, instrument, fxService.getMidRate());
+                if (!val.isValid) {
+                    return new JSONObject().put("success", false).put("message", "Ditolak Mandat Klien: " + val.reason);
+                }
+            }
+        }
         JSONObject preview = marketEngine.getMatchingEngine().previewOrder(order, account, instrument,
                 marketEngine.getOrCreateBook(instrument), System.currentTimeMillis());
         return preview.put("mode", gameMode.getDisplayName());
@@ -643,6 +652,11 @@ public final class TradingFacade {
             }
         }
 
+        // 4. Eksekusi pemungutan fee mandat klien aktif (Management Fee harian & HWM Performance Fee)
+        for (com.tradingglobal3d.core.firm.ClientMandate mandate : firmManager.getActiveMandates()) {
+            collectClientFees(mandate.getId());
+        }
+
         return report;
     }
 
@@ -839,6 +853,24 @@ public final class TradingFacade {
             personalObj.put("cash", cashObj);
             root.put("personalAccount", personalObj);
         }
+
+        JSONArray accountsArray = new JSONArray();
+        for (Account acc : accounts.values()) {
+            if (acc.getType() == AccountType.PERSONAL || acc.getType() == AccountType.CLIENT) {
+                JSONObject aObj = new JSONObject();
+                aObj.put("id", acc.getId());
+                aObj.put("name", acc.getName());
+                aObj.put("type", acc.getType().name());
+                aObj.put("mandateId", acc.getClientMandateId() == null ? JSONObject.NULL : acc.getClientMandateId());
+                JSONObject cObj = new JSONObject();
+                for (Currency c : Currency.values()) {
+                    cObj.put(c.name(), acc.getAvailableCash(c).format());
+                }
+                aObj.put("availableCash", cObj);
+                accountsArray.put(aObj);
+            }
+        }
+        root.put("tradingAccounts", accountsArray);
 
         JSONObject career = new JSONObject().put("rank", careerManager.getCurrentRank().name())
                 .put("title", careerManager.getCurrentRank().getTitle()).put("days", careerManager.getDaysTraded())

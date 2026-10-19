@@ -254,4 +254,29 @@ public class FirmClientMandateFeeTest {
             assertEquals(ClientMandate.MandateStatus.TERMINATED, m1.getStatus());
         }
     }
+
+    @Test
+    public void testAutomaticClientFeeCollectionOnDayClose() {
+        Account client1 = facade.acceptClientMandate("MANDATE-01"); // Rp 100.000.000
+        Money initialManagerCash = facade.getPersonalAccount().getTotalCash(Currency.IDR);
+
+        // Majukan jam clock ke 16:01 WIB agar siap tutup hari
+        facade.getClock().play();
+        facade.getClock().tick((int) java.time.Duration.between(facade.getClock().getCurrentTime(), java.time.LocalTime.of(16, 1)).getSeconds());
+        facade.getClock().pause();
+
+        com.tradingglobal3d.core.career.DailySessionReport report = facade.closeDayAndAdvance();
+        assertNotNull(report);
+
+        // Verifikasi fee manajemen klien otomatis ditarik dan dikreditkan ke manajer
+        boolean hasClientMgmtFee = facade.getLedger().getEntries().stream().anyMatch(e ->
+                e.getType() == com.tradingglobal3d.core.economy.LedgerEntryType.MANAGEMENT_FEE &&
+                e.getAccountId().equals(facade.getPersonalAccount().getId()));
+        assertTrue("Fee manajemen klien harus dikreditkan ke manajer pada penutupan hari", hasClientMgmtFee);
+
+        assertTrue("Kas manajer harus bertambah dari perolehan fee klien",
+                facade.getPersonalAccount().getTotalCash(Currency.IDR).compareTo(initialManagerCash) > 0);
+
+        assertTrue(facade.reconcileAll());
+    }
 }
