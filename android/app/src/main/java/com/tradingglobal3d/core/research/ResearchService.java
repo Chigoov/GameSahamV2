@@ -5,6 +5,12 @@ import com.tradingglobal3d.core.economy.LedgerEntryType;
 import com.tradingglobal3d.core.model.Account;
 import com.tradingglobal3d.core.model.Currency;
 import com.tradingglobal3d.core.model.Money;
+import com.tradingglobal3d.core.market.Instrument;
+import org.json.JSONObject;
+import org.json.JSONArray;
+import org.json.JSONException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -137,6 +143,108 @@ public final class ResearchService {
 
     public synchronized List<CalendarEvent> getCalendarEvents() {
         return Collections.unmodifiableList(calendarEvents);
+    }
+
+    private void requireAccess(TerminalTier tier, long asOf) {
+        if (asOf < 0) throw new IllegalArgumentException("Waktu riset tidak valid");
+        if (!hasAccess(tier, asOf)) throw new IllegalStateException("LOCKED: membutuhkan paket " + tier.getTitle());
+    }
+
+    public synchronized JSONObject getConsensus(Instrument instrument, long asOf) throws JSONException {
+        requireAccess(TerminalTier.PRO, asOf);
+        Objects.requireNonNull(instrument);
+        Map<String, AnalystReport> latest = new LinkedHashMap<>();
+        for (AnalystReport report : getPublishedReports(asOf)) {
+            if (!report.getTicker().equals(instrument.getTicker()) || report.getTargetPrice().getCurrency() != instrument.getCurrency()) continue;
+            String key = report.getAnalystName() + "|" + report.getFirmName();
+            AnalystReport previous = latest.get(key);
+            if (previous == null || report.getPublishedAt() > previous.getPublishedAt()
+                    || (report.getPublishedAt() == previous.getPublishedAt() && report.getId().compareTo(previous.getId()) > 0)) latest.put(key, report);
+        }
+        JSONArray sources = new JSONArray();
+        List<BigDecimal> targets = new ArrayList<>();
+        int buy = 0, hold = 0, sell = 0;
+        BigDecimal total = BigDecimal.ZERO;
+        for (AnalystReport report : latest.values()) {
+            sources.put(reportJson(report));
+            BigDecimal target = report.getTargetPrice().getAmount();
+            targets.add(target); total = total.add(target);
+            switch (report.getRecommendation()) { case BUY: buy++; break; case HOLD: hold++; break; case SELL: sell++; break; }
+        }
+        Collections.sort(targets);
+        BigDecimal mean = targets.isEmpty() ? null : total.divide(BigDecimal.valueOf(targets.size()), instrument.getCurrency().getDecimalPlaces(), RoundingMode.HALF_UP);
+        BigDecimal median = targets.isEmpty() ? null : targets.size() % 2 == 1 ? targets.get(targets.size() / 2)
+                : targets.get(targets.size() / 2 - 1).add(targets.get(targets.size() / 2)).divide(BigDecimal.valueOf(2), instrument.getCurrency().getDecimalPlaces(), RoundingMode.HALF_UP);
+        return new JSONObject().put("success", true).put("instrumentId", instrument.getId()).put("asOf", asOf)
+                .put("source", "Laporan analis NPC yang sudah terbit dalam dunia game").put("sampleCount", targets.size())
+                .put("status", targets.isEmpty() ? "EMPTY" : "AVAILABLE").put("currency", instrument.getCurrency().name())
+                .put("buy", buy).put("hold", hold).put("sell", sell)
+                .put("meanTarget", mean == null ? JSONObject.NULL : mean.toPlainString())
+                .put("medianTarget", median == null ? JSONObject.NULL : median.toPlainString())
+                .put("minTarget", targets.isEmpty() ? JSONObject.NULL : targets.get(0).toPlainString())
+                .put("maxTarget", targets.isEmpty() ? JSONObject.NULL : targets.get(targets.size() - 1).toPlainString())
+                .put("currentPrice", instrument.getCurrentPrice().getAmount().toPlainString())
+                .put("reports", sources).put("uncertainty", targets.size() < 2
+                        ? "Belum cukup opini independen untuk menilai sebaran konsensus; target bukan jaminan harga."
+                        : "Target adalah opini NPC, dapat berbeda dan salah; bukan harga masa depan.");
+    }
+
+    private JSONObject reportJson(AnalystReport report) throws JSONException {
+        return new JSONObject().put("id", report.getId()).put("analyst", report.getAnalystName()).put("firm", report.getFirmName())
+                .put("ticker", report.getTicker()).put("recommendation", report.getRecommendation().getLabel())
+                .put("targetPrice", report.getTargetPrice().getAmount().toPlainString()).put("currency", report.getTargetPrice().getCurrency().name())
+                .put("publishedAt", report.getPublishedAt()).put("thesis", report.getThesisSummary())
+                .put("accuracyHistoryPercent", report.getAccuracyHistoryPercent()).put("accuracyBasis", "NPC_PROFILE_PARAMETER_NOT_VERIFIED_TRACK_RECORD");
+    }
+
+    public synchronized JSONObject getAnalystInbox(long asOf) throws JSONException {
+        requireAccess(TerminalTier.BASIC, asOf);
+        List<AnalystReport> published = getPublishedReports(asOf);
+        published.sort(Comparator.comparingLong(AnalystReport::getPublishedAt).reversed().thenComparing(AnalystReport::getId));
+        JSONArray messages = new JSONArray();
+        for (AnalystReport report : published) messages.put(reportJson(report).put("messageId", "ANALYST:" + report.getId()));
+        return new JSONObject().put("success", true).put("asOf", asOf).put("messages", messages)
+                .put("source", "Laporan NPC dunia game").put("status", messages.length() == 0 ? "EMPTY" : "AVAILABLE");
+    }
+
+    public synchronized JSONObject getAlternativeData(Instrument instrument, long asOf) throws JSONException {
+        requireAccess(TerminalTier.ENTERPRISE, asOf);
+        Objects.requireNonNull(instrument);
+        JSONArray sources = new JSONArray();
+        double sum = 0;
+        for (NewsArticle article : getPublishedNews(asOf)) {
+            if (asOf - article.getPublishedAt() > 7L * 86_400_000L
+                    || (article.getRelatedTicker() != null && !article.getRelatedTicker().equals(instrument.getTicker()))) continue;
+            sum += article.getSentimentImpact();
+            sources.put(new JSONObject().put("id", article.getId()).put("publishedAt", article.getPublishedAt())
+                    .put("headline", article.getHeadline()).put("sentiment", article.getSentimentImpact()));
+        }
+        return new JSONObject().put("success", true).put("instrumentId", instrument.getId()).put("asOf", asOf)
+                .put("source", "Agregasi berita game terbit 7 hari terakhir dan transaksi pasar game saat ini")
+                .put("observationWindowDays", 7).put("sampleCount", sources.length()).put("sources", sources)
+                .put("newsSentiment", sources.length() == 0 ? JSONObject.NULL : sum / sources.length())
+                .put("observedSessionVolume", instrument.getDayVolume()).put("priceChangePercent", instrument.getDailyChangePercent())
+                .put("relevance", "Konteks sentimen berita dan aktivitas transaksi instrumen, bukan prediksi keuntungan")
+                .put("uncertainty", "Sampel berita terbatas dan sentimen merupakan parameter dunia game; korelasi tidak membuktikan penyebab harga.");
+    }
+
+    public synchronized JSONObject compareInstruments(List<Instrument> instruments, long asOf) throws JSONException {
+        requireAccess(TerminalTier.PRO, asOf);
+        if (instruments == null || instruments.size() < 2 || instruments.size() > 4)
+            throw new IllegalArgumentException("Pilih 2–4 instrumen untuk dibandingkan");
+        Set<String> seen = new HashSet<>();
+        JSONArray rows = new JSONArray();
+        for (Instrument instrument : instruments) {
+            if (instrument == null || !seen.add(instrument.getId())) throw new IllegalArgumentException("Instrumen tidak valid atau duplikat");
+            JSONObject consensus = getConsensus(instrument, asOf);
+            rows.put(new JSONObject().put("instrumentId", instrument.getId()).put("name", instrument.getName())
+                    .put("sector", instrument.getSector()).put("currency", instrument.getCurrency().name())
+                    .put("price", instrument.getCurrentPrice().getAmount().toPlainString()).put("dailyChangePercent", instrument.getDailyChangePercent())
+                    .put("sessionVolume", instrument.getDayVolume()).put("marketCap", instrument.getMarketCap().getAmount().toPlainString())
+                    .put("consensus", consensus));
+        }
+        return new JSONObject().put("success", true).put("asOf", asOf).put("instruments", rows)
+                .put("priceBasis", "NATIVE_CURRENCY_GAME_MARKET").put("uncertainty", "Harga dan kapitalisasi lintas mata uang tidak dapat dibandingkan langsung tanpa konversi.");
     }
 
     /**

@@ -21,6 +21,8 @@ public final class CorporateActionService {
     private final Map<String, IpoOffering> ipoOfferings = new LinkedHashMap<>();
     private final List<IpoSubscription> ipoSubscriptions = new ArrayList<>();
     private final Map<String, ShareholderMeetingAgenda> agendas = new LinkedHashMap<>();
+    private final Map<String, org.json.JSONObject> offers = new LinkedHashMap<>();
+    private final Map<String, org.json.JSONObject> participations = new LinkedHashMap<>();
 
     public CorporateActionService() {
         initializeSampleActions();
@@ -56,7 +58,183 @@ public final class CorporateActionService {
         ipoOfferings.clear();
         ipoSubscriptions.clear();
         agendas.clear();
+        offers.clear(); participations.clear();
         initializeSampleActions();
+    }
+
+    public synchronized void reset(LocalDate gameBase) {
+        corporateActions.clear(); ipoOfferings.clear(); ipoSubscriptions.clear(); agendas.clear(); offers.clear(); participations.clear();
+        IpoOffering ipo = new IpoOffering("IPO-CLOUD", "NCLD", "Nusantara Cloud Tech Tbk", Currency.IDR,
+                Money.of(500, Currency.IDR), 100, 20_000_000, gameBase.plusDays(5));
+        ipoOfferings.put(ipo.getId(), ipo);
+        ShareholderMeetingAgenda agenda = new ShareholderMeetingAgenda("RUPS-BBCA-01", "BBCA",
+                "Persetujuan pembagian dividen", "Dividen Rp225 per saham mengikuti hak recording date.", gameBase.plusDays(1));
+        agendas.put(agenda.getId(), agenda);
+        corporateActions.add(new CorporateAction("ACT-DIV-BBCA-2026", "BBCA", CorporateActionType.CASH_DIVIDEND,
+                BigDecimal.valueOf(225), Currency.IDR, gameBase.plusDays(1), gameBase.plusDays(6)));
+        try {
+            registerOffer("RIGHTS-BBCA", "RIGHTS_ISSUE", "IDX:BBCA", "IDX:BBCA", new BigDecimal("8400"), new BigDecimal("0.1"), gameBase.plusDays(2));
+            registerOffer("BUYBACK-BMRI", "BUYBACK_TENDER", "IDX:BMRI", "IDX:BMRI", new BigDecimal("7400"), BigDecimal.ONE, gameBase.plusDays(3));
+            registerOffer("MERGER-TLKM-ASII", "MERGER_TENDER", "IDX:TLKM", "IDX:ASII", BigDecimal.ZERO, new BigDecimal("0.5"), gameBase.plusDays(4));
+        } catch (org.json.JSONException e) { throw new IllegalStateException(e); }
+    }
+
+    private void registerOffer(String id, String kind, String source, String target, BigDecimal cash, BigDecimal ratio, LocalDate recording) throws org.json.JSONException {
+        offers.put(id, new org.json.JSONObject().put("id", id).put("kind", kind).put("instrumentId", source)
+                .put("targetInstrumentId", target).put("currency", "IDR").put("cashPrice", cash.toPlainString())
+                .put("exchangeRatio", ratio.toPlainString()).put("targetReferencePrice", "6800")
+                .put("recordDate", recording.toString()).put("deadline", recording.plusDays(3).toString())
+                .put("settlementDate", recording.plusDays(4).toString()).put("maxShares", 100000L)
+                .put("recorded", false).put("entitlements", new org.json.JSONObject()));
+    }
+
+    public synchronized long reservedCorporateShares(String accountId, String instrumentId) {
+        long reserved = 0;
+        for (org.json.JSONObject request : participations.values()) {
+            if (accountId.equals(request.optString("accountId")) && instrumentId.equals(request.optString("instrumentId"))
+                    && "RESERVED".equals(request.optString("status")) && !"RIGHTS_ISSUE".equals(request.optString("kind")))
+                reserved = Math.addExact(reserved, request.optLong("shares"));
+        }
+        return reserved;
+    }
+
+    public synchronized org.json.JSONArray getOffers(Account account, LocalDate date) throws org.json.JSONException {
+        org.json.JSONArray result = new org.json.JSONArray();
+        for (org.json.JSONObject offer : offers.values()) {
+            org.json.JSONObject view = new org.json.JSONObject(offer.toString());
+            long entitled = offer.getJSONObject("entitlements").optLong(account.getId(), 0);
+            long used = 0;
+            org.json.JSONArray requests = new org.json.JSONArray();
+            for (org.json.JSONObject request : participations.values()) if (account.getId().equals(request.getString("accountId")) && offer.getString("id").equals(request.getString("offerId"))) {
+                requests.put(new org.json.JSONObject(request.toString()));
+                if (!"CANCELLED".equals(request.getString("status"))) used = Math.addExact(used, request.getLong("shares"));
+            }
+            view.remove("entitlements");
+            view.put("entitledShares", entitled).put("availableShares", Math.max(0, entitled - used)).put("participations", requests)
+                    .put("open", offer.getBoolean("recorded") && !date.isAfter(LocalDate.parse(offer.getString("deadline"))))
+                    .put("fee", "0").put("note", "Ketentuan aksi korporasi game; partisipasi opsional, dana/saham ditahan sampai settlement, dapat dibatalkan sebelum tenggat.");
+            result.put(view);
+        }
+        return result;
+    }
+
+    public synchronized org.json.JSONObject participateOffer(String offerId, Account account, long shares, String requestId,
+            LocalDate date, EconomyLedger ledger, long timestamp) throws org.json.JSONException {
+        if (requestId == null || requestId.trim().isEmpty() || requestId.length() > 160 || shares <= 0) throw new IllegalArgumentException("Request dan jumlah saham harus sah");
+        org.json.JSONObject existing = participations.get(requestId);
+        if (existing != null) {
+            if (!offerId.equals(existing.getString("offerId")) || !account.getId().equals(existing.getString("accountId")) || shares != existing.getLong("shares")) throw new IllegalArgumentException("Request aksi korporasi dipakai dengan parameter berbeda");
+            return new org.json.JSONObject(existing.toString()).put("success", true);
+        }
+        org.json.JSONObject offer = offers.get(offerId);
+        if (offer == null || !offer.getBoolean("recorded") || date.isBefore(LocalDate.parse(offer.getString("recordDate"))) || date.isAfter(LocalDate.parse(offer.getString("deadline")))) throw new IllegalStateException("Penawaran tidak aktif atau recording date belum diproses");
+        long entitled = offer.getJSONObject("entitlements").optLong(account.getId(), 0);
+        long used = 0, total = 0;
+        for (org.json.JSONObject request : participations.values()) if (offerId.equals(request.getString("offerId")) && !"CANCELLED".equals(request.getString("status"))) {
+            total = Math.addExact(total, request.getLong("shares"));
+            if (account.getId().equals(request.getString("accountId"))) used = Math.addExact(used, request.getLong("shares"));
+        }
+        if (shares > entitled - used || shares > offer.getLong("maxShares") - total) throw new IllegalArgumentException("Jumlah melebihi hak atau kapasitas penawaran");
+        String source = offer.getString("instrumentId"), kind = offer.getString("kind");
+        Money reservation = new Money(new BigDecimal(offer.getString("cashPrice")).multiply(BigDecimal.valueOf(shares)), Currency.IDR);
+        if ("RIGHTS_ISSUE".equals(kind)) account.reserveCash(reservation);
+        else {
+            Position position = account.getPosition(source);
+            if (position == null || shares > position.getQuantity() - reservedCorporateShares(account.getId(), source)) throw new IllegalStateException("Saham tersedia tidak cukup untuk tender");
+        }
+        org.json.JSONObject receipt = new org.json.JSONObject().put("offerId", offerId).put("requestId", requestId).put("accountId", account.getId())
+                .put("shares", shares).put("instrumentId", source).put("kind", kind).put("reservedCash", "RIGHTS_ISSUE".equals(kind) ? reservation.getAmount().toPlainString() : "0")
+                .put("status", "RESERVED").put("timestamp", timestamp).put("settlementDate", offer.getString("settlementDate"));
+        participations.put(requestId, receipt);
+        return new org.json.JSONObject(receipt.toString()).put("success", true);
+    }
+
+    public synchronized org.json.JSONObject cancelParticipation(String requestId, Account account, LocalDate date) throws org.json.JSONException {
+        org.json.JSONObject request = participations.get(requestId);
+        if (request == null || !account.getId().equals(request.getString("accountId"))) throw new IllegalArgumentException("Partisipasi tidak ditemukan");
+        if ("CANCELLED".equals(request.getString("status"))) return new org.json.JSONObject(request.toString()).put("success", true);
+        org.json.JSONObject offer = offers.get(request.getString("offerId"));
+        if (!"RESERVED".equals(request.getString("status")) || date.isAfter(LocalDate.parse(offer.getString("deadline")))) throw new IllegalStateException("Pembatalan melewati tenggat atau sudah settled");
+        Money cash = new Money(new BigDecimal(request.getString("reservedCash")), Currency.IDR);
+        if (cash.isPositive()) account.releaseReservedCash(cash);
+        request.put("status", "CANCELLED");
+        return new org.json.JSONObject(request.toString()).put("success", true);
+    }
+
+    public synchronized void processDate(LocalDate date, Map<String, Account> accounts, EconomyLedger ledger, long timestamp) throws org.json.JSONException {
+        for (ShareholderMeetingAgenda agenda : agendas.values()) {
+            if (!date.isBefore(agenda.getRecordingDate())) agenda.captureEntitlements(accounts.values());
+            if (date.isAfter(agenda.getDeadline())) agenda.close();
+        }
+        for (org.json.JSONObject offer : offers.values()) {
+            if (!offer.getBoolean("recorded") && !date.isBefore(LocalDate.parse(offer.getString("recordDate")))) {
+                org.json.JSONObject entitled = offer.getJSONObject("entitlements");
+                for (Account account : accounts.values()) {
+                    Position position = account.getPosition(offer.getString("instrumentId"));
+                    long shares = position == null ? 0 : position.getQuantity();
+                    if ("RIGHTS_ISSUE".equals(offer.getString("kind"))) shares = BigDecimal.valueOf(shares).multiply(new BigDecimal(offer.getString("exchangeRatio"))).longValue();
+                    entitled.put(account.getId(), Math.max(0, shares));
+                }
+                offer.put("recorded", true);
+            }
+            if (date.isBefore(LocalDate.parse(offer.getString("settlementDate")))) continue;
+            for (org.json.JSONObject request : participations.values()) if (offer.getString("id").equals(request.getString("offerId")) && "RESERVED".equals(request.getString("status"))) settleParticipation(offer, request, accounts, ledger, timestamp);
+        }
+    }
+
+    private void settleParticipation(org.json.JSONObject offer, org.json.JSONObject request, Map<String, Account> accounts, EconomyLedger ledger, long timestamp) throws org.json.JSONException {
+        Account account = accounts.get(request.getString("accountId"));
+        if (account == null) throw new IllegalStateException("Akun partisipasi hilang; settlement ditunda");
+        String sourceId = offer.getString("instrumentId"), kind = offer.getString("kind"), id = request.getString("requestId");
+        long shares = request.getLong("shares");
+        Money payment = new Money(new BigDecimal(offer.getString("cashPrice")).multiply(BigDecimal.valueOf(shares)), Currency.IDR);
+        Position source = account.getPosition(sourceId);
+        if ("RIGHTS_ISSUE".equals(kind)) {
+            if (account.getReservedCash(Currency.IDR).isLessThan(payment)) throw new IllegalStateException("Reservasi rights tidak cocok");
+        } else if (source == null || source.getQuantity() < shares) throw new IllegalStateException("Saham tender hilang; settlement memerlukan pemulihan");
+        String issuerId = "ACC-CORP-" + offer.getString("id");
+        Account issuer = accounts.get(issuerId);
+        if (issuer == null) {
+            issuer = new Account(issuerId, "Treasuri " + offer.getString("id"), com.tradingglobal3d.core.model.AccountType.COMPANY, null);
+            accounts.put(issuerId, issuer);
+            BigDecimal budget = new BigDecimal(offer.getString("cashPrice")).multiply(BigDecimal.valueOf(offer.getLong("maxShares")));
+            if (budget.signum() > 0 && !"RIGHTS_ISSUE".equals(kind)) ledger.recordMutation("CORP-BUDGET-" + offer.getString("id"), issuer, LedgerEntryType.INITIAL_CAPITAL, new Money(budget, Currency.IDR), true, timestamp, "Anggaran treasuri terbatas untuk tender game");
+        }
+        if ("RIGHTS_ISSUE".equals(kind)) {
+            account.releaseReservedCash(payment);
+            ledger.recordMutation("RIGHTS-PAY-" + id, account, LedgerEntryType.TRADE_BUY, payment, false, timestamp, "Pelaksanaan hak " + offer.getString("id"));
+            ledger.recordMutation("RIGHTS-ISSUER-" + id, issuer, LedgerEntryType.DEPOSIT, payment, true, timestamp, "Dana emisi rights dari " + account.getId());
+            if (source == null) { source = new Position(sourceId.substring(sourceId.indexOf(':') + 1), "IDX", Currency.IDR, 0, BigDecimal.ZERO, new BigDecimal(offer.getString("cashPrice"))); account.addPosition(source); }
+            source.addBuy(shares, new BigDecimal(offer.getString("cashPrice")));
+        } else {
+            if (issuer.getAvailableCash(Currency.IDR).isLessThan(payment)) throw new IllegalStateException("Anggaran tender tidak cukup");
+            String targetId = offer.getString("targetInstrumentId");
+            long targetShares = 0;
+            BigDecimal targetPrice = new BigDecimal(offer.getString("targetReferencePrice"));
+            if ("MERGER_TENDER".equals(kind)) {
+                BigDecimal converted = BigDecimal.valueOf(shares).multiply(new BigDecimal(offer.getString("exchangeRatio")));
+                targetShares = converted.setScale(0, RoundingMode.DOWN).longValueExact();
+                BigDecimal fraction = converted.subtract(BigDecimal.valueOf(targetShares));
+                payment = payment.add(new Money(fraction.multiply(targetPrice), Currency.IDR));
+                // Fractional claims require a separately funded cash-in-lieu budget, never unbacked player credit.
+                if (payment.isPositive() && issuer.getAvailableCash(Currency.IDR).isLessThan(payment)) throw new IllegalStateException("Anggaran cash-in-lieu tidak cukup; gunakan jumlah saham kelipatan rasio");
+            }
+            BigDecimal totalConsideration = payment.getAmount().add(targetPrice.multiply(BigDecimal.valueOf(targetShares)));
+            source.addSell(shares, totalConsideration.divide(BigDecimal.valueOf(shares), 8, RoundingMode.HALF_UP));
+            if (payment.isPositive()) {
+                ledger.recordMutation("TENDER-ISSUER-" + id, issuer, LedgerEntryType.TRADE_BUY, payment, false, timestamp, "Pembayaran tender " + account.getId());
+                ledger.recordMutation("TENDER-PAY-" + id, account, LedgerEntryType.TRADE_SELL, payment, true, timestamp, "Penerimaan tender " + offer.getString("id"));
+            }
+            if (targetShares > 0) {
+                Position target = account.getPosition(targetId);
+                if (target == null) { target = new Position(targetId.substring(targetId.indexOf(':') + 1), "IDX", Currency.IDR, 0, BigDecimal.ZERO, targetPrice); account.addPosition(target); }
+                target.addBuy(targetShares, targetPrice);
+            }
+            Position treasury = issuer.getPosition(sourceId);
+            if (treasury == null) { treasury = new Position(sourceId.substring(sourceId.indexOf(':') + 1), "IDX", Currency.IDR, 0, BigDecimal.ZERO, source.getCurrentPrice()); issuer.addPosition(treasury); }
+            treasury.addBuy(shares, totalConsideration.divide(BigDecimal.valueOf(shares), 8, RoundingMode.HALF_UP));
+        }
+        request.put("status", "SETTLED").put("settledTimestamp", timestamp).put("cashSettled", payment.getAmount().toPlainString());
     }
 
     public List<CorporateAction> getCorporateActions() { return Collections.unmodifiableList(corporateActions); }
