@@ -452,10 +452,43 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String getCompanyStaff(String companyId) {
+        try { return facade.getCompanyStaff(companyId).toString(); }
+        catch (Exception error) { return staffError(error); }
+    }
+
+    @JavascriptInterface
+    public String previewCompanyStaffAction(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            return facade.previewCompanyStaffAction(req.getString("companyId"), req.getString("action"),
+                    req.getString("employeeId"), req.optString("role", null)).toString();
+        } catch (Exception error) { return staffError(error); }
+    }
+
+    @JavascriptInterface
+    public String manageCompanyStaff(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            return facade.manageCompanyStaff(req.getString("requestId"), req.getString("companyId"), req.getString("action"),
+                    req.getString("employeeId"), req.optString("role", null), req.getLong("expectedVersion")).toString();
+        } catch (Exception error) { return staffError(error); }
+    }
+
+    private String staffError(Exception error) {
+        try { return new JSONObject().put("success", false).put("code", "COMPANY_STAFF_REJECTED").put("message", error.getMessage()).toString(); }
+        catch (JSONException impossible) { return "{\"success\":false}"; }
+    }
+
+    private String bridgeError(Exception error) {
+        try { return new JSONObject().put("success", false).put("code", "OPERATION_FAILED").put("message", error.getMessage()).toString(); }
+        catch (JSONException impossible) { return "{\"success\":false}"; }
+    }
+
+    @JavascriptInterface
     public String getCompanies() {
         try {
-            JSONArray arr = facade.getCompanyManager().exportState();
-            return new JSONObject().put("success", true).put("companies", arr).toString();
+            return facade.getCompaniesJson().toString();
         } catch (Exception error) {
             try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
             catch (JSONException impossible) { return "{\"success\":false}"; }
@@ -522,6 +555,14 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String transactCollection(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            return facade.transactCollection(req.getString("requestId"), req.getString("itemId"), req.getBoolean("buy")).toString();
+        } catch (Exception error) { return bridgeError(error); }
+    }
+
+    @JavascriptInterface
     public String buyCollection(String itemId) {
         try {
             var item = facade.buyCollection(itemId);
@@ -554,6 +595,14 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String confirmPrestige(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            return facade.confirmPrestige(req.getString("requestId"), req.getString("runId")).toString();
+        } catch (Exception error) { return bridgeError(error); }
+    }
+
+    @JavascriptInterface
     public String getPrestigeStatus() {
         try {
             return facade.getPrestigeStatus().toString();
@@ -566,6 +615,14 @@ public final class TradingWebBridge {
     // =========================================================================
     // REKSA DANA BERBASIS UNIT & NAB (REF:funds, D06)
     // =========================================================================
+
+    @JavascriptInterface
+    public String cancelFundOrder(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            return facade.cancelFundOrder(req.getString("fundId"), req.getString("orderId")).toString();
+        } catch (Exception error) { return bridgeError(error); }
+    }
 
     @JavascriptInterface
     public String getMutualFunds() {
@@ -583,7 +640,7 @@ public final class TradingWebBridge {
             JSONObject req = new JSONObject(jsonRequest);
             String fundId = req.getString("fundId");
             Money amt = new Money(new BigDecimal(req.getString("amount")), Currency.IDR);
-            return facade.subscribeMutualFund(fundId, amt).toString();
+            return facade.subscribeMutualFund(req.getString("requestId"), fundId, amt).toString();
         } catch (Exception error) {
             try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
             catch (JSONException impossible) { return "{\"success\":false}"; }
@@ -596,7 +653,7 @@ public final class TradingWebBridge {
             JSONObject req = new JSONObject(jsonRequest);
             String fundId = req.getString("fundId");
             BigDecimal units = new BigDecimal(req.getString("units"));
-            return facade.redeemMutualFund(fundId, units).toString();
+            return facade.redeemMutualFund(req.getString("requestId"), fundId, units).toString();
         } catch (Exception error) {
             try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
             catch (JSONException impossible) { return "{\"success\":false}"; }
@@ -634,6 +691,48 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String getLoanQuote(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            String productId = req.getString("productId");
+            boolean isPersonal = req.optBoolean("isPersonal", true);
+            String compId = req.optString("companyId", null);
+            Money principal = new Money(new BigDecimal(req.getString("principal")), Currency.IDR);
+            int tenor = req.getInt("tenorDays");
+            String collateralId = req.optString("collateralItemId", null);
+            return facade.getLoanQuote(productId, isPersonal, compId, principal, tenor, collateralId).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String disburseReviewedLoan(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            String requestId = req.getString("requestId");
+            String productId = req.getString("productId");
+            boolean isPersonal = req.optBoolean("isPersonal", true);
+            String compId = req.optString("companyId", null);
+            Money principal = new Money(new BigDecimal(req.getString("principal")), Currency.IDR);
+            int tenor = req.getInt("tenorDays");
+            String collateralId = req.optString("collateralItemId", null);
+            String quoteVersion = req.getString("expectedQuoteVersion");
+            return facade.disburseReviewedLoan(requestId, productId, isPersonal, compId, principal, tenor, collateralId, quoteVersion).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String reviewPortfolioHealth() {
+        try { return facade.reviewPortfolioHealth().toString(); }
+        catch (Exception error) { return bridgeError(error); }
+    }
+
+    @JavascriptInterface
     public String getLoans() {
         try {
             return facade.getLoansJson().toString();
@@ -649,7 +748,18 @@ public final class TradingWebBridge {
             JSONObject req = new JSONObject(jsonRequest);
             String loanId = req.getString("loanId");
             Money amt = new Money(new BigDecimal(req.getString("amount")), Currency.IDR);
-            return facade.payLoan(loanId, amt).toString();
+            return facade.payLoan(req.getString("requestId"), loanId, amt).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String prepayLoanRequest(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            return facade.prepayLoan(req.getString("requestId"), req.getString("loanId")).toString();
         } catch (Exception error) {
             try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
             catch (JSONException impossible) { return "{\"success\":false}"; }

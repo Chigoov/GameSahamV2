@@ -545,7 +545,7 @@
                         cCard.append(cH);
 
                         flowText(cCard, 'Saldo kas perusahaan', `Rp ${Number(c.cash || 0).toLocaleString('id-ID')}`);
-                        flowText(cCard, 'Tingkat / level', `Level ${c.level || 1} · Efisiensi ${c.efficiency || 100}%`);
+                        flowText(cCard, 'Tingkat / level', `Level ${c.level} · ${c.sectorModel}`);
                         flowText(cCard, 'Karyawan & CEO', `${c.employeeCount || 0} staf operasional · CEO: ${c.ceoName || 'Profesional Terpilih'}`);
                         flowText(cCard, 'Pendapatan / payroll harian', `+Rp ${Number(c.dailyRevenue || 0).toLocaleString('id-ID')} / -Rp ${Number(c.dailyPayroll || 0).toLocaleString('id-ID')}`);
                         flowText(cCard, 'Kebijakan kerja & benefit', `${c.workHours || 8} jam kerja · Fasilitas: ${c.benefitTier || 'STANDARD'}`);
@@ -553,6 +553,7 @@
                         const btnRow = document.createElement('div');
                         btnRow.style.display = 'flex';
                         btnRow.style.gap = '8px';
+                        btnRow.style.flexWrap = 'wrap';
                         btnRow.style.marginTop = '10px';
 
                         const polBtn = document.createElement('button');
@@ -565,7 +566,11 @@
                         transBtn.textContent = 'Transfer Modal / Dividen';
                         transBtn.onclick = () => openCompanyCapitalModal(c);
 
-                        btnRow.append(polBtn, transBtn);
+                        const staffBtn = document.createElement('button');
+                        staffBtn.className = 'btn-secondary';
+                        staffBtn.textContent = 'Pegawai & Organisasi';
+                        staffBtn.onclick = () => openCompanyStaffModal(c);
+                        btnRow.append(polBtn, transBtn, staffBtn);
                         cCard.append(btnRow);
                         compSection.append(cCard);
                     });
@@ -614,7 +619,7 @@
                             actBtn.textContent = `Jual Koleksi (Terima Rp ${Number(item.currentValuation || 0).toLocaleString('id-ID')})`;
                             actBtn.onclick = () => {
                                 try {
-                                    const res = JSON.parse(bridge.sellCollection(item.id));
+                                    const res = JSON.parse(bridge.transactCollection(JSON.stringify({requestId:actBtn.dataset.requestId || (actBtn.dataset.requestId = 'COL-SELL-' + crypto.randomUUID()), itemId:item.id, buy:false})));
                                     if (!res.success) throw new Error(res.message);
                                     refreshSnapshot();
                                     loadFirmaView();
@@ -627,7 +632,7 @@
                             actBtn.textContent = `Beli Koleksi (Rp ${Number(item.basePrice || 0).toLocaleString('id-ID')})`;
                             actBtn.onclick = () => {
                                 try {
-                                    const res = JSON.parse(bridge.buyCollection(item.id));
+                                    const res = JSON.parse(bridge.transactCollection(JSON.stringify({requestId:actBtn.dataset.requestId || (actBtn.dataset.requestId = 'COL-BUY-' + crypto.randomUUID()), itemId:item.id, buy:true})));
                                     if (!res.success) throw new Error(res.message);
                                     refreshSnapshot();
                                     loadFirmaView();
@@ -707,25 +712,24 @@
         flowText(panel, 'Syarat & ketentuan', 'Pendirian anak usaha memerlukan modal minimal Rp 25.000.000 dari kas pribadi.');
 
         const nameLabel = document.createElement('label');
-        nameLabel.textContent = 'Nama perusahaan';
-        const nameInput = document.createElement('input');
+        nameLabel.textContent = 'Nama perusahaan'; nameLabel.htmlFor = 'company-name';
+        const nameInput = document.createElement('input'); nameInput.id = 'company-name';
         nameInput.className = 'input-field';
         nameInput.placeholder = 'Contoh: Nusantara Tech Solusindo';
 
         const secLabel = document.createElement('label');
-        secLabel.textContent = 'Sektor bisnis';
-        const secSelect = document.createElement('select');
+        secLabel.textContent = 'Sektor bisnis'; secLabel.htmlFor = 'company-sector';
+        const secSelect = document.createElement('select'); secSelect.id = 'company-sector';
         secSelect.className = 'input-field';
         secSelect.innerHTML = `
-            <option value="TEKNOLOGI">Teknologi & Perangkat Lunak</option>
+            <option value="JASA">Jasa & Konsultasi</option>
             <option value="RITEL">Ritel & Barang Konsumsi</option>
-            <option value="LOGISTIK">Transportasi & Logistik</option>
-            <option value="ENERGI">Energi Terbarukan</option>
+            <option value="MANUFAKTUR">Manufaktur & Produksi</option>
         `;
 
         const capLabel = document.createElement('label');
-        capLabel.textContent = 'Modal disetor (minimal Rp 25.000.000)';
-        const capInput = document.createElement('input');
+        capLabel.textContent = 'Modal disetor (minimal Rp 25.000.000)'; capLabel.htmlFor = 'company-capital';
+        const capInput = document.createElement('input'); capInput.id = 'company-capital';
         capInput.type = 'number';
         capInput.className = 'input-field';
         capInput.value = '25000000';
@@ -740,6 +744,7 @@
         const statusMsg = document.createElement('p');
         statusMsg.style.margin = '8px 0';
 
+        const companyId = 'COMP-' + crypto.randomUUID();
         submitBtn.onclick = () => {
             try {
                 const name = nameInput.value.trim();
@@ -748,12 +753,14 @@
                 if (capital < 25000000) throw new Error('Modal minimal Rp 25.000.000');
 
                 const req = {
+                    id: companyId,
                     name: name,
                     sector: secSelect.value,
-                    initialCapital: capital
+                    capital: capInput.value
                 };
                 const res = JSON.parse(bridge.foundCompany(JSON.stringify(req)));
                 if (!res.success) throw new Error(res.message);
+                submitBtn.disabled = true;
                 statusMsg.textContent = 'Perusahaan berhasil didirikan!';
                 statusMsg.style.color = 'var(--positive)';
                 refreshSnapshot();
@@ -765,6 +772,64 @@
         };
 
         panel.append(nameLabel, nameInput, secLabel, secSelect, capLabel, capInput, submitBtn, statusMsg);
+    }
+
+    function openCompanyStaffModal(company) {
+        const panel = showFlow(`Pegawai — ${company.name}`);
+        try {
+            const staff = JSON.parse(bridge.getCompanyStaff(company.id));
+            if (!staff.success) throw new Error(staff.message);
+            flowText(panel, 'Payroll harian', `Rp ${staff.dailyPayroll}`);
+            flowText(panel, 'Tunggakan gaji', `Rp ${staff.payrollArrears}`);
+            flowText(panel, 'Waktu berlaku', 'Perubahan dihitung pada penyelesaian operasi harian berikutnya.');
+            for (const employee of staff.employees) {
+                const card = node('section', 'card');
+                flowText(card, employee.name, `${employee.department} · ${employee.roleLabel} · Level ${employee.level}`);
+                flowText(card, 'Gaji harian', `Rp ${employee.salary}`);
+                const train = flowButton(card, 'Latih pegawai', () => openCompanyStaffReview(company, 'TRAIN', employee.id));
+                train.disabled = employee.level >= 5;
+                if (train.disabled) train.textContent = 'Level maksimum';
+                if (employee.role !== 'CEO') {
+                    for (const vacancy of staff.candidates.filter(candidate => candidate.available))
+                        flowButton(card, `Tempatkan: ${vacancy.roleLabel}`, () => openCompanyStaffReview(company, 'ASSIGN', employee.id, vacancy.role));
+                    flowButton(card, 'Berhentikan pegawai', () => openCompanyStaffReview(company, 'DISMISS', employee.id));
+                }
+                panel.append(card);
+            }
+            for (const candidate of staff.candidates.filter(candidate => candidate.available)) {
+                const card = node('section', 'card');
+                flowText(card, candidate.name, `${candidate.department} · ${candidate.roleLabel}`);
+                flowText(card, 'Gaji harian', `Rp ${candidate.salary}`);
+                flowButton(card, 'Tinjau perekrutan', () => openCompanyStaffReview(company, 'HIRE', candidate.id, candidate.role));
+                panel.append(card);
+            }
+        } catch (error) { flowText(panel, 'Pegawai belum dapat dimuat', error.message); }
+    }
+
+    function openCompanyStaffReview(company, action, employeeId, role) {
+        const panel = showFlow('Tinjau perubahan pegawai', true);
+        const request = {companyId:company.id, action, employeeId, role, requestId:'STAFF-' + crypto.randomUUID()};
+        try {
+            const quote = JSON.parse(bridge.previewCompanyStaffAction(JSON.stringify(request)));
+            if (!quote.success) throw new Error(quote.message);
+            request.expectedVersion = quote.staffVersion;
+            flowText(panel, 'Perusahaan', company.name);
+            flowText(panel, 'Biaya satu kali', `Rp ${quote.cost}`);
+            flowText(panel, 'Payroll harian', `Rp ${quote.dailyPayrollBefore} → Rp ${quote.dailyPayrollAfter}`);
+            flowText(panel, 'Gaji pegawai', `Rp ${quote.salaryBefore} → Rp ${quote.salaryAfter}`);
+            flowText(panel, 'Mulai berlaku', 'Operasi harian berikutnya; tunggakan lama tetap wajib dibayar.');
+            const status = node('p'); status.setAttribute('role','status'); panel.append(status);
+            const submit = flowButton(panel, 'Konfirmasi perubahan pegawai', () => {
+                try {
+                    const receipt = JSON.parse(bridge.manageCompanyStaff(JSON.stringify(request)));
+                    if (!receipt.success) throw new Error(receipt.message);
+                    submit.disabled = true;
+                    status.textContent = `Perubahan tersimpan. Bukti: ${receipt.receiptId}`;
+                    refreshSnapshot();
+                    flowButton(panel, 'Kembali ke pegawai', () => openCompanyStaffModal(company));
+                } catch (error) { status.textContent = error.message; }
+            });
+        } catch (error) { flowText(panel, 'Perubahan ditolak', error.message); }
     }
 
     function openCompanyPolicyModal(company) {
@@ -1122,20 +1187,57 @@
                         presBtn.textContent = 'Buka Konfirmasi Prestige';
                         presBtn.onclick = () => {
                             const pPanel = showFlow('Konfirmasi Era Baru (Prestige)');
-                            flowText(pPanel, 'Proteksi data', 'Game akan membuat backup aman terlebih dahulu sebelum memulai era baru. Tidak ada data yang hilang secara permanen.');
+                            flowText(pPanel, 'Yang direset', presRes.reset || 'Kas, posisi, bisnis, XP, dan karier perjalanan.');
+                            flowText(pPanel, 'Yang dipertahankan', presRes.retained || 'Identitas, preferensi, statistik lifetime, riwayat prestige.');
                             flowText(pPanel, 'Bonus yang didapat', presRes.prestigeBonus);
+                            flowText(pPanel, 'Proteksi data', 'Game akan membuat backup aman terlebih dahulu. Perjalanan lama dapat dipulihkan bila gagal.');
                             const actBtn = document.createElement('button');
                             actBtn.className = 'btn-primary';
                             actBtn.style.marginTop = '12px';
                             actBtn.textContent = 'Konfirmasi & Mulai Era Baru';
+                            const prestigeRunId = presRes.runId;
                             actBtn.onclick = () => {
-                                alert('Era baru berhasil diaktifkan dengan backup aman!');
-                                closeFlow();
-                                refreshSnapshot();
+                                actBtn.disabled = true;
+                                actBtn.textContent = 'Memproses...';
+                                try {
+                                    const reqId = 'PRESTIGE-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);
+                                    const confirmRes = JSON.parse(bridge.confirmPrestige(JSON.stringify({
+                                        requestId: reqId,
+                                        runId: prestigeRunId
+                                    })));
+                                    if (confirmRes && confirmRes.success !== false && confirmRes.requestId) {
+                                        const successMsg = document.createElement('div');
+                                        successMsg.className = 'card';
+                                        successMsg.style.marginTop = '10px';
+                                        successMsg.innerHTML = '<strong style="color:var(--accent-green,#4CAF50)">✓ Era baru berhasil diaktifkan!</strong>' +
+                                            '<br>Backup perjalanan lama tersimpan aman.' +
+                                            '<br>ID Prestige: ' + confirmRes.requestId;
+                                        pPanel.append(successMsg);
+                                        setTimeout(() => { closeFlow(); refreshSnapshot(); }, 2000);
+                                    } else {
+                                        actBtn.disabled = false;
+                                        actBtn.textContent = 'Konfirmasi & Mulai Era Baru';
+                                        flowText(pPanel, 'Gagal', confirmRes.message || 'Tidak dapat memulai era baru');
+                                    }
+                                } catch (presConfErr) {
+                                    actBtn.disabled = false;
+                                    actBtn.textContent = 'Konfirmasi & Mulai Era Baru';
+                                    flowText(pPanel, 'Error', presConfErr.message || 'Terjadi kesalahan');
+                                }
                             };
                             pPanel.append(actBtn);
                         };
                         presSection.append(presBtn);
+                    } else if (presRes.blockers && presRes.blockers.length > 0) {
+                        const blockerList = document.createElement('ul');
+                        blockerList.style.color = 'var(--text-muted)';
+                        blockerList.style.marginTop = '8px';
+                        for (let i = 0; i < presRes.blockers.length; i++) {
+                            const li = document.createElement('li');
+                            li.textContent = presRes.blockers[i];
+                            blockerList.append(li);
+                        }
+                        presSection.append(blockerList);
                     }
                     view.append(presSection);
                 } catch (presErr) {
@@ -2148,7 +2250,7 @@
 
     function openConsolidatedWealthModal() {
         const panel = showFlow('Kekayaan Bersih Konsolidasi');
-        flowText(panel, 'Metode kalkulasi D02', 'Total kekayaan = Aset pribadi + Nilai ekuitas anak usaha + Koleksi mewah − Liabilitas (utang margin & pinjaman).');
+        flowText(panel, 'Perhitungan kekayaan', 'Total kekayaan = Aset pribadi + Nilai ekuitas anak usaha + Koleksi mewah − Liabilitas (utang margin & pinjaman).');
 
         if (!bridge.getConsolidatedWealth) {
             flowText(panel, 'Status', 'Bridge kekayaan konsolidasi belum tersedia.');
@@ -2160,6 +2262,13 @@
             if (!w.success) throw new Error(w.message || 'Gagal memuat kekayaan');
 
             metricCard(panel, 'TOTAL KEKAYAAN BERSIH', w.totalNetWorth, 'Aset bruto dikurangi seluruh kewajiban');
+            flowButton(panel, 'Tandai tinjauan kesehatan selesai', () => {
+                try {
+                    const receipt = JSON.parse(bridge.reviewPortfolioHealth());
+                    if (!receipt.success) throw new Error(receipt.message);
+                    flowText(panel, 'Tinjauan tersimpan', 'Kekayaan dan kewajiban telah ditinjau untuk hari game ini.');
+                } catch (error) { flowText(panel, 'Tinjauan belum tersimpan', error.message); }
+            });
 
             const assetCard = document.createElement('section');
             assetCard.className = 'card';
@@ -2181,7 +2290,7 @@
             lTitle.textContent = `Total Kewajiban / Utang (${w.totalLiabilities})`;
             liabCard.append(lTitle);
             flowText(liabCard, 'Utang fasilitas margin', w.liabilities.marginDebt);
-            flowText(liabCard, 'Sisa pokok pinjaman tenor', w.liabilities.installmentDebt);
+            flowText(liabCard, 'Pokok, bunga & penalti pinjaman', w.liabilities.installmentDebt);
             panel.append(liabCard);
 
             flowText(panel, 'Rekonsiliasi', '100% terekonsiliasi ke buku besar (double-entry ledger) tanpa double-counting AUM klien.');
@@ -2196,7 +2305,7 @@
 
     function openMutualFundsMarketModal() {
         const panel = showFlow('Pasar Reksa Dana (Unit/NAB)');
-        flowText(panel, 'Spesifikasi D06', 'Investasi reksa dana terkelola profesional berbasis NAB harian, entry/exit fee 0.1%, management fee 0.75%/tahun.');
+        flowText(panel, 'Jadwal transaksi', 'Cutoff Senin–Jumat pukul 16:00 WIB. Pembatalan sebelum 15:30 WIB. Harga final memakai NAB cutoff.');
 
         if (!bridge.getMutualFunds) {
             flowText(panel, 'Status', 'Bridge reksa dana belum tersedia.');
@@ -2228,6 +2337,7 @@
                 const btnRow = document.createElement('div');
                 btnRow.style.display = 'flex';
                 btnRow.style.gap = '8px';
+                btnRow.style.flexWrap = 'wrap';
                 btnRow.style.marginTop = '10px';
 
                 const subBtn = document.createElement('button');
@@ -2242,6 +2352,22 @@
 
                 btnRow.append(subBtn, redBtn);
                 card.append(btnRow);
+                for (const order of f.orders || []) {
+                    flowText(card, order.side === 'SUBSCRIBE' ? 'Pembelian unit' : 'Pencairan unit', order.message);
+                    flowText(card, 'Jadwal penyelesaian', new Date(order.expectedSettlement).toLocaleString('id-ID', {timeZone:'Asia/Jakarta'}) + ' WIB');
+                    flowText(card, 'Batas pembatalan', new Date(order.cancellationDeadline).toLocaleString('id-ID', {timeZone:'Asia/Jakarta'}) + ' WIB');
+                    if (order.status === 'ACCEPTED' || order.status.startsWith('PENDING_')) {
+                        const cancel = flowButton(card, 'Batalkan permintaan', () => {
+                            try {
+                                const receipt = JSON.parse(bridge.cancelFundOrder(JSON.stringify({fundId:f.id, orderId:order.orderId})));
+                                if (!receipt.success) throw new Error(receipt.message);
+                                refreshSnapshot(); openMutualFundsMarketModal();
+                            } catch (error) { flowText(card, 'Pembatalan ditolak', error.message); }
+                        });
+                        cancel.disabled = res.gameTimestamp >= order.cancellationDeadline;
+                        if (cancel.disabled) cancel.textContent = 'Batas pembatalan telah lewat';
+                    }
+                }
                 panel.append(card);
             });
         } catch (e) {
@@ -2270,17 +2396,18 @@
         const statusMsg = document.createElement('p');
         statusMsg.style.margin = '8px 0';
 
+        const subscriptionId = 'FUND-SUB-' + crypto.randomUUID();
         buyBtn.onclick = () => {
             try {
                 const amt = Number(amtInput.value);
                 if (amt < 10000) throw new Error('Minimal pembelian Rp 10.000');
-                const req = { fundId: fund.id, amount: String(amt) };
+                const req = { fundId: fund.id, amount: amtInput.value, requestId:subscriptionId };
                 const res = JSON.parse(bridge.subscribeMutualFund(JSON.stringify(req)));
                 if (!res.success) throw new Error(res.message);
                 statusMsg.textContent = res.message;
                 statusMsg.style.color = 'var(--positive)';
                 refreshSnapshot();
-                setTimeout(() => { closeFlow(); openMutualFundsMarketModal(); }, 600);
+                flowButton(panel, 'Lihat antrean reksa dana', () => openMutualFundsMarketModal());
             } catch (err) {
                 statusMsg.textContent = 'Gagal: ' + err.message;
                 statusMsg.style.color = 'var(--negative)';
@@ -2311,17 +2438,18 @@
         const statusMsg = document.createElement('p');
         statusMsg.style.margin = '8px 0';
 
+        const redemptionId = 'FUND-RED-' + crypto.randomUUID();
         redBtn.onclick = () => {
             try {
                 const units = Number(unitInput.value);
                 if (units <= 0) throw new Error('Jumlah unit harus lebih dari 0');
-                const req = { fundId: fund.id, units: String(units) };
+                const req = { fundId: fund.id, units: unitInput.value, requestId:redemptionId };
                 const res = JSON.parse(bridge.redeemMutualFund(JSON.stringify(req)));
                 if (!res.success) throw new Error(res.message);
                 statusMsg.textContent = res.message;
                 statusMsg.style.color = 'var(--positive)';
                 refreshSnapshot();
-                setTimeout(() => { closeFlow(); openMutualFundsMarketModal(); }, 600);
+                flowButton(panel, 'Lihat antrean reksa dana', () => openMutualFundsMarketModal());
             } catch (err) {
                 statusMsg.textContent = 'Gagal: ' + err.message;
                 statusMsg.style.color = 'var(--negative)';
@@ -2388,10 +2516,11 @@
                         const prepayBtn = document.createElement('button');
                         prepayBtn.className = 'btn-secondary';
                         prepayBtn.textContent = 'Pelunasan Awal (Prepay)';
+                        const prepayRequestId = 'LOAN-PREPAY-' + crypto.randomUUID();
                         prepayBtn.onclick = () => {
                             if (confirm(`Lunasi seluruh sisa pinjaman ${l.totalPayoff}?`)) {
                                 try {
-                                    const r = JSON.parse(bridge.prepayLoan(l.id));
+                                    const r = JSON.parse(bridge.prepayLoanRequest(JSON.stringify({loanId:l.id, requestId:prepayRequestId})));
                                     if (!r.success) throw new Error(r.message);
                                     alert(r.message);
                                     refreshSnapshot();
@@ -2458,6 +2587,60 @@
         amtInput.value = '10000000';
         amtInput.step = '1000000';
 
+        // Pemilih agunan (hanya untuk pinjaman pribadi)
+        const collateralSection = document.createElement('div');
+        collateralSection.style.margin = '8px 0';
+        const collateralLabel = document.createElement('label');
+        collateralLabel.textContent = 'Agunan koleksi (wajib untuk pinjaman pribadi)';
+        const collateralSelect = document.createElement('select');
+        collateralSelect.className = 'input-field';
+        collateralSelect.innerHTML = '<option value="">Memuat koleksi...</option>';
+        collateralSection.append(collateralLabel, collateralSelect);
+
+        const collateralInfo = document.createElement('div');
+        collateralInfo.style.cssText = 'font-size:0.85em; color:var(--text-muted); margin-top:4px';
+        collateralSection.append(collateralInfo);
+
+        function loadCollateralOptions() {
+            try {
+                const collections = JSON.parse(bridge.getCollections());
+                const eligible = [];
+                if (Array.isArray(collections)) {
+                    collections.forEach(c => {
+                        if (c.isOwned && !c.pledgedLoanId && c.ownerAccountId) {
+                            eligible.push(c);
+                        }
+                    });
+                }
+                collateralSelect.innerHTML = '';
+                if (eligible.length === 0) {
+                    collateralSelect.innerHTML = '<option value="">Tidak ada koleksi yang dapat dijaminkan</option>';
+                    collateralInfo.textContent = 'Beli koleksi dari menu Bisnis → Koleksi untuk dijadikan agunan.';
+                } else {
+                    collateralSelect.innerHTML = '<option value="">— Pilih agunan —</option>';
+                    eligible.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.id;
+                        const valuation = c.currentValuation ? 'Rp ' + formatMoney(c.currentValuation) : '';
+                        opt.textContent = (c.name || c.id) + (valuation ? ' (' + valuation + ')' : '');
+                        collateralSelect.append(opt);
+                    });
+                    collateralInfo.textContent = 'Koleksi yang dijaminkan tidak dapat dijual sampai pinjaman lunas.';
+                }
+            } catch (e) {
+                collateralSelect.innerHTML = '<option value="">Gagal memuat koleksi</option>';
+                collateralInfo.textContent = e.message || 'Error';
+            }
+        }
+
+        // Load kolateral saat buka dan saat ganti produk
+        loadCollateralOptions();
+        pSelect.onchange = () => {
+            const isPersonalProduct = pSelect.value === 'LOAN-PERS-01';
+            collateralSection.style.display = isPersonalProduct ? '' : 'none';
+        };
+        collateralSection.style.display = (defaultProductId === 'LOAN-PERS-01' || !defaultProductId) ? '' : 'none';
+
         const submitBtn = document.createElement('button');
         submitBtn.className = 'btn-primary';
         submitBtn.style.marginTop = '12px';
@@ -2471,26 +2654,71 @@
                 const amt = Number(amtInput.value);
                 if (amt < 1000000) throw new Error('Plafon minimal Rp 1.000.000');
                 const isPersonal = pSelect.value === 'LOAN-PERS-01';
-                const req = {
+                const selectedCollateral = isPersonal ? (collateralSelect.value || null) : null;
+                if (isPersonal && !selectedCollateral) throw new Error('Pilih agunan koleksi untuk pinjaman pribadi');
+                const quoteReq = {
                     productId: pSelect.value,
                     isPersonal: isPersonal,
                     companyId: isPersonal ? null : companyId,
                     principal: String(amt),
-                    tenorDays: Number(tenorSelect.value)
+                    tenorDays: Number(tenorSelect.value),
+                    collateralItemId: selectedCollateral
                 };
-                const res = JSON.parse(bridge.disburseLoan(JSON.stringify(req)));
-                if (!res.success) throw new Error(res.message);
-                statusMsg.textContent = res.message;
-                statusMsg.style.color = 'var(--positive)';
-                refreshSnapshot();
-                setTimeout(() => { closeFlow(); openLoansModal(); }, 600);
+                // Step 1: Get quote
+                if (bridge.getLoanQuote) {
+                    const quoteRes = JSON.parse(bridge.getLoanQuote(JSON.stringify(quoteReq)));
+                    if (!quoteRes.success) throw new Error(quoteRes.message || 'Quote gagal');
+                    if (!quoteRes.eligible) throw new Error('Pokok melampaui batas: maks ' + formatMoney(quoteRes.maxPrincipalRaw));
+
+                    // Show review panel
+                    statusMsg.innerHTML = '';
+                    const reviewDiv = document.createElement('div');
+                    reviewDiv.className = 'card';
+                    reviewDiv.style.margin = '8px 0';
+                    reviewDiv.innerHTML =
+                        '<strong>Review Pinjaman</strong><br>' +
+                        'Pokok: Rp ' + formatMoney(quoteRes.principalRaw) + '<br>' +
+                        'Biaya pencairan: Rp ' + formatMoney(quoteRes.feeRaw) + '<br>' +
+                        'Dana cair bersih: Rp ' + formatMoney(quoteRes.netCashRaw) + '<br>' +
+                        'Tenor: ' + quoteRes.tenorDays + ' hari<br>' +
+                        'Aturan kelayakan: ' + quoteRes.eligibilityRule;
+                    statusMsg.append(reviewDiv);
+
+                    const confirmBtn = document.createElement('button');
+                    confirmBtn.className = 'btn-primary';
+                    confirmBtn.style.marginTop = '8px';
+                    confirmBtn.textContent = 'Konfirmasi & Cairkan';
+                    confirmBtn.onclick = () => {
+                        confirmBtn.disabled = true;
+                        confirmBtn.textContent = 'Memproses...';
+                        try {
+                            const reqId = 'LOAN-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);
+                            const disburseReq = Object.assign({}, quoteReq, {
+                                requestId: reqId,
+                                expectedQuoteVersion: quoteRes.quoteVersion
+                            });
+                            const disburseRes = JSON.parse(bridge.disburseReviewedLoan(JSON.stringify(disburseReq)));
+                            if (!disburseRes.success && disburseRes.message) throw new Error(disburseRes.message);
+                            statusMsg.innerHTML = '<span style="color:var(--positive)">✓ Pinjaman berhasil dicairkan</span>';
+                            refreshSnapshot();
+                            setTimeout(() => { closeFlow(); openLoansModal(); }, 600);
+                        } catch (dErr) {
+                            confirmBtn.disabled = false;
+                            confirmBtn.textContent = 'Konfirmasi & Cairkan';
+                            statusMsg.innerHTML = '<span style="color:var(--negative)">Gagal: ' + dErr.message + '</span>';
+                        }
+                    };
+                    statusMsg.append(confirmBtn);
+                } else {
+                    throw new Error('Fitur quote pinjaman belum tersedia. Hubungi pengembang.');
+                }
             } catch (err) {
                 statusMsg.textContent = 'Pencairan gagal: ' + err.message;
                 statusMsg.style.color = 'var(--negative)';
             }
         };
 
-        panel.append(pSelectLabel, pSelect, tenorLabel, tenorSelect, amtLabel, amtInput, submitBtn, statusMsg);
+        panel.append(pSelectLabel, pSelect, collateralSection, tenorLabel, tenorSelect, amtLabel, amtInput, submitBtn, statusMsg);
     }
 
     function openPayInstallmentModal(loan) {
@@ -2516,13 +2744,16 @@
         const statusMsg = document.createElement('p');
         statusMsg.style.margin = '8px 0';
 
+        const paymentRequestId = 'LOAN-PAY-' + crypto.randomUUID();
         payBtn.onclick = () => {
             try {
                 const amt = Number(amtInput.value);
                 if (amt <= 0) throw new Error('Nominal bayar harus lebih dari 0');
-                const req = { loanId: loan.id, amount: String(amt) };
+                const req = { loanId: loan.id, amount: amtInput.value, requestId:paymentRequestId };
                 const res = JSON.parse(bridge.payLoan(JSON.stringify(req)));
                 if (!res.success) throw new Error(res.message);
+                payBtn.disabled = true;
+                amtInput.disabled = true;
                 statusMsg.textContent = res.message;
                 statusMsg.style.color = 'var(--positive)';
                 refreshSnapshot();
@@ -2802,7 +3033,7 @@
                         actBtn.textContent = `Jual Koleksi (Terima Rp ${Number(item.currentValuation || 0).toLocaleString('id-ID')})`;
                         actBtn.onclick = () => {
                             try {
-                                const res = JSON.parse(bridge.sellCollection(item.id));
+                                const res = JSON.parse(bridge.transactCollection(JSON.stringify({requestId:actBtn.dataset.requestId || (actBtn.dataset.requestId = 'COL-SELL-' + crypto.randomUUID()), itemId:item.id, buy:false})));
                                 if (!res.success) throw new Error(res.message);
                                 refreshSnapshot();
                                 openCollectionsGalleryModal();
@@ -2813,7 +3044,7 @@
                         actBtn.textContent = `Beli Koleksi (Rp ${Number(item.basePrice || 0).toLocaleString('id-ID')})`;
                         actBtn.onclick = () => {
                             try {
-                                const res = JSON.parse(bridge.buyCollection(item.id));
+                                const res = JSON.parse(bridge.transactCollection(JSON.stringify({requestId:actBtn.dataset.requestId || (actBtn.dataset.requestId = 'COL-BUY-' + crypto.randomUUID()), itemId:item.id, buy:true})));
                                 if (!res.success) throw new Error(res.message);
                                 refreshSnapshot();
                                 openCollectionsGalleryModal();

@@ -10,6 +10,7 @@ public enum LedgerEntryType {
     FX_CONVERSION_DEBIT("Konversi FX (Debit)"),
     FX_CONVERSION_CREDIT("Konversi FX (Kredit)"),
     MANAGEMENT_FEE("Management Fee Manajer"),
+    YIELD("Imbal Hasil Harian Reksa Dana"),
     PERFORMANCE_FEE("Performance Fee Manajer"),
     DIVIDEND("Dividen Emiten"),
     SALARY("Gaji / Tunjangan Analis"),
