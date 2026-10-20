@@ -20,8 +20,89 @@ import java.util.*;
  */
 public final class HistoricalReplayEngine {
     private final Map<String, StrategyLabSandbox> sandboxes = new HashMap<>();
+    private String activeDatasetId = null;
+    private List<HistoricalBar> datasetBars = new ArrayList<>();
+    private int currentBarIndex = 0;
+    private boolean isReplayActive = false;
 
-    public void reset() { sandboxes.clear(); }
+    public void reset() {
+        sandboxes.clear();
+        activeDatasetId = null;
+        datasetBars.clear();
+        currentBarIndex = 0;
+        isReplayActive = false;
+    }
+
+    public void startReplay(String datasetId, List<HistoricalBar> bars) {
+        Objects.requireNonNull(datasetId);
+        Objects.requireNonNull(bars);
+        if (bars.isEmpty()) throw new IllegalArgumentException("Dataset bar tidak boleh kosong");
+        this.activeDatasetId = datasetId;
+        this.datasetBars = new ArrayList<>(bars);
+        this.currentBarIndex = 0;
+        this.isReplayActive = true;
+    }
+
+    public boolean isReplayActive() {
+        return isReplayActive;
+    }
+
+    public String getActiveDatasetId() {
+        return activeDatasetId;
+    }
+
+    public int getCurrentBarIndex() {
+        return currentBarIndex;
+    }
+
+    public int getTotalBars() {
+        return datasetBars.size();
+    }
+
+    public HistoricalBar getCurrentBar() {
+        if (!isReplayActive || datasetBars.isEmpty()) return null;
+        int idx = Math.min(currentBarIndex, datasetBars.size() - 1);
+        return datasetBars.get(idx);
+    }
+
+    public List<HistoricalBar> getVisibleBars() {
+        if (!isReplayActive || datasetBars.isEmpty()) return Collections.emptyList();
+        int end = Math.min(currentBarIndex + 1, datasetBars.size());
+        return Collections.unmodifiableList(datasetBars.subList(0, end));
+    }
+
+    public boolean advanceBar() {
+        if (!isReplayActive) return false;
+        if (currentBarIndex + 1 < datasetBars.size()) {
+            currentBarIndex++;
+            return true;
+        }
+        return false;
+    }
+
+    public boolean isReplayCompleted() {
+        return isReplayActive && currentBarIndex >= datasetBars.size() - 1;
+    }
+
+    public org.json.JSONObject exportState() throws org.json.JSONException {
+        org.json.JSONObject obj = new org.json.JSONObject();
+        obj.put("isReplayActive", isReplayActive);
+        obj.put("activeDatasetId", activeDatasetId == null ? org.json.JSONObject.NULL : activeDatasetId);
+        obj.put("currentBarIndex", currentBarIndex);
+        return obj;
+    }
+
+    public void restoreState(org.json.JSONObject obj) throws org.json.JSONException {
+        if (obj == null) return;
+        this.isReplayActive = obj.optBoolean("isReplayActive", false);
+        this.activeDatasetId = obj.isNull("activeDatasetId") ? null : obj.optString("activeDatasetId", null);
+        this.currentBarIndex = obj.optInt("currentBarIndex", 0);
+        if (this.isReplayActive && this.activeDatasetId != null && datasetBars.isEmpty()) {
+            try {
+                this.datasetBars = new ArrayList<>(com.tradingglobal3d.core.market.HistoricalDatasetLoader.loadDataset(this.activeDatasetId));
+            } catch (Exception ignored) {}
+        }
+    }
 
     public StrategyLabSandbox createSandbox(String sandboxId, Account sourceAccount) {
         StrategyLabSandbox sb = new StrategyLabSandbox(sandboxId, sourceAccount);

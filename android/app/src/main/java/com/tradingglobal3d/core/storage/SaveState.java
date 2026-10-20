@@ -30,6 +30,10 @@ public final class SaveState {
     private final int speedMultiplier;
     private final List<Account> accounts;
     private final List<LedgerEntry> ledgerEntries;
+    private final long lastRealTimeAnchor;
+    private final int gameMsRemainder;
+    private final String lifecycleState;
+    private JSONObject offlineCatchupReport;
     private JSONObject runtimeState = new JSONObject();
 
     public JSONObject getRuntimeState() { return runtimeState; }
@@ -38,6 +42,15 @@ public final class SaveState {
     public SaveState(int schemaVersion, GameMode gameMode, long savedTimestamp,
                      LocalDate gameDate, LocalTime gameTime, int speedMultiplier,
                      List<Account> accounts, List<LedgerEntry> ledgerEntries) {
+        this(schemaVersion, gameMode, savedTimestamp, gameDate, gameTime, speedMultiplier,
+                accounts, ledgerEntries, savedTimestamp, 0, "FOREGROUND", null);
+    }
+
+    public SaveState(int schemaVersion, GameMode gameMode, long savedTimestamp,
+                     LocalDate gameDate, LocalTime gameTime, int speedMultiplier,
+                     List<Account> accounts, List<LedgerEntry> ledgerEntries,
+                     long lastRealTimeAnchor, int gameMsRemainder, String lifecycleState,
+                     JSONObject offlineCatchupReport) {
         this.schemaVersion = schemaVersion;
         this.gameMode = gameMode;
         this.savedTimestamp = savedTimestamp;
@@ -46,18 +59,32 @@ public final class SaveState {
         this.speedMultiplier = speedMultiplier;
         this.accounts = accounts;
         this.ledgerEntries = ledgerEntries;
+        this.lastRealTimeAnchor = lastRealTimeAnchor > 0 ? lastRealTimeAnchor : savedTimestamp;
+        this.gameMsRemainder = gameMsRemainder;
+        this.lifecycleState = lifecycleState != null ? lifecycleState : "FOREGROUND";
+        this.offlineCatchupReport = offlineCatchupReport;
     }
 
     public static SaveState capture(GameMode mode, GameClock clock, Collection<Account> accountList, EconomyLedger ledger) {
+        return capture(mode, clock, accountList, ledger, System.currentTimeMillis(), null);
+    }
+
+    public static SaveState capture(GameMode mode, GameClock clock, Collection<Account> accountList, EconomyLedger ledger,
+                                   long lastRealTimeAnchor, JSONObject offlineCatchupReport) {
+        long now = System.currentTimeMillis();
         return new SaveState(
                 SCHEMA_VERSION,
                 mode,
-                System.currentTimeMillis(),
+                now,
                 clock.getCurrentDate(),
                 clock.getCurrentTime(),
                 clock.getSpeedMultiplier(),
                 new ArrayList<>(accountList),
-                ledger.getEntries()
+                ledger.getEntries(),
+                lastRealTimeAnchor > 0 ? lastRealTimeAnchor : now,
+                clock.getGameMsRemainder(),
+                clock.isForeground() ? "FOREGROUND" : "INACTIVE",
+                offlineCatchupReport
         );
     }
 
@@ -69,6 +96,11 @@ public final class SaveState {
     public int getSpeedMultiplier() { return speedMultiplier; }
     public List<Account> getAccounts() { return accounts; }
     public List<LedgerEntry> getLedgerEntries() { return ledgerEntries; }
+    public long getLastRealTimeAnchor() { return lastRealTimeAnchor; }
+    public int getGameMsRemainder() { return gameMsRemainder; }
+    public String getLifecycleState() { return lifecycleState; }
+    public JSONObject getOfflineCatchupReport() { return offlineCatchupReport; }
+    public void setOfflineCatchupReport(JSONObject report) { this.offlineCatchupReport = report; }
 
     public String toJsonString() throws JSONException {
         JSONObject root = new JSONObject();
@@ -78,6 +110,12 @@ public final class SaveState {
         root.put("gameDate", gameDate.toString());
         root.put("gameTime", gameTime.toString());
         root.put("speedMultiplier", speedMultiplier);
+        root.put("lastRealTimeAnchor", lastRealTimeAnchor);
+        root.put("gameMsRemainder", gameMsRemainder);
+        root.put("lifecycleState", lifecycleState);
+        if (offlineCatchupReport != null) {
+            root.put("offlineCatchupReport", offlineCatchupReport);
+        }
         root.put("runtimeState", runtimeState);
 
         // Accounts
@@ -217,7 +255,11 @@ public final class SaveState {
             entries.add(entry);
         }
 
-        SaveState state = new SaveState(version, mode, timestamp, date, time, speed, accounts, entries);
+        SaveState state = new SaveState(version, mode, timestamp, date, time, speed, accounts, entries,
+                root.optLong("lastRealTimeAnchor", timestamp),
+                root.optInt("gameMsRemainder", 0),
+                root.optString("lifecycleState", "FOREGROUND"),
+                root.optJSONObject("offlineCatchupReport"));
         JSONObject runtime = root.optJSONObject("runtimeState");
         if (runtime != null) state.setRuntimeState(runtime);
         return state;

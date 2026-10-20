@@ -3,7 +3,8 @@ package com.tradingglobal3d.core.model;
 public enum AccountType {
     PERSONAL("Pribadi"),
     CLIENT("Klien"),
-    FIRM("Firma");
+    FIRM("Firma"),
+    COMPANY("Perusahaan");
 
     private final String label;
 

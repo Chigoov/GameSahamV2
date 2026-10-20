@@ -1,0 +1,452 @@
+{
+  "schema_version": 1,
+  "prepared_date": "2026-10-20",
+  "timezone": "Asia/Jakarta",
+  "root_at_creation": "C:\\Users\\HYPE AMD\\Downloads\\VIBE CODING\\GAME SAHAM",
+  "source_head_at_preparation": "196a49d4f574fcd2c57c792797913541aa126f9b",
+  "purpose": "Full execution materials; hashes and expected tables do not prove game implementation",
+  "coverage": {
+    "original_requirements": 228,
+    "reference_groups": 26,
+    "owner_acceptance": 23,
+    "total_rows": 277,
+    "time_examples": 26,
+    "phone_screenshots": 14,
+    "quality_phase_definitions": 14
+  },
+  "concept_copy": {
+    "source": "C:\\Users\\HYPE AMD\\Downloads\\VIBE CODING\\Game Trading Saham\\Docs\\Concept\\Game-Concept.md",
+    "copy": "Work/Hermes-Handoff-2026-10-20/References/Original-Game-Concept.md",
+    "sha256": "ac72b843fa6d07437785d81235945fe9798989697c5b39844b1f20522ce71842",
+    "content": "unabridged_byte_identical"
+  },
+  "excluded": [
+    "personal saves",
+    "signing keys and credentials",
+    "reference APK binaries",
+    "dependency caches",
+    "full source checkout",
+    "raw REA AOT/string data"
+  ],
+  "local_optional_evidence": [
+    "Artifacts/REA/evidence/",
+    "Artifacts/REA/analysis/",
+    "Artifacts/REA/acquisition-2026-10-20/"
+  ],
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "bytes": 6201,
+      "sha256": "b38fd09fc65cafa89eb8974667d682a2b178263a96de942fc382b103d2550cf5",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Artifacts/Phone-UI-Reference/01-current-screen.png",
+      "bytes": 548461,
+      "sha256": "70b3525f0981de57697c299e40ff1479389693ba1639325fdbc00b2c18194ff4",
+      "kind": "phone_visual_reference_only"
+    },
+    {
+      "path": "Artifacts/Phone-UI-Reference/02-market.png",
+      "bytes": 588033,
+      "sha256": "bb2ede07f495fd8d448a68ba951d04a42a14ffcce6a384a23d9ff97fcd9baaf2",
+      "kind": "phone_visual_reference_only"
+    },
+    {
+      "path": "Artifacts/Phone-UI-Reference/03-stock-detail.png",
+      "bytes": 209532,
+      "sha256": "f5a5fecb13efb9f53014a6f5ffc90512bbac443802f0e054fb1aba9547616590",
+      "kind": "phone_visual_reference_only"
+    },
+    {
+      "path": "Artifacts/Phone-UI-Reference/04-stock-candles.png",
+      "bytes": 183203,
+      "sha256": "38674e18783254b712210ef32963c16bbeaa1279f24cad29e77a4b72d0c8558c",
+      "kind": "phone_visual_reference_only"
+    },
+    {
+      "path": "Artifacts/Phone-UI-Reference/05-stock-detail-lower.png",
+      "bytes": 228530,
+      "sha256": "a0161c17386380266d5549c2d9531b05ae519760f1ebe67ecc571283db223656",
+      "kind": "phone_visual_reference_only"
+    },
+    {
+      "path": "Artifacts/Phone-UI-Reference/06-stock-order-form.png",
+      "bytes": 244602,
+      "sha256": "dbae910f55b8d6f9c39d5c04571062e27c165ee69815b21e36c733dedde5cf6b",
+      "kind": "phone_visual_reference_only"
+    },
+    {
+      "path": "Artifacts/Phone-UI-Reference/07-portfolio.png",
+      "bytes": 599703,
+      "sha256": "d65391f0afd7fe50f06f8401a1629d71ba03578ff3c007b480d2e228fe31ee84",
+      "kind": "phone_visual_reference_only"
+    },
+    {
+      "path": "Artifacts/Phone-UI-Reference/08-current-confirm.png",
+      "bytes": 509802,
+      "sha256": "3f82b0aaba75a9ed4ef6e0c623de51be70f6ec68af25867c38ae39329d6eb0ff",
+      "kind": "phone_visual_reference_only"
+    },
+    {
+      "path": "Artifacts/Phone-UI-Reference/09-home-return.png",
+      "bytes": 845155,
+      "sha256": "56231cf1ae6089851e4b751a020e95317e0063293aafa385a98d5a072c2c38fc",
+      "kind": "phone_visual_reference_only"
+    },
+    {
+      "path": "Artifacts/Phone-UI-Reference/10-missions.png",
+      "bytes": 958714,
+      "sha256": "375b87a4e47f5893e314033a5a7e3119ad2dbcde982a854eb3f66d9bace2d25e",
+      "kind": "phone_visual_reference_only"
+    },
+    {
+      "path": "Artifacts/Phone-UI-Reference/11-missions-view.png",
+      "bytes": 768477,
+      "sha256": "ac3dac936ad078a5f20d08aed86f08f97ac60762d40e33376104425bcbdbcd3f",
+      "kind": "phone_visual_reference_only"
+    },
+    {
+      "path": "Artifacts/Phone-UI-Reference/12-home-achievements-entry.png",
+      "bytes": 959412,
+      "sha256": "aacebe6f8bb2b22d6675036f0e1d7b9657a6055c0ec3cea123e7ed2d80851c9d",
+      "kind": "phone_visual_reference_only"
+    },
+    {
+      "path": "Artifacts/Phone-UI-Reference/13-achievements.png",
+      "bytes": 1059289,
+      "sha256": "72f72d66a268e562d79f0b04c84130bc7d8bf9cdd03ab075cb2b864348d31883",
+      "kind": "phone_visual_reference_only"
+    },
+    {
+      "path": "Artifacts/Phone-UI-Reference/14-home-final.png",
+      "bytes": 1314367,
+      "sha256": "df2d8995bb4e978bd2cba717319c4d2d0d5ed8bc384693fd2d81a1e5dbd2a85b",
+      "kind": "phone_visual_reference_only"
+    },
+    {
+      "path": "Artifacts/REA/verification.json",
+      "bytes": 246,
+      "sha256": "1aeaf4cab79b20a8992efe68fae377efdd878937076412caa53fa653e3dc03e5",
+      "kind": "historical_report_not_final_runtime_proof"
+    },
+    {
+      "path": "Artifacts/UI-Refresh-2026-10-20/UiQaDomainServer.java",
+      "bytes": 9282,
+      "sha256": "d1b332b41866d3542e97d5d87f5cc588360df4cd4464ae7a9cd06653a18f3602",
+      "kind": "existing_isolated_QA_helper_not_Android"
+    },
+    {
+      "path": "Artifacts/UI-Refresh-2026-10-20/bridge-init.js",
+      "bytes": 2050,
+      "sha256": "1855e37323a3f365e6b414dff13617888a95cbb5b7ce06a43e549387ca4e242d",
+      "kind": "existing_isolated_QA_helper_not_Android"
+    },
+    {
+      "path": "Artifacts/UI-Refresh-2026-10-20/start_qa.py",
+      "bytes": 1199,
+      "sha256": "faa32832f7fda2d09295a065335df5a203cb86b57c4442fb5a5691b854b0702c",
+      "kind": "existing_isolated_QA_helper_not_Android"
+    },
+    {
+      "path": "Artifacts/UI-Refresh-2026-10-20/verification.json",
+      "bytes": 12367,
+      "sha256": "8fdb7eff4045777232389624331dee5ba7bc7330a1834d8a276baaf786d9df99",
+      "kind": "historical_report_not_final_runtime_proof"
+    },
+    {
+      "path": "Docs/Design/03-Design-Brief-Game-Saham-2D-Portrait.md",
+      "bytes": 58101,
+      "sha256": "77499fc529d4e58907c5411073a72d52a0025e11c6bcca5c24a355f1eec9e284",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Docs/Design/DESIGN-CHECK.md",
+      "bytes": 4523,
+      "sha256": "4393fecbd34782978c7627f9c392e7f9846a6e3c5cb0c556bb87b13a38c57ac7",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Docs/HANDOFF-CHECK.md",
+      "bytes": 1062,
+      "sha256": "61a6af2961e99cdf3b7a40b070ad11d8f87c40e0edde375a1a55429546bb4558",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Docs/Product/01-Konsep-Game-2D-Portrait.md",
+      "bytes": 4993,
+      "sha256": "05b2f0e137a6bcd18f6a729ea0565b1884a2119ced7c82bc25ce822046e4c2d4",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Docs/Product/02-PRD-Game-Saham-2D-Portrait.md",
+      "bytes": 53276,
+      "sha256": "abe13db83f2f2757697c81a316ad8c8d7b8cdd4204e9305bd25fa6478bba9115",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Prompts/Hermes-Final-UI-Gameplay-Multi-Agent-2026-10-20.md",
+      "bytes": 64476,
+      "sha256": "864ad0bf573796b25b8a05cf79a3457aef8f3b0e3740c997583d6bf093d7899a",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/00-preflight-dan-keputusan/TASK.md",
+      "bytes": 2020,
+      "sha256": "3d4554691ad2883710b252adf3f4bf9068d9a061414cced9ad6440236d38c279",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/01-domain-akun-waktu-save/TASK.md",
+      "bytes": 1613,
+      "sha256": "258ce90424878a8d4f7ec9493108f4fb9fb03222536ccdc8c79de20d1869f83f",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/02-data-katalog-indeks/TASK.md",
+      "bytes": 1712,
+      "sha256": "85b281aa6c792eabef3e98eb4b9f0ac3317a91a33bd246484b118e63fd6e8b15",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/03-pasar-npc-order-halt/TASK.md",
+      "bytes": 1674,
+      "sha256": "3c5c1a4144def47ac2e02bce20b9cd390b3b2c071b9cb44ae0a60d13ef1c1c50",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/04-ux-portrait-dan-host-android/TASK.md",
+      "bytes": 2112,
+      "sha256": "46faa06ce5a4a0e9b51ad80650d9f756dad34066df931941d0df8c22304ee0df",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/05-trading-portofolio-fx/TASK.md",
+      "bytes": 1633,
+      "sha256": "738443ff1bbcb540e015aefa61a64573c7797c62992e3ea4294bdf5d40fd1524",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/06-karier-siklus-hari-lifecycle/TASK.md",
+      "bytes": 1616,
+      "sha256": "05735e00c6d5a628ad74cb90cf88159f3ebcebf1b20d78095bae2e83f096123a",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/07-firma-klien-mandat-fee/TASK.md",
+      "bytes": 1528,
+      "sha256": "27b75eed4f3a0e2424f1cc9b82d898c5405677b3cd8b2bb288a6223b9aa5eac0",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/08-berita-riset-kalender-terminal/TASK.md",
+      "bytes": 1634,
+      "sha256": "90d4cd85fdc9ad7aa7a2194d27dfea0804d54c5f751582ce61ee9d61269e9fec",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/09-multi-aset-fund-builder/TASK.md",
+      "bytes": 1587,
+      "sha256": "627c45d1603a7bc4830523b922256e7573f3a5cf69dc1366f155dd3c2f26576e",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/10-aksi-korporasi-ipo-ma-voting/TASK.md",
+      "bytes": 1604,
+      "sha256": "8b3610bcd057387eacd23b8677a19814f79fa3b3cfcb11f12d9933b0aa345758",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/11-risiko-margin-short-compliance/TASK.md",
+      "bytes": 1616,
+      "sha256": "f9cb84335c85b75136c9e8008119881dba27b45a67b84196a8ca77dca11c0e18",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/12-replay-historis-lab-stress/TASK.md",
+      "bytes": 1803,
+      "sha256": "9b6ccf934c2d421942de3da9e5ef036841dfb93145ecac83dd69cfe277974269",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/13-qa-performa-apk-rilis/TASK.md",
+      "bytes": 2374,
+      "sha256": "cfb80fa589452dd28d3ec169d32595a7ee36076667a63faa7e17dc650fa26464",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/ACCEPTANCE.md",
+      "bytes": 6814,
+      "sha256": "926096653572b259d3eaf770dc1975a5996de7c9b06a16fe3585685d9c00f083",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/AUDIT-INTEGRASI-GRAPHITE.md",
+      "bytes": 13019,
+      "sha256": "5b27f666efbdc1a87aa072fe187a6060ee5a37f9955fe462ac83f8d7220f9b5b",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/CAREER-ACCESS-CHECKPOINT.md",
+      "bytes": 3895,
+      "sha256": "191e3e1bbe278142320484d8e47281948e2cf02c31c9cc8264983aabb1fef6bb",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/DECISIONS.md",
+      "bytes": 18569,
+      "sha256": "d5d558fe918f00992cdc9d79835ec416bf2eb0755864a6c7499e0a4fb17bcb26",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/HANDOFF-NEXT-SESSION.md",
+      "bytes": 6154,
+      "sha256": "b40fae0119acf41f059042706b4a39c7c5af9de8f7dfc8eb23f007536b65b53c",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/Hermes-Handoff-2026-10-20/FEATURE-ACCEPTANCE.csv",
+      "bytes": 187564,
+      "sha256": "68d1224acfad35c16c1ae4932ca03dc1474967cedb42db219d8681845ed4898c",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/Hermes-Handoff-2026-10-20/OWNER-DECISIONS.json",
+      "bytes": 5863,
+      "sha256": "dc273449387ddfef52cefbba504c57c61c12cb3764a32a6a0cd548dc22d720a7",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/Hermes-Handoff-2026-10-20/PHASE-QUALITY-STANDARDS.md",
+      "bytes": 21444,
+      "sha256": "355a14240dad0ecc62113b25761eb02977c00361baf70b3e07c63908020e1314",
+      "kind": "owner_confirmed_phase_quality_specification_not_runtime_proof"
+    },
+    {
+      "path": "Work/Hermes-Handoff-2026-10-20/README.md",
+      "bytes": 8214,
+      "sha256": "27473d3a722f0a48f6b024284b4b75b8b3510b9409841d169004d1717eb4ade1",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/Hermes-Handoff-2026-10-20/REVIEW-AND-REGRESSION.md",
+      "bytes": 13095,
+      "sha256": "28b108b77ebdcbb941df01b8fa0bda1fadec4ab2d6295099792499bfd27eeab1",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/Hermes-Handoff-2026-10-20/References/Original-Game-Concept.md",
+      "bytes": 38391,
+      "sha256": "ac72b843fa6d07437785d81235945fe9798989697c5b39844b1f20522ce71842",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/Hermes-Handoff-2026-10-20/TIME-ACCEPTANCE.csv",
+      "bytes": 5118,
+      "sha256": "702a2664056ef4d2a424e33aafb146e2d4b12ca5f428651dca9e010c16b84732",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/Hermes-Handoff-2026-10-20/verify_materials.py",
+      "bytes": 5976,
+      "sha256": "a0718d6a9a38c6c0879cfd12e33e8c9f7e511c27e186b5d16729d80a83b8852f",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/LAPORAN-PROGRES-REMEDIASI.md",
+      "bytes": 21284,
+      "sha256": "b5b4cba5363d1bb9b71d38bf941a2cf453e83d395804d210b8ba4095065a0245",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/OWNER-AUDIT-2026-10-19.md",
+      "bytes": 10377,
+      "sha256": "5a2bb719ba3564fbbcb058c2613290e817e8ea2b6c02daeae612ed720d363e4e",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/OWNER-UI-LOGIC-MATRIX.csv",
+      "bytes": 8094,
+      "sha256": "c0013543d4619016a82b26f41284a50f1ebbd78baf02eef398a3f515d8c9b5d2",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/PHONE-UI-REFERENCE.md",
+      "bytes": 8712,
+      "sha256": "40c5a1388e352ca77cd2e4bb70c8a0f7c3abb4806187a9da576f4dfb719f85dd",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/PORTRAIT-UI-CHECKPOINT-2026-10-20.md",
+      "bytes": 6831,
+      "sha256": "f6d41c18288e5b95fcb90645dd1a4cc5fa6b54516c7f7a63b785142590a00d42",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/REA-APK-ANALYSIS.md",
+      "bytes": 11834,
+      "sha256": "939236cdfd3c19e2ee768fc15e056b73a81b9740fc1ee144b235efac4b0af4c7",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/REA-FEATURE-MAP.csv",
+      "bytes": 6226,
+      "sha256": "ac17a859a95f68dbc1087eaac0720ac0d4900c1359ea85aaf18c8b5f63662d8f",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/README.md",
+      "bytes": 4794,
+      "sha256": "8d311e7c7589d8f30884cd4d6bcb2de4e960291872bdba0f87db0151d80f8f29",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/REMEDIATION-HANDOFF.md",
+      "bytes": 5829,
+      "sha256": "b999ffc2b255d53c07566dc3e9e8092b4d3c4e14ed1be55042ff51d2b792fd60",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/REMEDIATION-STATUS.json",
+      "bytes": 6533,
+      "sha256": "20f6796781937367d11f8b9963adb8ec9f54836ed9259bd2f147c6b1c48a6967",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/REQUIREMENTS.csv",
+      "bytes": 67605,
+      "sha256": "c9afd2e486544d41fecaae68ff4560ebb4d323fd5b9182eceacf8fa6be62a879",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/SCREEN-COVERAGE.csv",
+      "bytes": 5153,
+      "sha256": "326d93c415dc3b7755a74de9445dfa7988e21cb443778bff2395ffebcbcdff1a",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/STATUS.json",
+      "bytes": 11910,
+      "sha256": "6ac19629344cdbbabc4cffb1ec82ecb2ef9be255f4eef185a1c47715674966c4",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/verify-portrait-flows.py",
+      "bytes": 6176,
+      "sha256": "6469225be24c02435639d81ff5cd7ae4767bfbc34c63d836344ddc1d03b99d69",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/verify-portrait-ui.py",
+      "bytes": 12438,
+      "sha256": "9e4cc984fe1a96900af35bf0d4b982cdd55e850267b9774c90cde330ba821201",
+      "kind": "specification_or_handoff_material"
+    },
+    {
+      "path": "Work/verify-rea-evidence.py",
+      "bytes": 3125,
+      "sha256": "10e7bb5cf42f29f439de0cb31408baa8109530b56a47141ceceb1fed7e91f0b6",
+      "kind": "specification_or_handoff_material"
+    }
+  ]
+}

@@ -10,16 +10,25 @@ import java.util.Objects;
  * Mengontrol tanggal bursa, waktu sesi (WIB / UTC+7), percepatan, dan pause.
  */
 public final class GameClock {
+    public static final long FOREGROUND_GAME_SECONDS_PER_REAL_SECOND = 288L;
+    public static final long INACTIVE_GAME_SECONDS_PER_REAL_SECOND = 24L;
+    public static final long SECONDS_PER_GAME_DAY = 86400L;
+    public static final long MS_PER_GAME_DAY = 86400000L;
+
     private LocalDate currentDate;
     private LocalTime currentTime;
     private boolean isPaused;
     private int speedMultiplier; // 1, 2, 5
+    private int gameMsRemainder; // 0 - 999 ms game tersisa
+    private boolean isForeground = true;
 
     public GameClock(LocalDate startDate, LocalTime startTime) {
         this.currentDate = Objects.requireNonNull(startDate);
         this.currentTime = Objects.requireNonNull(startTime);
         this.isPaused = true;
         this.speedMultiplier = 1;
+        this.gameMsRemainder = 0;
+        this.isForeground = true;
     }
 
     public static GameClock createDefault() {
@@ -30,6 +39,15 @@ public final class GameClock {
     public LocalTime getCurrentTime() { return currentTime; }
     public boolean isPaused() { return isPaused; }
     public int getSpeedMultiplier() { return speedMultiplier; }
+    public int getGameMsRemainder() { return gameMsRemainder; }
+    public boolean isForeground() { return isForeground; }
+
+    public void setGameMsRemainder(int remainder) {
+        if (remainder < 0 || remainder >= 1000) throw new IllegalArgumentException("Remainder harus 0..999");
+        this.gameMsRemainder = remainder;
+    }
+
+    public void setForeground(boolean foreground) { this.isForeground = foreground; }
 
     public void play() { this.isPaused = false; }
     public void pause() { this.isPaused = true; }
@@ -39,6 +57,34 @@ public final class GameClock {
             throw new IllegalArgumentException("Kecepatan waktu yang didukung hanya 1x, 2x, atau 5x");
         }
         this.speedMultiplier = multiplier;
+    }
+
+    /**
+     * Konversi eksak real millisecond ke game millisecond sesuai kontrak TIME-ACCEPTANCE.
+     * Foreground 1x: 288 game ms / real ms.
+     * Foreground 2x: 576 game ms / real ms.
+     * Foreground 5x: 1440 game ms / real ms.
+     * Inactive (background / ditutup): 24 game ms / real ms (mengabaikan speedMultiplier).
+     */
+    public static long convertRealMsToGameMs(long realMs, boolean foreground, int speedMultiplier) {
+        if (realMs < 0) throw new IllegalArgumentException("Waktu tidak boleh negatif");
+        long rate = foreground ? (FOREGROUND_GAME_SECONDS_PER_REAL_SECOND * (long) speedMultiplier)
+                               : INACTIVE_GAME_SECONDS_PER_REAL_SECOND;
+        return Math.multiplyExact(realMs, rate);
+    }
+
+    /**
+     * Akumulasi real milliseconds dengan preservasi pecahan game ms (remainder).
+     * Mengembalikan jumlah detik game penuh yang siap dimajukan.
+     */
+    public synchronized long advanceRealMs(long realMs, boolean foreground) {
+        if (realMs < 0) throw new IllegalArgumentException("Waktu tidak boleh negatif");
+        if (foreground && isPaused) return 0;
+        long gameMs = convertRealMsToGameMs(realMs, foreground, speedMultiplier);
+        long totalGameMs = Math.addExact(gameMs, (long) gameMsRemainder);
+        long gameSeconds = totalGameMs / 1000L;
+        this.gameMsRemainder = (int) (totalGameMs % 1000L);
+        return gameSeconds;
     }
 
     /**

@@ -96,9 +96,9 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
-        // Pause waktu game saat aplikasi di-background (anti ghost draining - FR-01.08, FR-19.08)
-        if (facade != null && facade.getClock() != null) {
-            facade.getClock().pause();
+        // Rekonsiliasi transisi lifecycle ke background pada rasio tidak aktif 24x (1 jam nyata = 1 hari game)
+        if (facade != null) {
+            facade.onAppLifecycleChanged(false);
             try {
                 facade.save();
                 saveFailed = false;
@@ -112,6 +112,9 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        if (facade != null) {
+            facade.onAppLifecycleChanged(true);
+        }
         showSaveFailure();
     }
 

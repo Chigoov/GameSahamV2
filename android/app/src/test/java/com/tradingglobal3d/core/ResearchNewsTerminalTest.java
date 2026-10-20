@@ -56,7 +56,7 @@ public class ResearchNewsTerminalTest {
     @Test
     public void testAntiFutureLeakOnNewsFeed() {
         ResearchService service = facade.getResearchService();
-        long now = System.currentTimeMillis();
+        long now = facade.getClock().getGameTimestamp();
 
         // Ambil berita pada waktu sekarang
         List<NewsArticle> published = service.getPublishedNews(now);

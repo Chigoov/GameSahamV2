@@ -1,5 +1,7 @@
 # Gate penerimaan Game Saham 2D Portrait
 
+Tambahan acceptance pemilik terbaru: [standar kualitas seluruh 14 fase](Hermes-Handoff-2026-10-20/PHASE-QUALITY-STANDARDS.md). Nol bug terbuka diketahui termasuk minor; seluruh UI/state/viewport/teks 200%; minimal 10×100 aksi fase kritis; P95 aksi lokal ≤300 ms, navigasi ≤1 detik, feedback berat ≤300 ms dengan UI responsif; review berbeda setiap fase bila tersedia. Hasil di bawah standar wajib diperbaiki/diuji ulang, bukan diberi PASS. Batas penyerahan APK+logika/browser dengan native ditangguhkan mengikuti prompt master; gate Android penuh tidak menjadi PASS dari dokumen ini.
+
 Checkpoint terbaru: [UI portrait 20 Oktober](PORTRAIT-UI-CHECKPOINT-2026-10-20.md). 158 tes JVM dan tiga runner browser PASS; APK kandidat terbaru sudah build/signature/7 aset exact. Seluruh gate tetap PARTIAL/BLOCKED sesuai cakupan produk; hasil runtime Android belum ada. Angka/lokasi lama di tabel dipertahankan sebagai riwayat, bukan metadata APK terbaru.
 
 Status awal seluruh gate: NOT_TESTED. Dokumen bukan bukti runtime. Perbarui status beserta path bukti, lingkungan, metode, build/source revision dan batas hasil.
@@ -21,7 +23,7 @@ Status awal seluruh gate: NOT_TESTED. Dokumen bukan bukti runtime. Perbarui stat
 - Semua 20 FR adalah scope rilis pertama. Work/REQUIREMENTS.csv merinci butir bernomor, kriteria penerimaan dan syarat lintas fitur; tambahkan bila audit menemukan butir belum terpetakan, jangan menghapusnya demi PASS.
 - Work/SCREEN-COVERAGE.csv memetakan 26 layar konsep ke FR; halaman boleh digabung tanpa menghilangkan fungsi.
 - Screenshot tidak membuktikan transaksi; static test tidak membuktikan bridge/native; APK tidak membuktikan terpasang atau nyaman di HP.
-- Tidak ada blocker kritis/mayor uang/order/save dan tidak ada OQ material belum selesai untuk scope yang dinyatakan complete.
+- Nol bug terbuka yang diketahui termasuk minor pada scope penyerahan, seluruh gerbang fase lulus, dan tidak ada blocker fitur wajib atau keputusan material belum selesai untuk scope yang dinyatakan complete.
 - OQ-18 masih menentukan batas penerimaan perangkat pemilik. Bukti fisik belum tersedia harus dinyatakan pending; jangan menyebut device-tested tanpa pengujian.
 - Tidak ada target MB/RAM/FPS yang ditetapkan diam-diam. Catat hasil aktual dan ambang yang disepakati. Angka perangkat 3D lama bukan syarat produk baru.
 - Sediakan panduan pemain singkat, catatan batas data, known issues dan pemulihan save bersama APK.

@@ -15,8 +15,16 @@ public enum LedgerEntryType {
     SALARY("Gaji / Tunjangan Analis"),
     MISSION_REWARD("Imbalan Misi"),
     BAILOUT("Dana Hibah / Pemulihan Modal"),
+    DEBT_RESTRUCTURING("Restrukturisasi Utang Margin"),
     LOAN_DISBURSEMENT("Pencairan Pinjaman Margin"),
-    LOAN_REPAYMENT("Pelunasan Pinjaman Margin");
+    LOAN_REPAYMENT("Pelunasan Pinjaman Margin"),
+    COMPANY_CAPITAL_INJECTION("Penyertaan Modal Perusahaan"),
+    COMPANY_CAPITAL_WITHDRAWAL("Penarikan Modal Perusahaan"),
+    COMPANY_PAYROLL("Pembayaran Gaji Pegawai"),
+    COMPANY_REVENUE("Pendapatan Operasional Perusahaan"),
+    COLLECTION_PURCHASE("Pembelian Barang Koleksi"),
+    COLLECTION_SALE("Penjualan Barang Koleksi"),
+    COLLECTION_MAINTENANCE("Biaya Pemeliharaan Koleksi");
 
     private final String description;
 

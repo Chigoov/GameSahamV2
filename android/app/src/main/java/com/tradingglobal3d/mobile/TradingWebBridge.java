@@ -441,6 +441,129 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String restructureDebt(String currencyStr) {
+        try {
+            Currency cur = Currency.valueOf(currencyStr);
+            return facade.restructureDebt(cur).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String getCompanies() {
+        try {
+            JSONArray arr = facade.getCompanyManager().exportState();
+            return new JSONObject().put("success", true).put("companies", arr).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String foundCompany(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            String id = req.getString("id");
+            String name = req.getString("name");
+            String sector = req.getString("sector");
+            Money capital = new Money(new BigDecimal(req.getString("capital")), Currency.IDR);
+            var comp = facade.foundCompany(id, name, sector, capital);
+            return new JSONObject().put("success", true).put("company", comp.toJsonObject()).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String transferCompanyCapital(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            String compId = req.getString("companyId");
+            boolean toCompany = req.getBoolean("toCompany");
+            Money amount = new Money(new BigDecimal(req.getString("amount")), Currency.IDR);
+            facade.transferCompanyCapital(compId, toCompany, amount);
+            return new JSONObject().put("success", true).put("message", "Transfer modal berhasil").toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String setCompanyPolicy(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            String compId = req.getString("companyId");
+            int hours = req.getInt("workHours");
+            var tier = com.tradingglobal3d.core.business.OperatingCompany.BenefitTier.valueOf(req.getString("benefitTier"));
+            var comp = facade.getCompanyManager().getCompany(compId);
+            if (comp == null) throw new IllegalArgumentException("Perusahaan tidak ditemukan");
+            comp.setWorkPolicy(hours, tier);
+            return new JSONObject().put("success", true).put("company", comp.toJsonObject()).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String getCollections() {
+        try {
+            JSONArray arr = facade.getCollectionManager().exportState();
+            return new JSONObject().put("success", true).put("collections", arr).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String buyCollection(String itemId) {
+        try {
+            var item = facade.buyCollection(itemId);
+            return new JSONObject().put("success", true).put("item", item.toJsonObject()).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String sellCollection(String itemId) {
+        try {
+            var item = facade.sellCollection(itemId);
+            return new JSONObject().put("success", true).put("item", item.toJsonObject()).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String getLeaderboard() {
+        try {
+            return facade.getLeaderboard().toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String getPrestigeStatus() {
+        try {
+            return facade.getPrestigeStatus().toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
     public String openShortPosition(String jsonRequest) {
         try {
             JSONObject req = new JSONObject(jsonRequest);
@@ -916,6 +1039,23 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String onAppLifecycleChanged(boolean isForeground) {
+        try {
+            JSONObject res = facade.onAppLifecycleChanged(isForeground);
+            return res != null ? res.toString() : "{\"success\":true}";
+        } catch (Exception e) {
+            try { return new JSONObject().put("success", false).put("error", e.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String getOfflineCatchupReport() {
+        JSONObject r = facade.getLastOfflineCatchupReport();
+        return r != null ? r.toString() : "null";
+    }
+
+    @JavascriptInterface
     public String tickClock(int seconds) {
         try {
             facade.tick(seconds);
@@ -1070,10 +1210,16 @@ public final class TradingWebBridge {
             JSONObject cfg = jsonConfig != null && !jsonConfig.isEmpty() ? new JSONObject(jsonConfig) : new JSONObject();
             String modeStr = cfg.optString("mode", "INTERNAL_MARKET");
             com.tradingglobal3d.core.model.GameMode mode = com.tradingglobal3d.core.model.GameMode.valueOf(modeStr);
-            if (mode != com.tradingglobal3d.core.model.GameMode.INTERNAL_MARKET)
-                throw new IllegalStateException("Replay historis belum tersedia: dataset dan hak penggunaan belum terverifikasi");
             long capital = cfg.optLong("initialCapital", 50_000_000L);
             if (capital <= 0) capital = 50_000_000L;
+
+            if (mode == com.tradingglobal3d.core.model.GameMode.HISTORICAL_REPLAY) {
+                String datasetId = cfg.optString("datasetId", "IDX:BBCA");
+                JSONObject replayResult = facade.startHistoricalReplay(datasetId, BigDecimal.valueOf(capital));
+                facade.save();
+                return replayResult.toString();
+            }
+
             facade.initializeNewGame(mode, BigDecimal.valueOf(capital));
             facade.save();
             return new JSONObject().put("success", true)

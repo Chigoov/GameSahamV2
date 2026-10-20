@@ -1,5 +1,9 @@
 # Rencana kerja Hermes Game Saham 2D Portrait
 
+Tambahan terbaru: [paket penuntasan fitur referensi dan audit](Hermes-Feature-Completion-2026-10-20/README.md), [spesifikasi lengkap](Hermes-Feature-Completion-2026-10-20/SPECIFICATION.md), dan [prompt mulai Hermes](Hermes-Feature-Completion-2026-10-20/START-HERMES.md). Memuat lima jawaban terbaru pemilik, 26 kelompok referensi, temuan F1–F9, reksa dana unit/NAB, pinjaman tenor dan progres kalender game. Paket ini adalah spesifikasi/delta; bukan bukti implementasi atau PASS fase. Tidak menggantikan seluruh requirement/standar master.
+
+Mandat terkini: [prompt master](../Prompts/Hermes-Final-UI-Gameplay-Multi-Agent-2026-10-20.md), [paket bahan](Hermes-Handoff-2026-10-20/README.md) dan [standar kualitas seluruh 14 fase](Hermes-Handoff-2026-10-20/PHASE-QUALITY-STANDARDS.md). Baca sebelum melanjutkan; keputusan pemilik terbaru menggantikan rekomendasi engine/one-writer global/clock/approval/native gate historis yang bertentangan. Setiap fase wajib memenuhi seluruh kriteria dan nol bug diketahui termasuk minor, review/retest serta ambang performa yang telah disetujui. Source Java/WebView existing dilanjutkan; paket awal dan status awal di bawah adalah riwayat.
+
 Seluruh 14 paket wajib dituntaskan sesuai PRD. Repo disiapkan untuk implementasi baru; seluruh status awal PENDING. Kerjakan menurut dependensi, dengan satu writer dan checkpoint nyata.
 
 ## Urutan baca

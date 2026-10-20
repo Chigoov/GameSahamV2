@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "decision_date": "2026-10-20",
+  "timezone": "Asia/Jakarta",
+  "authority": "Direct owner answers in this conversation; latest inactive-time correction supersedes earlier policy",
+  "implementation_status": "SPECIFICATION_NOT_IMPLEMENTATION_EVIDENCE",
+  "production_root": "C:/Users/HYPE AMD/Downloads/VIBE CODING/GAME SAHAM",
+  "runtime": "Android Java + local HTML/CSS/JS WebView",
+  "application_id": "com.tradingglobal3d.mobile",
+  "ui": {
+    "orientation": "portrait",
+    "content_scroll": true,
+    "persistent_root_navigation": true,
+    "tabs": ["Beranda", "Pasar", "Portofolio", "Bisnis", "Lainnya"],
+    "visual_reference": "Phone app screenshots; production preview is an implementation baseline",
+    "palette": ["graphite", "amber", "teal"],
+    "wealth_top_right": true,
+    "research_default": "compact_with_expandable_details"
+  },
+  "clock": {
+    "seconds_per_game_day": 86400,
+    "foreground_real_seconds_per_game_day_at_1x": 300,
+    "foreground_game_seconds_per_real_second_at_1x": 288,
+    "foreground_speed_options": [1, 2, 5],
+    "inactive_real_seconds_per_game_day": 3600,
+    "inactive_game_seconds_per_real_second": 24,
+    "inactive_inherits_foreground_speed": false,
+    "lifecycle_background_auto_pause": false,
+    "inactive_duration_cap_authorized": false,
+    "skip_game_seconds": 86400,
+    "skip_requires_warning_and_confirmation": true,
+    "skip_stops_for_routine_decisions": false,
+    "offline_reconciliation": "Canonical Java domain; atomic anchors/event receipts; no silent truncation",
+    "manual_pause": "Hermes documents and tests explicit controls; lifecycle is never an implicit manual pause"
+  },
+  "progression": {
+    "active_session_target_minutes": [15, 30],
+    "guaranteed_trading_profit": false,
+    "game_has_ending": false,
+    "forced_bankruptcy_game_over": false,
+    "prestige_mandatory": false,
+    "prestige_requires_preview_backup_confirmation": true,
+    "feature_unlocks": "career",
+    "achievement_cash_rewards": false,
+    "recovery": ["earned_work_income", "debt_restructuring"],
+    "automatic_rescue_cash": false
+  },
+  "business_and_collection": {
+    "routine_operations": "automatic_following_player_policy",
+    "major_decisions": "manual",
+    "accounts": "personal, client, investment firm and operating company remain distinct",
+    "collections": "buy_sell_ownership_valuation_reasonable_costs_and_benefits"
+  },
+  "connectivity": {
+    "gameplay_offline": true,
+    "cloud_login": false,
+    "cloud_save": false,
+    "ads": false,
+    "online_player_leaderboard": false,
+    "leaderboard": "persistent_domain_based_NPC_competitors",
+    "npc_names": "fictional_by_default",
+    "leaderboard_simulation_label": false,
+    "real_person_names": "Consider later owner suggestions only as game NPC characters; no real account, wealth or endorsement claims"
+  },
+  "scope": {
+    "prd": "all FR-01 through FR-20 and subrequirements",
+    "reference_features": "all identified groups with evidence distinctions and documented offline adaptations",
+    "necessary_additions": true,
+    "historical_replay_required": true,
+    "real_dataset_rights_required": true,
+    "paid_services_authorized": false,
+    "owner_progress_must_be_preserved": true,
+    "destructive_tests_use_separate_saves": true
+  },
+  "execution": {
+    "multi_agent": "use_actual_capabilities_with_one_coordinator",
+    "multi_agent_preference": "AUTO_PREFER_WHEN_AVAILABLE",
+    "execution_modes": ["MULTI_AGENT", "LIMITED_MULTI_AGENT", "SINGLE_AGENT_FALLBACK_WITH_EVIDENCE"],
+    "suggested_max_workers_excluding_coordinator": 3,
+    "capability_detection_evidence_required": true,
+    "single_writer_per_file_and_shared_state": true,
+    "shared_QA_save_port_and_build_output_single_owner": true,
+    "worker_work_order_and_policy_context_required": true,
+    "coordinator_owns_integration_and_completion": true,
+    "autonomous_simulation_rule_decisions": true,
+    "implementation_test_review_fix_retest_loop": true,
+    "local_commits_allowed": true,
+    "push_or_publication_allowed": false,
+    "global_hermes_changes_allowed": false
+  },
+  "phase_quality": {
+    "required_phases": ["00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13"],
+    "all_applicable_mandatory_criteria_must_pass": true,
+    "known_open_bugs_allowed": {"critical": 0, "major": 0, "minor": 0},
+    "ui_all_screens_and_applicable_states": true,
+    "ui_viewports": [[320, 568], [360, 640], [390, 844], [412, 915], [430, 932], [768, 1024], [1440, 900]],
+    "ui_text_scales": [1, 2],
+    "critical_sequence_tests": {
+      "distinct_sequences_min": 10,
+      "meaningful_actions_per_sequence_min": 100,
+      "invariant_after_each_action": true,
+      "boundary_crash_and_save_failure_cases_required": true
+    },
+    "local_host_browser_performance": {
+      "ordinary_action_p95_ms_max": 300,
+      "navigation_ms_max": 1000,
+      "heavy_work_visible_feedback_ms_max": 300,
+      "heavy_work_must_not_freeze_UI": true,
+      "measurement_samples_per_action_min": 30,
+      "percentile_method": "nearest_rank_per_action",
+      "raw_samples_required": true,
+      "claims_native_performance": false
+    },
+    "different_reviewer_each_phase_when_available": true,
+    "all_valid_review_findings_must_close": true,
+    "coordinator_verifies_integrated_result": true,
+    "under_standard_action": "diagnose_fix_retest_review_without_lowering_thresholds",
+    "dependent_work_cannot_assume_failed_gate_passed": true,
+    "independent_work_may_continue": true,
+    "phase_gate_report_required": true
+  },
+  "handoff": {
+    "required": ["implemented_scope", "logic_tests", "browser_tests", "verified_APK", "evidence_and_known_limits"],
+    "installation_deferred": true,
+    "native_device_gates_without_execution": "NOT_TESTED",
+    "absolute_zero_bug_claim_allowed": false
+  }
+}

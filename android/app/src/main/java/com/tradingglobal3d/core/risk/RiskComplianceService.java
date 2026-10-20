@@ -186,6 +186,26 @@ public final class RiskComplianceService {
     }
 
     /**
+     * Restrukturisasi utang margin untuk pemulihan solvabilitas tanpa suntikan uang tunai.
+     */
+    public synchronized Money restructureDebt(Account account, Currency currency, long timestamp) {
+        Money currentDebt = getMarginDebt(account.getId(), currency);
+        if (currentDebt.isZero()) {
+            throw new IllegalStateException("Tidak ada utang margin untuk direstrukturisasi pada mata uang " + currency);
+        }
+        // Restrukturisasi memberikan keringanan 50% dari pokok utang
+        Money relief = currentDebt.multiply(new BigDecimal("0.50"));
+        setMarginDebt(account.getId(), currentDebt.subtract(relief));
+        auditLogs.add(new ComplianceAuditLog(
+                "LOG-RESTRUCTURE-" + System.nanoTime(), timestamp, account.getId(),
+                ComplianceAuditLog.AuditCategory.MARGIN_LOAN,
+                "Restrukturisasi utang margin " + currency + ": keringanan " + relief,
+                "Penyelesaian utang tanpa suntikan uang otomatis"
+        ));
+        return relief;
+    }
+
+    /**
      * Membuka posisi Short Selling dengan meminjam saham.
      * Hasil penjualan short ditahan sebagai jaminan (Collateral Locked) (FR-15.05).
      * Memeriksa ketersediaan saham pinjaman pada lender pool (Shared Liquidity).

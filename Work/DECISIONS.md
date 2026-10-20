@@ -1,5 +1,22 @@
 # Keputusan dan pertanyaan terbuka
 
+## Keputusan pemilik terbaru — 20 Oktober 2026, mandat final Hermes
+
+**Lima jawaban quality gate terkonfirmasi:** seluruh layar/state pada semua viewport dan teks 200%; nol bug terbuka diketahui termasuk minor per fase; minimal 10 variasi × 100 aksi pada uang/order/waktu/save dengan invariant tiap langkah serta fault; P95 aksi host/browser ≤300 ms, navigasi ≤1 detik, feedback berat ≤300 ms dan UI tidak membeku; review berbeda setiap fase bila tersedia serta verifikasi integrasi koordinator. Seluruh 14 fase memiliki standar rinci di [PHASE-QUALITY-STANDARDS.md](Hermes-Handoff-2026-10-20/PHASE-QUALITY-STANDARDS.md). Ini acceptance pekerjaan, belum bukti implementasi/tes lulus.
+
+**CONFIRMED melalui tujuh jawaban awal dan sepuluh konfirmasi tambahan pemilik.** Sumber operasional lengkap: [mandat final UI/gameplay/multi-agent](../Prompts/Hermes-Final-UI-Gameplay-Multi-Agent-2026-10-20.md), termasuk tabel seluruh 10 konfirmasi. Keputusan terbaru menggantikan rekomendasi historis yang bertentangan di bawah; ini spesifikasi pekerjaan berikutnya, bukan bukti source sudah menerapkannya.
+
+**Koreksi waktu terakhir pemilik:** foreground aktif 1× tetap 1 hari game = 5 menit nyata; saat background/ditutup **1 hari game = 1 jam nyata**. Offline 12 kali lebih lambat, tidak mewarisi speed foreground 2×/5×. Contoh 8 jam tidak aktif = 8 hari game; contoh 96 hari pada kebijakan offline lama sudah tidak berlaku. Bahan lengkap, matriks utuh dan expected test ada di [paket handoff](Hermes-Handoff-2026-10-20/README.md). Penyiapan bahan bukan implementasi runtime atau kelulusan tes game.
+
+- Tetap portrait dengan UI/layout acuan HP, isi scroll dan nav tetap. Lima root: Beranda, Pasar, Portofolio, Bisnis, Lainnya. Terminal ringkas dengan detail/grafik yang bisa diperluas.
+- Game offline tanpa login/cloud/iklan. Leaderboard memakai NPC bernama fiktif tanpa label "simulasi". Perubahan label khusus leaderboard, bukan pencabutan aturan provenance data pasar/replay.
+- Progress seimbang per sesi aktif 15–30 menit; perusahaan/pegawai otomatis sesuai kebijakan pemain dan keputusan besar manual. Koleksi bisa dibeli/dijual dengan valuasi serta biaya/manfaat wajar.
+- Aktif: 24 jam game = 5 menit nyata pada 1×. **Waktu/ekonomi terus berjalan lebih lambat saat background atau ditutup: 24 jam game = 1 jam nyata**, termasuk biaya dan risiko; implementasikan rekonsiliasi offline domain, bukan auto-pause. Tanpa batas durasi offline tersembunyi dan tanpa pengali speed foreground pada offline. Skip menampilkan peringatan sebelum konfirmasi, lalu memproses penuh 24 jam dan laporan. OQ-06/rekomendasi pause lama harus diselaraskan dengan keputusan ini.
+- Tidak ada tamat atau game over paksa. Pemulihan melalui pekerjaan/restrukturisasi utang, tanpa dana otomatis. Prestige opsional, bukan kewajiban/reset otomatis; pembaruan konten berkala tidak berarti membuat scheduler/publikasi otomatis. OQ-10/rekomendasi dana magang otomatis lama harus diselaraskan.
+- Scope seluruh fitur referensi teridentifikasi + PRD/dokumen lama + penambahan yang diperlukan. Replay historis nyata wajib berfungsi dengan sumber dan hak terverifikasi, tanpa layanan berbayar baru. Hermes boleh menetapkan/menguji aturan ekonomi rutin yang belum diputuskan; hal ini tidak membuktikan hak dataset atau mengizinkan penghapusan requirement.
+- Multi-agent sesuai kemampuan aktual dengan satu koordinator dan satu writer per file/shared state. Commit lokal diizinkan; tanpa push/publikasi. Progres pribadi, app ID/signing wajib dijaga; semua tes destruktif pada save terpisah.
+- Penyerahan ini APK terbangun + tes logika/browser lulus. Instalasi/native/perangkat ditangguhkan dengan status NOT_TESTED; tidak memalsukan gate produk penuh. Rincian acceptance penyerahan di mandat. Perubahan keputusan bukan kelulusan 14 paket secara otomatis.
+
 Keputusan terkonfirmasi: trading + karier sama penting; semua fitur lama wajib; perusahaan nyata dengan pasar internal + replay historis; 2D portrait tanpa nuansa 3D; hasil akhir APK.
 
 Semua OQ di bawah berstatus OPEN saat paket disiapkan. PRD lengkap tetap sumber requirement. Menyetujui mulai coding tidak menetapkan jawaban angka ekonomi, sumber data, fidelity replay, target perangkat, atau gate distribusi.
@@ -34,7 +51,7 @@ Tambahkan tanggal, ID OQ/ADR bila relevan, status PROPOSED/CONFIRMED, pemberi ke
 
 ## Triage Rekomendasi Teknis untuk Keputusan Terbuka (OQ-01 s/d OQ-20)
 
-Status seluruh OQ di bawah tetap **OPEN** untuk konfirmasi final pemilik. Rekomendasi di bawah berfungsi sebagai baseline implementasi default agar pengerjaan independen dapat berjalan tanpa terhambat:
+Tabel berikut mencatat rekomendasi saat paket awal disiapkan; status OPEN historis tidak membatalkan keputusan pemilik terbaru di bagian atas. Hermes sudah diberi wewenang menetapkan aturan simulasi yang belum diputuskan, mendokumentasikan dan mengujinya. Hak data pihak ketiga tetap membutuhkan verifikasi sumber, bukan keputusan sepihak. Baris yang telah dipastikan pemilik diselaraskan secara eksplisit di bawah:
 
 | ID | Status Pemilik | Rekomendasi Default Sementara untuk Pengerjaan Independen |
 |---|---|---|
@@ -43,7 +60,7 @@ Status seluruh OQ di bawah tetap **OPEN** untuk konfirmasi final pemilik. Rekome
 | OQ-03 | OPEN | Replay historis: jalur harga data nyata deterministik; order pemain dieksekusi via model likuiditas volume bar. |
 | OQ-04 | OPEN | Dataset historis: Daily OHLCV nyata publik berlisensi terbuka; antrean direkonstruksi via model likuiditas berlabel. |
 | OQ-05 | OPEN | Dataset dibundel lokal di dalam aset aplikasi (`assets/data/`) agar 100% offline ready tanpa download. |
-| OQ-06 | OPEN | Waktu game diskrit per sesi (Sesi 1, Istirahat, Sesi 2); kontrol Play/Pause/Speed; saat background/tutup otomatis pause. |
+| OQ-06 | CONFIRMED_OWNER | Aktif 1x: 1 hari game = 5 menit nyata; speed 2x/5x foreground. Background/ditutup: 1 hari game = 1 jam nyata, tanpa speed foreground dan tanpa auto-pause; catch-up domain idempotent. |
 | OQ-07 | OPEN | Modal awal Rp 50.000.000 & $0 USD; fee transaksi 0,15% beli, 0,25% jual; spread FX 0,5%; settlement T+0 simulasi. |
 | OQ-08 | OPEN | Order: Market, Limit, Stop-Loss, Take-Profit; masa berlaku Day Order; antrean halt masuk call auction pembukaan. |
 | OQ-09 | OPEN | 4 tipe NPC: Market Maker (likuiditas), Value Investor, Momentum Trader, Retail Noise. Keputusan per tick pasar. |
@@ -57,7 +74,7 @@ Status seluruh OQ di bawah tetap **OPEN** untuk konfirmasi final pemilik. Rekome
 | OQ-17 | OPEN | Format save modern v2 JSON atomic; converter kompatibilitas jika ditemukan format legacy. |
 | OQ-18 | OPEN | Gate APK standalone lulus di CI/host; status pengujian fisik tetap PENDING hingga ada perangkat adb tersambung. |
 | OQ-19 | OPEN | Dual mode: Mode Karier (progresi bertahap) dan Mode Lab Strategi (sandbox bebas instrumen terbuka). |
-| OQ-20 | OPEN | 5 menu root portrait (Beranda, Pasar, Aset, Firma, Riset), palet Deep Navy/Teal/Amber, target sentuh >= 48dp. |
+| OQ-20 | CONFIRMED_OWNER | Portrait acuan HP, isi scroll/nav tetap; Beranda, Pasar, Portofolio, Bisnis, Lainnya. Graphite/amber/teal, token bersama; target sentuh/native tetap perlu verifikasi yang sesuai. |
 
 ## Daftar keputusan dari PRD
 
@@ -94,7 +111,7 @@ Pertanyaan berikut adalah daftar keputusan yang masih terbuka. Jawaban tidak dii
 ## Keputusan pemilik yang dipakai pada audit 19 Oktober 2026
 
 - UI akhir kembali portrait; palet graphite + amber + teal. V8 menjadi referensi presentasi, belum integrasi produksi penuh.
-- Normal: 24 jam game = 5 menit nyata (288 detik game/detik nyata). Kontrol 1x/2x/5x existing dipertahankan. Skip = maju tepat 24 jam dengan proses dunia game dan receipt idempoten. Background memakai kebijakan pause existing, tanpa offline catch-up.
+- Historis pada checkpoint ini: normal 24 jam game = 5 menit nyata (288 detik game/detik nyata), kontrol 1x/2x/5x dan Skip 24 jam dengan receipt. Kebijakan background pause/tanpa catch-up yang berlaku saat itu **diganti keputusan 20 Oktober**: 1 hari game = 1 jam nyata saat tidak aktif, lihat mandat terbaru di atas.
 - Level/XP dan badge tidak memberi uang; pembukaan fitur mengikuti karier. Enforcemen domain seluruh fitur masih gap audit.
 - Indeks simulasi dari saham tersedia diterima, dengan label serta anggota transparan; tidak menyatakan indeks resmi/semua pasar dunia sudah didukung.
 - Agen lain dinyatakan tidak bekerja. Owner mengizinkan audit + perbaikan source + uji ulang.

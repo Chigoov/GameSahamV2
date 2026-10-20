@@ -124,6 +124,16 @@ public final class CareerManager {
     }
     public int getDaysTraded() { return daysTraded; }
     public int getReputationScore() { return reputationScore; }
+
+    public synchronized void penalizeReputation(int points) {
+        if (points < 0) throw new IllegalArgumentException("Poin penalti tidak boleh negatif");
+        this.reputationScore = Math.max(5, this.reputationScore - points);
+    }
+
+    public synchronized void boostReputation(int points) {
+        if (points < 0) throw new IllegalArgumentException("Poin bonus tidak boleh negatif");
+        this.reputationScore = Math.min(100, this.reputationScore + points);
+    }
     public boolean isBailoutUsed() { return bailoutUsed; }
     public List<CareerMission> getAllMissions() { return new ArrayList<>(missions.values()); }
     public List<DailySessionReport> getSessionReports() { return Collections.unmodifiableList(sessionReports); }

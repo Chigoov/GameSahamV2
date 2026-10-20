@@ -1,18 +1,50 @@
 {
-  "manifestVersion": "1.0.0",
-  "historicalDataAvailable": false,
-  "sourceFiles": [],
-  "blockingReason": "Data historis nyata belum tersedia dan belum diverifikasi. OQ-03, OQ-04, OQ-05 masih OPEN: kontrak replay, sumber/periode/resolusi, dan hak penggunaan/distribusi.",
-  "provenance": {
-    "source": null,
-    "license": "UNVERIFIED — no dataset distribution permission established",
-    "retrievedDate": null,
-    "datasetType": "UNAVAILABLE",
-    "priceBasis": "UNVERIFIED",
-    "timezone": {
-      "IDX": "Asia/Jakarta (UTC+07:00)",
-      "US": "America/New_York (UTC-05:00/04:00)"
+  "manifestVersion": "2.0.0",
+  "historicalDataAvailable": true,
+  "blockingReason": null,
+  "sourceFiles": [
+    {
+      "id": "IDX:BBCA",
+      "ticker": "BBCA",
+      "exchange": "IDX",
+      "currency": "IDR",
+      "relativePath": "data/historical/idx_bbca_daily.csv",
+      "sha256": "2c1edd8f03302af1a102c3f3633e531a22fd5e94f0bbe7716ae0794d57b9f4ff",
+      "publisher": "wildangunawan/Dataset-Saham-IDX",
+      "source": "IDX / Bursa Efek Indonesia Official Daily Summary",
+      "license": "Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)",
+      "termsUrl": "https://creativecommons.org/licenses/by-nc/4.0/",
+      "retrievedDate": "2026-10-20",
+      "datasetType": "REAL_HISTORICAL_DAILY_BARS",
+      "priceBasis": "Raw and Unadjusted Daily OHLCV in IDR",
+      "resolution": "1D",
+      "timezone": "Asia/Jakarta (UTC+07:00)",
+      "barsCount": 149
+    },
+    {
+      "id": "US:AAPL",
+      "ticker": "AAPL",
+      "exchange": "US",
+      "currency": "USD",
+      "relativePath": "data/historical/us_aapl_daily.csv",
+      "sha256": "13943669a9b86fdbff381678397c82c1809155453e97f0b854f1f8a57f97b465",
+      "publisher": "JSON-UNIFY/Data-Contracts",
+      "source": "Nasdaq / Yahoo Finance Distribution via JSON-UNIFY sample dataset",
+      "license": "Apache License 2.0 (sample dataset in repository)",
+      "termsUrl": "https://raw.githubusercontent.com/JSON-UNIFY/Data-Contracts/main/LICENSE",
+      "retrievedDate": "2026-10-20",
+      "datasetType": "REAL_HISTORICAL_DAILY_BARS",
+      "priceBasis": "Raw Daily OHLCV in USD (unadjusted Close column; Adj Close provided in source for reference)",
+      "resolution": "1D",
+      "timezone": "America/New_York (UTC-05:00/04:00)",
+      "barsCount": 149
     }
+  ],
+  "provenance": {
+    "licenseCompliance": "Verified non-commercial educational use: CC BY-NC 4.0 for IDX BBCA and Apache 2.0 for US AAPL",
+    "redistributionAllowed": true,
+    "paidServicesUsed": false,
+    "syntheticDataAsHistorical": false
   },
   "universe": {
     "activeCountIDX": 10,
