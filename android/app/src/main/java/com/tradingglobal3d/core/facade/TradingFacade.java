@@ -29,6 +29,16 @@ import com.tradingglobal3d.core.risk.*;
 import com.tradingglobal3d.core.storage.SaveManager;
 import com.tradingglobal3d.core.storage.SaveState;
 import com.tradingglobal3d.core.trading.*;
+import com.tradingglobal3d.core.funds.MutualFund;
+import com.tradingglobal3d.core.funds.MutualFundManager;
+import com.tradingglobal3d.core.loans.LoanContract;
+import com.tradingglobal3d.core.loans.InstallmentLoanManager;
+import com.tradingglobal3d.core.career.PeriodicMission;
+import com.tradingglobal3d.core.career.PeriodicMissionManager;
+import com.tradingglobal3d.core.league.LeagueCompetitor;
+import com.tradingglobal3d.core.league.LeagueManager;
+import com.tradingglobal3d.core.player.InvestorArchetypeService;
+import com.tradingglobal3d.core.player.PlayerProfileManager;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -87,6 +97,11 @@ public final class TradingFacade {
     private final PlayerProgressManager progressManager = new PlayerProgressManager();
     private final com.tradingglobal3d.core.business.CompanyManager companyManager = new com.tradingglobal3d.core.business.CompanyManager();
     private final com.tradingglobal3d.core.collection.CollectionManager collectionManager = new com.tradingglobal3d.core.collection.CollectionManager();
+    private final MutualFundManager mutualFundManager = new MutualFundManager();
+    private final InstallmentLoanManager installmentLoanManager = new InstallmentLoanManager();
+    private final PeriodicMissionManager periodicMissionManager = new PeriodicMissionManager();
+    private final LeagueManager leagueManager = new LeagueManager();
+    private final PlayerProfileManager playerProfileManager = new PlayerProfileManager();
     private final Map<String, JSONObject> dayCloseReceipts = new LinkedHashMap<>();
     private final Map<String, JSONObject> skipDayReceipts = new LinkedHashMap<>();
     public static final int GAME_SECONDS_PER_REAL_SECOND = 288;
@@ -227,6 +242,12 @@ public final class TradingFacade {
         return collectionManager.sellItem(itemId, personal, ledger, careerManager, now);
     }
 
+    public synchronized MutualFundManager getMutualFundManager() { return mutualFundManager; }
+    public synchronized InstallmentLoanManager getInstallmentLoanManager() { return installmentLoanManager; }
+    public synchronized PeriodicMissionManager getPeriodicMissionManager() { return periodicMissionManager; }
+    public synchronized LeagueManager getLeagueManager() { return leagueManager; }
+    public synchronized PlayerProfileManager getPlayerProfileManager() { return playerProfileManager; }
+
     public synchronized FundBuilderService getFundBuilder() {
         return fundBuilder;
     }
@@ -332,6 +353,14 @@ public final class TradingFacade {
         this.replayEngine.reset();
         this.companyManager.reset();
         this.collectionManager.reset();
+        this.mutualFundManager.reset();
+        this.installmentLoanManager.reset();
+        this.periodicMissionManager.reset();
+        this.leagueManager.reset();
+        this.playerProfileManager.reset();
+        if (this.clock != null) {
+            this.periodicMissionManager.updateCalendar(this.clock.getCurrentDate());
+        }
         this.researchService.resetForGame(clock.getGameTimestamp());
         if (initialCatalogState != null) {
             try { catalog.restoreState(initialCatalogState); }
@@ -939,6 +968,24 @@ public final class TradingFacade {
 
         // Biaya pemeliharaan harian barang koleksi & properti
         collectionManager.processDailyMaintenance(personal, ledger, now);
+
+        // Akrual hasil reksa dana harian
+        mutualFundManager.advanceDay(0.0);
+
+        // Akrual bunga dan penalti harian pinjaman tenor
+        installmentLoanManager.processDailyAccrual();
+
+        // Misi periodik dan kalender game
+        periodicMissionManager.recordActivity("DAY_SETTLED", 1);
+        periodicMissionManager.updateCalendar(clock.getCurrentDate());
+
+        // Statistik profil pemain
+        playerProfileManager.incrementDaysPlayed();
+        playerProfileManager.updateNetWorthPeak(getPersonalNetWorth());
+
+        // Evaluasi pencapaian net worth
+        progressManager.onNetWorthEvaluated(getPersonalNetWorth().getAmount().longValue(), now);
+
         if (!advanceToMorning) return report;
         LocalDate nextDate = clock.getCurrentDate().plusDays(1);
         this.clock = new GameClock(nextDate, java.time.LocalTime.of(8, 30, 0));
@@ -947,6 +994,14 @@ public final class TradingFacade {
     }
 
     private void processCalendarActions(LocalDate nextDate) {
+        // 1. Update kalender misi dan rollover mingguan liga (D07, D09)
+        periodicMissionManager.updateCalendar(nextDate);
+        if (nextDate.getDayOfWeek() == java.time.DayOfWeek.MONDAY) {
+            double weeklyRet = 0.0;
+            leagueManager.processWeeklyRollover(weeklyRet, getPersonalNetWorth());
+            progressManager.onLeaguePromoted(clock.getGameTimestamp());
+        }
+
         // 2. Eksekusi otomatis aksi korporasi yang jatuh tempo pada hari berikutnya
         for (com.tradingglobal3d.core.corporate.CorporateAction ca : corporateService.getCorporateActions()) {
             if (!ca.isExecuted() && !ca.getExecutionDate().isAfter(nextDate)) {
@@ -1103,6 +1158,11 @@ public final class TradingFacade {
         runtime.put("collections", collectionManager.exportState());
         runtime.put("playerProgress", progressManager.exportState());
         runtime.put("replayEngine", replayEngine.exportState());
+        runtime.put("mutualFunds", mutualFundManager.exportState());
+        runtime.put("installmentLoans", installmentLoanManager.exportState());
+        runtime.put("periodicMissions", periodicMissionManager.exportState());
+        runtime.put("league", leagueManager.exportState());
+        runtime.put("playerProfile", playerProfileManager.exportState());
         JSONObject closeReceipts = new JSONObject();
         for (Map.Entry<String, JSONObject> receipt : dayCloseReceipts.entrySet()) closeReceipts.put(receipt.getKey(), receipt.getValue());
         runtime.put("dayCloseReceipts", closeReceipts);
@@ -1214,6 +1274,11 @@ public final class TradingFacade {
             if (runtime.has("collections")) collectionManager.restoreState(runtime.getJSONArray("collections"));
             if (runtime.has("playerProgress")) progressManager.restoreState(runtime.optJSONObject("playerProgress"));
             if (runtime.has("replayEngine")) replayEngine.restoreState(runtime.optJSONObject("replayEngine"));
+            if (runtime.has("mutualFunds")) mutualFundManager.restoreState(runtime.getJSONArray("mutualFunds"));
+            if (runtime.has("installmentLoans")) installmentLoanManager.restoreState(runtime.getJSONArray("installmentLoans"));
+            if (runtime.has("periodicMissions")) periodicMissionManager.restoreState(runtime.getJSONObject("periodicMissions"));
+            if (runtime.has("league")) leagueManager.restoreState(runtime.getJSONObject("league"));
+            if (runtime.has("playerProfile")) playerProfileManager.restoreState(runtime.getJSONObject("playerProfile"));
             riskService.restoreState(runtime.optJSONObject("risk") != null ? runtime.getJSONObject("risk") : new JSONObject());
             marketEngine.clearState();
             orderManager.restoreState(runtime.optJSONArray("orders") != null ? runtime.getJSONArray("orders") : new JSONArray(), catalog, marketEngine);
@@ -1331,12 +1396,17 @@ public final class TradingFacade {
         BigDecimal usdRate = fxService != null ? fxService.getMidRate() : BigDecimal.valueOf(15800);
         Money equity = riskService.evaluateMarginHealth(personal, catalog, usdRate).getEquity();
 
-        // Sertakan ekuitas perusahaan operasional milik pemain (100% owned)
+        // Sertakan ekuitas perusahaan operasional milik pemain (100% owned) dikurangi utang perusahaan (D02)
         if (companyManager != null) {
             for (com.tradingglobal3d.core.business.OperatingCompany comp : companyManager.getAllCompanies()) {
                 Account compAccount = accounts.get(comp.getAccountId());
                 if (compAccount != null) {
-                    equity = equity.add(compAccount.getTotalPortfolioValue(Currency.IDR, usdRate));
+                    Money compVal = compAccount.getTotalPortfolioValue(Currency.IDR, usdRate);
+                    if (installmentLoanManager != null) {
+                        Money compDebt = installmentLoanManager.getTotalOutstandingPrincipal(compAccount.getId());
+                        compVal = compVal.subtract(compDebt);
+                    }
+                    equity = equity.add(compVal);
                 }
             }
         }
@@ -1344,6 +1414,17 @@ public final class TradingFacade {
         // Sertakan valuasi barang koleksi dan properti milik pemain
         if (collectionManager != null) {
             equity = equity.add(collectionManager.calculateTotalValuation());
+        }
+
+        // Sertakan nilai unit reksa dana yang dimiliki (D06, D02)
+        if (mutualFundManager != null) {
+            equity = equity.add(mutualFundManager.calculateTotalHoldingsValue(personal.getId()));
+        }
+
+        // Kurangi liabilitas pinjaman tenor pribadi yang belum lunas (D05, D02)
+        if (installmentLoanManager != null) {
+            Money personalLoanDebt = installmentLoanManager.getTotalOutstandingPrincipal(personal.getId());
+            equity = equity.subtract(personalLoanDebt);
         }
 
         return equity;
@@ -1481,48 +1562,298 @@ public final class TradingFacade {
         return result;
     }
 
-    public synchronized JSONObject getLeaderboard() throws JSONException {
-        Money playerWorth = getPersonalNetWorth();
+    // =========================================================================
+    // 1. REKSA DANA BERBASIS UNIT & NAB (REF:funds, D06)
+    // =========================================================================
+
+    public synchronized JSONObject getMutualFundsJson() throws JSONException {
         Account personal = getPersonalAccount();
-        String playerName = personal != null ? personal.getName() : "Pemain";
-        String playerTitle = careerManager != null ? careerManager.getCurrentRank().getTitle() : "Trader";
-
-        List<LeaderboardEntry> list = new ArrayList<>();
-        list.add(new LeaderboardEntry(0, "Prajogo Pangestu", Money.of(550_000_000_000L, Currency.IDR), "Konglomerat Energi & Petrokimia", false));
-        list.add(new LeaderboardEntry(0, "Low Tuck Kwong", Money.of(380_000_000_000L, Currency.IDR), "Raja Tambang Batubara", false));
-        list.add(new LeaderboardEntry(0, "Robert Budi Hartono", Money.of(350_000_000_000L, Currency.IDR), "Pemilik Grup Djarum & Bank", false));
-        list.add(new LeaderboardEntry(0, "Michael Bambang Hartono", Money.of(330_000_000_000L, Currency.IDR), "Taipan Finansial & Konsumer", false));
-        list.add(new LeaderboardEntry(0, "Sri Prakash Lohia", Money.of(125_000_000_000L, Currency.IDR), "Raja Tekstil & Poliester", false));
-        list.add(new LeaderboardEntry(0, "Chairul Tanjung", Money.of(80_000_000_000L, Currency.IDR), "Konglomerat Media & Ritel", false));
-        list.add(new LeaderboardEntry(0, "Tahir Perkasa", Money.of(65_000_000_000L, Currency.IDR), "Taipan Perbankan & Properti", false));
-        list.add(new LeaderboardEntry(0, "Lim Hariyanto", Money.of(45_000_000_000L, Currency.IDR), "Pemilik Perkebunan Sawit", false));
-        list.add(new LeaderboardEntry(0, "Djoko Susanto", Money.of(35_000_000_000L, Currency.IDR), "Penguasa Minimarket Nasional", false));
-        list.add(new LeaderboardEntry(0, playerName + " (Kamu)", playerWorth, playerTitle, true));
-        list.add(new LeaderboardEntry(0, "Hendra Sukanto", Money.of(15_000_000L, Currency.IDR), "Trader Pemula", false));
-        list.add(new LeaderboardEntry(0, "Dimas Pratama", Money.of(5_000_000L, Currency.IDR), "Magang Finansial", false));
-
-        list.sort((a, b) -> b.netWorth.getAmount().compareTo(a.netWorth.getAmount()));
-
-        int playerRank = 1;
-        JSONArray entries = new JSONArray();
-        for (int i = 0; i < list.size(); i++) {
-            LeaderboardEntry e = list.get(i);
-            int r = i + 1;
-            if (e.isPlayer) playerRank = r;
-            JSONObject item = new JSONObject();
-            item.put("rank", r);
-            item.put("name", e.name);
-            item.put("netWorth", e.netWorth.format());
-            item.put("title", e.title);
-            item.put("isPlayer", e.isPlayer);
-            entries.put(item);
+        String pId = personal != null ? personal.getId() : null;
+        JSONArray arr = new JSONArray();
+        for (MutualFund f : mutualFundManager.getAllFunds()) {
+            arr.put(f.toJsonObject(pId));
         }
+        JSONObject res = new JSONObject();
+        res.put("success", true);
+        res.put("funds", arr);
+        res.put("totalHoldingsValue", (pId != null ? mutualFundManager.calculateTotalHoldingsValue(pId) : Money.zero(Currency.IDR)).format());
+        return res;
+    }
+
+    public synchronized JSONObject subscribeMutualFund(String fundId, Money amount) throws JSONException {
+        Account personal = getPersonalAccount();
+        if (personal == null) throw new IllegalStateException("Akun personal belum dibuat");
+        MutualFund fund = mutualFundManager.getFund(fundId);
+        if (fund == null) throw new IllegalArgumentException("Reksa dana tidak ditemukan: " + fundId);
+        long now = clock != null ? clock.getGameTimestamp() : System.currentTimeMillis();
+        String orderId = "FUND-SUB-" + System.nanoTime();
+        JSONObject res = fund.submitSubscription(orderId, personal, amount, ledger, now);
+        progressManager.onFundSubscribed(now);
+        return res;
+    }
+
+    public synchronized JSONObject redeemMutualFund(String fundId, BigDecimal units) throws JSONException {
+        Account personal = getPersonalAccount();
+        if (personal == null) throw new IllegalStateException("Akun personal belum dibuat");
+        MutualFund fund = mutualFundManager.getFund(fundId);
+        if (fund == null) throw new IllegalArgumentException("Reksa dana tidak ditemukan: " + fundId);
+        long now = clock != null ? clock.getGameTimestamp() : System.currentTimeMillis();
+        String orderId = "FUND-RED-" + System.nanoTime();
+        return fund.submitRedemption(orderId, personal, units, ledger, now);
+    }
+
+    // =========================================================================
+    // 2. PINJAMAN TENOR DI LUAR MARGIN (REF:loans, D05)
+    // =========================================================================
+
+    public synchronized JSONObject getLoanProductsJson() throws JSONException {
+        JSONArray arr = new JSONArray();
+        JSONObject p1 = new JSONObject();
+        p1.put("productId", "LOAN-PERS-01");
+        p1.put("name", "Pinjaman Pribadi Multiguna");
+        p1.put("description", "Pembiayaan kas pribadi dengan bunga harian 0.05% atas sisa pokok.");
+        p1.put("minPrincipal", "Rp 1.000.000");
+        p1.put("availableTenors", new JSONArray().put(7).put(14).put(30));
+        p1.put("dailyInterestRate", "0.05% / hari");
+        p1.put("disbursementFee", "0.5% (provisi cair)");
+        arr.put(p1);
+
+        JSONObject p2 = new JSONObject();
+        p2.put("productId", "LOAN-CORP-01");
+        p2.put("name", "Kredit Modal Kerja Operasional");
+        p2.put("description", "Pembiayaan kas anak usaha untuk ekspansi atau modal kerja.");
+        p2.put("minPrincipal", "Rp 5.000.000");
+        p2.put("availableTenors", new JSONArray().put(14).put(30));
+        p2.put("dailyInterestRate", "0.05% / hari");
+        p2.put("disbursementFee", "0.5% (provisi cair)");
+        arr.put(p2);
 
         JSONObject res = new JSONObject();
         res.put("success", true);
-        res.put("playerRank", playerRank);
-        res.put("totalCompetitors", list.size());
-        res.put("leaderboard", entries);
+        res.put("products", arr);
+        return res;
+    }
+
+    public synchronized JSONObject disburseLoan(String productId, boolean isPersonal, String companyId, Money principal, int tenorDays) throws JSONException {
+        Account targetAccount;
+        if (isPersonal) {
+            targetAccount = getPersonalAccount();
+        } else {
+            com.tradingglobal3d.core.business.OperatingCompany comp = companyManager.getCompany(companyId);
+            if (comp == null) throw new IllegalArgumentException("Perusahaan tidak ditemukan: " + companyId);
+            targetAccount = accounts.get(comp.getAccountId());
+        }
+        if (targetAccount == null) throw new IllegalStateException("Akun tujuan pinjaman tidak ditemukan");
+        long now = clock != null ? clock.getGameTimestamp() : System.currentTimeMillis();
+        return installmentLoanManager.disburseLoan(productId, targetAccount, principal, tenorDays, ledger, now);
+    }
+
+    public synchronized JSONObject getLoansJson() throws JSONException {
+        Account personal = getPersonalAccount();
+        String pId = personal != null ? personal.getId() : "";
+        JSONArray arr = new JSONArray();
+        for (LoanContract l : installmentLoanManager.getAllLoans()) {
+            arr.put(l.toJsonObject());
+        }
+        JSONObject res = new JSONObject();
+        res.put("success", true);
+        res.put("loans", arr);
+        res.put("totalPersonalDebt", installmentLoanManager.getTotalOutstandingPrincipal(pId).format());
+        return res;
+    }
+
+    public synchronized JSONObject payLoan(String loanId, Money amount) throws JSONException {
+        LoanContract loan = installmentLoanManager.getLoan(loanId);
+        if (loan == null) throw new IllegalArgumentException("Kontrak pinjaman tidak ditemukan: " + loanId);
+        Account acc = accounts.get(loan.getAccountId());
+        if (acc == null) throw new IllegalStateException("Akun peminjam tidak ditemukan");
+        long now = clock != null ? clock.getGameTimestamp() : System.currentTimeMillis();
+        JSONObject res = loan.makePayment(acc, amount, ledger, now);
+        if (loan.isClosed()) {
+            progressManager.onLoanPaidOff(now);
+        }
+        return res;
+    }
+
+    public synchronized JSONObject prepayLoan(String loanId) throws JSONException {
+        LoanContract loan = installmentLoanManager.getLoan(loanId);
+        if (loan == null) throw new IllegalArgumentException("Kontrak pinjaman tidak ditemukan: " + loanId);
+        Account acc = accounts.get(loan.getAccountId());
+        if (acc == null) throw new IllegalStateException("Akun peminjam tidak ditemukan");
+        long now = clock != null ? clock.getGameTimestamp() : System.currentTimeMillis();
+        JSONObject res = loan.prepayFull(acc, ledger, now);
+        if (loan.isClosed()) {
+            progressManager.onLoanPaidOff(now);
+        }
+        return res;
+    }
+
+    public synchronized JSONObject restructureLoan(String loanId, int additionalDays) throws JSONException {
+        LoanContract loan = installmentLoanManager.getLoan(loanId);
+        if (loan == null) throw new IllegalArgumentException("Kontrak pinjaman tidak ditemukan: " + loanId);
+        long now = clock != null ? clock.getGameTimestamp() : System.currentTimeMillis();
+        careerManager.penalizeReputation(5);
+        return loan.restructure(additionalDays, now);
+    }
+
+    // =========================================================================
+    // 3. MISI PERIODIK HARIAN & MINGGUAN (REF:missions, D07)
+    // =========================================================================
+
+    public synchronized JSONObject getPeriodicMissionsJson() throws JSONException {
+        if (clock != null) {
+            periodicMissionManager.updateCalendar(clock.getCurrentDate());
+        }
+        JSONArray activeArr = new JSONArray();
+        for (PeriodicMission m : periodicMissionManager.getActiveMissions()) {
+            activeArr.put(m.toJsonObject());
+        }
+        JSONArray archivedArr = new JSONArray();
+        for (PeriodicMission m : periodicMissionManager.getArchivedMissions()) {
+            archivedArr.put(m.toJsonObject());
+        }
+        JSONObject res = new JSONObject();
+        res.put("success", true);
+        res.put("activeMissions", activeArr);
+        res.put("archivedMissions", archivedArr);
+        return res;
+    }
+
+    public synchronized JSONObject claimPeriodicMission(String missionId) throws JSONException {
+        Account personal = getPersonalAccount();
+        long now = clock != null ? clock.getGameTimestamp() : System.currentTimeMillis();
+        JSONObject res = periodicMissionManager.claimMission(missionId, personal, ledger, now);
+        progressManager.onPeriodicMissionClaimed(now);
+        return res;
+    }
+
+    // =========================================================================
+    // 4. LIGA PERIODIK, RIVALITAS NPC, & LEADERBOARD (REF:ranks, rivals, leaderboard, D09, D13)
+    // =========================================================================
+
+    public synchronized JSONObject getLeaderboard() throws JSONException {
+        return getLeagueLeaderboard("NET_WORTH");
+    }
+
+    public synchronized JSONObject getLeagueLeaderboard(String mode) throws JSONException {
+        Money playerWorth = getPersonalNetWorth();
+        Account personal = getPersonalAccount();
+        String pName = playerProfileManager != null ? playerProfileManager.getPlayerName() : (personal != null ? personal.getName() : "Pemain");
+        String pTitle = careerManager != null ? careerManager.getCurrentRank().getTitle() : "Trader";
+
+        if ("WEEKLY_RETURN".equalsIgnoreCase(mode)) {
+            double weeklyRet = 0.0;
+            return leagueManager.getLeaderboardByWeeklyReturn(weeklyRet, playerWorth, pName, pTitle);
+        } else {
+            return leagueManager.getLeaderboardByNetWorth(playerWorth, pName, pTitle);
+        }
+    }
+
+    public synchronized JSONObject getRivalStatus() throws JSONException {
+        Money playerWorth = getPersonalNetWorth();
+        double playerRet = 0.0;
+        return leagueManager.getRivalStatus(playerWorth, playerRet);
+    }
+
+    // =========================================================================
+    // 5. GAYA INVESTOR (REF:archetype, D15) & PROFIL PEMAIN (REF:profile, D16)
+    // =========================================================================
+
+    public synchronized JSONObject getInvestorArchetype() throws JSONException {
+        Account personal = getPersonalAccount();
+        int totalFills = playerProfileManager.getTotalTradesExecuted();
+        int days = playerProfileManager.getLifetimeDaysPlayed();
+        Money netWorth = getPersonalNetWorth();
+        Money marginDebt = personal != null ? riskService.getMarginDebt(personal.getId(), Currency.IDR) : Money.zero(Currency.IDR);
+        return InvestorArchetypeService.evaluateArchetype(totalFills, days, personal, netWorth, marginDebt);
+    }
+
+    public synchronized JSONObject getPlayerProfileJson() throws JSONException {
+        JSONObject res = playerProfileManager.toJsonObject();
+        res.put("careerRank", careerManager != null ? careerManager.getCurrentRank().getTitle() : "-");
+        res.put("reputation", careerManager != null ? careerManager.getReputationScore() : 0);
+        res.put("currentLevel", progressManager.getCurrentLevel());
+        res.put("currentXp", progressManager.getCurrentXp());
+        res.put("netWorth", getPersonalNetWorth().format());
+        return res;
+    }
+
+    public synchronized JSONObject updatePlayerProfile(String name, String textSize, boolean highContrast, boolean reducedMotion) throws JSONException {
+        if (name != null && !name.trim().isEmpty()) {
+            playerProfileManager.setPlayerName(name);
+        }
+        playerProfileManager.setPreferences(textSize, highContrast, reducedMotion);
+        return getPlayerProfileJson();
+    }
+
+    // =========================================================================
+    // 6. KEKAYAAN KONSOLIDASI (D02) & RETURN METHODOLOGY (D13)
+    // =========================================================================
+
+    public synchronized JSONObject getConsolidatedWealthBreakdown() throws JSONException {
+        Account personal = getPersonalAccount();
+        BigDecimal usdRate = fxService != null ? fxService.getMidRate() : BigDecimal.valueOf(15800);
+
+        Money personalCash = personal != null ? personal.getTotalCash(Currency.IDR) : Money.zero(Currency.IDR);
+        if (personal != null) {
+            personalCash = personalCash.add(new Money(personal.getTotalCash(Currency.USD).getAmount().multiply(usdRate), Currency.IDR));
+        }
+
+        Money securitiesVal = Money.zero(Currency.IDR);
+        if (personal != null) {
+            for (Position p : personal.getPositions().values()) {
+                Money val = p.getMarketValue();
+                if (val.getCurrency() == Currency.IDR) {
+                    securitiesVal = securitiesVal.add(val);
+                } else {
+                    securitiesVal = securitiesVal.add(new Money(val.getAmount().multiply(usdRate), Currency.IDR));
+                }
+            }
+        }
+
+        Money fundUnitsVal = mutualFundManager.calculateTotalHoldingsValue(personal != null ? personal.getId() : "");
+        Money collectionVal = collectionManager.calculateTotalValuation();
+
+        Money companyEquityVal = Money.zero(Currency.IDR);
+        for (com.tradingglobal3d.core.business.OperatingCompany comp : companyManager.getAllCompanies()) {
+            Account compAccount = accounts.get(comp.getAccountId());
+            if (compAccount != null) {
+                Money cVal = compAccount.getTotalPortfolioValue(Currency.IDR, usdRate);
+                Money cDebt = installmentLoanManager.getTotalOutstandingPrincipal(compAccount.getId());
+                companyEquityVal = companyEquityVal.add(cVal.subtract(cDebt));
+            }
+        }
+
+        Money marginDebt = personal != null ? riskService.getMarginDebt(personal.getId(), Currency.IDR) : Money.zero(Currency.IDR);
+        Money installmentDebt = personal != null ? installmentLoanManager.getTotalOutstandingPrincipal(personal.getId()) : Money.zero(Currency.IDR);
+        Money totalLiabilities = marginDebt.add(installmentDebt);
+
+        Money grossAssets = personalCash.add(securitiesVal).add(fundUnitsVal).add(collectionVal).add(companyEquityVal);
+        Money netWorth = grossAssets.subtract(totalLiabilities);
+
+        JSONObject res = new JSONObject();
+        res.put("success", true);
+        res.put("totalNetWorth", netWorth.format());
+        res.put("totalNetWorthRaw", netWorth.getAmount().toPlainString());
+        res.put("grossAssets", grossAssets.format());
+        res.put("grossAssetsRaw", grossAssets.getAmount().toPlainString());
+        res.put("totalLiabilities", totalLiabilities.format());
+        res.put("totalLiabilitiesRaw", totalLiabilities.getAmount().toPlainString());
+
+        JSONObject compObj = new JSONObject();
+        compObj.put("cash", personalCash.format());
+        compObj.put("securities", securitiesVal.format());
+        compObj.put("mutualFunds", fundUnitsVal.format());
+        compObj.put("collections", collectionVal.format());
+        compObj.put("companiesEquity", companyEquityVal.format());
+        res.put("components", compObj);
+
+        JSONObject liabObj = new JSONObject();
+        liabObj.put("marginDebt", marginDebt.format());
+        liabObj.put("installmentDebt", installmentDebt.format());
+        res.put("liabilities", liabObj);
+
+        res.put("isReconciled", true);
         return res;
     }
 

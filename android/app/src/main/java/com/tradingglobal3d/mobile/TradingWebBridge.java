@@ -563,6 +563,224 @@ public final class TradingWebBridge {
         }
     }
 
+    // =========================================================================
+    // REKSA DANA BERBASIS UNIT & NAB (REF:funds, D06)
+    // =========================================================================
+
+    @JavascriptInterface
+    public String getMutualFunds() {
+        try {
+            return facade.getMutualFundsJson().toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String subscribeMutualFund(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            String fundId = req.getString("fundId");
+            Money amt = new Money(new BigDecimal(req.getString("amount")), Currency.IDR);
+            return facade.subscribeMutualFund(fundId, amt).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String redeemMutualFund(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            String fundId = req.getString("fundId");
+            BigDecimal units = new BigDecimal(req.getString("units"));
+            return facade.redeemMutualFund(fundId, units).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    // =========================================================================
+    // PINJAMAN TENOR DI LUAR MARGIN (REF:loans, D05)
+    // =========================================================================
+
+    @JavascriptInterface
+    public String getLoanProducts() {
+        try {
+            return facade.getLoanProductsJson().toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String disburseLoan(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            String productId = req.getString("productId");
+            boolean isPersonal = req.optBoolean("isPersonal", true);
+            String compId = req.optString("companyId", null);
+            Money principal = new Money(new BigDecimal(req.getString("principal")), Currency.IDR);
+            int tenor = req.getInt("tenorDays");
+            return facade.disburseLoan(productId, isPersonal, compId, principal, tenor).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String getLoans() {
+        try {
+            return facade.getLoansJson().toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String payLoan(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            String loanId = req.getString("loanId");
+            Money amt = new Money(new BigDecimal(req.getString("amount")), Currency.IDR);
+            return facade.payLoan(loanId, amt).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String prepayLoan(String loanId) {
+        try {
+            return facade.prepayLoan(loanId).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String restructureLoan(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            String loanId = req.getString("loanId");
+            int days = req.getInt("additionalDays");
+            return facade.restructureLoan(loanId, days).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    // =========================================================================
+    // MISI PERIODIK HARIAN & MINGGUAN (REF:missions, D07)
+    // =========================================================================
+
+    @JavascriptInterface
+    public String getPeriodicMissions() {
+        try {
+            return facade.getPeriodicMissionsJson().toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String claimPeriodicMission(String missionId) {
+        try {
+            return facade.claimPeriodicMission(missionId).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    // =========================================================================
+    // LIGA, RIVALITAS NPC, & LEADERBOARD (REF:ranks, rivals, leaderboard, D09, D13)
+    // =========================================================================
+
+    @JavascriptInterface
+    public String getLeagueLeaderboard(String mode) {
+        try {
+            return facade.getLeagueLeaderboard(mode).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String getRivalStatus() {
+        try {
+            return facade.getRivalStatus().toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    // =========================================================================
+    // GAYA INVESTOR (REF:archetype, D15) & PROFIL PEMAIN (REF:profile, D16)
+    // =========================================================================
+
+    @JavascriptInterface
+    public String getInvestorArchetype() {
+        try {
+            return facade.getInvestorArchetype().toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String getPlayerProfile() {
+        try {
+            return facade.getPlayerProfileJson().toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
+    public String updatePlayerProfile(String jsonRequest) {
+        try {
+            JSONObject req = new JSONObject(jsonRequest);
+            String name = req.optString("playerName", null);
+            JSONObject prefs = req.optJSONObject("preferences");
+            String textSize = prefs != null ? prefs.optString("textSize", "100%") : "100%";
+            boolean hc = prefs != null && prefs.optBoolean("highContrast", false);
+            boolean rm = prefs != null && prefs.optBoolean("reducedMotion", false);
+            return facade.updatePlayerProfile(name, textSize, hc, rm).toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    // =========================================================================
+    // KEKAYAAN KONSOLIDASI (REF:wealth, D02)
+    // =========================================================================
+
+    @JavascriptInterface
+    public String getConsolidatedWealth() {
+        try {
+            return facade.getConsolidatedWealthBreakdown().toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
     @JavascriptInterface
     public String openShortPosition(String jsonRequest) {
         try {

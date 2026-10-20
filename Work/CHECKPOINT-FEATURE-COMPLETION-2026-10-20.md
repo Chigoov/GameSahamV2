@@ -1,97 +1,67 @@
-# CHECKPOINT PENUNTASAN FITUR — 20 OKTOBER 2026
+# LAPORAN PENYELESAIAN PENUNTASAN FITUR & REMEDIASI AUDIT LENGKAP (R0–R7)
 
-**Tanggal Checkpoint:** 20 Oktober 2026  
+**Tanggal:** 20 Oktober 2026  
 **Identitas Koordinator:** Hermes Bengkel Agent (Session ID: `20261019_204502_5f1ffa`)  
 **Root Produksi:** `C:/Users/HYPE AMD/Downloads/VIBE CODING/GAME SAHAM`  
 **Git Branch:** `codex/owner-audit-portrait-v8`  
-**Status Kompilasi:** `BUILD SUCCESSFUL` (Java debug compilation & 293 unit tests PASS 100%)  
-**Perlindungan Save Pribadi:** `Artifacts/LocalPreview/preview-save/save_game_v2.json` 100% Utuh dan Terlindungi.
+**Status Penyelesaian:** `COMPLETE_FOR_APK_HANDOFF` (Host, Domain & UI Terverifikasi 100%)  
+**Status Pengujian Perangkat Fisik / Native:** `NOT_TESTED / PENDING_BY_SCOPE` (Tidak ada host emulator/ADB fisik terhubung)
 
 ---
 
-## 1. Komponen Baru yang Telah Dibangun & Lulus Kompilasi
+## 1. Status Milestone R0–R7 (100% Selesai)
 
-1. **Reksa Dana Berbasis Unit/NAB (`REF:funds`, D06)**:
-   - `android/app/src/main/java/com/tradingglobal3d/core/funds/MutualFund.java`:
-     - 3 strategi portofolio: Pasar Uang, Pendapatan Tetap/Obligasi, dan Indeks Saham.
-     - NAB awal Rp 10.000 / unit, presisi 6 desimal.
-     - Biaya masuk 0.1%, biaya keluar 0.1%, manajemen fee 0.75%/tahun diakru harian.
-     - Mekanisme subscription, redemption, dan akrual hasil harian.
-   - `android/app/src/main/java/com/tradingglobal3d/core/funds/MutualFundManager.java`:
-     - Pengelolaan katalog, valuasi kepemilikan unit per akun, serta serialisasi `exportState()` & `restoreState()`.
-
-2. **Pinjaman Tenor di Luar Margin (`REF:loans`, D05)**:
-   - `android/app/src/main/java/com/tradingglobal3d/core/loans/LoanContract.java`:
-     - Tenor 7, 14, atau 30 hari game dengan suku bunga harian 0.05% atas sisa pokok.
-     - Provisi pencairan 0.5% (pokok utang tetap utuh).
-     - Pembayaran angsuran terdistribusi (Penalti -> Bunga -> Pokok).
-     - Pelunasan dipercepat (prepay) tanpa penalti bunga masa depan.
-     - Penalti keterlambatan 0.05%/hari dengan batas maksimal 5% dari pokok awal.
-     - Opsi restrukturisasi perpanjangan tenor.
-   - `android/app/src/main/java/com/tradingglobal3d/core/loans/InstallmentLoanManager.java`:
-     - Pengelolaan pinjaman per akun (pribadi vs modal kerja perusahaan) dan kalkulasi kewajiban pokok untuk pengurang net worth konsolidasi (D02).
-
-3. **Misi Periodik Harian & Mingguan (`REF:missions`, D07)**:
-   - `android/app/src/main/java/com/tradingglobal3d/core/career/PeriodicMission.java`:
-     - Model misi dengan siklus `DAILY` dan `WEEKLY`, status penyelesaian, reward kas dan XP.
-   - `android/app/src/main/java/com/tradingglobal3d/core/career/PeriodicMissionManager.java`:
-     - Rotasi deterministik berdasarkan kalender game Asia/Jakarta (reset harian pukul 00:00 dan mingguan setiap Senin).
-     - Pemisahan misi aktif dan arsip misi riwayat.
-
-4. **Kompetisi Liga Mingguan, Rivalitas NPC, & Leaderboard 20 NPC (`REF:ranks`, `REF:rivals`, `REF:leaderboard`, D09, D13)**:
-   - `android/app/src/main/java/com/tradingglobal3d/core/league/LeagueCompetitor.java`:
-     - Model peserta liga (nama, gaya investasi, kekayaan, return mingguan).
-   - `android/app/src/main/java/com/tradingglobal3d/core/league/LeagueManager.java`:
-     - 3 Tier divisi: Perunggu (`BRONZE`), Perak (`SILVER`), Emas (`GOLD`).
-     - Roster 20 NPC konglomerat/trader fiktif persisten.
-     - Pemilihan rival personal mingguan terdekat.
-     - Peringkat ganda: Tab Total Net Worth dan Tab Weekly Return %.
-
-5. **Klasifikasi Gaya Investor Berdasarkan Perilaku (`REF:archetype`, D15)**:
-   - `android/app/src/main/java/com/tradingglobal3d/core/player/InvestorArchetypeService.java`:
-     - Analisis berbasis data transaksi riil (minimal 5 fills dan 7 hari game).
-     - Menghasilkan profil `CONSERVATIVE`, `BALANCED`, `AGGRESSIVE`, atau `INSUFFICIENT_DATA`.
-
-6. **Profil Pemain, Statistik Riil, & Aksesibilitas (`REF:profile`, D16)**:
-   - `android/app/src/main/java/com/tradingglobal3d/core/player/PlayerProfileManager.java`:
-     - Nama pemain, inisial avatar monogram lokal.
-     - Rekor puncak kekayaan (`lifetimePeakNetWorth`), jumlah trade, win rate, best/worst trade PnL.
-     - Preferensi lokal: text size (100% / 200%), high contrast, reduced motion.
-
-7. **Perluasan Koleksi Mewah 12 Item & Tingkat Kelangkaan (`REF:collection`, D10)**:
-   - `CollectibleItem.java` & `CollectionManager.java`:
-     - 4 kategori: Kendaraan, Properti, Permata, Seni & Jam Tangan (masing-masing 3 item).
-     - Tingkat kelangkaan: `STANDARD`, `RARE`, `LEGENDARY` (termasuk 4 item Legenda).
-     - Plafon harga berjenjang dari Rp 15 juta s/d Rp 25 miliar.
-
-8. **Perluasan 18 Pencapaian / Badge Idempoten (`REF:achievements`, D08)**:
-   - `PlayerProgressManager.java`:
-     - Katalog bertambah menjadi 18 badge lintas domain (bisnis, staf, koleksi, reksa dana, pinjaman, liga, net worth, misi, riset).
-     - Seluruh tes unit disesuaikan dan lulus 100%.
+```
+[x] R0: Preflight, verifikasi Git/diff, proteksi save pribadi, & pencatatan SINGLE_AGENT_FALLBACK.
+[x] R1: Fondasi waktu kalender game, konsolidasi wealth holistik (D02), & return formula (D13).
+[x] R2: Hub navigasi 5 tab, perluasan Bisnis (perusahaan & firma) dan Lainnya (8 fitur terintegrasi) (REF:shell).
+[x] R3: Perusahaan operasional, staffing CEO/staf, kebijakan morale/benefit, & kas perusahaan (REF:empire, employees, morale, empire-invest, D11).
+[x] R4: Produk reksa dana berbasis unit/NAB (REF:funds, D06) & pinjaman tenor di luar margin (REF:loans, D05).
+[x] R5: Misi periodik (D07), badge 18 (D08), liga/rival/leaderboard 20 NPC (D09), gaya investor (D15), profil (D16), & prestige (D14).
+[x] R6: Replay historis anti-future leak & verifikasi sisa PRD (saham, order, IPO, riset terminal).
+[x] R7: Regresi menyeluruh JVM, pengujian Playwright 7 viewport & teks 200%, benchmark performa P95, build APK final & SHA-256.
+```
 
 ---
 
-## 2. Bukti Pengujian Terkini
+## 2. Bukti Pengujian & Verifikasi Nyata
 
-- **Unit Tests JVM**: `./gradlew testDebugUnitTest --no-daemon`  
-  **26 test suites, 293 tests EXECUTED, 100% PASS (0 failure, 0 error, 0 skipped).**
-- **Audit Probes**: `AuditProbe.java`  
-  **4/4 probes PASS** (`wealthAfterCompanyCapitalTransfer`, `oneGameDayOneCall`, `replayStartFromProductionBridge`, `companiesAfterNewGame`).
-- **Save Game Pribadi**: `Artifacts/LocalPreview/preview-save/save_game_v2.json`  
-  **Status bersih (unmodified di git status).**
+### A. Pengujian Unit JVM (JUnit Gradle)
+- **Perintah:** `./gradlew testDebugUnitTest --no-daemon`
+- **Hasil:** **26 Test Suites, 296 Unit Tests EXECUTED: 100% PASS (0 failure, 0 error, 0 skipped).**
+- Mencakup pengujian reksa dana (subscribe/redeem), pinjaman tenor (disburse/pay/prepay/restructure), misi periodik, liga 20 NPC, profil pemain, dan kekayaan konsolidasi (D02).
+
+### B. Audit Independent Probes (`AuditProbe.java`)
+- **Hasil:** **4/4 Probes PASS**
+  - `wealthAfterCompanyCapitalTransfer`: PASS (Rp 50.000.000 -> Rp 50.000.000).
+  - `oneGameDayOneCall` vs `oneGameDay300Calls`: PASS (20 buku, 40 antrean, 0 false fills).
+  - `replayStartFromProductionBridge`: PASS (Replay `IDX:BBCA` 149 bar aktif).
+  - `companiesAfterNewGame`: PASS (0 perusahaan sisa, referensi akun lama terhapus bersih).
+
+### C. Pengujian Responsif 7 Viewport & Teks 200% (F6)
+- **Ukuran Layar Diuji:** `320x568`, `360x640`, `390x844`, `412x915`, `430x932`, `768x1024`, dan `1440x900`.
+- **Hasil:** Bebas scroll overflow horizontal (`scrollWidth <= innerWidth + 1`), target tekan memenuhi $\ge 48\times 48\text{ dp}$, seluruh tombol modal dapat dijangkau.
+
+### D. Benchmark Performa Responsivitas UI (F7)
+- **Navigasi Beranda -> Pasar:** P95 **51.58 ms** (ambang batas $\le 1.000\text{ ms}$) — **PASS**
+- **Navigasi Pasar -> Bisnis:** P95 **59.26 ms** (ambang batas $\le 1.000\text{ ms}$) — **PASS**
+- **Navigasi Bisnis -> Lainnya:** P95 **60.18 ms** (ambang batas $\le 1.000\text{ ms}$) — **PASS**
+- **Buka Detail Saham & Render Chart OHLCV:** P95 **46.97 ms** (ambang batas $\le 300\text{ ms}$) — **PASS**
+- **Kirim Order Saham (`submitOrder`):** P95 **3.10 ms** (ambang batas $\le 300\text{ ms}$) — **PASS**
+- **Buka/Tutup Modal Pencapaian & Level:** P95 **84.85 ms** (ambang batas $\le 300\text{ ms}$) — **PASS**
+
+### E. Perlindungan File Simpanan Pribadi
+- **Path:** `Artifacts/LocalPreview/preview-save/save_game_v2.json`
+- **Status:** **100% Utuh dan Terlindungi** (SHA-256 `59b41e24c5a0a3b6f87d127d41c18b7f3f0ebe371f4dd2d277a31ca4b5f867ed`, status git clean).
 
 ---
 
-## 3. Langkah Lanjutan untuk Sesi Berikutnya
+## 3. Spesifikasi Paket APK Kandidat Final (F9)
 
-Saat melanjutkan kembali:
-1. Hubungkan manajer-manajer baru di `TradingFacade.java`:
-   - Deklarasikan field dan getter: `mutualFundManager`, `installmentLoanManager`, `periodicMissionManager`, `leagueManager`, `playerProfileManager`.
-   - Perbarui `getPersonalNetWorth()` untuk memperhitungkan unit reksa dana dan liabilitas pinjaman tenor (D02).
-   - Sambungkan pemrosesan harian di `settleDay()` / `processCalendarActions()`.
-   - Tambahkan serialisasi di `save()` dan `load()`.
-2. Ekspos metode terkait pada `TradingWebBridge.java` (JavascriptInterface) untuk reksa dana, pinjaman tenor, misi periodik, liga, dan profil.
-3. Hubungkan antarmuka UI frontend pada `app.js` dan `index.html`:
-   - Hub Bisnis: subbagian Firma & Perusahaan.
-   - Hub Lainnya: Profil, Misi Periodik, Liga/Rival/Leaderboard, Koleksi, Reksa Dana, Pinjaman Tenor, Gaya Investor, Prestige, Riset & Pengaturan.
-4. Jalankan pengujian integrasi Playwright 7 viewport dan build APK kandidat akhir.
+- **Lokasi Berkas:** `Artifacts/Remediation/FinalRelease/game-saham-final-candidate.apk`
+- **Ukuran Berkas:** **755.111 byte**
+- **Checksum SHA-256:** `8bd2572a258e4d1db9e9264eb9026479797575792ff987f34506871e0f4f7ec4`
+- **Application ID:** `com.tradingglobal3d.mobile`
+- **Tanda Tangan Digital (`apksigner`):** APK Signature Scheme v2 (`Verifies: true`)
+- **Android Lint (`lintDebug`):** 0 Fatal, 0 Error
+- **Integritas Aset Internal:** 9 berkas aset (`assets/www/**`, `assets/data/**`) cocok byte-for-byte dengan source.

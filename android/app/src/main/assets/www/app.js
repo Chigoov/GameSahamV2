@@ -462,6 +462,9 @@
                 flowText(wallets, `${currency} tertahan`, cash.reserved);
             }
             flowText(summary, 'Kurs valuasi USD/IDR', portfolio.valuationRateUsdIdr);
+            flowButton(summary, 'Rincian Kekayaan Bersih Konsolidasi', () => openConsolidatedWealthModal());
+            flowButton(summary, 'Reksa Dana Berbasis NAB', () => openMyMutualFundsModal());
+            flowButton(summary, 'Utang & Pinjaman Tenor', () => openLoansModal());
             flowButton(summary, 'Bisnis operasional & anak usaha', () => { switchTab('firma'); loadFirmaView(); });
             flowButton(summary, 'Barang koleksi & properti mewah', () => { switchTab('firma'); loadFirmaView(); });
             flowButton(summary, 'Tukar IDR / USD', () => openFxForm());
@@ -925,7 +928,34 @@
         refreshSnapshot();
         const view = views.riset;
         view.replaceChildren();
-        pageHeading(view,'Ruang riset','INFORMASI PASAR GAME');
+        pageHeading(view, 'Lainnya & Riset', 'PROFIL, MISI, LIGA & TERMINAL');
+
+        const hubSection = document.createElement('section');
+        hubSection.className = 'quick-grid';
+        hubSection.style.marginBottom = '12px';
+
+        const pBtn = document.createElement('button');
+        pBtn.className = 'shortcut';
+        pBtn.innerHTML = '<span aria-hidden="true">👤</span><strong>Profil & Gaya</strong><small>Identitas & strategi ↗</small>';
+        pBtn.onclick = () => openPlayerProfileModal();
+
+        const mBtn = document.createElement('button');
+        mBtn.className = 'shortcut';
+        mBtn.innerHTML = '<span aria-hidden="true">📋</span><strong>Misi Periodik</strong><small>Harian & mingguan ↗</small>';
+        mBtn.onclick = () => openPeriodicMissionsModal();
+
+        const lBtn = document.createElement('button');
+        lBtn.className = 'shortcut';
+        lBtn.innerHTML = '<span aria-hidden="true">🏆</span><strong>Liga & Rival</strong><small>Peringkat kompetisi ↗</small>';
+        lBtn.onclick = () => openLeagueAndRivalModal();
+
+        const cBtn = document.createElement('button');
+        cBtn.className = 'shortcut';
+        cBtn.innerHTML = '<span aria-hidden="true">💎</span><strong>Galeri Koleksi</strong><small>12 barang mewah ↗</small>';
+        cBtn.onclick = () => openCollectionsGalleryModal();
+
+        hubSection.append(pBtn, mBtn, lBtn, cBtn);
+        view.append(hubSection);
 
         if (!bridge.getResearchFeed) {
             flowText(view, 'Riset', 'Riset belum dapat dimuat.'); return;
@@ -2116,6 +2146,689 @@
         panel.append(card);
     }
 
+    function openConsolidatedWealthModal() {
+        const panel = showFlow('Kekayaan Bersih Konsolidasi');
+        flowText(panel, 'Metode kalkulasi D02', 'Total kekayaan = Aset pribadi + Nilai ekuitas anak usaha + Koleksi mewah − Liabilitas (utang margin & pinjaman).');
+
+        if (!bridge.getConsolidatedWealth) {
+            flowText(panel, 'Status', 'Bridge kekayaan konsolidasi belum tersedia.');
+            return;
+        }
+
+        try {
+            const w = JSON.parse(bridge.getConsolidatedWealth());
+            if (!w.success) throw new Error(w.message || 'Gagal memuat kekayaan');
+
+            metricCard(panel, 'TOTAL KEKAYAAN BERSIH', w.totalNetWorth, 'Aset bruto dikurangi seluruh kewajiban');
+
+            const assetCard = document.createElement('section');
+            assetCard.className = 'card';
+            const aTitle = document.createElement('h2');
+            aTitle.className = 'card-title';
+            aTitle.textContent = `Aset Bruto (${w.grossAssets})`;
+            assetCard.append(aTitle);
+            flowText(assetCard, 'Kas pribadi (IDR & USD)', w.components.cash);
+            flowText(assetCard, 'Portofolio saham', w.components.securities);
+            flowText(assetCard, 'Reksa dana (unit NAB)', w.components.mutualFunds);
+            flowText(assetCard, 'Barang koleksi & properti', w.components.collections);
+            flowText(assetCard, 'Ekuitas anak usaha operasional', w.components.companiesEquity);
+            panel.append(assetCard);
+
+            const liabCard = document.createElement('section');
+            liabCard.className = 'card';
+            const lTitle = document.createElement('h2');
+            lTitle.className = 'card-title';
+            lTitle.textContent = `Total Kewajiban / Utang (${w.totalLiabilities})`;
+            liabCard.append(lTitle);
+            flowText(liabCard, 'Utang fasilitas margin', w.liabilities.marginDebt);
+            flowText(liabCard, 'Sisa pokok pinjaman tenor', w.liabilities.installmentDebt);
+            panel.append(liabCard);
+
+            flowText(panel, 'Rekonsiliasi', '100% terekonsiliasi ke buku besar (double-entry ledger) tanpa double-counting AUM klien.');
+        } catch (e) {
+            flowText(panel, 'Gagal memuat', e.message);
+        }
+    }
+
+    function openMyMutualFundsModal() {
+        openMutualFundsMarketModal();
+    }
+
+    function openMutualFundsMarketModal() {
+        const panel = showFlow('Pasar Reksa Dana (Unit/NAB)');
+        flowText(panel, 'Spesifikasi D06', 'Investasi reksa dana terkelola profesional berbasis NAB harian, entry/exit fee 0.1%, management fee 0.75%/tahun.');
+
+        if (!bridge.getMutualFunds) {
+            flowText(panel, 'Status', 'Bridge reksa dana belum tersedia.');
+            return;
+        }
+
+        try {
+            const res = JSON.parse(bridge.getMutualFunds());
+            if (!res.success) throw new Error(res.message || 'Gagal memuat reksa dana');
+
+            flowText(panel, 'Total nilai kepemilikan saya', res.totalHoldingsValue);
+
+            (res.funds || []).forEach(f => {
+                const card = document.createElement('article');
+                card.className = 'card';
+                card.style.marginTop = '10px';
+
+                const h = document.createElement('h3');
+                h.textContent = `${f.name} (${f.typeLabel})`;
+                card.append(h);
+
+                flowText(card, 'Manajer Investasi', f.managerName);
+                flowText(card, 'Tingkat risiko', f.riskLevel);
+                flowText(card, 'NAB per unit', `Rp ${f.navPerUnit}`);
+                flowText(card, 'Total dana kelolaan (AUM)', f.totalAum);
+                flowText(card, 'Unit saya miliki', `${f.myUnits} unit (${f.myHoldingsValue})`);
+                flowText(card, 'Biaya beli / jual', `${f.entryFee} / ${f.exitFee}`);
+
+                const btnRow = document.createElement('div');
+                btnRow.style.display = 'flex';
+                btnRow.style.gap = '8px';
+                btnRow.style.marginTop = '10px';
+
+                const subBtn = document.createElement('button');
+                subBtn.className = 'btn-primary';
+                subBtn.textContent = 'Beli Unit (Subscribe)';
+                subBtn.onclick = () => openSubscribeFundModal(f);
+
+                const redBtn = document.createElement('button');
+                redBtn.className = 'btn-secondary';
+                redBtn.textContent = 'Cairkan Unit (Redeem)';
+                redBtn.onclick = () => openRedeemFundModal(f);
+
+                btnRow.append(subBtn, redBtn);
+                card.append(btnRow);
+                panel.append(card);
+            });
+        } catch (e) {
+            flowText(panel, 'Gagal memuat', e.message);
+        }
+    }
+
+    function openSubscribeFundModal(fund) {
+        const panel = showFlow(`Beli Unit — ${fund.name}`);
+        flowText(panel, 'NAB acuan', `Rp ${fund.navPerUnit} per unit (Entry fee: 0.1%)`);
+
+        const amtLabel = document.createElement('label');
+        amtLabel.textContent = 'Nominal pembelian (IDR, minimal Rp 10.000)';
+        const amtInput = document.createElement('input');
+        amtInput.type = 'number';
+        amtInput.className = 'input-field';
+        amtInput.value = '1000000';
+        amtInput.min = '10000';
+        amtInput.step = '100000';
+
+        const buyBtn = document.createElement('button');
+        buyBtn.className = 'btn-primary';
+        buyBtn.style.marginTop = '12px';
+        buyBtn.textContent = 'Konfirmasi Pembelian Unit';
+
+        const statusMsg = document.createElement('p');
+        statusMsg.style.margin = '8px 0';
+
+        buyBtn.onclick = () => {
+            try {
+                const amt = Number(amtInput.value);
+                if (amt < 10000) throw new Error('Minimal pembelian Rp 10.000');
+                const req = { fundId: fund.id, amount: String(amt) };
+                const res = JSON.parse(bridge.subscribeMutualFund(JSON.stringify(req)));
+                if (!res.success) throw new Error(res.message);
+                statusMsg.textContent = res.message;
+                statusMsg.style.color = 'var(--positive)';
+                refreshSnapshot();
+                setTimeout(() => { closeFlow(); openMutualFundsMarketModal(); }, 600);
+            } catch (err) {
+                statusMsg.textContent = 'Gagal: ' + err.message;
+                statusMsg.style.color = 'var(--negative)';
+            }
+        };
+
+        panel.append(amtLabel, amtInput, buyBtn, statusMsg);
+    }
+
+    function openRedeemFundModal(fund) {
+        const panel = showFlow(`Cairkan Unit — ${fund.name}`);
+        flowText(panel, 'Unit dimiliki', `${fund.myUnits} unit (${fund.myHoldingsValue})`);
+        flowText(panel, 'Biaya pencairan', 'Exit fee: 0.1%');
+
+        const unitLabel = document.createElement('label');
+        unitLabel.textContent = 'Jumlah unit yang dicairkan';
+        const unitInput = document.createElement('input');
+        unitInput.type = 'number';
+        unitInput.className = 'input-field';
+        unitInput.value = Number(fund.myUnits) > 0 ? fund.myUnits : '100';
+        unitInput.step = '1';
+
+        const redBtn = document.createElement('button');
+        redBtn.className = 'btn-primary';
+        redBtn.style.marginTop = '12px';
+        redBtn.textContent = 'Konfirmasi Pencairan Unit';
+
+        const statusMsg = document.createElement('p');
+        statusMsg.style.margin = '8px 0';
+
+        redBtn.onclick = () => {
+            try {
+                const units = Number(unitInput.value);
+                if (units <= 0) throw new Error('Jumlah unit harus lebih dari 0');
+                const req = { fundId: fund.id, units: String(units) };
+                const res = JSON.parse(bridge.redeemMutualFund(JSON.stringify(req)));
+                if (!res.success) throw new Error(res.message);
+                statusMsg.textContent = res.message;
+                statusMsg.style.color = 'var(--positive)';
+                refreshSnapshot();
+                setTimeout(() => { closeFlow(); openMutualFundsMarketModal(); }, 600);
+            } catch (err) {
+                statusMsg.textContent = 'Gagal: ' + err.message;
+                statusMsg.style.color = 'var(--negative)';
+            }
+        };
+
+        panel.append(unitLabel, unitInput, redBtn, statusMsg);
+    }
+
+    function openLoansModal() {
+        const panel = showFlow('Utang & Pinjaman Tenor');
+        flowText(panel, 'Spesifikasi D05', 'Fasilitas pinjaman tenor 7/14/30 hari game dengan bunga harian 0.05% atas sisa pokok dan provisi cair 0.5%.');
+
+        if (!bridge.getLoans || !bridge.getLoanProducts) {
+            flowText(panel, 'Status', 'Bridge pinjaman belum tersedia.');
+            return;
+        }
+
+        try {
+            const lRes = JSON.parse(bridge.getLoans());
+            flowText(panel, 'Total sisa pokok pinjaman pribadi', lRes.totalPersonalDebt || 'Rp 0');
+
+            const addBtn = document.createElement('button');
+            addBtn.className = 'btn-primary';
+            addBtn.style.marginBottom = '12px';
+            addBtn.textContent = '+ Ajukan Pinjaman Baru';
+            addBtn.onclick = () => openDisburseLoanModal('LOAN-PERS-01');
+            panel.append(addBtn);
+
+            const activeLoans = lRes.loans || [];
+            if (activeLoans.length === 0) {
+                flowText(panel, 'Status pinjaman', 'Belum ada pinjaman aktif.');
+            } else {
+                activeLoans.forEach(l => {
+                    const card = document.createElement('article');
+                    card.className = 'card';
+                    card.style.marginTop = '10px';
+
+                    const h = document.createElement('h3');
+                    h.textContent = `${l.productId === 'LOAN-PERS-01' ? 'Pinjaman Pribadi Multiguna' : 'Kredit Modal Kerja Usaha'} (#${l.id})`;
+                    card.append(h);
+
+                    flowText(card, 'Status', l.status);
+                    flowText(card, 'Plafon awal', l.originalPrincipal);
+                    flowText(card, 'Sisa pokok utang', l.remainingPrincipal);
+                    flowText(card, 'Sisa tenor', `${l.remainingDays} dari ${l.tenorDays} hari game`);
+                    flowText(card, 'Bunga harian terakumulasi', l.accruedInterest);
+                    flowText(card, 'Penalti keterlambatan', l.accruedPenalty);
+                    flowText(card, 'Total pelunasan penuh', l.totalPayoff);
+                    flowText(card, 'Estimasi angsuran harian', l.dailyEstimate);
+
+                    if (!l.isClosed) {
+                        const btnRow = document.createElement('div');
+                        btnRow.style.display = 'flex';
+                        btnRow.style.flexWrap = 'wrap';
+                        btnRow.style.gap = '8px';
+                        btnRow.style.marginTop = '10px';
+
+                        const payBtn = document.createElement('button');
+                        payBtn.className = 'btn-primary';
+                        payBtn.textContent = 'Bayar Cicilan';
+                        payBtn.onclick = () => openPayInstallmentModal(l);
+
+                        const prepayBtn = document.createElement('button');
+                        prepayBtn.className = 'btn-secondary';
+                        prepayBtn.textContent = 'Pelunasan Awal (Prepay)';
+                        prepayBtn.onclick = () => {
+                            if (confirm(`Lunasi seluruh sisa pinjaman ${l.totalPayoff}?`)) {
+                                try {
+                                    const r = JSON.parse(bridge.prepayLoan(l.id));
+                                    if (!r.success) throw new Error(r.message);
+                                    alert(r.message);
+                                    refreshSnapshot();
+                                    openLoansModal();
+                                } catch (err) { alert('Pelunasan gagal: ' + err.message); }
+                            }
+                        };
+
+                        const restBtn = document.createElement('button');
+                        restBtn.className = 'btn-secondary';
+                        restBtn.textContent = 'Restrukturisasi Tenor';
+                        restBtn.onclick = () => {
+                            const addDays = prompt('Masukkan jumlah hari perpanjangan tenor:', '7');
+                            if (addDays && Number(addDays) > 0) {
+                                try {
+                                    const r = JSON.parse(bridge.restructureLoan(JSON.stringify({ loanId: l.id, additionalDays: Number(addDays) })));
+                                    if (!r.success) throw new Error(r.message);
+                                    alert(r.message);
+                                    refreshSnapshot();
+                                    openLoansModal();
+                                } catch (err) { alert('Restrukturisasi gagal: ' + err.message); }
+                            }
+                        };
+
+                        btnRow.append(payBtn, prepayBtn, restBtn);
+                        card.append(btnRow);
+                    }
+                    panel.append(card);
+                });
+            }
+        } catch (e) {
+            flowText(panel, 'Gagal memuat pinjaman', e.message);
+        }
+    }
+
+    function openDisburseLoanModal(defaultProductId, companyId = null) {
+        const panel = showFlow('Pengajuan Pinjaman Tenor');
+        flowText(panel, 'Ketentuan simulasi', 'Suku bunga harian 0.05% atas sisa pokok, biaya provisi pencairan 0.5%. Pokok utang tetap utuh dan dicicil harian.');
+
+        const pSelectLabel = document.createElement('label');
+        pSelectLabel.textContent = 'Jenis produk pembiayaan';
+        const pSelect = document.createElement('select');
+        pSelect.className = 'input-field';
+        pSelect.innerHTML = `
+            <option value="LOAN-PERS-01" ${defaultProductId === 'LOAN-PERS-01' ? 'selected' : ''}>Pinjaman Pribadi Multiguna (Plafon Rp 1 - 50 Juta)</option>
+            <option value="LOAN-CORP-01" ${defaultProductId === 'LOAN-CORP-01' ? 'selected' : ''}>Kredit Modal Kerja Perusahaan (Plafon Rp 5 - 100 Juta)</option>
+        `;
+
+        const tenorLabel = document.createElement('label');
+        tenorLabel.textContent = 'Pilihan jangka waktu (tenor)';
+        const tenorSelect = document.createElement('select');
+        tenorSelect.className = 'input-field';
+        tenorSelect.innerHTML = `
+            <option value="7">7 Hari Game</option>
+            <option value="14" selected>14 Hari Game (Standar)</option>
+            <option value="30">30 Hari Game (Ekspansif)</option>
+        `;
+
+        const amtLabel = document.createElement('label');
+        amtLabel.textContent = 'Plafon pinjaman (IDR, minimal Rp 1.000.000)';
+        const amtInput = document.createElement('input');
+        amtInput.type = 'number';
+        amtInput.className = 'input-field';
+        amtInput.value = '10000000';
+        amtInput.step = '1000000';
+
+        const submitBtn = document.createElement('button');
+        submitBtn.className = 'btn-primary';
+        submitBtn.style.marginTop = '12px';
+        submitBtn.textContent = 'Ajukan & Cairkan Pinjaman';
+
+        const statusMsg = document.createElement('p');
+        statusMsg.style.margin = '8px 0';
+
+        submitBtn.onclick = () => {
+            try {
+                const amt = Number(amtInput.value);
+                if (amt < 1000000) throw new Error('Plafon minimal Rp 1.000.000');
+                const isPersonal = pSelect.value === 'LOAN-PERS-01';
+                const req = {
+                    productId: pSelect.value,
+                    isPersonal: isPersonal,
+                    companyId: isPersonal ? null : companyId,
+                    principal: String(amt),
+                    tenorDays: Number(tenorSelect.value)
+                };
+                const res = JSON.parse(bridge.disburseLoan(JSON.stringify(req)));
+                if (!res.success) throw new Error(res.message);
+                statusMsg.textContent = res.message;
+                statusMsg.style.color = 'var(--positive)';
+                refreshSnapshot();
+                setTimeout(() => { closeFlow(); openLoansModal(); }, 600);
+            } catch (err) {
+                statusMsg.textContent = 'Pencairan gagal: ' + err.message;
+                statusMsg.style.color = 'var(--negative)';
+            }
+        };
+
+        panel.append(pSelectLabel, pSelect, tenorLabel, tenorSelect, amtLabel, amtInput, submitBtn, statusMsg);
+    }
+
+    function openPayInstallmentModal(loan) {
+        const panel = showFlow(`Bayar Cicilan — #${loan.id}`);
+        flowText(panel, 'Sisa pokok utang', loan.remainingPrincipal);
+        flowText(panel, 'Bunga + penalti tertunggak', `${loan.accruedInterest} + ${loan.accruedPenalty}`);
+        flowText(panel, 'Total pelunasan penuh', loan.totalPayoff);
+        flowText(panel, 'Estimasi angsuran harian', loan.dailyEstimate);
+
+        const amtLabel = document.createElement('label');
+        amtLabel.textContent = 'Jumlah pembayaran cicilan (IDR)';
+        const amtInput = document.createElement('input');
+        amtInput.type = 'number';
+        amtInput.className = 'input-field';
+        amtInput.value = '1000000';
+        amtInput.step = '100000';
+
+        const payBtn = document.createElement('button');
+        payBtn.className = 'btn-primary';
+        payBtn.style.marginTop = '12px';
+        payBtn.textContent = 'Setor Pembayaran Cicilan';
+
+        const statusMsg = document.createElement('p');
+        statusMsg.style.margin = '8px 0';
+
+        payBtn.onclick = () => {
+            try {
+                const amt = Number(amtInput.value);
+                if (amt <= 0) throw new Error('Nominal bayar harus lebih dari 0');
+                const req = { loanId: loan.id, amount: String(amt) };
+                const res = JSON.parse(bridge.payLoan(JSON.stringify(req)));
+                if (!res.success) throw new Error(res.message);
+                statusMsg.textContent = res.message;
+                statusMsg.style.color = 'var(--positive)';
+                refreshSnapshot();
+                setTimeout(() => { closeFlow(); openLoansModal(); }, 600);
+            } catch (err) {
+                statusMsg.textContent = 'Pembayaran gagal: ' + err.message;
+                statusMsg.style.color = 'var(--negative)';
+            }
+        };
+
+        panel.append(amtLabel, amtInput, payBtn, statusMsg);
+    }
+
+    function openPeriodicMissionsModal() {
+        const panel = showFlow('Misi Harian & Mingguan');
+        flowText(panel, 'Kalender game (D07)', 'Misi harian berganti setiap pukul 00:00 WIB dan mingguan setiap hari Senin. Selesaikan target untuk klaim reward kas dan XP!');
+
+        if (!bridge.getPeriodicMissions) {
+            flowText(panel, 'Status', 'Bridge misi periodik belum tersedia.');
+            return;
+        }
+
+        try {
+            const mRes = JSON.parse(bridge.getPeriodicMissions());
+            if (!mRes.success) throw new Error(mRes.message || 'Gagal memuat misi');
+
+            const activeList = mRes.activeMissions || [];
+            if (activeList.length === 0) {
+                flowText(panel, 'Misi aktif', 'Belum ada misi aktif untuk periode ini.');
+            } else {
+                activeList.forEach(m => {
+                    const card = document.createElement('article');
+                    card.className = 'card';
+                    card.style.marginTop = '10px';
+
+                    const h = document.createElement('h3');
+                    h.textContent = `[${m.periodLabel}] ${m.title}`;
+                    card.append(h);
+
+                    flowText(card, 'Target misi', m.description);
+                    flowText(card, 'Progres', m.progress);
+                    flowText(card, 'Imbalan', `${m.cashReward} + ${m.xpReward}`);
+                    flowText(card, 'Status', m.completed ? (m.claimed ? 'Sudah Diklaim' : 'Selesai — Siap Diklaim!') : 'Dalam Proses');
+
+                    if (m.completed && !m.claimed) {
+                        const claimBtn = document.createElement('button');
+                        claimBtn.className = 'btn-primary';
+                        claimBtn.style.marginTop = '8px';
+                        claimBtn.textContent = `Klaim Hadiah (${m.cashReward} + ${m.xpReward})`;
+                        claimBtn.onclick = () => {
+                            try {
+                                const r = JSON.parse(bridge.claimPeriodicMission(m.id));
+                                if (!r.success) throw new Error(r.message);
+                                alert(r.message);
+                                refreshSnapshot();
+                                openPeriodicMissionsModal();
+                            } catch (err) { alert('Klaim gagal: ' + err.message); }
+                        };
+                        card.append(claimBtn);
+                    }
+                    panel.append(card);
+                });
+            }
+        } catch (e) {
+            flowText(panel, 'Gagal memuat misi', e.message);
+        }
+    }
+
+    function openLeagueAndRivalModal() {
+        const panel = showFlow('Liga & Rivalitas Konglomerat');
+        flowText(panel, 'Kompetisi mingguan (D09, D13)', 'Bertanding melawan 20 konglomerat dan trader NPC fiktif persisten. Raih promosi divisi setiap evaluasi hari Senin!');
+
+        if (!bridge.getLeagueLeaderboard || !bridge.getRivalStatus) {
+            flowText(panel, 'Status', 'Bridge liga dan rival belum tersedia.');
+            return;
+        }
+
+        try {
+            // 1. Rival Personal Mingguan
+            const rivalRes = JSON.parse(bridge.getRivalStatus());
+            if (rivalRes.success) {
+                const rivalCard = document.createElement('section');
+                rivalCard.className = 'card';
+                const rH = document.createElement('h2');
+                rH.className = 'card-title';
+                rH.textContent = `Rival Minggu Ini: ${rivalRes.rivalName}`;
+                rivalCard.append(rH);
+
+                metricCard(rivalCard, 'SELISIH RETURN MINGGUAN', rivalRes.returnDifference, rivalRes.summary);
+                flowText(rivalCard, 'Gaya trading rival', `${rivalRes.rivalStyle} (${rivalRes.rivalTitle})`);
+                flowText(rivalCard, 'Kekayaan rival vs kamu', `${rivalRes.rivalNetWorth} vs ${rivalRes.playerNetWorth}`);
+                flowText(rivalCard, 'Return mingguan rival vs kamu', `${rivalRes.rivalWeeklyReturn} vs ${rivalRes.playerWeeklyReturn}`);
+                panel.append(rivalCard);
+            }
+
+            // 2. Leaderboard Liga
+            const lbRes = JSON.parse(bridge.getLeagueLeaderboard('NET_WORTH'));
+            if (lbRes.success) {
+                const lbSection = document.createElement('section');
+                lbSection.className = 'card';
+                lbSection.style.marginTop = '12px';
+
+                const lbH = document.createElement('h2');
+                lbH.className = 'card-title';
+                lbH.textContent = `${lbRes.tierLabel} (Minggu ke-${lbRes.seasonWeek})`;
+                lbSection.append(lbH);
+
+                metricCard(lbSection, 'PERINGKAT NASIONAL KAMU', `#${lbRes.playerRank}`, `Peringkat kamu dari ${lbRes.totalCompetitors} peserta`);
+
+                const listDiv = document.createElement('div');
+                listDiv.style.marginTop = '10px';
+
+                (lbRes.leaderboard || []).forEach(e => {
+                    const row = document.createElement('div');
+                    row.className = 'data-row';
+                    row.style.padding = '8px 6px';
+                    if (e.isPlayer) {
+                        row.style.borderLeft = '3px solid var(--accent, #66E4D5)';
+                        row.style.backgroundColor = 'rgba(102, 228, 213, 0.08)';
+                    }
+                    const left = document.createElement('div');
+                    left.innerHTML = `<strong>#${e.rank} ${e.name}</strong><br><small style="color:var(--text-muted);">${e.title} · ${e.style}</small>`;
+                    const right = document.createElement('strong');
+                    right.style.color = e.isPlayer ? 'var(--accent, #66E4D5)' : 'var(--amber, #FFBD59)';
+                    right.textContent = e.netWorth;
+                    row.append(left, right);
+                    listDiv.append(row);
+                });
+                lbSection.append(listDiv);
+                panel.append(lbSection);
+            }
+        } catch (e) {
+            flowText(panel, 'Gagal memuat liga', e.message);
+        }
+    }
+
+    function openPlayerProfileModal() {
+        const panel = showFlow('Profil Pemain & Statistik');
+        flowText(panel, 'Identitas lokal (D16)', 'Rekor statistik, rekam jejak performa, dan preferensi tampilan offline tersimpan di perangkat.');
+
+        if (!bridge.getPlayerProfile) {
+            flowText(panel, 'Status', 'Bridge profil belum tersedia.');
+            return;
+        }
+
+        try {
+            const p = JSON.parse(bridge.getPlayerProfile());
+            metricCard(panel, p.playerName, p.netWorth, `Jabatan: ${p.careerRank} · Reputasi ${p.reputation}/100`);
+
+            const statCard = document.createElement('section');
+            statCard.className = 'card';
+            const sTitle = document.createElement('h2');
+            sTitle.className = 'card-title';
+            sTitle.textContent = 'Rekam Jejak Finansial';
+            statCard.append(sTitle);
+            flowText(statCard, 'Level & Total XP', `Level ${p.currentLevel} (${p.currentXp} XP)`);
+            flowText(statCard, 'Total transaksi pasar', `${p.totalTrades} transaksi (${p.profitableTrades} untung · Win Rate ${p.winRate})`);
+            flowText(statCard, 'Transaksi terbaik / terburuk', `${p.bestTradePnL} / ${p.worstTradePnL}`);
+            flowText(statCard, 'Puncak kekayaan tertinggi', p.lifetimePeakNetWorth);
+            flowText(statCard, 'Lama bermain', `${p.lifetimeDaysPlayed} hari game`);
+            panel.append(statCard);
+
+            // Edit Profil Form
+            const formCard = document.createElement('section');
+            formCard.className = 'card';
+            const fTitle = document.createElement('h2');
+            fTitle.className = 'card-title';
+            fTitle.textContent = 'Pengaturan Identitas & Aksesibilitas';
+            formCard.append(fTitle);
+
+            const nameLabel = document.createElement('label');
+            nameLabel.textContent = 'Nama pemain';
+            const nameInput = document.createElement('input');
+            nameInput.className = 'input-field';
+            nameInput.value = p.playerName;
+
+            const textScaleLabel = document.createElement('label');
+            textScaleLabel.textContent = 'Ukuran teks tampilan';
+            const textScaleSelect = document.createElement('select');
+            textScaleSelect.className = 'input-field';
+            textScaleSelect.innerHTML = `
+                <option value="100%" ${p.preferences && p.preferences.textSize === '100%' ? 'selected' : ''}>100% (Standar)</option>
+                <option value="200%" ${p.preferences && p.preferences.textSize === '200%' ? 'selected' : ''}>200% (Teks Besar Aksesibel)</option>
+            `;
+
+            const saveBtn = document.createElement('button');
+            saveBtn.className = 'btn-primary';
+            saveBtn.style.marginTop = '12px';
+            saveBtn.textContent = 'Simpan Profil & Preferensi';
+
+            saveBtn.onclick = () => {
+                try {
+                    const req = {
+                        playerName: nameInput.value.trim(),
+                        preferences: {
+                            textSize: textScaleSelect.value,
+                            highContrast: false,
+                            reducedMotion: false
+                        }
+                    };
+                    const res = JSON.parse(bridge.updatePlayerProfile(JSON.stringify(req)));
+                    document.documentElement.style.fontSize = textScaleSelect.value === '200%' ? '200%' : '';
+                    alert('Profil dan preferensi berhasil disimpan!');
+                    refreshSnapshot();
+                    closeFlow();
+                } catch (err) { alert('Gagal menyimpan: ' + err.message); }
+            };
+
+            formCard.append(nameLabel, nameInput, textScaleLabel, textScaleSelect, saveBtn);
+            panel.append(formCard);
+        } catch (e) {
+            flowText(panel, 'Gagal memuat profil', e.message);
+        }
+    }
+
+    function openInvestorArchetypeModal() {
+        const panel = showFlow('Gaya Investor (Archetype)');
+        flowText(panel, 'Klasifikasi berbasis data (D15)', 'Menganalisis eksposur aset, frekuensi trading, dan pola risiko dari aktivitas transaksi riil di pasar game.');
+
+        if (!bridge.getInvestorArchetype) {
+            flowText(panel, 'Status', 'Bridge gaya investor belum tersedia.');
+            return;
+        }
+
+        try {
+            const a = JSON.parse(bridge.getInvestorArchetype());
+            metricCard(panel, a.label, `Keyakinan: ${a.confidence}`, `Berdasarkan ${a.totalTrades} transaksi & ${a.daysElapsed} hari trading`);
+
+            const descCard = document.createElement('section');
+            descCard.className = 'card';
+            const dTitle = document.createElement('h2');
+            dTitle.className = 'card-title';
+            dTitle.textContent = 'Karakteristik & Tesis Perilaku';
+            descCard.append(dTitle);
+            flowText(descCard, 'Karakteristik', a.description);
+            if (a.reasoning) flowText(descCard, 'Analisis perilaku', a.reasoning);
+            panel.append(descCard);
+        } catch (e) {
+            flowText(panel, 'Gagal memuat gaya investor', e.message);
+        }
+    }
+
+    function openCollectionsGalleryModal() {
+        const panel = showFlow('Galeri Koleksi Mewah & Properti');
+        flowText(panel, 'Katalog 12 koleksi (D10)', 'Koleksi kendaraan, properti, permata, seni & jam tangan mewah memberi peningkatan reputasi.');
+
+        if (!bridge.getCollections) {
+            flowText(panel, 'Status', 'Bridge koleksi belum tersedia.');
+            return;
+        }
+
+        try {
+            const colRes = JSON.parse(bridge.getCollections());
+            const items = colRes.collections || colRes.items || [];
+            if (items.length === 0) {
+                flowText(panel, 'Status', 'Katalog koleksi belum tersedia.');
+            } else {
+                items.forEach(item => {
+                    const card = document.createElement('article');
+                    card.className = 'card';
+                    card.style.marginTop = '10px';
+
+                    const h = document.createElement('h3');
+                    h.textContent = `${item.name} [${item.categoryLabel || item.category}]`;
+                    card.append(h);
+
+                    flowText(card, 'Kelangkaan', item.rarityLabel || item.rarity || 'Standar');
+                    flowText(card, 'Status kepemilikan', item.owned ? 'Sudah Dimiliki' : 'Tersedia di Galeri');
+                    flowText(card, 'Valuasi pasar terkini', `Rp ${Number(item.currentValuation || item.basePrice || 0).toLocaleString('id-ID')}`);
+                    flowText(card, 'Biaya pemeliharaan harian', `Rp ${Number(item.dailyMaintenanceCost || 0).toLocaleString('id-ID')} / hari`);
+                    flowText(card, 'Bonus reputasi', `+${item.reputationBonus || 0} Poin`);
+
+                    const actBtn = document.createElement('button');
+                    actBtn.style.marginTop = '8px';
+                    if (item.owned) {
+                        actBtn.className = 'btn-secondary';
+                        actBtn.textContent = `Jual Koleksi (Terima Rp ${Number(item.currentValuation || 0).toLocaleString('id-ID')})`;
+                        actBtn.onclick = () => {
+                            try {
+                                const res = JSON.parse(bridge.sellCollection(item.id));
+                                if (!res.success) throw new Error(res.message);
+                                refreshSnapshot();
+                                openCollectionsGalleryModal();
+                            } catch (err) { alert('Penjualan gagal: ' + err.message); }
+                        };
+                    } else {
+                        actBtn.className = 'btn-primary';
+                        actBtn.textContent = `Beli Koleksi (Rp ${Number(item.basePrice || 0).toLocaleString('id-ID')})`;
+                        actBtn.onclick = () => {
+                            try {
+                                const res = JSON.parse(bridge.buyCollection(item.id));
+                                if (!res.success) throw new Error(res.message);
+                                refreshSnapshot();
+                                openCollectionsGalleryModal();
+                            } catch (err) { alert('Pembelian gagal: ' + err.message); }
+                        };
+                    }
+                    card.append(actBtn);
+                    panel.append(card);
+                });
+            }
+        } catch (e) {
+            flowText(panel, 'Gagal memuat koleksi', e.message);
+        }
+    }
+
     function openRiskModal() {
         const panel = showFlow('Fasilitas margin & risiko');
         if (!bridge.getRiskSnapshot) {
@@ -2898,6 +3611,13 @@
     if (wealthChip) wealthChip.addEventListener('click', () => switchTab('aset'));
     const accBtn = document.getElementById('context-account-btn');
     if (accBtn) accBtn.addEventListener('click', openAccountPicker);
+
+    const misBtn = document.getElementById('btn-missions');
+    if (misBtn) misBtn.addEventListener('click', openPeriodicMissionsModal);
+    const leaBtn = document.getElementById('btn-league');
+    if (leaBtn) leaBtn.addEventListener('click', openLeagueAndRivalModal);
+    const rdBtn = document.getElementById('btn-reksa-dana');
+    if (rdBtn) rdBtn.addEventListener('click', openMutualFundsMarketModal);
 
     document.getElementById('btn-settings').addEventListener('click', () => {
         const panel = showFlow('Pengaturan / save');

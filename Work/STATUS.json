@@ -4,10 +4,10 @@
   "product": "Game Saham 2D Portrait",
   "prepared_date": "2026-10-20",
   "status": "COMPLETE_FOR_APK_HANDOFF",
-  "current_task": "FINAL_AUDIT_REMEDIATION_F1_TO_F9_COMPLETED",
+  "current_task": "FINAL_FEATURE_COMPLETION_R0_TO_R7_COMPLETED",
   "completed_tasks": ["00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13"],
   "hermes_session_id": "20261019_204502_5f1ffa",
-  "next_action": "Seluruh 14 fase dan 9 temuan audit independen (F1-F9) telah selesai dan terverifikasi penuh (293 JVM tests pass, 4 audit probes pass, 7 viewports responsive pass, benchmark performa P95 <= 83.44ms pass). APK final game-saham-final-candidate.apk (682.174 byte, SHA-256 f66811cb43f6840029f6d84e7a3c3a89e9ba82235be42a9057b26c1a738ddf44) siap dipasang pada pengujian perangkat target berikutnya.",
+  "next_action": "Seluruh 14 fase dan penuntasan fitur R0-R7 (reksa dana unit/NAB, pinjaman tenor, misi periodik, liga 20 NPC, gaya investor, profil, 12 koleksi) telah selesai dan terverifikasi penuh (296 JVM tests pass, 4 audit probes pass, 7 viewports responsive pass, benchmark performa P95 <= 84.85ms pass). APK final game-saham-final-candidate.apk (755.111 byte, SHA-256 8bd2572a258e4d1db9e9264eb9026479797575792ff987f34506871e0f4f7ec4) siap dipasang pada pengujian perangkat target berikutnya.",
   "tasks": [
     {
       "id": "00",

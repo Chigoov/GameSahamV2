@@ -7,13 +7,13 @@
 
 **Status Penyelesaian Grand Final (20 Oktober 2026):**
 Seluruh 14 fase (Phase 00 s.d. Phase 13) dan seluruh 9 temuan audit independen (F1–F9) telah diselesaikan, diuji secara komprehensif, dan dinyatakan LULUS gerbang kelulusan masing-masing:
-- **Pengujian Domain JVM**: 26 test suites, 293 unit tests, 0 failures, 0 errors, 0 skipped (PASS 100%).
+- **Pengujian Domain JVM**: 26 test suites, 296 unit tests, 0 failures, 0 errors, 0 skipped (PASS 100%).
 - **Pengujian Kritis Standar A3**: 10 fase kritis memiliki suite uji urutan acak 10 seed × 100 aksi bermakna dengan rekonsiliasi dan verifikasi invariant setelah SETIAP aksi (total 10.000 aksi terverifikasi).
 - **Pengujian Responsif 7 Viewport (F6)**: `320x568`, `360x640`, `390x844`, `412x915`, `430x932`, `768x1024`, dan `1440x900` pada skala normal dan pembesaran teks 200% bebas overflow horizontal (`scrollWidth <= innerWidth + 1`).
-- **Pengujian Responsivitas UI (F7)**: P95 seluruh aksi biasa $\le 83,44\text{ ms}$ (ambang batas $\le 300\text{ ms}$); P95 navigasi tab $\le 55,90\text{ ms}$ (ambang batas $\le 1.000\text{ ms}$).
+- **Pengujian Responsivitas UI (F7)**: P95 seluruh aksi biasa $\le 84,85\text{ ms}$ (ambang batas $\le 300\text{ ms}$); P95 navigasi tab $\le 60,18\text{ ms}$ (ambang batas $\le 1.000\text{ ms}$).
 - **Dataset Historis Nyata & Provenance (F8)**: Unduhan publik bar harian IDX:BBCA (CC BY-NC 4.0) dan US:AAPL (Apache 2.0 / open public distribution) terverifikasi lisensi dan checksum hash SHA-256 fisik.
 - **Perlindungan Save Game Pemain**: Berkas simpanan pemain di `Artifacts/LocalPreview/preview-save/save_game_v2.json` 100% terlindungi dan identik dengan checksum awal (`59b41e24c5a0a3b6f87d127d41c18b7f3f0ebe371f4dd2d277a31ca4b5f867ed`).
-- **Artefak APK Final (F9)**: `Artifacts/Remediation/FinalRelease/game-saham-final-candidate.apk` (682.174 byte, SHA-256 `f66811cb43f6840029f6d84e7a3c3a89e9ba82235be42a9057b26c1a738ddf44`), signature Scheme v2 terverifikasi.
+- **Artefak APK Final (F9)**: `Artifacts/Remediation/FinalRelease/game-saham-final-candidate.apk` (755.111 byte, SHA-256 `8bd2572a258e4d1db9e9264eb9026479797575792ff987f34506871e0f4f7ec4`), signature Scheme v2 terverifikasi.
 - **Batas Verifikasi Android**: 0 perangkat fisik/emulator terhubung pada host (`adb devices` kosong); instalasi runtime fisik berstatus `PENDING_ATTACHED_DEVICE` / `NOT_TESTED_BY_SCOPE`. Packaging dan validitas build host 100% terbukti.
 
 **Checkpoint implementasi terbaru: [UI portrait 20 Oktober](PORTRAIT-UI-CHECKPOINT-2026-10-20.md).** Source UI acuan HP sudah diterapkan dan tersambung Java: 158 tes JVM, tiga runner browser PASS, kandidat debug 627.315 byte/signature/7 aset exact. Preview 8766 diperbarui tanpa reset progres. Native runtime belum diuji; produk PARTIAL. Catatan inspeksi/acuan dan angka lama di bawah bersifat historis.

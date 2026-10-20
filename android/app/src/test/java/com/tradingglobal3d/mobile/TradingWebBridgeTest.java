@@ -963,4 +963,100 @@ public class TradingWebBridgeTest {
         assertEquals(1, resetProg.getInt("level"));
         assertEquals(0, resetProg.getInt("achievementsUnlocked"));
     }
+
+    @Test
+    public void testMutualFundsSubscriptionRedemptionAndValuation() throws Exception {
+        // 1. Get mutual funds catalog
+        JSONObject fundsRes = new JSONObject(bridge.getMutualFunds());
+        assertTrue(fundsRes.getBoolean("success"));
+        JSONArray funds = fundsRes.getJSONArray("funds");
+        assertEquals(3, funds.length()); // 3 Fund types (D06)
+
+        // 2. Subscribe to Money Market Fund Rp 10.000.000
+        JSONObject subReq = new JSONObject()
+                .put("fundId", "FUND-MM-01")
+                .put("amount", "10000000");
+        JSONObject subRes = new JSONObject(bridge.subscribeMutualFund(subReq.toString()));
+        assertTrue(subRes.getBoolean("success"));
+        assertEquals("FUND-MM-01", subRes.getString("fundId"));
+
+        // Verifikasi kepemilikan unit dan valuasi kekayaan bersih
+        Money netWorth = facade.getPersonalNetWorth();
+        assertTrue(netWorth.isPositive());
+
+        // 3. Redeem sebagian unit
+        JSONObject redReq = new JSONObject()
+                .put("fundId", "FUND-MM-01")
+                .put("units", "500.000000");
+        JSONObject redRes = new JSONObject(bridge.redeemMutualFund(redReq.toString()));
+        assertTrue(redRes.getBoolean("success"));
+    }
+
+    @Test
+    public void testInstallmentLoansDisbursementPaymentAndPrepay() throws Exception {
+        // 1. Get loan products
+        JSONObject prodsRes = new JSONObject(bridge.getLoanProducts());
+        assertTrue(prodsRes.getBoolean("success"));
+        assertEquals(2, prodsRes.getJSONArray("products").length());
+
+        // 2. Disburse personal loan Rp 10.000.000 tenor 14 days
+        JSONObject disburseReq = new JSONObject()
+                .put("productId", "LOAN-PERS-01")
+                .put("isPersonal", true)
+                .put("principal", "10000000")
+                .put("tenorDays", 14);
+        JSONObject disburseRes = new JSONObject(bridge.disburseLoan(disburseReq.toString()));
+        assertTrue(disburseRes.getBoolean("success"));
+        String loanId = disburseRes.getString("loanId");
+
+        // 3. List loans
+        JSONObject loansList = new JSONObject(bridge.getLoans());
+        assertTrue(loansList.getBoolean("success"));
+        assertTrue(loansList.getJSONArray("loans").length() >= 1);
+
+        // 4. Pay partial installment
+        JSONObject payReq = new JSONObject()
+                .put("loanId", loanId)
+                .put("amount", "1000000");
+        JSONObject payRes = new JSONObject(bridge.payLoan(payReq.toString()));
+        assertTrue(payRes.getBoolean("success"));
+
+        // 5. Prepay full loan
+        JSONObject prepayRes = new JSONObject(bridge.prepayLoan(loanId));
+        assertTrue(prepayRes.getBoolean("success"));
+        assertEquals("PAID_OFF", prepayRes.getString("status"));
+    }
+
+    @Test
+    public void testPeriodicMissionsAndLeague() throws Exception {
+        // 1. Periodic missions
+        JSONObject missionsRes = new JSONObject(bridge.getPeriodicMissions());
+        assertTrue(missionsRes.getBoolean("success"));
+        JSONArray activeMissions = missionsRes.getJSONArray("activeMissions");
+        assertTrue(activeMissions.length() >= 3);
+
+        // 2. League leaderboard
+        JSONObject lbRes = new JSONObject(bridge.getLeagueLeaderboard("NET_WORTH"));
+        assertTrue(lbRes.getBoolean("success"));
+        assertEquals(21, lbRes.getInt("totalCompetitors")); // 20 NPC + 1 player
+
+        // 3. Rival status
+        JSONObject rivalRes = new JSONObject(bridge.getRivalStatus());
+        assertTrue(rivalRes.getBoolean("success"));
+        assertNotNull(rivalRes.getString("rivalName"));
+
+        // 4. Investor archetype & player profile
+        JSONObject archRes = new JSONObject(bridge.getInvestorArchetype());
+        assertNotNull(archRes.getString("archetype"));
+
+        JSONObject profRes = new JSONObject(bridge.getPlayerProfile());
+        assertNotNull(profRes.getString("playerName"));
+
+        // 5. Consolidated wealth breakdown (D02)
+        JSONObject wealthRes = new JSONObject(bridge.getConsolidatedWealth());
+        assertTrue(wealthRes.getBoolean("success"));
+        assertTrue(wealthRes.getBoolean("isReconciled"));
+        assertNotNull(wealthRes.getJSONObject("components"));
+        assertNotNull(wealthRes.getJSONObject("liabilities"));
+    }
 }
