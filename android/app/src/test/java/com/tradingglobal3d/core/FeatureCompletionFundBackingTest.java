@@ -96,4 +96,56 @@ public class FeatureCompletionFundBackingTest {
         assertEquals("0", fund.exportState().getJSONObject("debtContract").getString("principal"));
         w.reconcile();
     }
+
+    @Test public void tenSequencesOfOneHundredCanonicalActionsPreserveLedgerAndReload() throws Exception {
+        for (int seed = 0; seed < 10; seed++) {
+            World w = new World();
+            String id = seed % 2 == 0 ? "FUND-MM-01" : "FUND-FI-01";
+            MutualFund fund = w.subscribe(id);
+            Random random = new Random(seed);
+            for (int action = 0; action < 100; action++) {
+                int day = action + 1;
+                switch (action % 5) {
+                    case 0:
+                        fund.submitSubscription("SEQ-" + action, w.player, Money.of(10_000 + random.nextInt(90_000), Currency.IDR), w.ledger, time(day, 10));
+                        break;
+                    case 1:
+                        fund.advanceDay(id.equals("FUND-FI-01") ? random.nextDouble() * 0.04 - 0.02 : 0.0, w.ledger, time(day, 9));
+                        break;
+                    case 2:
+                        if (fund.getAvailableUnits("P").compareTo(BigDecimal.ONE) >= 0)
+                            fund.submitRedemption("RED-SEQ-" + action, w.player, BigDecimal.ONE, w.ledger, time(day, 10));
+                        break;
+                    case 3:
+                        fund.advanceDay(0.0, w.ledger, time(day, 9));
+                        String once = fund.exportState().toString();
+                        fund.advanceDay(0.0, w.ledger, time(day, 9));
+                        assertEquals(once, fund.exportState().toString());
+                        break;
+                    default:
+                        MutualFundManager loaded = new MutualFundManager();
+                        loaded.restoreState(w.manager.exportState()); loaded.bindAccounts(w.accounts, new InstrumentCatalog());
+                        w.manager = loaded; fund = loaded.getFund(id);
+                }
+                w.manager.processCutoff(w.accounts, w.ledger, time(day, 16));
+                assertTrue(fund.getNavPerUnit().signum() > 0);
+                assertTrue(fund.getAvailableUnits("P").signum() >= 0);
+                JSONObject state = fund.exportState(), debt = state.getJSONObject("debtContract");
+                BigDecimal liability = new BigDecimal(debt.getString("principal")).add(new BigDecimal(debt.getString("accruedInterest")));
+                assertEquals(0, liability.compareTo(new BigDecimal(debt.getString("issuerLiability"))));
+                w.reconcile();
+            }
+        }
+    }
+
+    @Test public void defaultedFinalRedemptionDoesNotGiftOldDebtToNextSubscriber() throws Exception {
+        World w = new World(); MutualFund fund = w.subscribe("FUND-MM-01");
+        Account issuer = w.accounts.get(fund.getDebtIssuerAccountId());
+        w.ledger.recordMutation("DEFAULT", issuer, LedgerEntryType.TRADE_BUY, issuer.getAvailableCash(Currency.IDR), false, time(1, 8), "QA default");
+        fund.submitRedemption("FINAL", w.player, fund.getUnits("P"), w.ledger, time(1, 10));
+        w.manager.processCutoff(w.accounts, w.ledger, time(1, 16));
+        assertEquals("SETTLED", fund.getOrder("FINAL").getString("status"));
+        assertEquals("0", fund.exportState().getJSONObject("debtContract").getString("issuerLiability"));
+        w.reconcile();
+    }
 }

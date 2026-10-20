@@ -440,7 +440,8 @@ public final class MutualFund {
                     poolAccount, LedgerEntryType.MANAGEMENT_FEE, poolCash, false, now, "Penyelesaian sisa biaya pool " + name);
             managementFeesPaid = managementFeesPaid.add(poolCash);
             poolCash = Money.zero(Currency.IDR); feeRemainder = BigDecimal.ZERO;
-            if (debtPrincipal.signum() == 0 && debtAccrued.compareTo(BigDecimal.ONE) < 0) debtAccrued = BigDecimal.ZERO;
+            // The last holder bears any default write-off; a later subscriber must not inherit their old claim.
+            if (debtFairValue().compareTo(BigDecimal.ONE) < 0) { debtPrincipal = BigDecimal.ZERO; debtAccrued = BigDecimal.ZERO; }
         }
         order.status = "SETTLED";
         order.settlement = new JSONObject().put("navPerUnit", nav.toPlainString()).put("unitsRedeemed", order.units.toPlainString())
