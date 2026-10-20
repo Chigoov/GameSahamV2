@@ -26,41 +26,72 @@ public final class CollectionManager {
 
     private void initDefaultCatalog() {
         catalog.clear();
+        // 1. KENDARAAN (VEHICLE)
+        addDefault(new CollectibleItem(
+                "COL-CAR-00", "Vespa Klasik 1965 Restorasi",
+                CollectibleItem.Category.VEHICLE, CollectibleItem.Rarity.STANDARD,
+                Money.of(25_000_000L, Currency.IDR), Money.of(20_000, Currency.IDR), 5
+        ));
         addDefault(new CollectibleItem(
                 "COL-CAR-01", "Porsche 911 GT3 RS",
-                CollectibleItem.Category.VEHICLE,
-                Money.of(4_500_000_000L, Currency.IDR),
-                Money.of(500_000, Currency.IDR), 10
+                CollectibleItem.Category.VEHICLE, CollectibleItem.Rarity.RARE,
+                Money.of(4_500_000_000L, Currency.IDR), Money.of(500_000, Currency.IDR), 15
         ));
         addDefault(new CollectibleItem(
                 "COL-CAR-02", "Ferrari 296 GTB",
-                CollectibleItem.Category.VEHICLE,
-                Money.of(8_000_000_000L, Currency.IDR),
-                Money.of(1_000_000, Currency.IDR), 15
+                CollectibleItem.Category.VEHICLE, CollectibleItem.Rarity.LEGENDARY,
+                Money.of(8_000_000_000L, Currency.IDR), Money.of(1_000_000, Currency.IDR), 25
+        ));
+
+        // 2. PROPERTI (REAL ESTATE)
+        addDefault(new CollectibleItem(
+                "COL-PROP-00", "Ruko Komersial BSD City",
+                CollectibleItem.Category.REAL_ESTATE, CollectibleItem.Rarity.STANDARD,
+                Money.of(45_000_000L, Currency.IDR), Money.of(30_000, Currency.IDR), 8
         ));
         addDefault(new CollectibleItem(
                 "COL-PROP-01", "Penthouse SCBD Mega Kuningan",
-                CollectibleItem.Category.REAL_ESTATE,
-                Money.of(15_000_000_000L, Currency.IDR),
-                Money.of(1_500_000, Currency.IDR), 25
+                CollectibleItem.Category.REAL_ESTATE, CollectibleItem.Rarity.RARE,
+                Money.of(15_000_000_000L, Currency.IDR), Money.of(1_500_000, Currency.IDR), 30
         ));
         addDefault(new CollectibleItem(
                 "COL-PROP-02", "Villa Tebing Uluwatu Bali",
-                CollectibleItem.Category.REAL_ESTATE,
-                Money.of(25_000_000_000L, Currency.IDR),
-                Money.of(2_500_000, Currency.IDR), 35
+                CollectibleItem.Category.REAL_ESTATE, CollectibleItem.Rarity.LEGENDARY,
+                Money.of(25_000_000_000L, Currency.IDR), Money.of(2_500_000, Currency.IDR), 50
+        ));
+
+        // 3. PERMATA (JEWELRY)
+        addDefault(new CollectibleItem(
+                "COL-JEW-01", "Cincin Safir Biru Ceylon",
+                CollectibleItem.Category.JEWELRY, CollectibleItem.Rarity.STANDARD,
+                Money.of(35_000_000L, Currency.IDR), Money.of(15_000, Currency.IDR), 6
+        ));
+        addDefault(new CollectibleItem(
+                "COL-JEW-02", "Kalung Berlian Solitaire Tiffany",
+                CollectibleItem.Category.JEWELRY, CollectibleItem.Rarity.RARE,
+                Money.of(2_500_000_000L, Currency.IDR), Money.of(100_000, Currency.IDR), 18
+        ));
+        addDefault(new CollectibleItem(
+                "COL-JEW-03", "Tiara Berlian Kerajaan Langka",
+                CollectibleItem.Category.JEWELRY, CollectibleItem.Rarity.LEGENDARY,
+                Money.of(18_000_000_000L, Currency.IDR), Money.of(800_000, Currency.IDR), 40
+        ));
+
+        // 4. SENI & JAM TANGAN (ART_AND_WATCHES)
+        addDefault(new CollectibleItem(
+                "COL-ART-00", "Rolex Submariner Vintage 1970",
+                CollectibleItem.Category.ART_AND_WATCHES, CollectibleItem.Rarity.STANDARD,
+                Money.of(15_000_000L, Currency.IDR), Money.of(10_000, Currency.IDR), 4
         ));
         addDefault(new CollectibleItem(
                 "COL-ART-01", "Patek Philippe Grandmaster Chime",
-                CollectibleItem.Category.ART_AND_WATCHES,
-                Money.of(5_000_000_000L, Currency.IDR),
-                Money.of(200_000, Currency.IDR), 15
+                CollectibleItem.Category.ART_AND_WATCHES, CollectibleItem.Rarity.RARE,
+                Money.of(5_000_000_000L, Currency.IDR), Money.of(200_000, Currency.IDR), 20
         ));
         addDefault(new CollectibleItem(
                 "COL-ART-02", "Lukisan Bersejarah Raden Saleh",
-                CollectibleItem.Category.ART_AND_WATCHES,
-                Money.of(12_000_000_000L, Currency.IDR),
-                Money.of(500_000, Currency.IDR), 20
+                CollectibleItem.Category.ART_AND_WATCHES, CollectibleItem.Rarity.LEGENDARY,
+                Money.of(12_000_000_000L, Currency.IDR), Money.of(500_000, Currency.IDR), 35
         ));
     }
 

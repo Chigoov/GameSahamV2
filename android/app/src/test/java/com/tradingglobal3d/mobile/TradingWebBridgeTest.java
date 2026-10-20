@@ -894,12 +894,12 @@ public class TradingWebBridgeTest {
 
     @Test
     public void testPlayerProgressXpAchievementsAndPersistence() throws Exception {
-        // 1. Awal permainan: Level 1, 0 XP, 6 achievements
+        // 1. Awal permainan: Level 1, 0 XP, 18 achievements (D08)
         String progressRaw = bridge.getPlayerProgress();
         JSONObject progress = new JSONObject(progressRaw);
         assertEquals(1, progress.getInt("level"));
         assertEquals(0, progress.getInt("currentXp"));
-        assertEquals(6, progress.getInt("totalAchievements"));
+        assertEquals(18, progress.getInt("totalAchievements"));
         assertEquals(0, progress.getInt("achievementsUnlocked"));
 
         // 2. Membaca artikel riset: idempoten, 5 artikel unik membuka 'reader' (150 XP)

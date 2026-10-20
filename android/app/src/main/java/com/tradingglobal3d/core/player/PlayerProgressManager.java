@@ -119,6 +119,66 @@ public final class PlayerProgressManager {
                 "Tuntaskan tiga laporan klien dengan data yang dapat ditelusuri.",
                 300, "file", 3
         ));
+        achievements.put("company_founder", new Achievement(
+                "company_founder", "Pendiri Konglomerasi",
+                "Dirikan anak usaha operasional pertamamu.",
+                250, "briefcase", 1
+        ));
+        achievements.put("chief_hr", new Achievement(
+                "chief_hr", "Harmoni Manajemen",
+                "Terapkan kebijakan kerja dan kelola operasional staf.",
+                180, "users", 1
+        ));
+        achievements.put("collector_entry", new Achievement(
+                "collector_entry", "Kolektor Pemula",
+                "Miliki barang mewah atau properti perdana di galeri.",
+                150, "award", 1
+        ));
+        achievements.put("collector_luxury", new Achievement(
+                "collector_luxury", "Koleksi Bergengsi",
+                "Capai valuasi koleksi mewah minimal Rp 50.000.000.",
+                300, "gem", 1
+        ));
+        achievements.put("fund_investor", new Achievement(
+                "fund_investor", "Investasi Reksa Dana",
+                "Beli unit reksa dana pertamamu berbasis NAB.",
+                150, "pie-chart", 1
+        ));
+        achievements.put("loan_responsible", new Achievement(
+                "loan_responsible", "Debitur Tepercaya",
+                "Ambil dan lunasi fasilitas pinjaman tenor tepat waktu.",
+                200, "credit-card", 1
+        ));
+        achievements.put("league_competitor", new Achievement(
+                "league_competitor", "Petarung Liga",
+                "Berpartisipasi aktif dalam kompetisi liga mingguan.",
+                150, "trophy", 1
+        ));
+        achievements.put("league_promoted", new Achievement(
+                "league_promoted", "Promosi Divisi",
+                "Raih promosi ke divisi liga yang lebih tinggi.",
+                350, "chevrons-up", 1
+        ));
+        achievements.put("networth_100m", new Achievement(
+                "networth_100m", "Centurion Kekayaan",
+                "Capai total kekayaan bersih pribadi Rp 100.000.000.",
+                300, "trending-up", 1
+        ));
+        achievements.put("networth_1b", new Achievement(
+                "networth_1b", "Miliarder Mandiri",
+                "Capai total kekayaan bersih pribadi Rp 1.000.000.000.",
+                500, "star", 1
+        ));
+        achievements.put("periodic_master", new Achievement(
+                "periodic_master", "Disiplin Misi",
+                "Selesaikan dan klaim tiga misi periodik harian atau mingguan.",
+                200, "check-circle", 3
+        ));
+        achievements.put("research_elite", new Achievement(
+                "research_elite", "Analis Ulung",
+                "Pelajari 10 catatan riset dan kalender emiten pasar.",
+                250, "book-open", 10
+        ));
     }
 
     public synchronized void reset() {
@@ -270,6 +330,105 @@ public final class PlayerProgressManager {
             }
         }
         return false;
+    }
+
+    public synchronized boolean onCompanyFounded(long timestamp) {
+        Achievement a = achievements.get("company_founder");
+        if (a != null && !a.isUnlocked()) {
+            a.unlock(timestamp);
+            currentXp += a.getXpReward();
+            return true;
+        }
+        return false;
+    }
+
+    public synchronized boolean onPolicySet(long timestamp) {
+        Achievement a = achievements.get("chief_hr");
+        if (a != null && !a.isUnlocked()) {
+            a.unlock(timestamp);
+            currentXp += a.getXpReward();
+            return true;
+        }
+        return false;
+    }
+
+    public synchronized boolean onCollectionPurchased(long totalValuationIdr, long timestamp) {
+        boolean granted = false;
+        Achievement a1 = achievements.get("collector_entry");
+        if (a1 != null && !a1.isUnlocked()) {
+            a1.unlock(timestamp);
+            currentXp += a1.getXpReward();
+            granted = true;
+        }
+        Achievement a2 = achievements.get("collector_luxury");
+        if (a2 != null && !a2.isUnlocked()) {
+            if (totalValuationIdr >= 50_000_000L) {
+                a2.unlock(timestamp);
+                currentXp += a2.getXpReward();
+                granted = true;
+            }
+        }
+        return granted;
+    }
+
+    public synchronized boolean onFundSubscribed(long timestamp) {
+        Achievement a = achievements.get("fund_investor");
+        if (a != null && !a.isUnlocked()) {
+            a.unlock(timestamp);
+            currentXp += a.getXpReward();
+            return true;
+        }
+        return false;
+    }
+
+    public synchronized boolean onLoanPaidOff(long timestamp) {
+        Achievement a = achievements.get("loan_responsible");
+        if (a != null && !a.isUnlocked()) {
+            a.unlock(timestamp);
+            currentXp += a.getXpReward();
+            return true;
+        }
+        return false;
+    }
+
+    public synchronized boolean onLeaguePromoted(long timestamp) {
+        Achievement a = achievements.get("league_promoted");
+        if (a != null && !a.isUnlocked()) {
+            a.unlock(timestamp);
+            currentXp += a.getXpReward();
+            return true;
+        }
+        return false;
+    }
+
+    public synchronized boolean onPeriodicMissionClaimed(long timestamp) {
+        Achievement a = achievements.get("periodic_master");
+        if (a != null && !a.isUnlocked()) {
+            a.setProgress(a.getCurrentProgress() + 1);
+            if (a.getCurrentProgress() >= a.getTargetProgress()) {
+                a.unlock(timestamp);
+                currentXp += a.getXpReward();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public synchronized boolean onNetWorthEvaluated(long netWorthIdr, long timestamp) {
+        boolean granted = false;
+        Achievement a100m = achievements.get("networth_100m");
+        if (a100m != null && !a100m.isUnlocked() && netWorthIdr >= 100_000_000L) {
+            a100m.unlock(timestamp);
+            currentXp += a100m.getXpReward();
+            granted = true;
+        }
+        Achievement a1b = achievements.get("networth_1b");
+        if (a1b != null && !a1b.isUnlocked() && netWorthIdr >= 1_000_000_000L) {
+            a1b.unlock(timestamp);
+            currentXp += a1b.getXpReward();
+            granted = true;
+        }
+        return granted;
     }
 
     public synchronized Collection<Achievement> getAchievements() {

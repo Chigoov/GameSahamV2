@@ -13,18 +13,30 @@ import java.util.Objects;
  */
 public final class CollectibleItem {
     public enum Category {
-        VEHICLE("Kendaraan Mewah"),
-        REAL_ESTATE("Properti & Real Estate"),
-        ART_AND_WATCHES("Seni & Jam Tangan Langka");
+        VEHICLE("Kendaraan"),
+        REAL_ESTATE("Properti"),
+        JEWELRY("Permata"),
+        ART_AND_WATCHES("Seni & Jam Tangan");
 
         private final String label;
         Category(String label) { this.label = label; }
         public String getLabel() { return label; }
     }
 
+    public enum Rarity {
+        STANDARD("Standar"),
+        RARE("Langka"),
+        LEGENDARY("Legenda");
+
+        private final String label;
+        Rarity(String label) { this.label = label; }
+        public String getLabel() { return label; }
+    }
+
     private final String id;
     private final String name;
     private final Category category;
+    private final Rarity rarity;
     private final Money basePrice;
     private Money currentValuation;
     private final Money dailyMaintenanceCost;
@@ -41,10 +53,22 @@ public final class CollectibleItem {
             Money basePrice,
             Money dailyMaintenanceCost,
             int reputationBonus) {
+        this(id, name, category, Rarity.STANDARD, basePrice, dailyMaintenanceCost, reputationBonus);
+    }
+
+    public CollectibleItem(
+            String id,
+            String name,
+            Category category,
+            Rarity rarity,
+            Money basePrice,
+            Money dailyMaintenanceCost,
+            int reputationBonus) {
 
         this.id = Objects.requireNonNull(id);
         this.name = Objects.requireNonNull(name);
         this.category = Objects.requireNonNull(category);
+        this.rarity = rarity != null ? rarity : Rarity.STANDARD;
         this.basePrice = Objects.requireNonNull(basePrice);
         this.currentValuation = basePrice;
         this.dailyMaintenanceCost = Objects.requireNonNull(dailyMaintenanceCost);
@@ -57,6 +81,7 @@ public final class CollectibleItem {
     public String getId() { return id; }
     public String getName() { return name; }
     public Category getCategory() { return category; }
+    public Rarity getRarity() { return rarity; }
     public Money getBasePrice() { return basePrice; }
     public Money getCurrentValuation() { return currentValuation; }
     public Money getDailyMaintenanceCost() { return dailyMaintenanceCost; }
