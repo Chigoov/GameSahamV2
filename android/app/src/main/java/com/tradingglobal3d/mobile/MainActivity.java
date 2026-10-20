@@ -30,6 +30,7 @@ public class MainActivity extends Activity {
         // 1. Inisialisasi TradingFacade dengan penyimpanan internal Android
         SaveManager saveManager = SaveManager.forDirectory(getFilesDir());
         facade = new TradingFacade(saveManager);
+        com.tradingglobal3d.core.market.HistoricalDatasetLoader.setAssetSource(path -> getAssets().open(path));
 
         try {
             // Muat katalog data universe dari aset lokal

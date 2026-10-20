@@ -975,10 +975,19 @@ public class TradingWebBridgeTest {
         // 2. Subscribe to Money Market Fund Rp 10.000.000
         JSONObject subReq = new JSONObject()
                 .put("fundId", "FUND-MM-01")
+                .put("requestId", "FUND-BRIDGE-SUB-ONE")
                 .put("amount", "10000000");
         JSONObject subRes = new JSONObject(bridge.subscribeMutualFund(subReq.toString()));
         assertTrue(subRes.getBoolean("success"));
         assertEquals("FUND-MM-01", subRes.getString("fundId"));
+        assertEquals("ACCEPTED", subRes.getString("status"));
+        assertEquals(Money.of(10_000_000, Currency.IDR), facade.getPersonalAccount().getReservedCash(Currency.IDR));
+        assertEquals(BigDecimal.ZERO.setScale(6), facade.getMutualFundManager().getFund("FUND-MM-01").getUnits(facade.getPersonalAccount().getId()));
+        facade.getClock().play();
+        facade.advanceRealMs(93750, true); // 08:30 -> 16:00, canonical cutoff settles once.
+        facade.getClock().pause();
+        assertEquals("SETTLED", facade.getMutualFundManager().getFund("FUND-MM-01").getOrder("FUND-BRIDGE-SUB-ONE").getString("status"));
+        assertTrue(facade.reconcileAll());
 
         // Verifikasi kepemilikan unit dan valuasi kekayaan bersih
         Money netWorth = facade.getPersonalNetWorth();
@@ -987,9 +996,14 @@ public class TradingWebBridgeTest {
         // 3. Redeem sebagian unit
         JSONObject redReq = new JSONObject()
                 .put("fundId", "FUND-MM-01")
+                .put("requestId", "FUND-BRIDGE-RED-ONE")
                 .put("units", "500.000000");
         JSONObject redRes = new JSONObject(bridge.redeemMutualFund(redReq.toString()));
-        assertTrue(redRes.getBoolean("success"));
+        assertTrue(redRes.toString(), redRes.getBoolean("success"));
+        assertEquals("ACCEPTED", redRes.getString("status"));
+        facade.skipDay("FUND-NEXT-CUTOFF");
+        assertEquals("SETTLED", facade.getMutualFundManager().getFund("FUND-MM-01").getOrder("FUND-BRIDGE-RED-ONE").getString("status"));
+        assertTrue(facade.reconcileAll());
     }
 
     @Test
@@ -1017,6 +1031,7 @@ public class TradingWebBridgeTest {
         // 4. Pay partial installment
         JSONObject payReq = new JSONObject()
                 .put("loanId", loanId)
+                .put("requestId", "BRIDGE-PAY-ONCE")
                 .put("amount", "1000000");
         JSONObject payRes = new JSONObject(bridge.payLoan(payReq.toString()));
         assertTrue(payRes.getBoolean("success"));

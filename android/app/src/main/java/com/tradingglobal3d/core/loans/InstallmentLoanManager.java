@@ -1,8 +1,11 @@
 package com.tradingglobal3d.core.loans;
 
+import com.tradingglobal3d.core.collection.CollectibleItem;
+import com.tradingglobal3d.core.collection.CollectionManager;
 import com.tradingglobal3d.core.economy.EconomyLedger;
 import com.tradingglobal3d.core.economy.LedgerEntryType;
 import com.tradingglobal3d.core.model.Account;
+import com.tradingglobal3d.core.model.AccountType;
 import com.tradingglobal3d.core.model.Currency;
 import com.tradingglobal3d.core.model.Money;
 import org.json.JSONArray;
@@ -21,7 +24,98 @@ import java.util.*;
  */
 public final class InstallmentLoanManager {
 
+    private CollectionManager collectionManager;
     private final Map<String, LoanContract> loans = new LinkedHashMap<>();
+
+    public synchronized void bindCollectionManager(CollectionManager collections) {
+        Objects.requireNonNull(collections, "Registry koleksi wajib tersedia");
+        validateCollateral(collections);
+        collectionManager = collections;
+        for (LoanContract loan : loans.values()) if (loan.getCollateralId() != null)
+            loan.bindCollateral(collections.getItem(loan.getCollateralId()));
+    }
+    public synchronized void validateCollateral(CollectionManager collections) {
+        Set<String> active = new HashSet<>();
+        for (LoanContract loan : loans.values()) if (loan.getCollateralId() != null) {
+            CollectibleItem item = collections.getItem(loan.getCollateralId());
+            if (item == null) throw new IllegalArgumentException("Agunan kontrak tidak ditemukan");
+            if (!loan.isClosed() && (!item.isOwned() || !loan.getAccountId().equals(item.getOwnerAccountId())
+                    || !loan.getId().equals(item.getPledgedLoanId()) || !active.add(item.getId())))
+                throw new IllegalArgumentException("Registry agunan tidak sesuai pinjaman aktif");
+        }
+        for (CollectibleItem item : collections.getAllItems()) if (item.isPledged()) {
+            LoanContract loan = loans.get(item.getPledgedLoanId());
+            if (loan == null || loan.isClosed() || !item.getId().equals(loan.getCollateralId()))
+                throw new IllegalArgumentException("Agunan tidak mempunyai pinjaman aktif");
+        }
+    }
+    private void validateProduct(String productId, Account account, Money principal, int tenor) {
+        Objects.requireNonNull(account); Objects.requireNonNull(principal);
+        boolean personal = "LOAN-PERS-01".equals(productId), corporate = "LOAN-CORP-01".equals(productId);
+        if ((!personal && !corporate) || (personal && account.getType() != AccountType.PERSONAL)
+                || (corporate && account.getType() != AccountType.COMPANY) || principal.getCurrency() != Currency.IDR
+                || principal.isLessThan(Money.of(1_000_000, Currency.IDR)) || (tenor != 7 && tenor != 14 && tenor != 30))
+            throw new IllegalArgumentException("Produk, akun, pokok atau tenor tidak sah");
+    }
+    private String payload(String productId, Account account, Money principal, int tenor, CollectibleItem collateral) {
+        return productId + "|" + account.getId() + "|" + principal.getAmount().toPlainString() + "|" + tenor + "|" + (collateral == null ? "" : collateral.getId());
+    }
+    public synchronized JSONObject getLoanQuote(String productId, Account account, Money principal, int tenor,
+            CollectibleItem collateral, Money cashflowLimit) throws JSONException {
+        validateProduct(productId, account, principal, tenor);
+        Money maximum;
+        String basis;
+        if (productId.equals("LOAN-PERS-01")) {
+            if (collectionManager == null || collateral == null || collectionManager.getItem(collateral.getId()) != collateral
+                    || !collateral.isOwned() || !account.getId().equals(collateral.getOwnerAccountId()) || collateral.isPledged())
+                throw new IllegalArgumentException("Agunan wajib koleksi canonical milik peminjam yang belum dijaminkan");
+            maximum = collateral.getCurrentValuation().subtract(collateral.getMaintenanceArrears()).multiply(new BigDecimal("0.5"));
+            if (maximum.isNegative()) maximum = Money.zero(Currency.IDR);
+            basis = collateral.getCurrentValuation().getAmount().toPlainString() + ":" + collateral.getMaintenanceArrears().getAmount().toPlainString();
+        } else {
+            if (collateral != null || cashflowLimit == null || cashflowLimit.getCurrency() != Currency.IDR || cashflowLimit.isNegative())
+                throw new IllegalArgumentException("Batas pinjaman perusahaan wajib berasal arus kas operasi aktual");
+            maximum = cashflowLimit.subtract(getTotalOutstandingPrincipal(account.getId()));
+            if (maximum.isNegative()) maximum = Money.zero(Currency.IDR);
+            basis = cashflowLimit.getAmount().toPlainString() + ":" + getTotalOutstandingPrincipal(account.getId()).getAmount().toPlainString();
+        }
+        Money fee = principal.multiply(LoanContract.DISBURSEMENT_FEE_RATE);
+        String version;
+        try {
+            byte[] hash = java.security.MessageDigest.getInstance("SHA-256").digest((payload(productId, account, principal, tenor, collateral) + "|" + basis).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(); for (byte value : hash) hex.append(String.format(java.util.Locale.ROOT, "%02x", value & 255)); version = hex.toString();
+        } catch (java.security.NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
+        return new JSONObject().put("success", true).put("eligible", principal.compareTo(maximum) <= 0)
+                .put("quoteVersion", version).put("productId", productId).put("accountId", account.getId())
+                .put("principalRaw", principal.getAmount().toPlainString()).put("maxPrincipalRaw", maximum.getAmount().toPlainString())
+                .put("feeRaw", fee.getAmount().toPlainString()).put("netCashRaw", principal.subtract(fee).getAmount().toPlainString())
+                .put("tenorDays", tenor).put("collateralId", collateral == null ? JSONObject.NULL : collateral.getId())
+                .put("eligibilityRule", collateral == null ? "ACTUAL_COMPANY_CASHFLOW_LESS_OUTSTANDING" : "HALF_NET_COLLECTION_VALUE")
+                .put("currency", "IDR");
+    }
+    public synchronized JSONObject disburseReviewedLoan(String requestId, String productId, Account account, Money principal,
+            int tenor, CollectibleItem collateral, Money cashflowLimit, String expectedQuoteVersion, EconomyLedger ledger, long now) throws JSONException {
+        if (requestId == null || requestId.trim().isEmpty() || requestId.length() > 160) throw new IllegalArgumentException("ID pencairan tidak sah");
+        validateProduct(productId, account, principal, tenor);
+        String input = payload(productId, account, principal, tenor, collateral);
+        for (LoanContract loan : loans.values()) {
+            JSONObject receipt = loan.getDisbursementReceipt();
+            if (receipt != null && requestId.equals(receipt.getString("requestId"))) {
+                if (!input.equals(loan.getDisbursementPayload())) throw new IllegalArgumentException("ID pencairan digunakan untuk input berbeda");
+                return receipt;
+            }
+        }
+        JSONObject quote = getLoanQuote(productId, account, principal, tenor, collateral, cashflowLimit);
+        if (!quote.getString("quoteVersion").equals(expectedQuoteVersion)) throw new IllegalStateException("STALE_QUOTE: tinjau ulang syarat pinjaman");
+        if (!quote.getBoolean("eligible")) throw new IllegalStateException("Pokok melampaui batas agunan/arus kas");
+        JSONObject receipt = disburseLoan(productId, account, principal, tenor, ledger, now);
+        LoanContract loan = loans.get(receipt.getString("loanId"));
+        if (collateral != null) { collateral.pledgeToLoan(loan.getId(), account.getId()); loan.attachCollateral(collateral); }
+        receipt.put("requestId", requestId).put("receiptId", "LOAN:" + requestId).put("accountId", account.getId())
+                .put("status", "SETTLED").put("quoteVersion", expectedQuoteVersion).put("collateralId", collateral == null ? JSONObject.NULL : collateral.getId());
+        loan.recordDisbursement(input, receipt);
+        return new JSONObject(receipt.toString());
+    }
 
     public synchronized void reset() {
         loans.clear();
@@ -60,12 +154,28 @@ public final class InstallmentLoanManager {
         return total;
     }
 
+    public synchronized Money getTotalOutstandingLiability(String accountId) {
+        Money total = Money.zero(Currency.IDR);
+        for (LoanContract loan : getLoansForAccount(accountId))
+            if (!loan.isClosed()) total = total.add(loan.getTotalPayoffAmount());
+        return total;
+    }
+
     /**
      * Pencairan pinjaman baru (Disbursement).
      * Contoh: Pinjaman Rp 1.000.000 tenor 14 hari, fee pencairan 0.5% (Rp 5.000),
      * kas cair Rp 995.000, pokok utang dicatat Rp 1.000.000.
      */
+    /** Trusted legacy fixture/import API; production entrypoints must use reviewed secured disbursement. */
+    @Deprecated
     public synchronized JSONObject disburseLoan(String productId, Account account, Money principal, int tenorDays, EconomyLedger ledger, long now) throws JSONException {
+        Objects.requireNonNull(account, "Akun pinjaman wajib tersedia");
+        Objects.requireNonNull(principal, "Pokok pinjaman wajib tersedia");
+        Objects.requireNonNull(ledger, "Ledger wajib tersedia");
+        boolean personal = "LOAN-PERS-01".equals(productId), corporate = "LOAN-CORP-01".equals(productId);
+        if ((!personal && !corporate) || (personal && account.getType() != AccountType.PERSONAL)
+                || (corporate && account.getType() != AccountType.COMPANY)) throw new IllegalArgumentException("Produk tidak sesuai jenis akun peminjam");
+        if (now < 0) throw new IllegalArgumentException("Timestamp pencairan tidak sah");
         if (principal.getCurrency() != Currency.IDR) throw new IllegalArgumentException("Pinjaman hanya tersedia dalam IDR");
         if (principal.getAmount().compareTo(BigDecimal.valueOf(1_000_000)) < 0) {
             throw new IllegalArgumentException("Plafon pinjaman minimal Rp 1.000.000");
@@ -78,12 +188,11 @@ public final class InstallmentLoanManager {
         Money fee = new Money(principal.getAmount().multiply(LoanContract.DISBURSEMENT_FEE_RATE).setScale(0, RoundingMode.HALF_UP), Currency.IDR);
         Money netDisbursed = principal.subtract(fee);
 
-        String loanId = "LN-" + System.currentTimeMillis() + "-" + (loans.size() + 1);
+        String loanId = "LN-" + now + "-" + (loans.size() + 1);
         LoanContract contract = new LoanContract(loanId, productId, account.getId(), principal, tenorDays, now);
         loans.put(loanId, contract);
 
         // Kreditkan kas bersih ke akun
-        account.creditCash(netDisbursed);
         ledger.recordMutation("LOAN-DISBURSE-" + loanId, account, LedgerEntryType.LOAN_DISBURSEMENT, principal, true, now, "Pencairan pokok pinjaman " + loanId);
         ledger.recordMutation("FEE-LOAN-" + loanId, account, LedgerEntryType.TRANSACTION_FEE, fee, false, now, "Biaya provisi pencairan pinjaman " + loanId);
 
@@ -110,6 +219,10 @@ public final class InstallmentLoanManager {
         }
     }
 
+    public synchronized void processDailyAccrual(long gameTimestamp) {
+        for (LoanContract loan : loans.values()) loan.processDailyAccrual(gameTimestamp);
+    }
+
     public synchronized JSONArray exportState() throws JSONException {
         JSONArray arr = new JSONArray();
         for (LoanContract l : loans.values()) {
@@ -118,15 +231,23 @@ public final class InstallmentLoanManager {
         return arr;
     }
 
-    public synchronized void restoreState(JSONArray arr) throws JSONException {
-        loans.clear();
-        if (arr == null) return;
-        for (int i = 0; i < arr.length(); i++) {
+    public synchronized void restoreState(JSONArray arr) throws JSONException { restoreState(arr, null); }
+    public synchronized void restoreState(JSONArray arr, long savedGameTimestamp) throws JSONException { restoreState(arr, Long.valueOf(savedGameTimestamp)); }
+    private void restoreState(JSONArray arr, Long savedGameTimestamp) throws JSONException {
+        Map<String, LoanContract> restored = new LinkedHashMap<>();
+        for (int i = 0; arr != null && i < arr.length(); i++) {
             JSONObject obj = arr.getJSONObject(i);
             LoanContract c = LoanContract.restoreFromState(obj);
-            if (c != null) {
-                loans.put(c.getId(), c);
-            }
+            if (savedGameTimestamp != null) c.resolveLegacyAnchor(savedGameTimestamp);
+            if (restored.put(c.getId(), c) != null) throw new IllegalArgumentException("ID pinjaman duplikat");
         }
+        Set<String> requests = new HashSet<>();
+        for (LoanContract loan : restored.values()) {
+            JSONObject receipt = loan.getDisbursementReceipt();
+            if (receipt != null && !requests.add(receipt.getString("requestId"))) throw new IllegalArgumentException("ID receipt pencairan duplikat");
+        }
+        loans.clear();
+        loans.putAll(restored);
+        collectionManager = null; // Restored graph must be rebound only after staged collection validation.
     }
 }

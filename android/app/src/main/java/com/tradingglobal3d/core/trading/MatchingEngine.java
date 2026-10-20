@@ -346,6 +346,7 @@ public final class MatchingEngine {
 
                 // 2. Settlement Seller
                 Position sellerPos = seller.getPosition(instrument.getId());
+                Money realizedNet = netSaleResult(sellerPos, matchQty, askPrice, sellFee);
                 sellerPos.addSell(matchQty, askPrice);
 
                 // Catat di ledger seller (otomatis mengkredit hasil jual dan mendebit fee)
@@ -362,7 +363,7 @@ public final class MatchingEngine {
                         buyOrder.getId(), makerSell.getId(),
                         buyer.getId(), seller.getId(),
                         instrument.getId(), execPrice, matchQty, timestamp
-                );
+                ).withSellerRealizedNetPnL(realizedNet);
                 fills.add(fill);
                 book.recordFill(fill);
                 recordMarketPrice(instrument, execPrice, matchQty, allAccounts.values());
@@ -436,6 +437,7 @@ public final class MatchingEngine {
 
                 // 2. Settlement Seller
                 Position sellerPos = seller.getPosition(instrument.getId());
+                Money realizedNet = netSaleResult(sellerPos, matchQty, bidPrice, sellFee);
                 sellerPos.addSell(matchQty, bidPrice);
 
                 ledger.recordMutation("SELL-FILL-" + System.nanoTime(), seller, LedgerEntryType.TRADE_SELL, tradeValue, true, timestamp, "Jual " + matchQty + " " + instrument.getTicker());
@@ -450,7 +452,7 @@ public final class MatchingEngine {
                         makerBuy.getId(), sellOrder.getId(),
                         buyer.getId(), seller.getId(),
                         instrument.getId(), execPrice, matchQty, timestamp
-                );
+                ).withSellerRealizedNetPnL(realizedNet);
                 fills.add(fill);
                 book.recordFill(fill);
                 recordMarketPrice(instrument, execPrice, matchQty, allAccounts.values());
@@ -464,6 +466,13 @@ public final class MatchingEngine {
                 it.remove();
             }
         }
+    }
+
+    private Money netSaleResult(Position position, long quantity, BigDecimal executionPrice, Money saleFee) {
+        BigDecimal cost = position.getAverageCost().multiply(BigDecimal.valueOf(quantity));
+        Money allocatedBuyFee = new Money(cost.multiply(BUY_FEE_RATE), position.getCurrency());
+        return new Money(executionPrice.multiply(BigDecimal.valueOf(quantity)).subtract(cost), position.getCurrency())
+                .subtract(saleFee).subtract(allocatedBuyFee);
     }
 
     private void recordMarketPrice(Instrument instrument, Money price, long quantity, Collection<Account> accounts) {
@@ -620,6 +629,7 @@ public final class MatchingEngine {
                 ledger.recordMutation("AUCTION-BUYFEE-" + System.nanoTime(), buyer, LedgerEntryType.TRANSACTION_FEE, buyFee, false, gameTimestamp, "Biaya Lelang " + instrument.getTicker());
 
                 Position sPos = seller.getPosition(instrument.getId());
+                Money realizedNet = netSaleResult(sPos, matchQty, clearingPrice, sellFee);
                 sPos.addSell(matchQty, clearingPrice);
 
                 ledger.recordMutation("AUCTION-SELL-" + System.nanoTime(), seller, LedgerEntryType.TRADE_SELL, tradeValue, true, gameTimestamp, "Lelang Jual " + matchQty + " " + instrument.getTicker());
@@ -634,7 +644,7 @@ public final class MatchingEngine {
                         buyerOrder.getId(), sellerOrder.getId(),
                         buyer.getId(), seller.getId(),
                         instrument.getId(), clearingMoney, matchQty, gameTimestamp
-                );
+                ).withSellerRealizedNetPnL(realizedNet);
                 book.recordFill(fill);
                 recordMarketPrice(instrument, clearingMoney, matchQty, allAccounts.values());
                 matchesCount++;

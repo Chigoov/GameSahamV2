@@ -58,6 +58,9 @@ public final class TradingFacade {
     private GameMode gameMode;
     private String runId = java.util.UUID.randomUUID().toString();
     private Money weeklyBaselineNetWorth = null;
+    private com.tradingglobal3d.core.career.PerformancePeriod weeklyPerformance;
+    private com.tradingglobal3d.core.career.PerformancePeriod runPerformance;
+    private JSONArray performanceHistory = new JSONArray();
     private static final String RULES_VERSION = "2026.10.20.2";
     private boolean recoveryRequired;
 
@@ -84,7 +87,8 @@ public final class TradingFacade {
     private final Map<String, Account> accounts = new HashMap<>();
     private String personalAccountId;
     private final EconomyLedger ledger = new EconomyLedger();
-    private final SaveManager saveManager;
+    private SaveManager saveManager;
+    private final SaveManager primarySaveManager;
     private InstrumentCatalog catalog = new InstrumentCatalog();
     private JSONObject initialCatalogState;
     private final MarketEngine marketEngine = new MarketEngine();
@@ -123,6 +127,7 @@ public final class TradingFacade {
     }
 
     public TradingFacade(SaveManager saveManager) {
+        this.primarySaveManager = saveManager;
         this.saveManager = Objects.requireNonNull(saveManager);
     }
 
@@ -470,11 +475,15 @@ public final class TradingFacade {
 
         careerManager.beginDay(personal, fxService.getMidRate(), ledger);
         weeklyBaselineNetWorth = getPersonalNetWorth();
+        weeklyPerformance = new com.tradingglobal3d.core.career.PerformancePeriod(clock.getGameTimestamp(), weeklyBaselineNetWorth,
+                ledger.getEntriesForAccount(personalAccountId).size());
+        runPerformance = weeklyPerformance;
+        performanceHistory = new JSONArray();
         recoveryRequired = false;
     }
 
     public synchronized JSONObject startHistoricalReplay(String datasetId, BigDecimal initialCapital) {
-        String ds = (datasetId != null && !datasetId.trim().isEmpty()) ? datasetId.trim() : "IDX:BBCA";
+        String ds = com.tradingglobal3d.core.market.HistoricalDatasetLoader.canonicalDatasetId(datasetId == null ? "US:AAPL" : datasetId);
         List<com.tradingglobal3d.core.market.HistoricalBar> bars;
         try {
             bars = com.tradingglobal3d.core.market.HistoricalDatasetLoader.loadDataset(ds);
@@ -485,6 +494,9 @@ public final class TradingFacade {
             throw new IllegalStateException("Dataset replay kosong: " + ds);
         }
 
+        try { if (clock != null && getPersonalAccount() != null) save(); }
+        catch (IOException | JSONException error) { throw new IllegalStateException("Simpan progres aktif sebelum membuka replay", error); }
+        saveManager = new SaveManager(primarySaveManager.getSaveFile().getParentFile(), "save_replay_v2.json");
         initializeNewGame(GameMode.HISTORICAL_REPLAY, initialCapital != null ? initialCapital : BigDecimal.valueOf(50_000_000));
         replayEngine.startReplay(ds, bars);
 
@@ -493,8 +505,12 @@ public final class TradingFacade {
 
         Instrument inst = catalog.getById(ds);
         if (inst != null) {
-            inst.updatePrice(new Money(firstBar.getClose(), inst.getCurrency()), firstBar.getVolume());
+            inst.updatePrice(new Money(firstBar.getOpen(), inst.getCurrency()), 0);
         }
+        weeklyBaselineNetWorth = getPersonalNetWorth();
+        weeklyPerformance = new com.tradingglobal3d.core.career.PerformancePeriod(clock.getGameTimestamp(), weeklyBaselineNetWorth,
+                ledger.getEntriesForAccount(personalAccountId).size());
+        runPerformance = weeklyPerformance;
 
         JSONObject result = new JSONObject();
         try {
@@ -503,11 +519,29 @@ public final class TradingFacade {
             result.put("datasetId", ds);
             result.put("startDate", firstBar.getDate().toString());
             result.put("totalBars", bars.size());
-            result.put("initialPrice", firstBar.getClose().toPlainString());
+            result.put("initialPrice", firstBar.getOpen().toPlainString());
             result.put("initialCapital", (initialCapital != null ? initialCapital : BigDecimal.valueOf(50_000_000)).toPlainString());
             result.put("message", "Replay historis " + ds + " berhasil dimulai dari tanggal " + firstBar.getDate());
         } catch (JSONException ignored) {}
         return result;
+    }
+
+    public synchronized JSONObject resumeSavedMode(String mode) throws JSONException, IOException {
+        GameMode selected = GameMode.valueOf(mode);
+        SaveManager target = selected == GameMode.HISTORICAL_REPLAY
+                ? new SaveManager(primarySaveManager.getSaveFile().getParentFile(), "save_replay_v2.json") : primarySaveManager;
+        if (!target.getSaveFile().isFile() && !target.getBackupFile().isFile())
+            throw new IllegalStateException("Belum ada progres tersimpan untuk mode ini");
+        save();
+        SaveManager previous = saveManager;
+        saveManager = target;
+        if (!load()) { saveManager = previous; throw new IllegalStateException("Progres mode tidak dapat divalidasi"); }
+        return new JSONObject(getSnapshotJson()).put("success", true);
+    }
+
+    public synchronized void startInternalGame(BigDecimal capital) {
+        saveManager = primarySaveManager;
+        initializeNewGame(GameMode.INTERNAL_MARKET, capital);
     }
 
     public synchronized String setClockState(boolean playing, int speed) throws JSONException {
@@ -801,6 +835,18 @@ public final class TradingFacade {
             periodicMissionManager.recordActivity("TRADE:" + entry.getId(), "TRADE", 1, date);
         }
         // All execution paths (resting orders, NPC matches and triggers) converge here.
+        for (Instrument instrument : catalog.getActiveUniverse()) {
+            OrderBook book = marketEngine.getBook(instrument.getId());
+            if (book == null) continue;
+            for (TradeFill fill : book.getTradeHistory()) {
+                boolean sold = personalAccountId.equals(fill.getSellAccountId());
+                if (!sold && !personalAccountId.equals(fill.getBuyAccountId())) continue;
+                Money net = sold ? fill.getSellerRealizedNetPnL() : null;
+                if (net != null && net.getCurrency() == Currency.USD)
+                    net = new Money(net.getAmount().multiply(fxService.getMidRate()), Currency.IDR);
+                playerProfileManager.recordFillResult(fill.getFillId(), net);
+            }
+        }
         for (Order order : orderManager.getOrdersForAccount(personalAccountId)) {
             if (order.getFilledQuantity() > 0)
                 progressManager.onTradeExecuted(catalog.getById(order.getInstrumentId()).getExchange().name(), clock.getGameTimestamp());
@@ -1074,10 +1120,16 @@ public final class TradingFacade {
         // 1. Update kalender misi dan rollover mingguan liga (D07, D09)
         periodicMissionManager.updateCalendar(nextDate, careerManager.getCurrentRank());
         if (nextDate.getDayOfWeek() == java.time.DayOfWeek.MONDAY) {
-            double weeklyRet = computeWeeklyReturnPercent();
+            Double weeklyRet = computeWeeklyReturnPercent();
+            var previousTier = leagueManager.getCurrentTier();
+            try { performanceHistory.put(getPerformanceReport().getJSONObject("weekly")); }
+            catch (JSONException impossible) { throw new IllegalStateException(impossible); }
             leagueManager.processWeeklyRollover(weeklyRet, getPersonalNetWorth());
             weeklyBaselineNetWorth = getPersonalNetWorth();
-            progressManager.onLeaguePromoted(clock.getGameTimestamp());
+            weeklyPerformance = new com.tradingglobal3d.core.career.PerformancePeriod(clock.getGameTimestamp(), weeklyBaselineNetWorth,
+                    ledger.getEntriesForAccount(personalAccountId).size());
+            if (leagueManager.getCurrentTier().ordinal() > previousTier.ordinal())
+                progressManager.onLeaguePromoted(clock.getGameTimestamp());
         }
 
         // 2. Eksekusi otomatis aksi korporasi yang jatuh tempo pada hari berikutnya
@@ -1254,6 +1306,9 @@ public final class TradingFacade {
         }
         JSONObject runtime = new JSONObject();
         runtime.put("runId", runId);
+        if (weeklyPerformance != null) runtime.put("weeklyPerformance", weeklyPerformance.exportState());
+        if (runPerformance != null) runtime.put("runPerformance", runPerformance.exportState());
+        runtime.put("performanceHistory", performanceHistory);
         if (weeklyBaselineNetWorth != null) {
             runtime.put("weeklyBaselineNetWorth", weeklyBaselineNetWorth.getAmount().toPlainString());
         }
@@ -1404,6 +1459,8 @@ public final class TradingFacade {
             if (runtime.has("periodicMissions")) new PeriodicMissionManager().restoreState(runtime.getJSONObject("periodicMissions"));
             if (runtime.has("league")) new LeagueManager().restoreState(runtime.getJSONObject("league"));
             if (runtime.has("playerProfile")) new PlayerProfileManager().restoreState(runtime.getJSONObject("playerProfile"));
+            if (runtime.has("weeklyPerformance")) com.tradingglobal3d.core.career.PerformancePeriod.restore(runtime.getJSONObject("weeklyPerformance"));
+            if (runtime.has("runPerformance")) com.tradingglobal3d.core.career.PerformancePeriod.restore(runtime.getJSONObject("runPerformance"));
         } catch (Exception invalidState) {
             return false;
         }
@@ -1462,7 +1519,12 @@ public final class TradingFacade {
             installmentLoanManager.bindCollectionManager(collectionManager);
 
             // Bind fund pool accounts setelah restore akun dan katalog
+            mutualFundManager.registerPoolAccounts(accounts, ledger, clock.getGameTimestamp());
             mutualFundManager.bindAccounts(accounts, catalog);
+            weeklyPerformance = runtime.has("weeklyPerformance") ? com.tradingglobal3d.core.career.PerformancePeriod.restore(runtime.getJSONObject("weeklyPerformance"))
+                    : new com.tradingglobal3d.core.career.PerformancePeriod(clock.getGameTimestamp(), getPersonalNetWorth(), ledger.getEntriesForAccount(personalAccountId).size());
+            runPerformance = runtime.has("runPerformance") ? com.tradingglobal3d.core.career.PerformancePeriod.restore(runtime.getJSONObject("runPerformance")) : weeklyPerformance;
+            performanceHistory = runtime.optJSONArray("performanceHistory") != null ? runtime.getJSONArray("performanceHistory") : new JSONArray();
         } catch (Exception invalidState) {
             return false;
         }
@@ -1614,11 +1676,21 @@ public final class TradingFacade {
      * Return = (currentNetWorth - baseline) / baseline * 100.
      * Jika baseline nol atau negatif, return 0 untuk menghindari division by zero.
      */
-    private double computeWeeklyReturnPercent() {
-        if (weeklyBaselineNetWorth == null || weeklyBaselineNetWorth.isZero() || weeklyBaselineNetWorth.isNegative()) return 0.0;
-        Money current = getPersonalNetWorth();
-        BigDecimal diff = current.getAmount().subtract(weeklyBaselineNetWorth.getAmount());
-        return diff.multiply(BigDecimal.valueOf(100)).divide(weeklyBaselineNetWorth.getAmount(), 4, java.math.RoundingMode.HALF_UP).doubleValue();
+    private Double computeWeeklyReturnPercent() {
+        try {
+            JSONObject weekly = getPerformanceReport().getJSONObject("weekly");
+            return weekly.getBoolean("returnAvailable") ? weekly.getDouble("returnPercent") : null;
+        } catch (JSONException impossible) { throw new IllegalStateException(impossible); }
+    }
+
+    public synchronized JSONObject getPerformanceReport() throws JSONException {
+        if (weeklyPerformance == null || runPerformance == null) throw new IllegalStateException("Periode statistik belum siap");
+        long now = clock.getGameTimestamp();
+        List<LedgerEntry> entries = ledger.getEntriesForAccount(personalAccountId);
+        return new JSONObject().put("success", true)
+                .put("weekly", weeklyPerformance.calculate(now, getPersonalNetWorth(), entries, fxService.getMidRate()))
+                .put("run", runPerformance.calculate(now, getPersonalNetWorth(), entries, fxService.getMidRate()))
+                .put("weeklyHistory", new JSONArray(performanceHistory.toString()));
     }
 
     public synchronized JSONObject getChartData(String instrumentId, String timeframe) throws JSONException {
@@ -1632,7 +1704,7 @@ public final class TradingFacade {
                     || instrumentId.contains(replayEngine.getActiveDatasetId())
                     || (inst.getTicker() != null && replayEngine.getActiveDatasetId().contains(inst.getTicker())))) {
             JSONArray barsArr = new JSONArray();
-            for (com.tradingglobal3d.core.market.HistoricalBar b : replayEngine.getVisibleBars()) {
+            for (com.tradingglobal3d.core.market.HistoricalBar b : replayEngine.getVisibleBars(clock.getCurrentDate(), clock.getCurrentTime())) {
                 JSONObject bObj = new JSONObject();
                 bObj.put("time", b.getDate().toString());
                 bObj.put("open", b.getOpen().doubleValue());
@@ -1841,17 +1913,7 @@ public final class TradingFacade {
     }
 
     public synchronized JSONObject disburseLoan(String productId, boolean isPersonal, String companyId, Money principal, int tenorDays) throws JSONException {
-        Account targetAccount;
-        if (isPersonal) {
-            targetAccount = getPersonalAccount();
-        } else {
-            com.tradingglobal3d.core.business.OperatingCompany comp = companyManager.getCompany(companyId);
-            if (comp == null) throw new IllegalArgumentException("Perusahaan tidak ditemukan: " + companyId);
-            targetAccount = accounts.get(comp.getAccountId());
-        }
-        if (targetAccount == null) throw new IllegalStateException("Akun tujuan pinjaman tidak ditemukan");
-        long now = clock != null ? clock.getGameTimestamp() : System.currentTimeMillis();
-        return installmentLoanManager.disburseLoan(productId, targetAccount, principal, tenorDays, ledger, now);
+        throw new IllegalStateException("Tinjau quote dan agunan terlebih dahulu sebelum mengonfirmasi pinjaman");
     }
 
     /**
@@ -2028,7 +2090,7 @@ public final class TradingFacade {
         String pTitle = careerManager != null ? careerManager.getCurrentRank().getTitle() : "Trader";
 
         if ("WEEKLY_RETURN".equalsIgnoreCase(mode)) {
-            double weeklyRet = computeWeeklyReturnPercent();
+            Double weeklyRet = computeWeeklyReturnPercent();
             return leagueManager.getLeaderboardByWeeklyReturn(weeklyRet, playerWorth, pName, pTitle);
         } else {
             return leagueManager.getLeaderboardByNetWorth(playerWorth, pName, pTitle);
@@ -2037,7 +2099,7 @@ public final class TradingFacade {
 
     public synchronized JSONObject getRivalStatus() throws JSONException {
         Money playerWorth = getPersonalNetWorth();
-        double playerRet = computeWeeklyReturnPercent();
+        Double playerRet = computeWeeklyReturnPercent();
         return leagueManager.getRivalStatus(playerWorth, playerRet);
     }
 
@@ -2047,11 +2109,15 @@ public final class TradingFacade {
 
     public synchronized JSONObject getInvestorArchetype() throws JSONException {
         Account personal = getPersonalAccount();
-        int totalFills = playerProfileManager.getTotalTradesExecuted();
-        int days = playerProfileManager.getLifetimeDaysPlayed();
+        List<TradeFill> fills = new ArrayList<>();
+        for (Instrument instrument : catalog.getActiveUniverse()) {
+            OrderBook book = marketEngine.getBook(instrument.getId());
+            if (book != null) fills.addAll(book.getTradeHistory());
+        }
+        int days = playerProfileManager.getRunDaysPlayed();
         Money netWorth = getPersonalNetWorth();
         Money marginDebt = personal != null ? riskService.getMarginDebt(personal.getId(), Currency.IDR) : Money.zero(Currency.IDR);
-        return InvestorArchetypeService.evaluateArchetype(totalFills, days, personal, netWorth, marginDebt);
+        return InvestorArchetypeService.evaluateArchetype(fills, days, personal, netWorth, marginDebt, fxService.getMidRate(), clock.getGameTimestamp());
     }
 
     public synchronized JSONObject getPlayerProfileJson() throws JSONException {
@@ -2061,6 +2127,7 @@ public final class TradingFacade {
         res.put("currentLevel", progressManager.getCurrentLevel());
         res.put("currentXp", progressManager.getCurrentXp());
         res.put("netWorth", getPersonalNetWorth().format());
+        res.put("performance", getPerformanceReport());
         return res;
     }
 
@@ -2069,6 +2136,7 @@ public final class TradingFacade {
             playerProfileManager.setPlayerName(name);
         }
         playerProfileManager.setPreferences(textSize, highContrast, reducedMotion);
+        persistFinancialMutation();
         return getPlayerProfileJson();
     }
 

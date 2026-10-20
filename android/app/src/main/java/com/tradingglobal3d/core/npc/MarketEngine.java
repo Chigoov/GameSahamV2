@@ -58,7 +58,8 @@ public final class MarketEngine {
             for (TradeFill fill : book.getTradeHistory()) fills.put(new org.json.JSONObject()
                     .put("id", fill.getFillId()).put("buyOrder", fill.getBuyOrderId()).put("sellOrder", fill.getSellOrderId())
                     .put("buyer", fill.getBuyAccountId()).put("seller", fill.getSellAccountId())
-                    .put("price", fill.getPrice().getAmount().toPlainString()).put("quantity", fill.getQuantity()).put("timestamp", fill.getTimestamp()));
+                    .put("price", fill.getPrice().getAmount().toPlainString()).put("quantity", fill.getQuantity()).put("timestamp", fill.getTimestamp())
+                    .put("sellerRealizedNet", fill.getSellerRealizedNetPnL() == null ? org.json.JSONObject.NULL : fill.getSellerRealizedNetPnL().getAmount().toPlainString()));
             saved.put(item.put("fills", fills));
         }
         return saved;
@@ -97,7 +98,9 @@ public final class MarketEngine {
                 if (!price.isPositive() || fill.getLong("quantity") <= 0 || !fillIds.add(fill.getString("id")))
                     throw new IllegalArgumentException("Fill save tidak valid");
                 book.recordFill(new TradeFill(fill.getString("id"), fill.getString("buyOrder"), fill.getString("sellOrder"),
-                        fill.getString("buyer"), fill.getString("seller"), instrument.getId(), price, fill.getLong("quantity"), fill.getLong("timestamp")));
+                        fill.getString("buyer"), fill.getString("seller"), instrument.getId(), price, fill.getLong("quantity"), fill.getLong("timestamp"))
+                        .withSellerRealizedNetPnL(fill.isNull("sellerRealizedNet") ? null : new com.tradingglobal3d.core.model.Money(
+                                new java.math.BigDecimal(fill.getString("sellerRealizedNet")), instrument.getCurrency())));
             }
             if (fills.length() > 0 && (item.isNull("last") || !book.getLastTradedPrice().getAmount().toPlainString().equals(item.getString("last"))))
                 throw new IllegalArgumentException("Harga terakhir dan fill save tidak konsisten");

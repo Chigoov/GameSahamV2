@@ -5,7 +5,6 @@ import com.tradingglobal3d.core.model.Money;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.math.BigDecimal;
 import java.util.Objects;
 
 /**
@@ -17,6 +16,9 @@ public final class Employee {
         HEAD_OF_RESEARCH("Kepala Riset & Analis", 2_500_000, 0.15, 5),
         LEAD_TRADER("Lead Trader Institusi", 2_000_000, 0.15, 5),
         HR_DIRECTOR("Direktur SDM & Budaya", 1_500_000, 0.05, 15),
+        OPERATIONS_MANAGER("Kepala Operasional", 1_500_000, 0.15, 5),
+        SALES_MANAGER("Kepala Penjualan", 1_500_000, 0.15, 5),
+        PRODUCTION_MANAGER("Kepala Produksi", 2_000_000, 0.20, 5),
         COMPLIANCE_HEAD("Kepala Kepatuhan & Risiko", 1_500_000, 0.05, 10);
 
         private final String label;
@@ -46,7 +48,7 @@ public final class Employee {
         this.id = Objects.requireNonNull(id, "ID tidak boleh null");
         this.name = Objects.requireNonNull(name, "Nama tidak boleh null");
         this.role = Objects.requireNonNull(role, "Role tidak boleh null");
-        this.level = Math.max(1, level);
+        this.level = Math.max(1, Math.min(5, level));
     }
 
     public String getId() { return id; }

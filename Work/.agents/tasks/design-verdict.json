@@ -1,0 +1,94 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "reviewDoc": "C:/Users/HYPE AMD/Downloads/VIBE CODING/GAME SAHAM/Work/.agents/tasks/design-review.md",
+  "findings": [
+    {
+      "id": 1,
+      "severity": "HIGH",
+      "title": "Personal Save Protection Completely Omitted from Design",
+      "location": "Work/.agents/tasks/design.md, Section 5.5, lines 494-508",
+      "problem": "The design does not mention or protect the personal save at Artifacts/LocalPreview/preview-save/save_game_v2.json. There is zero directory isolation specified for automated tests and benchmarks, violating workspace rules against destructive testing on personal saves.",
+      "fix": "Add Section 5.5.1 specifying that all automated tests and benchmarks must point SaveManager.forDirectory to a transient temporary folder or QA-Save directory, explicitly prohibiting writes or resets to Artifacts/LocalPreview/preview-save/ and requiring pre-run backups."
+    },
+    {
+      "id": 2,
+      "severity": "HIGH",
+      "title": "Discrete Time Advancement Slicing Algorithm Misses 16:00 Cutoff",
+      "location": "Work/.agents/tasks/design.md, Section 2, lines 201-214",
+      "problem": "The discrete step calculation in advanceWorldSeconds does not include secondsToCutoff, and the cutoff trigger checks exact equality (toSecondOfDay() == 16 * 3600). A step of 60s will skip past 16:00 WIB, failing to process daily mutual fund cutoffs during large advances.",
+      "fix": "Add secondsToCutoff to the Math.min step calculation and evaluate interval crossing (currentSecond < cutoffSecond && currentSecond + step >= cutoffSecond) before triggering mutualFundManager.processDailyCutoff."
+    },
+    {
+      "id": 3,
+      "severity": "HIGH",
+      "title": "Missing Bridge and Facade API Specifications for Company Staff / Employee Management (D11)",
+      "location": "Work/.agents/tasks/design.md, Section 4 (F5), Section 6.1, Section 6.2",
+      "problem": "FR-04 and F5 mandate company staff management (hire, fire, assign, train) and the openCompanyStaffModal UI, but neither TradingWebBridge nor TradingFacade or CompanyManager currently implement these methods, and design.md provides no method signatures, parameter types, or candidate generation algorithms.",
+      "fix": "Specify explicit method signatures in CompanyManager, TradingFacade, and TradingWebBridge for getCompanyStaff, hireCompanyStaff, fireCompanyStaff, and trainCompanyStaff along with JSON request schemas and candidate generation rules."
+    },
+    {
+      "id": 4,
+      "severity": "HIGH",
+      "title": "Inconsistency Between SPECIFICATION.md D05, Existing Code, and design.md for Corporate Loan Tenors and Interest Rates",
+      "location": "Work/.agents/tasks/design.md, Section 5.2, lines 413-418",
+      "problem": "Table 5.2 specifies LOAN-CORP-01 with 14, 30, 60 day tenors, 0.04% daily rate, and 0.75% fee. This directly contradicts SPECIFICATION.md D05 and InstallmentLoanManager.java (line 70), which enforce tenors of 7, 14, or 30 days at 0.05% daily rate and 0.50% fee.",
+      "fix": "Align LOAN-CORP-01 in Table 5.2 with D05: Tenors = 7, 14, 30 game days, Daily Rate = 0.05%/day, Origination Fee = 0.50%, with eligibility restricted to Operational Companies."
+    },
+    {
+      "id": 5,
+      "severity": "HIGH",
+      "title": "Inconsistency and Accessibility Breakdown in Luxury Collection Catalog (D10)",
+      "location": "Work/.agents/tasks/design.md, Section 5.4, lines 463-487; Section 6.1, line 538",
+      "problem": "Table 5.4 replaces the existing 12-item catalog with items starting at Rp 350M (cheapest vehicle Rp 850M), violating SPECIFICATION.md D05/D10 rules requiring early-game accessible items. Furthermore, CollectionManager.java already defines 12 items starting at Rp 15M-45M, contradicting design.md's claim that it needs expansion to 12 items.",
+      "fix": "Replace Table 5.4 with the 12 canonical items already implemented in CollectionManager.java (Vespa Rp 25M, Ruko BSD Rp 45M, etc.), and clarify in Section 6.1 that CollectionManager only requires the pledged collateral flag and lock mechanics."
+    },
+    {
+      "id": 6,
+      "severity": "HIGH",
+      "title": "Omission of Operational Company Realistic Revenue/Cost Formulas (D11)",
+      "location": "Work/.agents/tasks/design.md, Part I FR-04, Section 3, Section 4 (F5)",
+      "problem": "OperatingCompany.java hardcodes revenue at Rp 25M/day/level with no costs or demand models, which SPECIFICATION.md Section 21 explicitly forbids. design.md fails to specify sector-specific formulas, operating expenses, capacity limits, or payroll arrears penalties.",
+      "fix": "Add Section 5.6 defining sector differentiation (Jasa, Ritel, Manufaktur), mathematical daily revenue and expense formulas, and payroll arrears handling (morality drop, capacity penalty, accrued liability)."
+    },
+    {
+      "id": 7,
+      "severity": "MEDIUM",
+      "title": "Unspecified Queue and Dealing Settlement Mechanics for Mutual Funds (D06)",
+      "location": "Work/.agents/tasks/design.md, Section 5.1, lines 388-410",
+      "problem": "The design states fund orders are queued for 16:00 cutoff, but existing code executes immediately at current NAV. The design omits queue persistence, cancellation deadline rules (e.g. 15:30 WIB), and bridge cancellation endpoints.",
+      "fix": "Specify PendingFundOrder persistence in SaveState, define the 15:30 WIB cancellation deadline, and add cancelFundOrder to TradingFacade and TradingWebBridge."
+    },
+    {
+      "id": 8,
+      "severity": "HIGH",
+      "title": "Incomplete Coverage of 26 Feature Groups and D01–D16 Design Decisions",
+      "location": "Work/.agents/tasks/design.md, throughout",
+      "problem": "Multiple required design specifications are omitted or insufficiently specified: D01 (intraday timestamp sequence order), D03 (gross asset denominator), D04 (portfolio health categories and risk rules), D12 (reference uncertain bank deposits), D14 (prestige domain retention map), D16 (local preferences persistence), and corporate actions / IPO prospectus lifecycles.",
+      "fix": "Expand Part II of design.md with explicit subsections and rules for D01, D03, D04, D12, D14, D16, and the complete 26 feature groups matching SPECIFICATION.md."
+    },
+    {
+      "id": 9,
+      "severity": "MEDIUM",
+      "title": "NPC Names in League Leaderboard Violate SPECIFICATION.md (D09)",
+      "location": "Work/.agents/tasks/design.md, Section 5.3, lines 426-442",
+      "problem": "LeagueManager.java initializes 20 NPC competitors using names of living Indonesian business figures, which violates SPECIFICATION.md Section 19 ('Nama tokoh nyata tidak menjadi default'). design.md failed to identify or remediate this.",
+      "fix": "Define a roster of 20 fully fictional Indonesian competitor names and archetypes in Section 5.3, and add a remediation task for LeagueManager.java."
+    },
+    {
+      "id": 10,
+      "severity": "MEDIUM",
+      "title": "Missing Input Validation Contracts and Error Codes for Bridge Mutations",
+      "location": "Work/.agents/tasks/design.md, Section 8, lines 561-575",
+      "problem": "Section 8 only provides a generic JSON envelope without defining domain input validation rules or machine-readable error codes for loan disbursement, mutual fund subscriptions, company founding, or luxury item trading.",
+      "fix": "Add an Input Validation Matrix in Section 8 detailing parameter bounds, preconditions, and error codes for all bridge mutation endpoints."
+    },
+    {
+      "id": 11,
+      "severity": "NIT",
+      "title": "Discrepancy in F3 and F5 Problem Statements vs Existing Repository State",
+      "location": "Work/.agents/tasks/design.md, Section 4 (F3 and F5)",
+      "problem": "The design states initializeNewGame lacks reset calls and app.js lacks 6 modals that are actually already implemented in the repository.",
+      "fix": "Update Section 4 problem descriptions to accurately reflect the codebase, refocusing F3 on automated test verification (CompanyCleanResetTest) and F5 on openCompanyStaffModal."
+    }
+  ]
+}

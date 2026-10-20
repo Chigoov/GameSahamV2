@@ -50,6 +50,8 @@ public final class OperatingCompany {
     private final Map<String, Employee> employees = new LinkedHashMap<>();
     private final Map<String, JSONObject> staffReceipts = new LinkedHashMap<>();
     private long staffVersion;
+    private final JSONArray policyHistory = new JSONArray();
+    private final Map<Long, Money[]> operationalReports = new LinkedHashMap<>();
 
     public OperatingCompany(String id, String name, String sector, String accountId, int level) {
         this.id = Objects.requireNonNull(id);
@@ -118,6 +120,7 @@ public final class OperatingCompany {
         lastRevenue = revenue;
         lastOperatingCost = operatingCost;
         lastPayrollPaid = payrollPaid;
+        operationalReports.put(day, new Money[]{revenue, operatingCost, payrollPaid, payrollArrears});
         if (payrollArrears.isPositive()) morale = Math.max(0, morale - 20);
         else {
             int target = targetMorale();
@@ -197,8 +200,15 @@ public final class OperatingCompany {
         return calculateDailyRevenue().subtract(calculateDailyPayroll()).subtract(calculateDailyOperatingCost());
     }
 
-    public void upgradeLevel() {
+    void upgradeLevel() {
+        if (level >= 20) throw new IllegalStateException("Level perusahaan sudah maksimum");
+        staffVersion = Math.addExact(staffVersion, 1);
         this.level++;
+    }
+
+    void recordPolicy(long timestamp) throws JSONException {
+        policyHistory.put(new JSONObject().put("timestamp", timestamp).put("workHours", workHours)
+                .put("benefitTier", benefitTier.name()).put("effectiveRule", "NEXT_DAILY_SETTLEMENT"));
     }
 
     public JSONObject toJsonObject() throws JSONException {
@@ -231,6 +241,16 @@ public final class OperatingCompany {
         obj.put("employees", empArr);
         obj.put("staffVersion", staffVersion);
         obj.put("staffReceipts", new JSONObject(staffReceipts));
+        obj.put("policyHistory", new JSONArray(policyHistory.toString()));
+        JSONArray reports = new JSONArray();
+        for (Map.Entry<Long, Money[]> entry : operationalReports.entrySet()) {
+            Money[] values = entry.getValue();
+            reports.put(new JSONObject().put("day", entry.getKey()).put("revenue", values[0].getAmount().toPlainString())
+                    .put("operatingCost", values[1].getAmount().toPlainString()).put("payrollPaid", values[2].getAmount().toPlainString())
+                    .put("payrollArrears", values[3].getAmount().toPlainString()).put("currency", "IDR")
+                    .put("netCashflow", values[0].subtract(values[1]).subtract(values[2]).getAmount().toPlainString()));
+        }
+        obj.put("operationalReports", reports);
         return obj;
     }
 
@@ -280,6 +300,28 @@ public final class OperatingCompany {
         comp.staffVersion = obj.optLong("staffVersion", 0);
         if (comp.staffVersion < 0 || comp.staffVersion == Long.MAX_VALUE)
             throw new IllegalArgumentException("Versi pegawai tidak valid");
+        JSONArray policy = obj.optJSONArray("policyHistory");
+        for (int i = 0; policy != null && i < policy.length(); i++) {
+            JSONObject entry = policy.getJSONObject(i);
+            int hours = entry.getInt("workHours");
+            if ((hours != 6 && hours != 8 && hours != 10) || entry.getLong("timestamp") < 0)
+                throw new IllegalArgumentException("Riwayat kebijakan tidak valid");
+            BenefitTier.valueOf(entry.getString("benefitTier"));
+            comp.policyHistory.put(new JSONObject(entry.toString()));
+        }
+        JSONArray reports = obj.optJSONArray("operationalReports");
+        for (int i = 0; reports != null && i < reports.length(); i++) {
+            JSONObject report = reports.getJSONObject(i);
+            long day = report.getLong("day");
+            Money[] values = new Money[4];
+            String[] fields = {"revenue", "operatingCost", "payrollPaid", "payrollArrears"};
+            for (int j = 0; j < fields.length; j++) {
+                values[j] = new Money(new BigDecimal(report.getString(fields[j])), Currency.IDR);
+                if (values[j].isNegative()) throw new IllegalArgumentException("Laporan perusahaan tidak valid");
+            }
+            if (day > comp.lastOperationsDay || comp.operationalReports.put(day, values) != null)
+                throw new IllegalArgumentException("Hari laporan perusahaan tidak valid");
+        }
         return comp;
     }
 }

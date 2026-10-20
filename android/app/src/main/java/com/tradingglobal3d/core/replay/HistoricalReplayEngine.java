@@ -13,6 +13,7 @@ import com.tradingglobal3d.core.trading.OrderSide;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.*;
 
 /**
@@ -37,6 +38,12 @@ public final class HistoricalReplayEngine {
         Objects.requireNonNull(datasetId);
         Objects.requireNonNull(bars);
         if (bars.isEmpty()) throw new IllegalArgumentException("Dataset bar tidak boleh kosong");
+        LocalDate previous = null;
+        for (HistoricalBar bar : bars) {
+            Objects.requireNonNull(bar, "Bar tidak boleh null");
+            if (previous != null && !bar.getDate().isAfter(previous)) throw new IllegalArgumentException("Tanggal replay wajib unik dan naik");
+            previous = bar.getDate();
+        }
         this.activeDatasetId = datasetId;
         this.datasetBars = new ArrayList<>(bars);
         this.currentBarIndex = 0;
@@ -67,8 +74,55 @@ public final class HistoricalReplayEngine {
 
     public List<HistoricalBar> getVisibleBars() {
         if (!isReplayActive || datasetBars.isEmpty()) return Collections.emptyList();
-        int end = Math.min(currentBarIndex + 1, datasetBars.size());
+        int end = Math.min(currentBarIndex, datasetBars.size());
         return Collections.unmodifiableList(datasetBars.subList(0, end));
+    }
+
+    /** Daily OHLCV is published only at the model close, never at that day's open. */
+    public List<HistoricalBar> getVisibleBars(LocalDate date, LocalTime time) {
+        if (!isReplayActive) return Collections.emptyList();
+        List<HistoricalBar> visible = new ArrayList<>();
+        for (HistoricalBar bar : datasetBars) {
+            if (bar.getDate().isBefore(date) || (bar.getDate().equals(date) && !time.isBefore(LocalTime.of(16, 0)))) visible.add(bar);
+            else break;
+        }
+        return Collections.unmodifiableList(visible);
+    }
+
+    /** Calendar dates, including weekends/gaps, do not consume an unrelated trading row. */
+    public boolean synchronizeToDate(LocalDate date) {
+        if (!isReplayActive || datasetBars.isEmpty()) return false;
+        int old = currentBarIndex;
+        while (currentBarIndex + 1 < datasetBars.size() && !datasetBars.get(currentBarIndex + 1).getDate().isAfter(date)) currentBarIndex++;
+        return currentBarIndex != old;
+    }
+
+    public boolean supportsInstrument(String instrumentId) { return isReplayActive && activeDatasetId.equals(instrumentId); }
+
+    public BigDecimal getObservablePrice(LocalDate date, LocalTime time) {
+        HistoricalBar bar = getCurrentBar();
+        if (bar == null || bar.getDate().isAfter(date)) return null;
+        if (bar.getDate().isBefore(date) || !time.isBefore(LocalTime.of(16, 0))) return bar.getClose();
+        if (time.isBefore(LocalTime.of(9, 0))) {
+            return currentBarIndex == 0 ? null : datasetBars.get(currentBarIndex - 1).getClose();
+        }
+        return bar.getOpen();
+    }
+
+    /**
+     * ponytail: daily opening-reference execution only; add intraday execution only with licensed finer data.
+     * Day high/low cannot prove the path or justify a fill before close.
+     */
+    public BigDecimal executablePrice(Order order, LocalDate date, LocalTime time) {
+        HistoricalBar bar = getCurrentBar();
+        if (!supportsInstrument(order.getInstrumentId()) || bar == null || !bar.getDate().equals(date)
+                || time.isBefore(LocalTime.of(9, 0)) || !time.isBefore(LocalTime.of(16, 0))) return null;
+        BigDecimal price = bar.getOpen();
+        if (order.getLimitPrice() != null) {
+            int cmp = order.getLimitPrice().getAmount().compareTo(price);
+            if ((order.isBuy() && cmp < 0) || (order.isSell() && cmp > 0)) return null;
+        }
+        return price;
     }
 
     public boolean advanceBar() {
@@ -84,24 +138,34 @@ public final class HistoricalReplayEngine {
         return isReplayActive && currentBarIndex >= datasetBars.size() - 1;
     }
 
+    public boolean isReplayCompleted(LocalDate date, LocalTime time) {
+        if (!isReplayActive || datasetBars.isEmpty()) return false;
+        LocalDate lastDate = datasetBars.get(datasetBars.size() - 1).getDate();
+        return date.isAfter(lastDate) || (date.equals(lastDate) && !time.isBefore(LocalTime.of(16, 0)));
+    }
+
     public org.json.JSONObject exportState() throws org.json.JSONException {
         org.json.JSONObject obj = new org.json.JSONObject();
         obj.put("isReplayActive", isReplayActive);
         obj.put("activeDatasetId", activeDatasetId == null ? org.json.JSONObject.NULL : activeDatasetId);
         obj.put("currentBarIndex", currentBarIndex);
+        obj.put("datasetSha256", isReplayActive ? com.tradingglobal3d.core.market.HistoricalDatasetLoader.VERIFIED_SHA256 : org.json.JSONObject.NULL);
         return obj;
     }
 
     public void restoreState(org.json.JSONObject obj) throws org.json.JSONException {
         if (obj == null) return;
-        this.isReplayActive = obj.optBoolean("isReplayActive", false);
-        this.activeDatasetId = obj.isNull("activeDatasetId") ? null : obj.optString("activeDatasetId", null);
-        this.currentBarIndex = obj.optInt("currentBarIndex", 0);
-        if (this.isReplayActive && this.activeDatasetId != null && datasetBars.isEmpty()) {
-            try {
-                this.datasetBars = new ArrayList<>(com.tradingglobal3d.core.market.HistoricalDatasetLoader.loadDataset(this.activeDatasetId));
-            } catch (Exception ignored) {}
-        }
+        if (!obj.optBoolean("isReplayActive", false)) { reset(); return; }
+        String id = obj.optString("activeDatasetId", "");
+        int index = obj.optInt("currentBarIndex", -1);
+        if (!com.tradingglobal3d.core.market.HistoricalDatasetLoader.VERIFIED_SHA256.equals(obj.optString("datasetSha256", "")))
+            throw new IllegalArgumentException("Versi dataset save replay tidak cocok; progres lama dipertahankan untuk pemulihan");
+        List<HistoricalBar> loaded;
+        try { loaded = com.tradingglobal3d.core.market.HistoricalDatasetLoader.loadDataset(id); }
+        catch (java.io.IOException e) { throw new IllegalArgumentException("Dataset replay tidak dapat dipulihkan", e); }
+        if (index < 0 || index >= loaded.size()) throw new IllegalArgumentException("Indeks replay save di luar dataset");
+        startReplay(com.tradingglobal3d.core.market.HistoricalDatasetLoader.canonicalDatasetId(id), loaded);
+        currentBarIndex = index;
     }
 
     public StrategyLabSandbox createSandbox(String sandboxId, Account sourceAccount) {

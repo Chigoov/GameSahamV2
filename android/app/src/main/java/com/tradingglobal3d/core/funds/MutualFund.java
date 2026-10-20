@@ -18,7 +18,7 @@ import java.math.RoundingMode;
 import java.time.*;
 import java.util.*;
 
-/** Cash-backed dealing core. Strategy-specific stock/bond/money-market pools remain pending D06. */
+/** Unit/NAV dealing with canonical cash, equity positions, and issuer-backed debt contracts. */
 public final class MutualFund {
     public enum FundType {
         MONEY_MARKET("Pasar Uang", "Rendah", 0.05),
@@ -63,6 +63,12 @@ public final class MutualFund {
     private Account poolAccount;
     private InstrumentCatalog valuationCatalog;
     private boolean canonicalPool;
+    private Account debtIssuer;
+    private BigDecimal debtPrincipal = BigDecimal.ZERO, debtAccrued = BigDecimal.ZERO;
+    private BigDecimal debtPriceFactor = BigDecimal.ONE;
+    private long debtAccrualDay = Long.MIN_VALUE;
+    private long lastDebtActionTimestamp = Long.MIN_VALUE;
+    public String getDebtIssuerAccountId() { return "ACC-FUND-ISSUER-" + id; }
     private Money markedSecurities = Money.zero(Currency.IDR);
     public String getPoolAccountId() { return "ACC-FUND-" + id; }
     synchronized void registerPoolAccount(Map<String, Account> accounts, EconomyLedger ledger, long now) {
@@ -77,12 +83,30 @@ public final class MutualFund {
             throw new IllegalArgumentException("Akun pool migrasi sudah terpakai");
         if (account.getType() != AccountType.FIRM) throw new IllegalArgumentException("Jenis akun pool salah");
         poolAccount = account; canonicalPool = true;
+        if (type != FundType.EQUITY_INDEX) {
+            debtIssuer = accounts.get(getDebtIssuerAccountId());
+            if (debtIssuer == null) {
+                if (debtPrincipal.signum() > 0 || debtAccrued.signum() > 0)
+                    throw new IllegalArgumentException("Akun penerbit backing hilang");
+                debtIssuer = new Account(getDebtIssuerAccountId(), "Penerbit kontrak " + name, AccountType.FIRM, null);
+                accounts.put(debtIssuer.getId(), debtIssuer);
+                // ponytail: finite NPC capital backs coupons; exhausted issuers retain unpaid liabilities, never mint returns.
+                ledger.recordMutation("FUND-ISSUER-SEED-" + id, debtIssuer, LedgerEntryType.INITIAL_CAPITAL,
+                        Money.of(10_000_000, Currency.IDR), true, now, "Modal awal NPC penerbit kontrak game " + name);
+            }
+        }
     }
     synchronized void bindAccounts(Map<String, Account> accounts, InstrumentCatalog catalog) {
         Account account = accounts.get(getPoolAccountId());
         if (!canonicalPool || account == null || account.getType() != AccountType.FIRM)
             throw new IllegalArgumentException("Pool belum diregistrasi");
-        poolAccount = account; valuationCatalog = Objects.requireNonNull(catalog); markAssets();
+        poolAccount = account; valuationCatalog = Objects.requireNonNull(catalog);
+        if (type != FundType.EQUITY_INDEX) {
+            debtIssuer = accounts.get(getDebtIssuerAccountId());
+            if (debtIssuer == null && (debtPrincipal.signum() > 0 || debtAccrued.signum() > 0))
+                throw new IllegalArgumentException("Akun penerbit backing hilang");
+        }
+        markAssets();
     }
     private Money markAssets() {
         if (poolAccount != null) {
@@ -94,6 +118,7 @@ public final class MutualFund {
                     throw new IllegalStateException("Instrumen pool tidak dapat divaluasi");
                 markedSecurities = markedSecurities.add(instrument.getCurrentPrice().multiply(BigDecimal.valueOf(entry.getValue().getQuantity())));
             }
+            markedSecurities = markedSecurities.add(new Money(debtFairValue().setScale(0, RoundingMode.DOWN), Currency.IDR));
         }
         return poolCash.add(markedSecurities);
     }
@@ -182,37 +207,75 @@ public final class MutualFund {
     public BigDecimal getAvailableUnits(String accountId) { return getUnits(accountId).subtract(getReservedUnits(accountId)); }
     public Money getHoldingsValue(String accountId) { return new Money(getUnits(accountId).multiply(getNavPerUnit()), Currency.IDR); }
 
-    // Backing model: MONEY_MARKET dan FIXED_INCOME memakai kas pool + target return harian proporsional.
-    // EQUITY_INDEX memakai posisi saham BBCA via rebalance (ditangani getEquityRebalanceOrder).
-    // advanceDay mengakruasi pendapatan simulasi harian untuk MM/FI agar NAB bertumbuh.
-    public synchronized void advanceDay(double marketFactorChange, EconomyLedger ledger, long now) {
-        if (type == FundType.EQUITY_INDEX || poolAccount == null || totalUnits.signum() == 0) return;
-        // Pendapatan harian = (targetAnnualYield / 365) * total pool assets
-        // Ini simulasi: aset underlying MM (deposito/SBI) dan FI (obligasi) menghasilkan return harian
-        double dailyRate = type.getTargetAnnualYield() / 365.0;
-        double factor = 1.0 + dailyRate + (marketFactorChange * 0.1); // sedikit variansi pasar
-        if (factor <= 0.9) factor = 0.9; // floor: tidak lebih dari -10% sehari
-        // Akruasi ke poolCash — catat ke ledger agar reconcile tetap konsisten
-        java.math.BigDecimal growth = poolCash.getAmount().multiply(java.math.BigDecimal.valueOf(factor - 1.0))
-                .setScale(0, java.math.RoundingMode.HALF_UP);
-        if (growth.signum() != 0) {
-            long growthLong = growth.longValue();
-            if (growthLong > 0) {
-                Money credit = Money.of(growthLong, Currency.IDR);
-                ledger.recordMutation(id + ":YIELD:" + now, poolAccount,
-                        LedgerEntryType.YIELD, credit, true, now, "Imbal hasil harian " + name);
-                poolCash = poolAccount.getTotalCash(Currency.IDR);
-            } else if (growthLong < 0) {
-                // Kerugian: debit pool, tapi tidak boleh melebihi kas tersedia
-                long loss = Math.min(-growthLong, poolAccount.getAvailableCash(Currency.IDR).getAmount().longValue());
-                if (loss > 0) {
-                    Money debit = Money.of(loss, Currency.IDR);
-                    ledger.recordMutation(id + ":YIELD:" + now, poolAccount,
-                            LedgerEntryType.YIELD, debit, false, now, "Kerugian harian " + name);
-                    poolCash = poolAccount.getTotalCash(Currency.IDR);
+    private BigDecimal debtFairValue() {
+        BigDecimal fair = debtPrincipal.multiply(debtPriceFactor).add(debtAccrued);
+        // Recoverability is bounded by this issuer's canonical liquid assets, including funded principal.
+        return debtIssuer == null ? fair : fair.min(debtIssuer.getTotalCash(Currency.IDR).getAmount()).max(BigDecimal.ZERO);
+    }
+
+    private void transferDebtCash(EconomyLedger ledger, Account from, Account to, Money amount, String request, long now) {
+        if (!amount.isPositive()) return;
+        ledger.recordMutation(request + ":OUT", from, LedgerEntryType.YIELD, amount, false, now, "Kontrak backing " + id);
+        ledger.recordMutation(request + ":IN", to, LedgerEntryType.YIELD, amount, true, now, "Kontrak backing " + id);
+    }
+
+    private void accrueDebt(EconomyLedger ledger, long now) {
+        long day = Instant.ofEpochMilli(now).atOffset(JAKARTA).toLocalDate().toEpochDay();
+        if (debtAccrualDay == Long.MIN_VALUE) debtAccrualDay = day;
+        if (day < debtAccrualDay) throw new IllegalArgumentException("Waktu kontrak backing mundur");
+        long elapsed = day - debtAccrualDay;
+        BigDecimal coupon = new BigDecimal(type == FundType.MONEY_MARKET ? "0.05" : "0.08");
+        debtAccrued = debtAccrued.add(debtPrincipal.multiply(coupon).multiply(BigDecimal.valueOf(elapsed))
+                .divide(BigDecimal.valueOf(365), 16, RoundingMode.HALF_UP));
+        debtAccrualDay = day;
+        BigDecimal excess = debtIssuer.getAvailableCash(Currency.IDR).getAmount().subtract(debtPrincipal).max(BigDecimal.ZERO);
+        Money paid = new Money(debtAccrued.min(excess).setScale(0, RoundingMode.DOWN), Currency.IDR);
+        transferDebtCash(ledger, debtIssuer, poolAccount, paid, id + ":COUPON:" + now, now);
+        debtAccrued = debtAccrued.subtract(paid.getAmount());
+    }
+
+    private void manageDebtLiquidity(EconomyLedger ledger, long now) {
+        if (debtIssuer == null || poolAccount == null) return;
+        BigDecimal needed = feeRemainder;
+        BigDecimal pendingUnits = BigDecimal.ZERO;
+        for (PendingFundOrder order : orders.values()) if (order.pending() && !order.isSubscribe)
+            { needed = needed.add(order.units.multiply(getNavPerUnit())); pendingUnits = pendingUnits.add(order.units); }
+        BigDecimal cash = poolAccount.getAvailableCash(Currency.IDR).getAmount();
+        if (needed.compareTo(cash) > 0 && debtPrincipal.signum() > 0) {
+            BigDecimal fairPrincipal = debtFairValue().subtract(debtAccrued).max(BigDecimal.ZERO);
+            BigDecimal price = fairPrincipal.divide(debtPrincipal, 16, RoundingMode.DOWN);
+            if (price.signum() > 0) {
+                BigDecimal face = needed.subtract(cash).divide(price, 0, RoundingMode.UP).min(debtPrincipal);
+                if (pendingUnits.compareTo(totalUnits) == 0) face = debtPrincipal;
+                Money proceeds = new Money(face.multiply(price).setScale(0, RoundingMode.DOWN)
+                        .min(debtIssuer.getAvailableCash(Currency.IDR).getAmount()), Currency.IDR);
+                if (proceeds.isPositive()) {
+                    transferDebtCash(ledger, debtIssuer, poolAccount, proceeds, id + ":DEBT-REDEEM:" + now, now);
+                    debtPrincipal = debtPrincipal.subtract(face);
                 }
             }
+        } else if (needed.signum() == 0 && totalUnits.signum() > 0) {
+            BigDecimal target = markAssets().getAmount().multiply(new BigDecimal("0.8"));
+            Money invest = new Money(target.subtract(debtPrincipal).max(BigDecimal.ZERO).min(cash)
+                    .setScale(0, RoundingMode.DOWN), Currency.IDR);
+            if (invest.isPositive()) {
+                transferDebtCash(ledger, poolAccount, debtIssuer, invest, id + ":DEBT-ISSUE:" + now, now);
+                debtPrincipal = debtPrincipal.add(invest.getAmount());
+            }
         }
+    }
+
+    public synchronized void advanceDay(double marketFactorChange, EconomyLedger ledger, long now) {
+        if (!Double.isFinite(marketFactorChange)) throw new IllegalArgumentException("Perubahan yield tidak sah");
+        if (type == FundType.EQUITY_INDEX || poolAccount == null || debtIssuer == null) return;
+        if (now <= lastDebtActionTimestamp) return;
+        accrueDebt(ledger, now);
+        if (type == FundType.FIXED_INCOME)
+            debtPriceFactor = BigDecimal.ONE.subtract(BigDecimal.valueOf(marketFactorChange))
+                    .max(new BigDecimal("0.7")).min(new BigDecimal("1.1"));
+        manageDebtLiquidity(ledger, now);
+        lastDebtActionTimestamp = now;
+        markAssets();
     }
 
     private static boolean dealingDay(LocalDate date) {
@@ -299,6 +362,12 @@ public final class MutualFund {
         LocalDate date = Instant.ofEpochMilli(now).atOffset(JAKARTA).toLocalDate();
         long currentCutoff = cutoff(date);
         if (!dealingDay(date) || now < currentCutoff || currentCutoff <= lastCutoffTimestamp) return;
+        if (debtIssuer != null) {
+            accrueDebt(ledger, currentCutoff);
+            boolean redemptionPending = false;
+            for (PendingFundOrder order : orders.values()) if (order.pending() && !order.isSubscribe) redemptionPending = true;
+            if (redemptionPending) manageDebtLiquidity(ledger, currentCutoff);
+        }
         accrueManagementFee(date.toEpochDay(), ledger, currentCutoff);
         BigDecimal nav = getNavPerUnit();
         if (nav.signum() <= 0) throw new IllegalStateException("NAB tidak positif; dealing dihentikan");
@@ -310,6 +379,7 @@ public final class MutualFund {
             else settleRedemption(order, account, ledger, currentCutoff, nav);
         }
         lastCutoffTimestamp = currentCutoff;
+        if (debtIssuer != null) { manageDebtLiquidity(ledger, currentCutoff); lastDebtActionTimestamp = currentCutoff; }
         historicalNavs.add(new JSONObject().put("time", currentCutoff).put("nav", getNavPerUnit().toPlainString()));
         if (historicalNavs.size() > 60) historicalNavs.remove(0);
     }
@@ -370,6 +440,7 @@ public final class MutualFund {
                     poolAccount, LedgerEntryType.MANAGEMENT_FEE, poolCash, false, now, "Penyelesaian sisa biaya pool " + name);
             managementFeesPaid = managementFeesPaid.add(poolCash);
             poolCash = Money.zero(Currency.IDR); feeRemainder = BigDecimal.ZERO;
+            if (debtPrincipal.signum() == 0 && debtAccrued.compareTo(BigDecimal.ONE) < 0) debtAccrued = BigDecimal.ZERO;
         }
         order.status = "SETTLED";
         order.settlement = new JSONObject().put("navPerUnit", nav.toPlainString()).put("unitsRedeemed", order.units.toPlainString())
@@ -388,13 +459,16 @@ public final class MutualFund {
                 .put("entryFee", "0.1%").put("exitFee", "0.1%").put("managementFee", "0.75% / tahun")
                 .put("cutoffTime", "16:00 WIB").put("dealingCalendar", "MONDAY_FRIDAY").put("cancelDeadline", "15:30 WIB")
                 .put("poolAccountId", getPoolAccountId()).put("securitiesValue", markedSecurities.getAmount().toPlainString())
-                .put("backingModel", type == FundType.EQUITY_INDEX && canonicalPool ? "CANONICAL_EQUITY_POSITIONS" : "CASH_ACCRUAL_DAILY_YIELD");
+                .put("backingModel", type == FundType.EQUITY_INDEX ? "CANONICAL_EQUITY_POSITIONS" :
+                        type == FundType.MONEY_MARKET ? "CANONICAL_DEPOSIT_CONTRACT" : "CANONICAL_BOND_CONTRACT")
+                .put("backingContract", debtContractJson());
         JSONArray mine = new JSONArray();
         for (PendingFundOrder order : orders.values()) if (order.accountId.equals(accountId)) mine.put(receipt(order));
         return obj.put("orders", mine).put("navHistory", new JSONArray(historicalNavs));
     }
     public synchronized JSONObject exportState() throws JSONException {
-        JSONObject obj = new JSONObject().put("stateSchemaVersion", 3).put("canonicalPool", canonicalPool)
+        JSONObject obj = new JSONObject().put("stateSchemaVersion", 4).put("canonicalPool", canonicalPool)
+                .put("debtContract", debtContractJson())
                 .put("markedSecurities", markAssets().getAmount().subtract(poolCash.getAmount()).toPlainString()).put("legacySponsorMigration", legacySponsorMigration)
                 .put("id", id).put("name", name).put("type", type.name()).put("managerName", managerName)
                 .put("navPerUnit", getNavPerUnit().toPlainString()).put("totalUnits", totalUnits.toPlainString())
@@ -414,6 +488,9 @@ public final class MutualFund {
     public synchronized void restoreState(JSONObject obj) throws JSONException {
         MutualFund staged = new MutualFund(id, name, type, managerName);
         staged.restoreValidated(obj);
+        debtPrincipal = staged.debtPrincipal; debtAccrued = staged.debtAccrued;
+        debtPriceFactor = staged.debtPriceFactor; debtAccrualDay = staged.debtAccrualDay;
+        lastDebtActionTimestamp = staged.lastDebtActionTimestamp; debtIssuer = null;
         canonicalPool = staged.canonicalPool; markedSecurities = staged.markedSecurities; poolAccount = null; valuationCatalog = null;
         totalUnits = staged.totalUnits; poolCash = staged.poolCash; feeRemainder = staged.feeRemainder;
         managementFeesPaid = staged.managementFeesPaid; lastCutoffTimestamp = staged.lastCutoffTimestamp;
@@ -425,11 +502,37 @@ public final class MutualFund {
     private static BigDecimal decimal(JSONObject obj, String key, int scale) throws JSONException {
         return new BigDecimal(obj.getString(key)).setScale(scale, RoundingMode.UNNECESSARY);
     }
+    private JSONObject debtContractJson() throws JSONException {
+        return new JSONObject().put("issuerAccountId", getDebtIssuerAccountId()).put("currency", "IDR")
+                .put("principal", debtPrincipal.toPlainString()).put("accruedInterest", debtAccrued.toPlainString())
+                .put("issuerLiability", debtPrincipal.add(debtAccrued).toPlainString())
+                .put("couponAnnual", type == FundType.MONEY_MARKET ? "0.05" : "0.08")
+                .put("priceFactor", debtPriceFactor.toPlainString()).put("accrualDay", debtAccrualDay)
+                .put("lastActionTimestamp", lastDebtActionTimestamp)
+                .put("fairValue", debtFairValue().setScale(0, RoundingMode.DOWN).toPlainString())
+                .put("risk", "Risiko penerbit, likuiditas, dan perubahan yield; kupon tidak dijamin");
+    }
     private void restoreValidated(JSONObject obj) throws JSONException {
         if (obj == null) throw new IllegalArgumentException("State reksa dana kosong");
         boolean legacy = !obj.has("stateSchemaVersion");
-        if (!legacy && (obj.getInt("stateSchemaVersion") != 2 && obj.getInt("stateSchemaVersion") != 3))
+        if (!legacy && (obj.getInt("stateSchemaVersion") < 2 || obj.getInt("stateSchemaVersion") > 4))
             throw new IllegalArgumentException("Versi state reksa dana tidak didukung");
+        if (!legacy && obj.getInt("stateSchemaVersion") == 4) {
+            JSONObject debt = obj.getJSONObject("debtContract");
+            debtPrincipal = decimal(debt, "principal", 0);
+            debtAccrued = new BigDecimal(debt.getString("accruedInterest"));
+            debtPriceFactor = new BigDecimal(debt.getString("priceFactor"));
+            debtAccrualDay = debt.getLong("accrualDay");
+            lastDebtActionTimestamp = debt.getLong("lastActionTimestamp");
+            if (!getDebtIssuerAccountId().equals(debt.getString("issuerAccountId")) || debtPrincipal.signum() < 0
+                    || debtAccrued.signum() < 0 || debtPriceFactor.compareTo(new BigDecimal("0.7")) < 0
+                    || debtPriceFactor.compareTo(new BigDecimal("1.1")) > 0
+                    || new BigDecimal(debt.getString("issuerLiability")).compareTo(debtPrincipal.add(debtAccrued)) != 0
+                    || (debtAccrualDay != Long.MIN_VALUE && (debtAccrualDay < 0 || debtAccrualDay > LocalDate.MAX.toEpochDay()))
+                    || (lastDebtActionTimestamp != Long.MIN_VALUE && lastDebtActionTimestamp < 0)
+                    || (type == FundType.EQUITY_INDEX && (debtPrincipal.signum() != 0 || debtAccrued.signum() != 0)))
+                throw new IllegalArgumentException("Kontrak backing reksa dana tidak sah");
+        }
         if (!id.equals(obj.getString("id")) || !name.equals(obj.getString("name"))
                 || !type.name().equals(obj.getString("type")) || !managerName.equals(obj.getString("managerName")))
             throw new IllegalArgumentException("Identitas katalog reksa dana berbeda");

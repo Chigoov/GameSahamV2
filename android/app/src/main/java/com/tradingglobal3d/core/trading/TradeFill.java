@@ -17,6 +17,7 @@ public final class TradeFill {
     private final Money price;
     private final long quantity; // Lembar saham
     private final long timestamp;
+    private Money sellerRealizedNetPnL;
 
     public TradeFill(String fillId, String buyOrderId, String sellOrderId,
                      String buyAccountId, String sellAccountId,
@@ -41,6 +42,11 @@ public final class TradeFill {
     public Money getPrice() { return price; }
     public long getQuantity() { return quantity; }
     public long getTimestamp() { return timestamp; }
+    public Money getSellerRealizedNetPnL() { return sellerRealizedNetPnL; }
+    public TradeFill withSellerRealizedNetPnL(Money value) {
+        sellerRealizedNetPnL = value;
+        return this;
+    }
 
     public Money getTotalAmount() {
         return price.multiply((double) quantity);

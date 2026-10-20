@@ -128,6 +128,63 @@ public final class SaveManager {
         return new LoadResult(null, LoadSource.CORRUPTED_ALL, "Gagal memuat save file");
     }
 
+    /** Keeps an immutable, validated primary snapshot per prestige request. */
+    public synchronized String createPrestigeBackup(String requestId) throws IOException, JSONException {
+        if (requestId == null || !requestId.matches("[A-Za-z0-9_-]{1,160}"))
+            throw new IllegalArgumentException("ID backup prestige tidak valid");
+        Path directory = prestigeDirectory();
+        Files.createDirectories(directory);
+        if (Files.isSymbolicLink(directory)) throw new IOException("Direktori backup tidak aman");
+        Path target = directory.resolve(requestId + ".json");
+        if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+            validatePrestigePath(target.toString());
+            SaveState.fromJsonString(readFileToString(target.toFile()));
+            return target.toAbsolutePath().toString();
+        }
+        Path primary = getSaveFile().toPath();
+        if (Files.isSymbolicLink(primary) || !Files.isRegularFile(primary)) throw new IOException("Save utama valid wajib tersedia");
+        byte[] bytes = Files.readAllBytes(primary);
+        SaveState.fromJsonString(new String(bytes, StandardCharsets.UTF_8));
+        Path temporary = Files.createTempFile(directory, "prestige-", ".tmp");
+        try {
+            try (FileOutputStream output = new FileOutputStream(temporary.toFile())) {
+                output.write(bytes); output.getFD().sync();
+            }
+            if (!java.util.Arrays.equals(bytes, Files.readAllBytes(temporary))) throw new IOException("Verifikasi backup gagal");
+            SaveState.fromJsonString(readFileToString(temporary.toFile()));
+            // ponytail: refuse unsupported atomic backup rather than acknowledge a partial recovery point.
+            Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE);
+            return target.toAbsolutePath().toString();
+        } finally { Files.deleteIfExists(temporary); }
+    }
+
+    public synchronized SaveState restorePrestigeBackup(String backupPath) throws IOException, JSONException {
+        Path backup = validatePrestigePath(backupPath);
+        SaveState state = SaveState.fromJsonString(readFileToString(backup.toFile()));
+        save(state);
+        return state;
+    }
+
+    private Path prestigeDirectory() throws IOException {
+        Path base = baseDir.getCanonicalFile().toPath();
+        Path directory = base.resolve("prestige-backups");
+        if (Files.isSymbolicLink(directory) || !directory.toFile().getCanonicalFile().toPath().getParent().equals(base))
+            throw new IOException("Direktori backup tidak aman");
+        return directory;
+    }
+
+    private Path validatePrestigePath(String backupPath) throws IOException {
+        if (backupPath == null) throw new IllegalArgumentException("Path backup wajib diisi");
+        Path path = Paths.get(backupPath).toAbsolutePath();
+        Path directory = prestigeDirectory();
+        if (!path.equals(path.normalize()) || !directory.equals(path.getParent())
+                || !path.getFileName().toString().matches("[A-Za-z0-9_-]{1,160}\\.json")
+                || Files.isSymbolicLink(path) || !Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)
+                || !path.toFile().getCanonicalFile().toPath().getParent().equals(directory))
+            throw new IOException("Path backup prestige tidak aman");
+        return path;
+    }
+
     private String readFileToString(File file) throws IOException {
         byte[] bytes = Files.readAllBytes(file.toPath());
         return new String(bytes, StandardCharsets.UTF_8);

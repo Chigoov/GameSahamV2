@@ -42,6 +42,10 @@ public final class CompanyManager {
             Map<String, Account> allAccounts,
             long timestamp) {
 
+        if (companyId == null || companyId.trim().isEmpty() || name == null || name.trim().isEmpty()
+                || sector == null || sector.trim().isEmpty()) throw new IllegalArgumentException("Identitas perusahaan wajib diisi");
+        if (initialCapital.getCurrency() != Currency.IDR) throw new IllegalArgumentException("Modal perusahaan wajib IDR");
+        if (allAccounts.containsKey("ACC-" + companyId)) throw new IllegalArgumentException("Akun perusahaan sudah ada");
         if (companies.containsKey(companyId)) {
             throw new IllegalArgumentException("Perusahaan dengan ID " + companyId + " sudah ada");
         }
@@ -94,7 +98,11 @@ public final class CompanyManager {
             EconomyLedger ledger,
             long timestamp) {
 
-        if (!amount.isPositive()) throw new IllegalArgumentException("Nominal transfer harus positif");
+        OperatingCompany company = companies.get(companyId);
+        if (company == null || !company.getAccountId().equals(companyAccount.getId())
+                || companyAccount.getType() != AccountType.COMPANY || personalAccount.getType() != AccountType.PERSONAL)
+            throw new IllegalArgumentException("Akun transfer tidak sesuai perusahaan");
+        if (amount.getCurrency() != Currency.IDR || !amount.isPositive()) throw new IllegalArgumentException("Nominal transfer wajib IDR positif");
 
         if (fromPersonalToCompany) {
             if (personalAccount.getAvailableCash(amount.getCurrency()).isLessThan(amount)) {
@@ -118,7 +126,10 @@ public final class CompanyManager {
                     timestamp,
                     "Penerimaan injeksi modal perusahaan " + companyId
             );
+            settlePayrollArrears(companyAccount, company, ledger, timestamp);
         } else {
+            if (companyAccount.getAvailableCash(Currency.IDR).subtract(amount).isLessThan(company.getPayrollArrears()))
+                throw new IllegalStateException("Kas perusahaan terkunci untuk tunggakan gaji");
             if (companyAccount.getAvailableCash(amount.getCurrency()).isLessThan(amount)) {
                 throw new IllegalStateException("Kas perusahaan tidak mencukupi untuk penarikan dividen modal");
             }
@@ -149,34 +160,291 @@ public final class CompanyManager {
             EconomyLedger ledger,
             long timestamp) {
 
+        if (companies.get(company.getId()) != company || !company.getAccountId().equals(companyAccount.getId()))
+            throw new IllegalArgumentException("Perusahaan/akun operasional tidak sesuai");
+        long day = java.time.Instant.ofEpochMilli(timestamp).atOffset(java.time.ZoneOffset.ofHours(7)).toLocalDate().toEpochDay();
+        if (day <= company.getLastOperationsDay()) return;
+
         Money payroll = company.calculateDailyPayroll();
-        Money revenue = company.calculateDailyRevenue();
+        company.setPayrollArrears(company.getPayrollArrears().add(payroll));
+        Money payrollPaid = settlePayrollArrears(companyAccount, company, ledger, timestamp);
+        Money requiredCost = company.calculateDailyOperatingCost();
+        Money paidCost = minimum(companyAccount.getAvailableCash(Currency.IDR), requiredCost);
+        if (paidCost.isPositive()) ledger.recordMutation("COMP-OPS-" + company.getId() + "-" + day,
+                companyAccount, LedgerEntryType.TRANSACTION_FEE, paidCost, false, timestamp,
+                "Biaya operasional perusahaan " + company.getName());
+        Money revenue = company.calculateDailyRevenue(day);
+        if (company.getPayrollArrears().isPositive()) revenue = revenue.multiply(0.5);
+        // Unfunded operations stop; partial funding only produces its paid fraction, without hidden free costs.
+        revenue = revenue.multiply(paidCost.getAmount().divide(requiredCost.getAmount(), 12, java.math.RoundingMode.DOWN));
+        if (revenue.isPositive()) ledger.recordMutation("REV-" + company.getId() + "-" + day,
+                companyAccount, LedgerEntryType.COMPANY_REVENUE, revenue, true, timestamp,
+                "Pendapatan operasional harian " + company.getName());
+        company.completeOperations(day, revenue, paidCost, payrollPaid);
+    }
 
-        // 1. Bayar payroll jika kas cukup
-        if (companyAccount.getAvailableCash(Currency.IDR).isGreaterThanOrEqual(payroll)) {
-            ledger.recordMutation(
-                    "PAYROLL-" + company.getId() + "-" + timestamp,
-                    companyAccount,
-                    LedgerEntryType.COMPANY_PAYROLL,
-                    payroll,
-                    false,
-                    timestamp,
-                    "Pembayaran payroll harian pegawai " + company.getName()
-            );
-        }
+    private static Money minimum(Money first, Money second) { return first.isLessThan(second) ? first : second; }
 
-        // 2. Kreditkan pendapatan usaha
-        if (revenue.isPositive()) {
-            ledger.recordMutation(
-                    "REV-" + company.getId() + "-" + timestamp,
-                    companyAccount,
-                    LedgerEntryType.COMPANY_REVENUE,
-                    revenue,
-                    true,
-                    timestamp,
-                    "Pendapatan operasional harian " + company.getName()
-            );
+    private Money settlePayrollArrears(Account account, OperatingCompany company, EconomyLedger ledger, long timestamp) {
+        Money payment = minimum(account.getAvailableCash(Currency.IDR), company.getPayrollArrears());
+        if (payment.isPositive()) {
+            ledger.recordMutation("PAYROLL-" + company.getId() + "-" + timestamp + "-" + ledger.getEntries().size(),
+                    account, LedgerEntryType.COMPANY_PAYROLL, payment, false, timestamp,
+                    "Pembayaran gaji dan tunggakan " + company.getName());
+            company.setPayrollArrears(company.getPayrollArrears().subtract(payment));
         }
+        return payment;
+    }
+
+    private OperatingCompany requireCompany(String companyId) {
+        OperatingCompany company = companies.get(companyId);
+        if (company == null) throw new IllegalArgumentException("Perusahaan tidak ditemukan");
+        return company;
+    }
+
+    private List<Employee.Role> staffRoles(OperatingCompany company) {
+        List<Employee.Role> roles = new ArrayList<>(Arrays.asList(Employee.Role.CEO,
+                Employee.Role.OPERATIONS_MANAGER, Employee.Role.SALES_MANAGER, Employee.Role.HR_DIRECTOR));
+        if (company.getSectorModel().equals("MANUFAKTUR")) roles.add(Employee.Role.PRODUCTION_MANAGER);
+        return roles;
+    }
+
+    private Employee candidate(OperatingCompany company, Employee.Role role) {
+        if (!staffRoles(company).contains(role)) throw new IllegalArgumentException("Jabatan tidak sesuai sektor perusahaan");
+        // ponytail: a fixed candidate per role keeps recruitment deterministic without a second roster system.
+        String base = "CAND-" + company.getId() + "-" + role.name();
+        String employeeId = base;
+        for (int suffix = 2; company.getEmployee(employeeId) != null; suffix++) employeeId = base + "-" + suffix;
+        return new Employee(employeeId, "Kandidat " + role.getLabel(), role, 1);
+    }
+
+    private String department(Employee.Role role) {
+        switch (role) {
+            case CEO: return "Direksi";
+            case HR_DIRECTOR: return "SDM";
+            case SALES_MANAGER: return "Penjualan";
+            case PRODUCTION_MANAGER: return "Produksi";
+            default: return "Operasional";
+        }
+    }
+
+    public synchronized JSONObject getStaff(String companyId) throws JSONException {
+        OperatingCompany company = requireCompany(companyId);
+        JSONArray employees = new JSONArray();
+        JSONArray candidates = new JSONArray();
+        for (Employee employee : company.getEmployees()) employees.put(employee.toJsonObject()
+                .put("roleLabel", employee.getRole().getLabel()).put("department", department(employee.getRole())));
+        for (Employee.Role role : staffRoles(company)) {
+            boolean occupied = company.getEmployees().stream().anyMatch(employee -> employee.getRole() == role);
+            candidates.put(candidate(company, role).toJsonObject().put("roleLabel", role.getLabel())
+                    .put("department", department(role)).put("available", !occupied));
+        }
+        return new JSONObject().put("success", true).put("companyId", companyId).put("employees", employees)
+                .put("staffVersion", company.getStaffVersion())
+                .put("candidates", candidates).put("dailyPayroll", company.calculateDailyPayroll().getAmount().toPlainString())
+                .put("payrollArrears", company.getPayrollArrears().getAmount().toPlainString())
+                .put("currency", "IDR").put("effectiveRule", "NEXT_DAILY_SETTLEMENT");
+    }
+
+    public synchronized JSONObject previewStaffAction(String companyId, String action, String employeeId, String role) throws JSONException {
+        OperatingCompany company = requireCompany(companyId);
+        if (action == null || employeeId == null || employeeId.trim().isEmpty())
+            throw new IllegalArgumentException("Aksi dan identitas pegawai wajib diisi");
+        if ((action.equals("HIRE") || action.equals("ASSIGN")) && (role == null || role.trim().isEmpty()))
+            throw new IllegalArgumentException("Jabatan tujuan wajib diisi");
+        Employee current = company.getEmployee(employeeId);
+        Employee after;
+        Money cost;
+        switch (action) {
+            case "HIRE":
+                if (current != null) throw new IllegalStateException("Pegawai sudah direkrut");
+                after = candidate(company, Employee.Role.valueOf(role));
+                if (!employeeId.equals(after.getId())) throw new IllegalArgumentException("Kandidat tidak dikenal");
+                cost = after.getDailySalary().multiply(2);
+                break;
+            case "TRAIN":
+                if (current == null) throw new IllegalArgumentException("Pegawai tidak ditemukan");
+                if (current.getLevel() >= 5) throw new IllegalStateException("Level pegawai sudah maksimum");
+                after = new Employee(current.getId(), current.getName(), current.getRole(), current.getLevel());
+                after.upgrade();
+                cost = after.getDailySalary().multiply(3);
+                break;
+            case "ASSIGN":
+                if (current == null) throw new IllegalArgumentException("Pegawai tidak ditemukan");
+                if (current.getRole() == Employee.Role.CEO) throw new IllegalStateException("CEO tidak boleh meninggalkan jabatan");
+                Employee.Role target = Employee.Role.valueOf(role);
+                candidate(company, target);
+                if (target == current.getRole()) throw new IllegalArgumentException("Jabatan tujuan harus berbeda");
+                after = new Employee(current.getId(), current.getName(), target, current.getLevel());
+                cost = after.getDailySalary().multiply(2);
+                break;
+            case "DISMISS":
+                if (current == null) throw new IllegalArgumentException("Pegawai tidak ditemukan");
+                if (current.getRole() == Employee.Role.CEO) throw new IllegalStateException("CEO tidak boleh diberhentikan tanpa pengganti");
+                after = null;
+                cost = current.getDailySalary();
+                break;
+            default: throw new IllegalArgumentException("Aksi pegawai tidak dikenal");
+        }
+        if (after != null && company.getEmployees().stream().anyMatch(employee ->
+                !employee.getId().equals(employeeId) && employee.getRole() == after.getRole()))
+            throw new IllegalStateException("Jabatan sudah terisi");
+        Money basePayroll = Money.zero(Currency.IDR);
+        for (Employee employee : company.getEmployees())
+            if (!employee.getId().equals(employeeId)) basePayroll = basePayroll.add(employee.getDailySalary());
+        if (after != null) basePayroll = basePayroll.add(after.getDailySalary());
+        return new JSONObject().put("success", true).put("companyId", companyId).put("action", action)
+                .put("staffVersion", company.getStaffVersion())
+                .put("employeeId", employeeId).put("cost", cost.getAmount().toPlainString()).put("currency", "IDR")
+                .put("salaryBefore", current == null ? "0" : current.getDailySalary().getAmount().toPlainString())
+                .put("salaryAfter", after == null ? "0" : after.getDailySalary().getAmount().toPlainString())
+                .put("dailyPayrollBefore", company.calculateDailyPayroll().getAmount().toPlainString())
+                .put("dailyPayrollAfter", basePayroll.multiply(company.getBenefitTier().getCostMultiplier()).getAmount().toPlainString())
+                .put("effectiveRule", "NEXT_DAILY_SETTLEMENT")
+                .put("employeeAfter", after == null ? JSONObject.NULL : after.toJsonObject());
+    }
+
+    public synchronized JSONObject executeStaffAction(String requestId, String companyId, String action,
+            String employeeId, String role, Account companyAccount, EconomyLedger ledger, long now) throws JSONException {
+        return executeStaffAction(requestId, companyId, action, employeeId, role, companyAccount, ledger, now,
+                requireCompany(companyId).getStaffVersion());
+    }
+
+    public synchronized JSONObject executeStaffAction(String requestId, String companyId, String action,
+            String employeeId, String role, Account companyAccount, EconomyLedger ledger, long now, long expectedVersion) throws JSONException {
+        OperatingCompany company = requireCompany(companyId);
+        if (requestId == null || requestId.trim().isEmpty() || requestId.length() > 160)
+            throw new IllegalArgumentException("ID aksi pegawai tidak valid");
+        if (companyAccount == null || !company.getAccountId().equals(companyAccount.getId())
+                || companyAccount.getType() != AccountType.COMPANY)
+            throw new IllegalArgumentException("Akun bukan milik perusahaan");
+        Objects.requireNonNull(ledger, "Ledger wajib tersedia");
+        String payload = new JSONArray().put(action).put(employeeId).put(role == null ? "" : role).toString();
+        JSONObject existing = company.getStaffReceipt(requestId);
+        if (existing != null) {
+            if (!payload.equals(existing.getString("payload"))) throw new IllegalArgumentException("ID aksi sudah digunakan untuk input berbeda");
+            return new JSONObject(existing.toString());
+        }
+        if (expectedVersion != company.getStaffVersion()) throw new IllegalStateException("STALE: susunan atau kebijakan pegawai berubah; tinjau ulang biaya");
+        if (company.getStaffVersion() == Long.MAX_VALUE) throw new IllegalStateException("Versi pegawai mencapai batas");
+        JSONObject quote = previewStaffAction(companyId, action, employeeId, role);
+        Money cost = new Money(new java.math.BigDecimal(quote.getString("cost")), Currency.IDR);
+        if (companyAccount.getAvailableCash(Currency.IDR).subtract(cost).isLessThan(company.getPayrollArrears()))
+            throw new IllegalStateException("Kas tidak cukup setelah menyisihkan tunggakan gaji");
+        ledger.recordMutation("COMP-STAFF-" + new JSONArray().put(companyId).put(requestId), companyAccount,
+                LedgerEntryType.TRANSACTION_FEE, cost, false, now, "Biaya " + action + " pegawai " + employeeId);
+        if (quote.isNull("employeeAfter")) company.removeEmployee(employeeId);
+        else company.addEmployee(Employee.fromJsonObject(quote.getJSONObject("employeeAfter")));
+        JSONObject receipt = new JSONObject(quote.toString()).put("requestId", requestId).put("payload", payload)
+                .put("status", "COMPLETED").put("receiptId", "STAFF-" + companyId + "-" + requestId);
+        company.recordStaffReceipt(requestId, receipt);
+        return receipt;
+    }
+
+    public synchronized JSONObject previewCapitalTransfer(String companyId, boolean toCompany, Account personal,
+            Account companyAccount, Money amount) throws JSONException {
+        OperatingCompany company = requireCompany(companyId);
+        if (personal == null || personal.getType() != AccountType.PERSONAL || companyAccount == null
+                || companyAccount.getType() != AccountType.COMPANY || !company.getAccountId().equals(companyAccount.getId())
+                || amount == null || amount.getCurrency() != Currency.IDR || !amount.isPositive())
+            throw new IllegalArgumentException("Akun atau nominal transfer tidak valid");
+        Money available = (toCompany ? personal : companyAccount).getAvailableCash(Currency.IDR);
+        Money reserve = company.getPayrollArrears().add(company.calculateDailyPayroll()).add(company.calculateDailyOperatingCost());
+        boolean eligible = !available.isLessThan(amount) && (toCompany || !available.subtract(amount).isLessThan(reserve));
+        String version = new JSONArray().put(company.getStaffVersion()).put(personal.getAvailableCash(Currency.IDR).getAmount().toPlainString())
+                .put(companyAccount.getAvailableCash(Currency.IDR).getAmount().toPlainString()).put(company.getPayrollArrears().getAmount().toPlainString()).toString();
+        return new JSONObject().put("success", true).put("companyId", companyId).put("toCompany", toCompany)
+                .put("amount", amount.getAmount().toPlainString()).put("currency", "IDR").put("fee", "0")
+                .put("version", version).put("eligible", eligible).put("personalAccountId", personal.getId())
+                .put("companyAccountId", companyAccount.getId()).put("operatingReserve", reserve.getAmount().toPlainString())
+                .put("reason", eligible ? "" : "Kas tersedia tidak cukup setelah cadangan operasional dan tunggakan");
+    }
+
+    public synchronized JSONObject executeCapitalTransfer(String requestId, String companyId, boolean toCompany,
+            Account personal, Account companyAccount, Money amount, String expectedVersion, EconomyLedger ledger, long now) throws JSONException {
+        OperatingCompany company = requireCompany(companyId);
+        JSONObject quote = previewCapitalTransfer(companyId, toCompany, personal, companyAccount, amount);
+        if (requestId == null || requestId.trim().isEmpty() || requestId.length() > 160 || now < 0)
+            throw new IllegalArgumentException("Identitas transfer tidak valid");
+        String payload = new JSONArray().put("CAPITAL").put(toCompany).put(personal.getId()).put(companyAccount.getId())
+                .put(amount.getAmount().toPlainString()).toString();
+        JSONObject previous = company.getStaffReceipt(requestId);
+        if (previous != null) {
+            if (!payload.equals(previous.getString("payload"))) throw new IllegalArgumentException("ID transfer sudah digunakan untuk input berbeda");
+            return new JSONObject(previous.toString());
+        }
+        if (!quote.getString("version").equals(expectedVersion)) throw new IllegalStateException("STALE: saldo perusahaan berubah; tinjau ulang transfer");
+        if (!quote.getBoolean("eligible")) throw new IllegalStateException(quote.getString("reason"));
+        Account debit = toCompany ? personal : companyAccount, credit = toCompany ? companyAccount : personal;
+        LedgerEntryType type = toCompany ? LedgerEntryType.COMPANY_CAPITAL_INJECTION : LedgerEntryType.COMPANY_CAPITAL_WITHDRAWAL;
+        String key = "COMP-CAPITAL-" + new JSONArray().put(companyId).put(requestId);
+        if (ledger.isRequestProcessed(key + "-DEBIT") || ledger.isRequestProcessed(key + "-CREDIT"))
+            throw new IllegalStateException("Transfer terputus harus dipulihkan dari checkpoint transaksi");
+        ledger.recordMutation(key + "-DEBIT", debit, type, amount, false, now, "Transfer modal " + companyId);
+        ledger.recordMutation(key + "-CREDIT", credit, type, amount, true, now, "Penerimaan modal " + companyId);
+        JSONObject receipt = new JSONObject(quote.toString()).put("requestId", requestId).put("payload", payload)
+                .put("status", "COMPLETED").put("timestamp", now).put("receiptId", "CAPITAL-" + companyId + "-" + requestId);
+        company.recordStaffReceipt(requestId, receipt);
+        return receipt;
+    }
+
+    public synchronized JSONObject previewCompanyAction(String companyId, String action, int hours, String benefitTier) throws JSONException {
+        OperatingCompany company = requireCompany(companyId);
+        OperatingCompany projected = OperatingCompany.fromJsonObject(company.toJsonObject());
+        Money cost = Money.zero(Currency.IDR);
+        if ("UPGRADE".equals(action)) {
+            projected.upgradeLevel();
+            // ponytail: expansion is paid once and available at the next daily settlement, without a second construction clock.
+            cost = company.calculateDailyOperatingCost().multiply(10).add(Money.of(5_000_000L * company.getLevel(), Currency.IDR));
+        } else if ("POLICY".equals(action)) {
+            projected.setWorkPolicy(hours, OperatingCompany.BenefitTier.valueOf(benefitTier));
+        } else throw new IllegalArgumentException("Aksi perusahaan tidak dikenal");
+        return new JSONObject().put("success", true).put("companyId", companyId).put("action", action)
+                .put("version", company.getStaffVersion()).put("cost", cost.getAmount().toPlainString()).put("currency", "IDR")
+                .put("levelBefore", company.getLevel()).put("levelAfter", projected.getLevel())
+                .put("workHours", projected.getWorkHours()).put("benefitTier", projected.getBenefitTier().name())
+                .put("dailyPayrollBefore", company.calculateDailyPayroll().getAmount().toPlainString())
+                .put("dailyPayrollAfter", projected.calculateDailyPayroll().getAmount().toPlainString())
+                .put("dailyCapacityBefore", company.calculateDailyCapacity().getAmount().toPlainString())
+                .put("dailyCapacityAfter", projected.calculateDailyCapacity().getAmount().toPlainString())
+                .put("dailyOperatingCostBefore", company.calculateDailyOperatingCost().getAmount().toPlainString())
+                .put("dailyOperatingCostAfter", projected.calculateDailyOperatingCost().getAmount().toPlainString())
+                .put("durationGameSeconds", 0).put("effectiveRule", "NEXT_DAILY_SETTLEMENT");
+    }
+
+    public synchronized JSONObject executeCompanyAction(String requestId, String companyId, String action,
+            int hours, String benefitTier, long expectedVersion, Account companyAccount, EconomyLedger ledger, long timestamp) throws JSONException {
+        OperatingCompany company = requireCompany(companyId);
+        if (requestId == null || requestId.trim().isEmpty() || requestId.length() > 160 || timestamp < 0)
+            throw new IllegalArgumentException("Identitas aksi perusahaan tidak valid");
+        if (companyAccount == null || companyAccount.getType() != AccountType.COMPANY
+                || !company.getAccountId().equals(companyAccount.getId()))
+            throw new IllegalArgumentException("Akun bukan milik perusahaan");
+        Objects.requireNonNull(ledger);
+        String payload = new JSONArray().put(action).put(hours).put(benefitTier).toString();
+        JSONObject existing = company.getStaffReceipt(requestId);
+        if (existing != null) {
+            if (!payload.equals(existing.getString("payload"))) throw new IllegalArgumentException("ID aksi sudah dipakai untuk input berbeda");
+            return new JSONObject(existing.toString());
+        }
+        if (expectedVersion != company.getStaffVersion()) throw new IllegalStateException("STALE: perusahaan berubah; tinjau ulang");
+        if (company.getStaffVersion() >= Long.MAX_VALUE - 1) throw new IllegalStateException("Versi perusahaan mencapai batas");
+        JSONObject quote = previewCompanyAction(companyId, action, hours, benefitTier);
+        Money cost = new Money(new java.math.BigDecimal(quote.getString("cost")), Currency.IDR);
+        Money reserve = company.getPayrollArrears().add(company.calculateDailyPayroll()).add(company.calculateDailyOperatingCost());
+        if (cost.isPositive() && companyAccount.getAvailableCash(Currency.IDR).subtract(cost).isLessThan(reserve))
+            throw new IllegalStateException("Kas tidak cukup setelah menyisihkan tunggakan dan biaya operasi satu hari");
+        if (cost.isPositive()) ledger.recordMutation("COMP-ACTION-" + new JSONArray().put(companyId).put(requestId),
+                companyAccount, LedgerEntryType.TRANSACTION_FEE, cost, false, timestamp, "Biaya ekspansi " + company.getName());
+        if ("UPGRADE".equals(action)) company.upgradeLevel();
+        else {
+            company.setWorkPolicy(hours, OperatingCompany.BenefitTier.valueOf(benefitTier));
+            company.recordPolicy(timestamp);
+        }
+        JSONObject receipt = new JSONObject(quote.toString()).put("requestId", requestId).put("payload", payload)
+                .put("status", "COMPLETED").put("timestamp", timestamp).put("receiptId", "COMPANY-" + companyId + "-" + requestId);
+        company.recordStaffReceipt(requestId, receipt);
+        return receipt;
     }
 
     public JSONArray exportState() throws JSONException {
@@ -188,12 +456,14 @@ public final class CompanyManager {
     }
 
     public void restoreState(JSONArray arr) throws JSONException {
-        companies.clear();
+        Map<String, OperatingCompany> restored = new LinkedHashMap<>();
         if (arr != null) {
             for (int i = 0; i < arr.length(); i++) {
                 OperatingCompany c = OperatingCompany.fromJsonObject(arr.getJSONObject(i));
-                companies.put(c.getId(), c);
+                if (restored.put(c.getId(), c) != null) throw new IllegalArgumentException("ID perusahaan duplikat");
             }
         }
+        companies.clear();
+        companies.putAll(restored);
     }
 }

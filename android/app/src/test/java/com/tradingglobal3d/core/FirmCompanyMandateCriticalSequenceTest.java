@@ -14,6 +14,8 @@ import com.tradingglobal3d.core.storage.SaveManager;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.json.JSONObject;
+import org.json.JSONArray;
 
 import java.io.File;
 import java.math.BigDecimal;
@@ -154,7 +156,8 @@ public class FirmCompanyMandateCriticalSequenceTest {
                     if (comp != null) {
                         Account compAcc = facade.getAllAccounts().stream()
                                 .filter(a -> a.getId().equals(comp.getAccountId())).findFirst().orElse(null);
-                        if (compAcc != null && compAcc.getAvailableCash(Currency.IDR).compareTo(Money.of(15_000_000, Currency.IDR)) > 0) {
+                        if (compAcc != null && compAcc.getAvailableCash(Currency.IDR).subtract(comp.getPayrollArrears())
+                                .compareTo(Money.of(15_000_000, Currency.IDR)) > 0) {
                             long amt = 1_000_000 + rnd.nextInt(5_000_000);
                             facade.transferCompanyCapital("COMP-" + seed, false, Money.of(amt, Currency.IDR));
                             actionsCount++;
@@ -178,17 +181,48 @@ public class FirmCompanyMandateCriticalSequenceTest {
                 }
                 case 6: { // Rekrut Pegawai Baru Perusahaan
                     var comp = facade.getCompanyManager().getCompany("COMP-" + seed);
-                    if (comp != null && comp.getEmployees().size() < 6) {
-                        String empId = "EMP-" + seed + "-" + step;
-                        Employee.Role[] roles = Employee.Role.values();
-                        Employee.Role r = roles[rnd.nextInt(roles.length)];
-                        comp.addEmployee(new Employee(empId, "Pegawai " + empId, r, 1));
-                        assertNotNull(comp.getEmployee(empId));
+                    if (comp != null) {
+                        var manager = facade.getCompanyManager();
+                        Account companyAccount = facade.getAllAccounts().stream()
+                                .filter(account -> account.getId().equals(comp.getAccountId())).findFirst().get();
+                        JSONArray candidates = manager.getStaff(comp.getId()).getJSONArray("candidates");
+                        String employeeId = null, role = null, action = "HIRE";
+                        for (int index = 0; index < candidates.length(); index++) {
+                            JSONObject candidate = candidates.getJSONObject(index);
+                            if (candidate.getBoolean("available")) {
+                                employeeId = candidate.getString("id"); role = candidate.getString("role"); break;
+                            }
+                        }
+                        if (employeeId == null) {
+                            action = "TRAIN";
+                            for (Employee employee : comp.getEmployees()) if (employee.getLevel() < 5) {
+                                employeeId = employee.getId(); break;
+                            }
+                        }
+                        if (employeeId == null) {
+                            action = "DISMISS";
+                            employeeId = comp.getEmployees().stream().filter(employee -> employee.getRole() != Employee.Role.CEO)
+                                    .findFirst().get().getId();
+                        }
+                        JSONObject quote = manager.previewStaffAction(comp.getId(), action, employeeId, role);
+                        Money cost = new Money(new BigDecimal(quote.getString("cost")), Currency.IDR);
+                        if (companyAccount.getAvailableCash(Currency.IDR).subtract(cost).isGreaterThanOrEqual(comp.getPayrollArrears())) {
+                            Money before = companyAccount.getTotalCash(Currency.IDR);
+                            manager.executeStaffAction("STAFF-" + seed + "-" + step, comp.getId(), action,
+                                    employeeId, role, companyAccount, facade.getLedger(), facade.getClock().getGameTimestamp(), quote.getLong("staffVersion"));
+                            assertEquals(before.subtract(cost), companyAccount.getTotalCash(Currency.IDR));
+                            assertEquals(new Money(new BigDecimal(quote.getString("dailyPayrollAfter")), Currency.IDR), comp.calculateDailyPayroll());
+                        } else {
+                            // A cash-starved company still incurs a real calendar day's operating obligations.
+                            assertTrue(facade.skipDay("STAFF-RECOVERY-" + seed + "-" + step).getBoolean("success"));
+                            facade.getClock().play();
+                        }
                         actionsCount++;
                     }
                     break;
                 }
                 case 7: { // Advance time (memicu payroll harian & pendapatan operasional saat lewat tengah malam)
+                    facade.getClock().play();
                     facade.tick(60);
                     actionsCount++;
                     break;
@@ -251,4 +285,17 @@ public class FirmCompanyMandateCriticalSequenceTest {
 
     @Test
     public void testFirmCompanySequence10() throws Exception { run100FirmCompanyActionsForSeed(7010L, 10); }
+
+    @Test public void duplicateRoleCannotCreateUnsaveableCompany() throws Exception {
+        OperatingCompany company = new OperatingCompany("CO", "Company", "Jasa", "ACC-CO", 1);
+        company.addEmployee(new Employee("CEO", "Director", Employee.Role.CEO, 1));
+        String before = company.toJsonObject().toString();
+        try { company.addEmployee(new Employee("CEO2", "Other", Employee.Role.CEO, 1)); fail(); }
+        catch (IllegalStateException expected) { }
+        assertEquals(before, company.toJsonObject().toString());
+        company.addEmployee(new Employee("OPS", "Operations", Employee.Role.OPERATIONS_MANAGER, 1));
+        company.addEmployee(new Employee("OPS", "Operations", Employee.Role.SALES_MANAGER, 1));
+        assertEquals(Employee.Role.SALES_MANAGER, company.getEmployee("OPS").getRole());
+        assertEquals(2, OperatingCompany.fromJsonObject(company.toJsonObject()).getEmployees().size());
+    }
 }

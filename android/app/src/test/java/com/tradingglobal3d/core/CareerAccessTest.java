@@ -37,7 +37,8 @@ public class CareerAccessTest {
             catch (IllegalStateException expected) { assertTrue(expected.getMessage().contains("jabatan")); }
         }
         assertEquals(entries, game.getLedger().getEntries().size());
-        assertEquals(2, game.getAllAccounts().size());
+        // 2 base (personal + MM) + 3 fund pool accounts (FUND-MM-01, FUND-FI-01, FUND-EQ-01)
+        assertEquals(5, game.getAllAccounts().size());
         assertEquals(0, game.getProgressManager().getCurrentXp());
         assertTrue(game.getCalendar().isEmpty());
         assertTrue(game.subscribeTerminal(TerminalTier.BASIC));

@@ -80,6 +80,7 @@ public final class PlayerProgressManager {
     private final Map<String, Achievement> achievements = new LinkedHashMap<>();
     private final Set<String> readArticleIds = new LinkedHashSet<>();
     private final Set<String> tradedExchanges = new LinkedHashSet<>();
+    private final Map<String, Integer> missionXpAwards = new LinkedHashMap<>();
     private int cleanSessionCloses = 0;
     private int clientReportsCompleted = 0;
 
@@ -185,6 +186,7 @@ public final class PlayerProgressManager {
         currentXp = 0;
         readArticleIds.clear();
         tradedExchanges.clear();
+        missionXpAwards.clear();
         cleanSessionCloses = 0;
         clientReportsCompleted = 0;
         initializeAchievements();
@@ -414,6 +416,24 @@ public final class PlayerProgressManager {
         return false;
     }
 
+    public synchronized boolean awardMissionXp(String missionId, int xp, long now) {
+        if (missionId == null || missionId.trim().isEmpty() || missionId.length() > 160 || xp < 0)
+            throw new IllegalArgumentException("Hadiah XP misi tidak valid");
+        Integer prior = missionXpAwards.get(missionId);
+        if (prior != null) {
+            if (prior != xp) throw new IllegalArgumentException("Hadiah XP misi berbeda dari receipt");
+            return false;
+        }
+        Achievement badge = achievements.get("periodic_master");
+        int badgeXp = badge != null && !badge.isUnlocked()
+                && badge.getCurrentProgress() + 1 >= badge.getTargetProgress() ? badge.getXpReward() : 0;
+        Math.addExact(currentXp, Math.addExact(xp, badgeXp));
+        currentXp += xp;
+        missionXpAwards.put(missionId, xp);
+        onPeriodicMissionClaimed(now);
+        return true;
+    }
+
     public synchronized boolean onNetWorthEvaluated(long netWorthIdr, long timestamp) {
         boolean granted = false;
         Achievement a100m = achievements.get("networth_100m");
@@ -468,6 +488,7 @@ public final class PlayerProgressManager {
     public synchronized JSONObject exportState() throws JSONException {
         JSONObject state = new JSONObject();
         state.put("xp", currentXp);
+        state.put("missionXpAwards", new JSONObject(missionXpAwards));
         state.put("cleanSessionCloses", cleanSessionCloses);
         state.put("clientReportsCompleted", clientReportsCompleted);
 
@@ -531,6 +552,18 @@ public final class PlayerProgressManager {
                 }
             }
         }
-        if (currentXp != earnedXp) throw new JSONException("XP tidak cocok dengan pencapaian");
+        JSONObject missionAwards = state.optJSONObject("missionXpAwards");
+        if (missionAwards != null) {
+            Iterator<String> keys = missionAwards.keys();
+            while (keys.hasNext()) {
+                String key = keys.next();
+                int xp = missionAwards.getInt(key);
+                if (key.trim().isEmpty() || key.length() > 160 || xp < 0)
+                    throw new JSONException("XP misi tidak valid");
+                missionXpAwards.put(key, xp);
+                earnedXp = Math.addExact(earnedXp, xp);
+            }
+        }
+        if (currentXp != earnedXp) throw new JSONException("XP tidak cocok dengan pencapaian dan misi");
     }
 }

@@ -248,12 +248,22 @@ public final class CareerManager {
             EconomyLedger ledger,
             BigDecimal fxRate,
             long gameTimestamp) {
+        return closeDayAndAdvance(clock, personalAccount, catalog, ledger, fxRate, gameTimestamp, null);
+    }
+
+    public synchronized DailySessionReport closeDayAndAdvance(
+            GameClock clock,
+            Account personalAccount,
+            InstrumentCatalog catalog,
+            EconomyLedger ledger,
+            BigDecimal fxRate,
+            long gameTimestamp, Money consolidatedNetWorth) {
 
         // Existing clock includes post-closing through 16:00; never settle a future day on demand.
         if (!clock.getCurrentTime().isAfter(java.time.LocalTime.of(16, 0, 59)))
             throw new IllegalStateException("Penutupan hari belum tersedia sebelum sesi selesai (16:01 WIB pada aturan sementara)");
         LocalDate today = clock.getCurrentDate();
-        Money endNetWorth = personalAccount.getTotalPortfolioValue(Currency.IDR, fxRate);
+        Money endNetWorth = consolidatedNetWorth != null ? consolidatedNetWorth : personalAccount.getTotalPortfolioValue(Currency.IDR, fxRate);
         Money startNetWorth = (startOfDayNetWorth != null) ? startOfDayNetWorth : endNetWorth;
         Money externalFlows = Money.zero(Currency.IDR);
         Money fees = Money.zero(Currency.IDR);
@@ -266,8 +276,12 @@ public final class CareerManager {
                     : new Money(entry.getAmount().getAmount().multiply(fxRate), Currency.IDR);
             switch (entry.getType()) {
                 case DEPOSIT: case WITHDRAWAL: case MISSION_REWARD: case SALARY: case BAILOUT:
-                case MANAGEMENT_FEE: case PERFORMANCE_FEE: case LOAN_DISBURSEMENT: case LOAN_REPAYMENT:
+                case MANAGEMENT_FEE: case PERFORMANCE_FEE:
                     externalFlows = entry.isCredit() ? externalFlows.add(value) : externalFlows.subtract(value);
+                    break;
+                case LOAN_DISBURSEMENT: case LOAN_REPAYMENT:
+                    if (consolidatedNetWorth == null)
+                        externalFlows = entry.isCredit() ? externalFlows.add(value) : externalFlows.subtract(value);
                     break;
                 case TRANSACTION_FEE:
                     if (!entry.isCredit()) fees = fees.add(value);
