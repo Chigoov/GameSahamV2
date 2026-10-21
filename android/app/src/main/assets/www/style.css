@@ -551,18 +551,16 @@ strong, .metric-hero {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: .05em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow-wrap: break-word;
 }
 
 .hero-cash strong {
-    font-size: .92rem;
+    font-size: clamp(0.78rem, 3.2vw, 0.95rem);
     font-weight: 700;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
+    word-break: break-word;
     display: block;
+    line-height: 1.25;
 }
 
 .hero-cash > div:nth-child(2) strong {
@@ -2056,9 +2054,12 @@ label {
     }
     .hero-cash strong {
         font-size: .82rem;
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
     .hero-cash small {
         font-size: .62rem;
+        overflow-wrap: break-word;
     }
 }
 

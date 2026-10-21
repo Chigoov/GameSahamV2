@@ -1489,6 +1489,16 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String generateNpcLiquidity() {
+        try {
+            facade.generateNpcLiquidity();
+            return "{\"success\":true}";
+        } catch (Exception e) {
+            return "{\"success\":false,\"message\":\"" + e.getMessage() + "\"}";
+        }
+    }
+
+    @JavascriptInterface
     public String skipDay(String requestId) {
         try { return facade.skipDay(requestId).toString(); }
         catch (Exception error) {

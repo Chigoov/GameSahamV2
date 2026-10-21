@@ -180,13 +180,14 @@
     let lastKnownAchievements = null;
     let activeDetailStock = null;
     let activeReceiptRequestId = null;
-    let lastToastKey = '';
+    let activeDetailPositionInstrumentId = null;
+    const activeToastKeys = new Set();
 
     function showGameToast(type, title, message, dedupeKey) {
         const key = dedupeKey || (title + ':' + message);
-        if (key === lastToastKey) return;
-        lastToastKey = key;
-        setTimeout(() => { if (lastToastKey === key) lastToastKey = ''; }, 3500);
+        if (activeToastKeys.has(key)) return;
+        activeToastKeys.add(key);
+        setTimeout(() => { activeToastKeys.delete(key); }, 5000);
 
         const container = document.getElementById('toast-container');
         if (!container) return;
@@ -319,6 +320,7 @@
 
             // Live Sync ke sub-layar yang sedang aktif
             if (currentTab === 'aset') syncPortfolioLive();
+            if (currentTab === 'firma') syncBusinessLive();
             if (activeReceiptRequestId) updateReceiptLive(activeReceiptRequestId);
             if (activeDetailStock) updateInstrumentDetailLive(activeDetailStock.id);
 
@@ -343,6 +345,26 @@
         }
     }
 
+    function openPositionDetailModal(instrumentId) {
+        if (!currentAccount || !bridge.getPortfolio) return;
+        try {
+            const portfolio = JSON.parse(bridge.getPortfolio(currentAccount.id));
+            const position = (portfolio.positions || []).find(p => p.instrumentId === instrumentId);
+            if (!position) return;
+            activeDetailPositionInstrumentId = instrumentId;
+            const panel = showFlow('Detail posisi');
+            panel.setAttribute('data-position-instrument-id', instrumentId);
+            panel.closest('.flow-page')?.setAttribute('data-position-instrument-id', instrumentId);
+            flowText(panel, 'Akun', portfolio.accountName);
+            metricCard(panel, position.instrumentId, position.marketValue, 'Nilai posisi saat snapshot');
+            const labels = {instrumentId:'Instrumen',quantity:'Jumlah saham',currency:'Mata uang',averageCost:'Biaya rata-rata / saham',currentPrice:'Harga / saham',unrealizedPnL:'Laba/rugi belum terealisasi',realizedPnLGross:'Hasil terealisasi sebelum biaya'};
+            Object.entries(labels).forEach(([key,label]) => flowText(panel,label,String(position[key])));
+            flowText(panel,'Catatan','Nilai laba/rugi terealisasi di atas belum dikurangi biaya transaksi.');
+        } catch(e) {
+            console.warn('Gagal membuka detail posisi:', e);
+        }
+    }
+
     function syncPortfolioLive() {
         if (currentTab !== 'aset') return;
         const posContainer = document.getElementById('portfolio-positions-list');
@@ -364,19 +386,27 @@
                 barFill.style.width = `${Math.max(0, Math.min(100, Number(portfolio.positionsSharePercent)))}%`;
             }
 
-            // Update Cash Values di Dompet
-            if (portfolio.cash && portfolio.cash.IDR) {
+            // Update Cash Values di Dompet (IDR dan USD)
+            if (portfolio.cash) {
                 const rows = summary.querySelectorAll('.data-row');
                 rows.forEach(r => {
                     const span = r.querySelector('span');
                     const strong = r.querySelector('strong');
                     if (!span || !strong) return;
-                    if (span.textContent === 'Kas (valuasi IDR)') strong.textContent = portfolio.cashValueIdr;
+                    if (portfolio.cash.IDR) {
+                        if (span.textContent === 'Kas (valuasi IDR)') strong.textContent = portfolio.cashValueIdr;
+                        if (span.textContent === 'IDR total') strong.textContent = portfolio.cash.IDR.total;
+                        if (span.textContent === 'IDR tersedia') strong.textContent = portfolio.cash.IDR.available;
+                        if (span.textContent === 'IDR tertahan') strong.textContent = portfolio.cash.IDR.reserved;
+                    }
+                    if (portfolio.cash.USD) {
+                        if (span.textContent === 'USD total') strong.textContent = portfolio.cash.USD.total;
+                        if (span.textContent === 'USD tersedia') strong.textContent = portfolio.cash.USD.available;
+                        if (span.textContent === 'USD tertahan') strong.textContent = portfolio.cash.USD.reserved;
+                    }
                     if (span.textContent === 'Posisi saham (valuasi IDR)') strong.textContent = portfolio.positionsValueIdr;
                     if (span.textContent === 'Kewajiban') strong.textContent = portfolio.liabilities;
-                    if (span.textContent === 'IDR total') strong.textContent = portfolio.cash.IDR.total;
-                    if (span.textContent === 'IDR tersedia') strong.textContent = portfolio.cash.IDR.available;
-                    if (span.textContent === 'IDR tertahan') strong.textContent = portfolio.cash.IDR.reserved;
+                    if (span.textContent === 'Kurs valuasi USD/IDR' && portfolio.valuationRateUsdIdr) strong.textContent = portfolio.valuationRateUsdIdr;
                 });
             }
 
@@ -395,6 +425,8 @@
                         portfolio.positions.forEach((pos, idx) => {
                             const btn = currentRows[idx];
                             const text = `${pos.instrumentId}: ${pos.quantity} saham — ${pos.marketValue}`;
+                            btn.dataset.instrumentId = pos.instrumentId;
+                            btn.onclick = () => openPositionDetailModal(pos.instrumentId);
                             const arrow = btn.querySelector('span[aria-hidden="true"]');
                             btn.textContent = text;
                             if (arrow) btn.append(arrow);
@@ -403,16 +435,41 @@
                         posContainer.replaceChildren();
                         portfolio.positions.forEach(position => {
                             const button = flowButton(posContainer, `${position.instrumentId}: ${position.quantity} saham — ${position.marketValue}`, () => {
-                                const panel = showFlow('Detail posisi');
-                                flowText(panel, 'Akun', portfolio.accountName);
-                                metricCard(panel, position.instrumentId, position.marketValue, 'Nilai posisi saat snapshot');
-                                const labels = {instrumentId:'Instrumen',quantity:'Jumlah saham',currency:'Mata uang',averageCost:'Biaya rata-rata / saham',currentPrice:'Harga / saham',unrealizedPnL:'Laba/rugi belum terealisasi',realizedPnLGross:'Hasil terealisasi sebelum biaya'};
-                                Object.entries(labels).forEach(([key,label]) => flowText(panel,label,position[key]));
-                                flowText(panel,'Catatan','Nilai laba/rugi terealisasi di atas belum dikurangi biaya transaksi.');
+                                openPositionDetailModal(position.instrumentId);
                             });
                             button.className = 'action-link position-row';
+                            button.dataset.instrumentId = position.instrumentId;
                         });
                     }
+                }
+            }
+
+            // Update open Position Detail modal if currently visible
+            if (activeDetailPositionInstrumentId && flowPanel && flowPanel.getAttribute('data-position-instrument-id') === activeDetailPositionInstrumentId) {
+                const curPos = (portfolio.positions || []).find(p => p.instrumentId === activeDetailPositionInstrumentId);
+                const metricHero = flowPanel.querySelector('.metric-hero');
+                const rows = flowPanel.querySelectorAll('.data-row');
+                if (curPos && curPos.quantity > 0) {
+                    if (metricHero) metricHero.textContent = curPos.marketValue;
+                    rows.forEach(r => {
+                        const lbl = r.querySelector('span')?.textContent;
+                        const str = r.querySelector('strong');
+                        if (!lbl || !str) return;
+                        if (lbl === 'Jumlah saham') str.textContent = String(curPos.quantity);
+                        if (lbl === 'Harga / saham') str.textContent = String(curPos.currentPrice);
+                        if (lbl === 'Biaya rata-rata / saham') str.textContent = String(curPos.averageCost);
+                        if (lbl === 'Laba/rugi belum terealisasi') str.textContent = String(curPos.unrealizedPnL);
+                        if (lbl === 'Hasil terealisasi sebelum biaya') str.textContent = String(curPos.realizedPnLGross);
+                    });
+                } else {
+                    if (metricHero) metricHero.textContent = 'Rp 0 (Posisi ditutup)';
+                    rows.forEach(r => {
+                        const lbl = r.querySelector('span')?.textContent;
+                        const str = r.querySelector('strong');
+                        if (!lbl || !str) return;
+                        if (lbl === 'Jumlah saham') str.textContent = '0 saham';
+                        if (lbl === 'Catatan') str.textContent = 'Posisi telah ditutup sepenuhnya.';
+                    });
                 }
             }
         } catch(e) {
@@ -420,6 +477,51 @@
         }
     }
 
+    function syncBusinessLive() {
+        if (currentTab !== 'firma') return;
+        if (!bridge.getCompanies) return;
+        try {
+            const compRes = JSON.parse(bridge.getCompanies());
+            const comps = compRes.companies || [];
+            comps.forEach(c => {
+                const cCard = document.querySelector(`[data-company-id="${c.id}"]`);
+                if (!cCard) return;
+                const rows = cCard.querySelectorAll('.data-row');
+                rows.forEach(r => {
+                    const label = r.querySelector('span')?.textContent;
+                    const strong = r.querySelector('strong');
+                    if (!label || !strong) return;
+                    if (label === 'Saldo kas perusahaan') strong.textContent = `Rp ${Number(c.cash || 0).toLocaleString('id-ID')}`;
+                    if (label === 'Tingkat / level') strong.textContent = `Level ${c.level} · ${c.sectorModel}`;
+                    if (label === 'Karyawan & CEO') strong.textContent = `${c.employeeCount || 0} staf operasional · CEO: ${c.ceoName || 'Profesional Terpilih'}`;
+                    if (label === 'Pendapatan / payroll harian') strong.textContent = `+Rp ${Number(c.dailyRevenue || 0).toLocaleString('id-ID')} / -Rp ${Number(c.dailyPayroll || 0).toLocaleString('id-ID')}`;
+                    if (label === 'Kebijakan kerja & benefit') strong.textContent = `${c.workHours || 8} jam kerja · Fasilitas: ${c.benefitTier || 'STANDARD'}`;
+                });
+            });
+
+            if (bridge.getCollections) {
+                const colRes = JSON.parse(bridge.getCollections());
+                const items = colRes.collections || colRes.items || [];
+                items.forEach(item => {
+                    const iCard = document.querySelector(`[data-collection-id="${item.id}"]`);
+                    if (!iCard) return;
+                    const rows = iCard.querySelectorAll('.data-row');
+                    rows.forEach(r => {
+                        const label = r.querySelector('span')?.textContent;
+                        const strong = r.querySelector('strong');
+                        if (!label || !strong) return;
+                        if (label === 'Status kepemilikan') strong.textContent = item.owned ? 'Dimiliki Pemain' : 'Tersedia di Galeri';
+                        if (label === 'Valuasi terkini') strong.textContent = `Rp ${Number(item.currentValuation || item.basePrice || 0).toLocaleString('id-ID')}`;
+                        if (label === 'Biaya pemeliharaan') strong.textContent = `Rp ${Number(item.dailyMaintenanceCost || 0).toLocaleString('id-ID')} / hari`;
+                    });
+                });
+            }
+        } catch(e) {
+            console.warn('Business sync error:', e);
+        }
+    }
+
+    const lastRecordedReceiptFilled = new Map();
     function updateReceiptLive(reqId) {
         if (!flowPanel || !reqId) return;
         const receiptAttr = flowPanel.getAttribute('data-receipt-request-id');
@@ -439,17 +541,27 @@
                     if (strong.textContent !== statusObj.status) {
                         strong.textContent = statusObj.status;
                         if (statusObj.status === 'FILLED') {
-                            showGameToast('success', 'Order Terisi Penuh!', `${statusObj.instrumentId}: ${statusObj.filledQuantity} saham telah terisi`);
+                            showGameToast('success', 'Order Terisi Penuh!', `${statusObj.instrumentId}: ${statusObj.filledQuantity} saham telah terisi`, 'RECEIPT_FILL:' + reqId + ':' + statusObj.filledQuantity);
                             flowPanel.querySelectorAll('button').forEach(b => {
                                 if (b.textContent.includes('Batalkan')) b.remove();
                             });
-                        } else if (statusObj.status === 'PARTIALLY_FILLED') {
-                            showGameToast('info', 'Order Terisi Sebagian', `${statusObj.instrumentId}: ${statusObj.filledQuantity} terisi`);
+                        } else if (statusObj.status === 'CANCELLED') {
+                            flowPanel.querySelectorAll('button').forEach(b => {
+                                if (b.textContent.includes('Batalkan')) b.remove();
+                            });
                         }
                     }
                 }
                 if (label === 'Terisi / sisa') {
-                    strong.textContent = `${statusObj.filledQuantity ?? '-'} / ${statusObj.remainingQuantity ?? '-'} saham`;
+                    const newText = `${statusObj.filledQuantity ?? '-'} / ${statusObj.remainingQuantity ?? '-'} saham`;
+                    if (strong.textContent !== newText) {
+                        strong.textContent = newText;
+                        const prevFilled = lastRecordedReceiptFilled.get(reqId) || 0;
+                        if (statusObj.filledQuantity > prevFilled && statusObj.status === 'PARTIALLY_FILLED') {
+                            showGameToast('info', 'Order Terisi Sebagian', `${statusObj.instrumentId}: ${statusObj.filledQuantity} saham terisi (sisa ${statusObj.remainingQuantity})`, 'RECEIPT_PARTIAL:' + reqId + ':' + statusObj.filledQuantity);
+                        }
+                        lastRecordedReceiptFilled.set(reqId, statusObj.filledQuantity || 0);
+                    }
                 }
                 if (label === 'Pesan' && statusObj.message) {
                     strong.textContent = statusObj.message;
@@ -486,11 +598,15 @@
                 pill.textContent = `${isPos ? '+' : ''}${fresh.dailyChangePercent}% · perubahan game`;
             }
 
+            const book = bridge.getOrderBook ? JSON.parse(bridge.getOrderBook(stockId)) : null;
+            const isHalted = book && book.haltState && book.haltState !== 'NORMAL';
+
+            // Holdings update / clear if 0
             const holdingsCard = document.getElementById('detail-holdings-card');
             if (holdingsCard && currentAccount && bridge.getPortfolio) {
                 const port = JSON.parse(bridge.getPortfolio(currentAccount.id));
                 const myPos = (port.positions || []).find(p => p.instrumentId === stockId);
-                if (myPos) {
+                if (myPos && myPos.quantity > 0) {
                     holdingsCard.innerHTML = `
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <div>
@@ -503,27 +619,36 @@
                             </div>
                         </div>
                     `;
+                } else {
+                    holdingsCard.innerHTML = `
+                        <small style="color:var(--text-muted); text-transform:uppercase; font-size:0.65rem;">Kepemilikan di Portofolio</small>
+                        <p style="font-size:0.85rem; color:var(--text-secondary); margin:4px 0 0;">Belum memiliki posisi pada instrumen ini.</p>
+                    `;
                 }
             }
 
+            // Sync dual action button state
+            const btnSell = flowPanel.querySelector('.btn-detail-sell');
+            const btnBuy = flowPanel.querySelector('.btn-detail-buy');
+            if (btnSell) btnSell.disabled = !fresh.isActiveTrading || isHalted;
+            if (btnBuy) btnBuy.disabled = !fresh.isActiveTrading || isHalted;
+
+            // Order Book update
             const depthTable = flowPanel.querySelector('.depth-table');
-            if (depthTable && bridge.getOrderBook) {
-                const book = JSON.parse(bridge.getOrderBook(stockId));
-                if (book && book.bids && book.asks) {
-                    const tbody = depthTable.querySelector('tbody');
-                    if (tbody) {
-                        const rowCount = Math.max(book.bids.length, book.asks.length);
-                        tbody.innerHTML = Array.from({ length: rowCount }).map((_, i) => {
-                            const b = book.bids[i] || { price: '-', quantity: '-' };
-                            const a = book.asks[i] || { price: '-', quantity: '-' };
-                            return `<tr>
-                                <td class="depth-bid">${b.quantity}</td>
-                                <td class="positive">${b.price}</td>
-                                <td class="negative">${a.price}</td>
-                                <td class="depth-ask">${a.quantity}</td>
-                            </tr>`;
-                        }).join('');
-                    }
+            if (depthTable && book && book.bids && book.asks) {
+                const tbody = depthTable.querySelector('tbody');
+                if (tbody) {
+                    const rowCount = Math.max(book.bids.length, book.asks.length);
+                    tbody.innerHTML = Array.from({ length: rowCount }).map((_, i) => {
+                        const b = book.bids[i] || { price: '-', quantity: '-' };
+                        const a = book.asks[i] || { price: '-', quantity: '-' };
+                        return `<tr>
+                            <td class="depth-bid">${b.quantity}</td>
+                            <td class="positive">${b.price}</td>
+                            <td class="negative">${a.price}</td>
+                            <td class="depth-ask">${a.quantity}</td>
+                        </tr>`;
+                    }).join('');
                 }
             }
         } catch(e) {
@@ -803,14 +928,10 @@
             if (!portfolio.positions.length) emptyState(posContainer,'Belum ada posisi','Pilih saham di Pasar dan tinjau order pertamamu.');
             portfolio.positions.forEach(position => {
                 const button = flowButton(posContainer, `${position.instrumentId}: ${position.quantity} saham — ${position.marketValue}`, () => {
-                    const panel = showFlow('Detail posisi');
-                    flowText(panel, 'Akun', portfolio.accountName);
-                    metricCard(panel,position.instrumentId,position.marketValue,'Nilai posisi saat snapshot');
-                    const labels = {instrumentId:'Instrumen',quantity:'Jumlah saham',currency:'Mata uang',averageCost:'Biaya rata-rata / saham',currentPrice:'Harga / saham',unrealizedPnL:'Laba/rugi belum terealisasi',realizedPnLGross:'Hasil terealisasi sebelum biaya'};
-                    Object.entries(labels).forEach(([key,label]) => flowText(panel,label,position[key]));
-                    flowText(panel,'Catatan','Nilai laba/rugi terealisasi di atas belum dikurangi biaya transaksi.');
+                    openPositionDetailModal(position.instrumentId);
                 });
                 button.className = 'action-link position-row';
+                button.dataset.instrumentId = position.instrumentId;
             });
             flowButton(summary, 'Aktivitas / ledger', () => {
                 const panel = showFlow('Aktivitas / ledger');
@@ -864,6 +985,7 @@
                     comps.forEach(c => {
                         const cCard = document.createElement('article');
                         cCard.className = 'card';
+                        cCard.setAttribute('data-company-id', c.id);
                         cCard.style.backgroundColor = 'var(--surface-raised, #252B31)';
                         cCard.style.marginTop = '8px';
 
@@ -952,6 +1074,7 @@
                     items.forEach(item => {
                         const iCard = document.createElement('article');
                         iCard.className = 'card';
+                        iCard.setAttribute('data-collection-id', item.id);
                         iCard.style.backgroundColor = 'var(--surface-raised, #252B31)';
                         iCard.style.marginTop = '8px';
 
@@ -1775,7 +1898,7 @@
         header.append(back,heading); content.append(header);
         layer.append(content); document.body.append(layer); flowPanel = content;
         flowPanel.setAttribute('aria-label',title);
-        document.querySelectorAll('body > :not(.flow-page):not(script)').forEach(el => el.inert = isolated || !el.matches('.bottom-nav'));
+        document.querySelectorAll('body > :not(.flow-page):not(script):not(#toast-container)').forEach(el => el.inert = isolated || !el.matches('.bottom-nav'));
         heading.focus(); return content;
     }
     function closeFlow(recovered = false) {
@@ -1783,6 +1906,7 @@
         if (flowPanel.getAttribute('aria-label') === 'Pemulihan save diperlukan' && recovered !== true) return true;
         activeDetailStock = null;
         activeReceiptRequestId = null;
+        activeDetailPositionInstrumentId = null;
         flowPanel.closest('.flow-page').remove(); flowPanel = null;
         document.querySelectorAll('body > :not(script)').forEach(el => el.inert = false);
         if (flowOpener && flowOpener.isConnected) flowOpener.focus({preventScroll:true});
@@ -1848,6 +1972,7 @@
         activeDetailStock = stock;
         const panel = showFlow(stock.ticker);
         panel.setAttribute('data-stock-id', stock.id);
+        panel.closest('.flow-page')?.setAttribute('data-stock-id', stock.id);
         metricCard(panel, stock.ticker + ' · ' + stock.exchange, stock.currentPrice, stock.name);
         flowText(panel, 'Kategori / sektor', stock.sector);
         panel.append(node('span',Number(stock.dailyChangePercent)>=0?'change-pill positive':'change-pill negative',`${Number(stock.dailyChangePercent)>=0?'+':''}${stock.dailyChangePercent}% · perubahan game`));
@@ -2147,16 +2272,17 @@
                 const result = JSON.parse(bridge.submitOrder(JSON.stringify(draft)));
                 showOrderReceipt(result);
                 refreshSnapshot();
+                const filledShares = (result.filledQuantity != null) ? result.filledQuantity : draft.quantity;
                 if (result.status === 'FILLED') {
-                    showGameToast('success', 'Order Terisi Penuh!', `${draft.side === 'BUY' ? 'Beli' : 'Jual'} ${draft.quantity * (selectedInstrument ? selectedInstrument.lotSize : 100)} ${draft.instrumentId}`);
+                    showGameToast('success', 'Order Terisi Penuh!', `${draft.side === 'BUY' ? 'Beli' : 'Jual'} ${filledShares} saham ${draft.instrumentId}`, 'ORDER_FILL:' + draft.requestId);
                 } else if (result.status === 'PARTIALLY_FILLED') {
-                    showGameToast('info', 'Order Terisi Sebagian', `${draft.instrumentId}: ${result.filledQuantity} terisi, sisa mengantre`);
+                    showGameToast('info', 'Order Terisi Sebagian', `${draft.side === 'BUY' ? 'Beli' : 'Jual'} ${result.filledQuantity} saham ${draft.instrumentId} (sisa ${result.remainingQuantity} saham)`, 'ORDER_PARTIAL:' + draft.requestId + ':' + result.filledQuantity);
                 } else if (result.status === 'OPEN') {
-                    showGameToast('info', 'Order Masuk Antrean', `${draft.side === 'BUY' ? 'Beli' : 'Jual'} ${draft.quantity * (selectedInstrument ? selectedInstrument.lotSize : 100)} ${draft.instrumentId} (Limit ${draft.limitPrice || 'Market'})`);
+                    showGameToast('info', 'Order Masuk Antrean', `${draft.side === 'BUY' ? 'Beli' : 'Jual'} ${draft.quantity} saham ${draft.instrumentId} (${draft.type === 'LIMIT' ? 'Limit ' + (draft.limitPrice || '') : 'Market'})`, 'ORDER_OPEN:' + draft.requestId);
                 }
             } catch (error) {
                 showOrderReceipt({success:false, status:'UNKNOWN', message:'Status belum terkonfirmasi. Periksa status dengan ID yang sama.'});
-                showGameToast('info', 'Status Order Belum Terkonfirmasi', error.message);
+                showGameToast('info', 'Status Order Belum Terkonfirmasi', error.message, 'ORDER_ERR:' + draft.requestId);
             }
         });
     }
@@ -2164,6 +2290,7 @@
         activeReceiptRequestId = activeRequestId;
         const panel = showFlow('Status order', true);
         panel.setAttribute('data-receipt-request-id', activeRequestId);
+        panel.closest('.flow-page')?.setAttribute('data-receipt-request-id', activeRequestId);
         flowText(panel, 'Status', result.status || 'DITOLAK');
         flowText(panel, 'Mode', modeLabel.textContent);
         flowText(panel, 'Akun', result.accountId || (orderDraft && orderDraft.accountId));
@@ -2178,7 +2305,7 @@
                 if (window.confirm(`Batalkan hanya sisa ${result.remainingQuantity} saham?`)) {
                     showOrderReceipt(JSON.parse(bridge.cancelOrder(activeRequestId)));
                     refreshSnapshot();
-                    showGameToast('info', 'Order Dibatalkan', 'Sisa kuantitas order dibatalkan. Kas tertahan dipulihkan.');
+                    showGameToast('info', 'Order Dibatalkan', `Sisa ${result.remainingQuantity} saham dibatalkan. Kas tertahan dipulihkan.`, 'ORDER_CANCEL:' + activeRequestId);
                 }
             });
         }
@@ -3084,10 +3211,10 @@
                                 try {
                                     const r = JSON.parse(bridge.prepayLoanRequest(JSON.stringify({loanId:l.id, requestId:prepayRequestId})));
                                     if (!r.success) throw new Error(r.message);
-                                    alert(r.message);
+                                    showGameToast('success', 'Pelunasan Berhasil', r.message, 'LOAN_PREPAY:' + l.id);
                                     refreshSnapshot();
                                     openLoansModal();
-                                } catch (err) { alert('Pelunasan gagal: ' + err.message); }
+                                } catch (err) { showGameToast('info', 'Pelunasan Gagal', err.message); }
                             }
                         };
 
@@ -3100,10 +3227,10 @@
                                 try {
                                     const r = JSON.parse(bridge.restructureLoan(JSON.stringify({ loanId: l.id, additionalDays: Number(addDays) })));
                                     if (!r.success) throw new Error(r.message);
-                                    alert(r.message);
+                                    showGameToast('success', 'Restrukturisasi Berhasil', r.message, 'LOAN_RESTRUCTURE:' + l.id);
                                     refreshSnapshot();
                                     openLoansModal();
-                                } catch (err) { alert('Restrukturisasi gagal: ' + err.message); }
+                                } catch (err) { showGameToast('info', 'Restrukturisasi Gagal', err.message); }
                             }
                         };
 
@@ -3383,10 +3510,10 @@
                             try {
                                 const r = JSON.parse(bridge.claimPeriodicMission(m.id));
                                 if (!r.success) throw new Error(r.message);
-                                alert(r.message);
+                                showGameToast('success', 'Misi Selesai!', r.message, 'MISSION_CLAIM:' + m.id);
                                 refreshSnapshot();
                                 openPeriodicMissionsModal();
-                            } catch (err) { alert('Klaim gagal: ' + err.message); }
+                            } catch (err) { showGameToast('info', 'Klaim Gagal', err.message); }
                         };
                         card.append(claimBtn);
                     }

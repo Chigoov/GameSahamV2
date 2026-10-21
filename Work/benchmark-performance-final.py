@@ -198,27 +198,44 @@ def run_benchmark():
             # Summary metrics
             p95_all_nav = nearest_rank_p95(all_nav)
             max_all_nav = max(all_nav)
-            
+
             ordinary_all = modal_samples + search_samples + subtab_samples + ps_samples
             p95_ordinary = nearest_rank_p95(ordinary_all)
             max_ordinary = max(ordinary_all)
+            p95_heavy = nearest_rank_p95(heavy_samples)
+
+            # Per-category rigorous validation
+            nav_all_passed = all(
+                results["actions"][f"nav_{tab}"]["maxMs"] <= 1000.0 and results["actions"][f"nav_{tab}"]["count"] >= 30
+                for tab in tabs
+            )
+            ordinary_categories = ["modal_open_close", "stock_search_filter", "company_subtab_switch", "power_save_toggle"]
+            ordinary_all_passed = all(
+                results["actions"][cat]["p95Ms"] <= 300.0 and results["actions"][cat]["count"] >= 30
+                for cat in ordinary_categories
+            )
+            heavy_passed = len(heavy_samples) >= 5 and p95_heavy <= 300.0
+
+            overall_verdict = "PASS_WITHIN_HOST_SCOPE" if (nav_all_passed and ordinary_all_passed and heavy_passed) else "FAILED"
 
             results["summary"] = {
                 "totalNavigationSamples": len(all_nav),
                 "navigationP95Ms": round(p95_all_nav, 2),
                 "navigationMaxMs": round(max_all_nav, 2),
                 "navigationThresholdMaxMs": 1000.0,
-                "navigationPassed": max_all_nav <= 1000.0,
+                "navigationPassed": nav_all_passed,
 
                 "totalOrdinarySamples": len(ordinary_all),
                 "ordinaryActionP95Ms": round(p95_ordinary, 2),
                 "ordinaryActionMaxMs": round(max_ordinary, 2),
                 "ordinaryActionThresholdP95Ms": 300.0,
-                "ordinaryActionPassed": p95_ordinary <= 300.0,
+                "ordinaryActionPassed": ordinary_all_passed,
 
-                "heavyWorkFeedbackP95Ms": round(nearest_rank_p95(heavy_samples), 2),
-                "heavyWorkPassed": nearest_rank_p95(heavy_samples) <= 300.0 or len(heavy_samples) > 0,
-                "verdict": "PASS_WITHIN_HOST_SCOPE"
+                "heavyWorkFeedbackP95Ms": round(p95_heavy, 2),
+                "heavyWorkCount": len(heavy_samples),
+                "heavyWorkThresholdP95Ms": 300.0,
+                "heavyWorkPassed": heavy_passed,
+                "verdict": overall_verdict
             }
 
             out_file = OUT / 'performance-benchmark.json'
@@ -229,8 +246,10 @@ def run_benchmark():
 
             browser.close()
 
-            assert results["summary"]["navigationPassed"], f"Navigation failed max limit: {max_all_nav}"
-            assert results["summary"]["ordinaryActionPassed"], f"Ordinary action failed P95 limit: {p95_ordinary}"
+            assert nav_all_passed, f"Navigation failed max 1000ms threshold or sample count: {max_all_nav}ms"
+            assert ordinary_all_passed, f"Ordinary action failed P95 300ms threshold or sample count: {p95_ordinary}ms"
+            assert heavy_passed, f"Heavy work failed P95 300ms threshold: {p95_heavy}ms"
+            assert overall_verdict == "PASS_WITHIN_HOST_SCOPE", "Overall benchmark verdict was not PASS"
 
     finally:
         if server:
