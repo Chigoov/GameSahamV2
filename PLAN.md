@@ -27,13 +27,13 @@ Namun, berdasarkan mandat tata kelola proyek di `AGENTS.md`, PRD, serta dokumen 
 
 ## 2. Peta Kesenjangan Produk (Gap Analysis Matrix)
 
-| ID Gap | Area Kesenjangan | Kondisi Saat Ini | Kondisi Target (Definisi Selesai) |
+| ID Gap | Area Kesenjangan | Kondisi Saat Ini | Keputusan Pemilik & Kondisi Target (Definisi Selesai) |
 |---|---|---|---|
 | **GAP-01** | **Sinkronisasi Tracker Proyek** | `STATUS.json`, `REQUIREMENTS.csv`, dan `GAP-MATRIX.csv` masih mencatat status `PARTIAL` dan `NOT_TESTED` warisan sesi lama. | Seluruh requirement mandatory direkonsiliasi dengan bukti 444 tes dan diperbarui statusnya menjadi `PASS` / `VERIFIED`. |
-| **GAP-02** | **Audit Forensik Isi Paket APK** | APK debug ter-build, namun isi struktur zip internal (assets, dex, manifest, exclusion data tidak berhak) belum diaudit per berkas. | Verifikasi bahwa dataset berlisensi tidak berhak tidak bocor ke APK, file asset `wwwroot` 100% identik dengan commit terbaru, dan signature valid. |
-| **GAP-03** | **Uji Invarian Urutan Kritis (10×100)** | Pengujian unit lulus, namun pengujian keandalan multi-hari (10 seed × 100 aksi uang/order/waktu/save) perlu bukti eksekusi eksplisit pada source terkini. | Terbukti bahwa 10 urutan kritis mempertahankan invarian ekonomi (tidak ada uang gratis, saldo reconcile 100%, tidak ada overflow). |
-| **GAP-04** | **Standarisasi Gerbang Perangkat Fisik** | Pengujian hanya dilakukan pada Playwright Chromium headless di Windows host (`PENDING_ATTACHED_DEVICE`). | Protokol pengujian fisik (*Hardware Acceptance Checklist*) disusun lengkap untuk validasi sentuh, keyboard IME, back button, dan GPU rendering di HP Android. |
-| **GAP-05** | **Prosedur Pemulihan & Panduan Rilis** | Tidak ada panduan resmi untuk penanganan save game jika terjadi crash/korupsi dan dokumen rilis komprehensif 14 fase. | Dokumen *Disaster Recovery Protocol* dan *Comprehensive Release Dossier* tersedia untuk pemilik proyek. |
+| **GAP-02** | **Audit Forensik Isi Paket APK & Performa** | APK debug ter-build, namun opsi hemat daya untuk HP kelas menengah dan aset karantina perlu standarisasi. | Implementasi toggle "Mode Hemat Daya" di Pengaturan untuk mematikan blur pada HP menengah, verifikasi dataset legal, dan integritas signature. |
+| **GAP-03** | **Uji Invarian Urutan Kritis Ekstrem (10×100)** | Pengujian unit lulus, namun pengujian ekstrem menyeluruh lintas SEMUA fitur perlu dijalankan. | **Keputusan Pemilik:** Uji ekstrem pada **SEMUA FITUR** (Margin, Utang, Saham, Reksa Dana, Transfer Modal, Skip Hari multi-tahun) dengan pembuktian invarian ekonomi 100% konsisten. |
+| **GAP-04** | **Ketahanan Autosave dari Force Close** | Save game dasar ada, namun proteksi saat game dipaksa keluar (*force close*) perlu diperkuat. | **Keputusan Pemilik:** Sistem *Crash-Resilient Autosave* menyimpan otomatis setiap mutasi dan saat event `visibilitychange`, dilengkapi file cadangan `.bak` agar aman sekalipun dipaksa keluar. |
+| **GAP-05** | **Deklarasi Status Akhir COMPLETE** | Status masih `PARTIAL`. | **Keputusan Pemilik:** Status di `STATUS.json` dideklarasikan mutlak menjadi **`COMPLETE`** segera setelah uji kritis & ekstrem semua fitur lulus 100%. |
 
 ---
 
@@ -67,12 +67,11 @@ Namun, berdasarkan mandat tata kelola proyek di `AGENTS.md`, PRD, serta dokumen 
 
 ---
 
-### Fase 3: Verifikasi Stress Test & 10×100 Urutan Kritis
-*Tujuan: Memvalidasi integritas invarian ekonomi tanpa kompromi melalui simulasi acak jangka panjang.*
+### Fase 3: Verifikasi Stress Test Ekstrem 10×100 Urutan Kritis (SEMUA FITUR)
+*Tujuan: Memvalidasi integritas invarian ekonomi tanpa kompromi melalui simulasi acak jangka panjang di seluruh fitur.*
 
-- [ ] **3.1. Eksekusi 10 Seed × 100 Aksi Kritis:**
-  - Jalankan test suite `CorporateActionIpoVotingCriticalSequenceTest`, `MarketMatchingOrderHaltCriticalSequenceTest`, dan `MultiAssetCollectionFundCriticalSequenceTest`.
-  - Simulasikan 10 urutan seed acak berulang: penempatan order pasar, limit, stop-loss, penarikan kas, transfer modal perusahaan, dan skip day.
+- [ ] **3.1. Eksekusi 10 Seed × 100 Aksi Kritis pada Seluruh Fitur:**
+  - Meliputi seluruh modul: Pinjaman Beragunan & Tenor, Transaksi Saham & Matching Engine, Fasilitas Margin & Short Selling, Reksa Dana (MM, FI, EQ), Aksi Korporasi & Voting RUPS, Transfer Modal Anak Usaha, dan Multi-Year Skip Day.
 - [ ] **3.2. Pemeriksaan Invarian Ekonomi Pasca-Uji:**
   - Validasi bahwa `facade.reconcileAll()` bernilai `true` setelah setiap blok 100 aksi.
   - Validasi bahwa kekayaan bersih tidak menciptakan uang semu (*money-minting glitch*).
@@ -80,23 +79,15 @@ Namun, berdasarkan mandat tata kelola proyek di `AGENTS.md`, PRD, serta dokumen 
 
 ---
 
-### Fase 4: Standarisasi Protokol Uji Perangkat Fisik (Hardware Gate)
-*Tujuan: Menyiapkan gerbang penyerahan fisik yang terstruktur bagi pemilik proyek untuk pengujian mandiri di HP Android.*
+### Fase 4: Proteksi Autosave Force Close & Mode Hemat Daya HP Menengah
+*Tujuan: Menjamin data pemain aman sekalipun game dipaksa keluar dan performa tetap lancar di HP kelas menengah.*
 
-- [ ] **4.1. Pembuatan Lembar Uji Verifikasi Perangkat (*Hardware Acceptance Checklist*):**
-  - Buat berkas panduan `Docs/QA/HARDWARE-TEST-GUIDE.md` yang memuat 10 skenario uji tangan langsung di ponsel:
-    1. Uji responsivitas sentuhan pada kartu dan tombol navigasi dock bawah.
-    2. Uji pop-up keyboard virtual (IME) pada input nominal uang dan lot saham tanpa merusak layout (*viewport resize check*).
-    3. Uji penekanan tombol fisik *Back* Android saat modal flow terbuka (modal harus tertutup tanpa keluar dari aplikasi).
-    4. Uji siklus hidup Android: minimalkan aplikasi (*Home button*), buka aplikasi lain, lalu kembali (*onResume*) untuk memastikan state tidak hilang.
-    5. Uji rendering efek CSS blur/glassmorphism pada layar HP 60Hz/120Hz.
-    6. Uji klaim Sponsor Harian `+Rp 25.000.000` di Beranda.
-    7. Uji pembelian barang koleksi dan pengajuan pinjaman beragunan.
-    8. Uji eksekusi order saham di tab Pasar.
-    9. Uji transfer modal dua arah di tab Bisnis.
-    10. Uji tampilan Podium 3 Besar di tab Liga & Peringkat.
-- [ ] **4.2. Penyediaan Paket APK Rilis Bersih:**
-  - Tempatkan berkas APK bertanda tangan di direktori rilis yang jelas dan sertakan hash SHA-256 untuk verifikasi integritas oleh pengguna.
+- [ ] **4.1. Ketahanan Autosave Saat Force Close:**
+  - Pastikan setiap mutasi keuangan langsung tersimpan otomatis secara atomik.
+  - Tambahkan penanganan event `visibilitychange` dan `pagehide` di Android WebView agar saat aplikasi diminimalkan atau di-swipe keluar (*force close*), snapshot terakhir otomatis tersimpan.
+  - Implementasikan mekanisme write-to-temp + rename atomic dengan berkas cadangan `.bak` agar data tidak korup jika proses mati mendadak saat penulisan disk.
+- [ ] **4.2. Toggle Mode Hemat Daya di Pengaturan:**
+  - Sediakan tombol saklar "Mode Hemat Daya / Kinerja Cepat" di halaman Pengaturan aplikasi untuk menonaktifkan efek blur `backdrop-filter` pada ponsel kelas menengah/baterai lemah.
 
 ---
 
