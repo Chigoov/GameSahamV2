@@ -3021,7 +3021,25 @@
             const data=bridgeResult('getLeagueLeaderboard',mode);
             panel.append(node('h2','',`${data.tierLabel} · Minggu ${data.seasonWeek}`));
             metricCard(panel,'Peringkat kamu',data.playerRank == null ? 'Belum tersedia' : `#${data.playerRank}`,data.playerRank == null ? 'Return memerlukan periode dan modal tertimbang yang valid.' : `${data.totalCompetitors} peserta`);
-            (data.leaderboard || []).forEach(entry=>{
+            const lb = data.leaderboard || [];
+            if (lb.length >= 3) {
+                const podium = node('div', 'leaderboard-podium');
+                // Order: 2 (left), 1 (center), 3 (right)
+                const top3 = [lb[1], lb[0], lb[2]];
+                top3.forEach(entry => {
+                    const r = entry.rank;
+                    const pItem = node('div', `podium-item rank-${r}`);
+                    if (entry.isPlayer) pItem.classList.add('player-row');
+                    const avatar = node('div', 'podium-avatar');
+                    if (r === 1) avatar.append(node('span', 'podium-crown', '👑'));
+                    avatar.append(node('span', '', (entry.name || '?').charAt(0)));
+                    avatar.append(node('span', 'podium-rank-badge', `#${r}`));
+                    pItem.append(avatar, node('div', 'podium-name', entry.name), node('div', 'podium-score', mode === 'WEEKLY_RETURN' ? (entry.weeklyReturn || entry.weeklyReturnPercent || '0%') : entry.netWorth));
+                    podium.append(pItem);
+                });
+                panel.append(podium);
+            }
+            lb.forEach(entry=>{
                 const row=node('section','data-row');if(entry.isPlayer)row.classList.add('player-row');
                 const identity=node('div');identity.append(node('strong','',`#${entry.rank} ${entry.name}`),node('small','',`${entry.title} · ${entry.style}`));
                 row.append(identity,node('strong','',mode === 'WEEKLY_RETURN' ? (entry.weeklyReturn || entry.weeklyReturnPercent || '0%') : entry.netWorth));panel.append(row);
