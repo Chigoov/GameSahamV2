@@ -938,6 +938,17 @@ public final class TradingWebBridge {
         }
     }
 
+    @JavascriptInterface
+    public String claimDailySponsor(String jsonRequest) {
+        try {
+            JSONObject req = jsonRequest != null && !jsonRequest.isEmpty() ? new JSONObject(jsonRequest) : new JSONObject();
+            String reqId = req.optString("requestId", "REQ-SPONSOR-" + System.currentTimeMillis());
+            return facade.claimDailySponsor(reqId).toString();
+        } catch (Exception error) {
+            return bridgeError(error);
+        }
+    }
+
     // =========================================================================
     // KEKAYAAN KONSOLIDASI (REF:wealth, D02)
     // =========================================================================

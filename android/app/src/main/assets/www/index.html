@@ -35,8 +35,20 @@
                 <div id="home-net-worth" class="metric-hero">Memuat…</div>
                 <p class="hero-caption">Aset pribadi dikurangi kewajiban · IDR</p>
                 <div class="hero-cash"><div><small>Kas IDR</small><strong id="home-total-cash">Memuat…</strong></div><div><small>Tersedia</small><strong id="home-avail-cash">Memuat…</strong></div><div><small>Tertahan</small><strong id="home-reserved-cash">Memuat…</strong></div></div>
-            </section>
-            <section class="card career-card" aria-labelledby="career-agenda-title">
+                </section>
+                <!-- Modul Sponsor Harian (Pengganti Ad-Reward) -->
+                <section class="card sponsor-card" id="home-sponsor-card" style="border-color:rgba(20, 241, 149, 0.35); background:linear-gradient(135deg, rgba(20, 241, 149, 0.12) 0%, rgba(13, 17, 30, 0.9) 100%);">
+                    <div class="section-heading">
+                        <div>
+                            <span class="eyebrow" style="color:var(--teal);">DANA HIBAH HARIAN</span>
+                            <h2 style="font-size:1.15rem; color:#FFF; margin-top:2px;">Sponsor Ventura Modal</h2>
+                        </div>
+                        <span class="change-pill positive">+Rp 25.000.000</span>
+                    </div>
+                    <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px;">Suntikan modal ventura tanpa bunga 1x per hari perdagangan untuk ekspansi portofolio.</p>
+                    <button id="btn-claim-sponsor" class="btn-primary" style="background:linear-gradient(135deg, #14F195 0%, #00B87A 100%); color:#000; box-shadow:var(--shadow-neon-cyan);">Klaim Hibah Rp 25 Juta</button>
+                </section>
+                <section class="card career-card" aria-labelledby="career-agenda-title">
                 <div class="section-heading"><div><span class="eyebrow">PERJALANAN KARIER</span><h2 id="career-agenda-title">Kariermu</h2></div><button id="header-level-chip" class="level-chip" aria-label="Buka level dan pencapaian"><strong id="header-level-val">Lv. 1</strong><small id="header-xp-val">Memuat XP</small></button></div>
                 <p id="home-career-state">Memuat progres…</p>
                 <div class="xp-track" id="home-xp-track" role="progressbar" aria-label="XP menuju level berikutnya" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
@@ -49,6 +61,19 @@
                 <button id="btn-achievements" class="shortcut"><span aria-hidden="true">◇</span><strong>Pencapaian</strong><small id="home-achievement-count">Progres & badge ↗</small></button>
                 <button id="btn-missions" class="shortcut"><span aria-hidden="true">📋</span><strong>Misi Periodik</strong><small>Harian & mingguan ↗</small></button>
                 <button id="btn-league" class="shortcut"><span aria-hidden="true">🏆</span><strong>Liga & Rival</strong><small>Peringkat kompetisi ↗</small></button>
+            </div>
+            <!-- Modul Koleksi Mewah & DNA Investor -->
+            <div class="quick-grid" style="margin-bottom:16px;">
+                <button id="btn-home-collections" class="shortcut" style="border-color:rgba(255, 184, 0, 0.35);">
+                    <span aria-hidden="true" style="background:rgba(255, 184, 0, 0.15); color:var(--gold);">💎</span>
+                    <strong>Galeri Mewah</strong>
+                    <small id="home-collection-count">0/12 Koleksi Aset ↗</small>
+                </button>
+                <button id="btn-home-archetype" class="shortcut" style="border-color:rgba(153, 69, 255, 0.35);">
+                    <span aria-hidden="true" style="background:rgba(153, 69, 255, 0.15); color:var(--accent-purple);">🧬</span>
+                    <strong id="home-archetype-name">DNA Investor</strong>
+                    <small>Gaya & profil risiko ↗</small>
+                </button>
             </div>
             <div class="section-heading"><h2>Pantauan pasar</h2><button id="btn-home-market" class="text-button">Semua <span aria-hidden="true">→</span></button></div>
             <div id="home-market-list" class="compact-market"></div>

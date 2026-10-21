@@ -1409,6 +1409,36 @@ label {
    ACHIEVEMENTS, GAMIFIED ELEMENTS & BADGES
    ========================================================================= */
 
+/* Company Sub-Tabs (Tycoon Vibe) */
+.company-subtabs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    margin: 12px 0 16px;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+}
+
+.subtab-pill {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 120ms ease;
+}
+
+.subtab-pill.active, .subtab-pill:hover {
+    background: var(--purple-bg);
+    border-color: var(--accent-purple);
+    color: #FFFFFF;
+    box-shadow: 0 0 12px rgba(153, 69, 255, 0.25);
+}
+
 .achievement-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

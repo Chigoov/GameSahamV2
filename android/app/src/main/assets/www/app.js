@@ -263,6 +263,23 @@
             if (accNameEl) {
                 accNameEl.textContent = currentAccount ? (currentAccount.name || currentAccount.id) : 'Pribadi';
             }
+
+            if (bridge.getInvestorArchetype) {
+                try {
+                    const arch = JSON.parse(bridge.getInvestorArchetype());
+                    const archEl = document.getElementById('home-archetype-name');
+                    if (archEl && arch && arch.label) archEl.textContent = arch.label;
+                } catch(e) {}
+            }
+            if (bridge.getCollections) {
+                try {
+                    const colRes = JSON.parse(bridge.getCollections());
+                    const list = Array.isArray(colRes) ? colRes : (colRes.collections || []);
+                    const owned = list.filter(c => c.isOwned).length;
+                    const colEl = document.getElementById('home-collection-count');
+                    if (colEl) colEl.textContent = `${owned}/${list.length || 12} Koleksi Aset ↗`;
+                } catch(e) {}
+            }
         } catch (e) {
             console.error('Gagal memuat snapshot:', e);
         }
@@ -482,6 +499,40 @@
                 flowText(wallets, `${currency} tersedia`, cash.available);
                 flowText(wallets, `${currency} tertahan`, cash.reserved);
             }
+
+            // Modul Statistik Kinerja Trading (SOLCASH / Tycoon Vibe)
+            if (bridge.getPlayerProfile) {
+                try {
+                    const prof = JSON.parse(bridge.getPlayerProfile());
+                    const perfSection = node('section', 'card');
+                    perfSection.append(node('h2', 'card-title', 'Statistik Kinerja Trading'));
+                    const statGrid = node('div', 'quick-grid');
+                    statGrid.style.marginBottom = '4px';
+
+                    const bestCard = node('div', 'shortcut');
+                    bestCard.style.cssText = 'min-height:auto; padding:12px; border-color:rgba(20, 241, 149, 0.35);';
+                    bestCard.innerHTML = `<small style="color:var(--text-muted); text-transform:uppercase;">Transaksi Terbaik</small><strong style="color:var(--teal); font-size:1rem; margin-top:4px;">${prof.bestTradePnL || 'Rp 0'}</strong>`;
+
+                    const worstCard = node('div', 'shortcut');
+                    worstCard.style.cssText = 'min-height:auto; padding:12px; border-color:rgba(255, 59, 105, 0.35);';
+                    worstCard.innerHTML = `<small style="color:var(--text-muted); text-transform:uppercase;">Transaksi Terburuk</small><strong style="color:var(--negative); font-size:1rem; margin-top:4px;">${prof.worstTradePnL || 'Rp 0'}</strong>`;
+
+                    const winCard = node('div', 'shortcut');
+                    winCard.style.cssText = 'min-height:auto; padding:12px;';
+                    winCard.innerHTML = `<small style="color:var(--text-muted); text-transform:uppercase;">Win Rate / Sukses</small><strong style="font-size:1rem; margin-top:4px;">${prof.winRate || '0%'} (${prof.profitableTrades || 0}/${prof.closedTrades || 0})</strong>`;
+
+                    const totalCard = node('div', 'shortcut');
+                    totalCard.style.cssText = 'min-height:auto; padding:12px;';
+                    const weeklyRet = prof.performance && prof.performance.weekly && prof.performance.weekly.returnAvailable ? `${prof.performance.weekly.returnPercent >= 0 ? '+' : ''}${Number(prof.performance.weekly.returnPercent).toFixed(1)}%` : '0.0%';
+                    totalCard.innerHTML = `<small style="color:var(--text-muted); text-transform:uppercase;">ROI Mingguan</small><strong style="color:var(--gold); font-size:1rem; margin-top:4px;">${weeklyRet} (${prof.totalTrades || 0} order)</strong>`;
+
+                    statGrid.append(bestCard, worstCard, winCard, totalCard);
+                    perfSection.append(statGrid);
+                    summary.append(perfSection);
+                } catch(e) {
+                    console.warn('Statistik performa tidak dapat dimuat:', e);
+                }
+            }
             flowText(summary, 'Kurs valuasi USD/IDR', portfolio.valuationRateUsdIdr);
             flowButton(summary, 'Rincian Kekayaan Bersih Konsolidasi', () => openConsolidatedWealthModal());
             flowButton(summary, 'Reksa Dana Berbasis NAB', () => openMyMutualFundsModal());
@@ -564,6 +615,17 @@
                         const cH = document.createElement('h3');
                         cH.textContent = `${c.name} (${c.sector || 'Operasional'})`;
                         cCard.append(cH);
+
+                        // 4 Sub-Tabs Navigation (Tycoon Vibe)
+                        const subtabs = document.createElement('div');
+                        subtabs.className = 'company-subtabs';
+                        subtabs.innerHTML = `
+                            <button class="subtab-pill active" type="button">📊 Status Utama</button>
+                            <button class="subtab-pill" type="button">👥 Divisi SDM</button>
+                            <button class="subtab-pill" type="button">✨ Fasilitas & Moral</button>
+                            <button class="subtab-pill" type="button">💳 Likuiditas</button>
+                        `;
+                        cCard.append(subtabs);
 
                         flowText(cCard, 'Saldo kas perusahaan', `Rp ${Number(c.cash || 0).toLocaleString('id-ID')}`);
                         flowText(cCard, 'Tingkat / level', `Level ${c.level} · ${c.sectorModel}`);
@@ -1233,9 +1295,22 @@
                 flowText(newsSection, 'Berita', 'Belum ada berita terbit saat ini.');
             } else {
                 feed.news.forEach(n => {
-                    const card = node('article','card news-card');
-                    card.append(node('span','eyebrow',`${n.categoryLabel}${n.relatedTicker ? ' · '+n.relatedTicker : ''}`),node('h3','',n.headline));
-                    const button = flowButton(card,'Baca catatan', () => {
+                const card = node('article','card news-card');
+                const topRow = node('div', 'section-heading');
+                topRow.style.margin = '0 0 6px 0';
+                topRow.append(
+                    node('span','eyebrow',`${n.categoryLabel}${n.relatedTicker ? ' · '+n.relatedTicker : ''}`),
+                    node('span', 'change-pill', '⚡ LANGSUNG · ⏱ 1j 30m')
+                );
+                topRow.lastElementChild.style.cssText = 'background:rgba(20,241,149,0.15); color:var(--teal); border:1px solid rgba(20,241,149,0.3); font-size:0.65rem;';
+                const h3 = node('h3','',n.headline);
+                h3.style.margin = '4px 0 8px';
+                const impactRow = node('div');
+                impactRow.style.cssText = 'display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:0.75rem;';
+                const impactBadge = node('span', 'change-pill positive', n.relatedTicker ? `🎯 Efek: ${n.relatedTicker}` : '🎯 Dampak Sektor Industri');
+                impactRow.append(impactBadge);
+                card.append(topRow, h3, impactRow);
+                const button = flowButton(card,'Baca catatan', () => {
                         const detail = showFlow('Catatan riset');
                         detail.append(node('span','live-badge','Simulasi game'),node('h2','',n.headline));
                         flowText(detail,'Kategori',n.categoryLabel);
@@ -4011,6 +4086,28 @@
     if (misBtn) misBtn.addEventListener('click', openPeriodicMissionsModal);
     const leaBtn = document.getElementById('btn-league');
     if (leaBtn) leaBtn.addEventListener('click', openLeagueAndRivalModal);
+
+    const claimSponsorBtn = document.getElementById('btn-claim-sponsor');
+    if (claimSponsorBtn) claimSponsorBtn.addEventListener('click', () => {
+        try {
+            const reqId = 'SPONSOR-' + Date.now();
+            const res = JSON.parse(bridge.claimDailySponsor ? bridge.claimDailySponsor(JSON.stringify({requestId: reqId})) : '{"success":false,"message":"Fitur belum tersedia"}');
+            alert(res.message);
+            if (res.success) {
+                refreshSnapshot();
+                claimSponsorBtn.disabled = true;
+                claimSponsorBtn.textContent = 'Sudah Diklaim Hari Ini ✓';
+            }
+        } catch(e) {
+            alert('Klaim gagal: ' + e.message);
+        }
+    });
+
+    const homeColBtn = document.getElementById('btn-home-collections');
+    if (homeColBtn) homeColBtn.addEventListener('click', openCollectionsGalleryModal);
+
+    const homeArchBtn = document.getElementById('btn-home-archetype');
+    if (homeArchBtn) homeArchBtn.addEventListener('click', openInvestorArchetypeModal);
     const rdBtn = document.getElementById('btn-reksa-dana');
     if (rdBtn) rdBtn.addEventListener('click', openMutualFundsMarketModal);
 

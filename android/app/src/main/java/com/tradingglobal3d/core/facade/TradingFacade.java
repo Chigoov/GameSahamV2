@@ -2499,6 +2499,24 @@ public final class TradingFacade {
         return getPlayerProfileJson();
     }
 
+    public synchronized JSONObject claimDailySponsor(String requestId) throws JSONException {
+        if (requestId == null || requestId.trim().isEmpty()) throw new IllegalArgumentException("Request ID wajib");
+        Account personal = getPersonalAccount();
+        if (personal == null) throw new IllegalStateException("Akun personal belum siap");
+        LocalDate today = clock != null ? clock.getCurrentDate() : LocalDate.now();
+        String todayKey = "SPONSOR-CLAIM-" + today.toString();
+        if (ledger.isRequestProcessed(todayKey) || ledger.isRequestProcessed(requestId)) {
+            return new JSONObject().put("success", false).put("message", "Dana sponsor harian sudah diklaim hari ini. Kembali besok!");
+        }
+        Money grantAmount = Money.of(25_000_000L, Currency.IDR);
+        long now = clock != null ? clock.getGameTimestamp() : System.currentTimeMillis();
+        ledger.recordMutation(todayKey, personal, LedgerEntryType.BAILOUT, grantAmount, true, now, "Dana Sponsor Harian " + today);
+        persistFinancialMutation();
+        return new JSONObject().put("success", true)
+                .put("amount", grantAmount.format())
+                .put("message", "Sponsor harian " + grantAmount.format() + " berhasil masuk ke kas pribadi!");
+    }
+
     // =========================================================================
     // 6. KEKAYAAN KONSOLIDASI (D02) & RETURN METHODOLOGY (D13)
     // =========================================================================
