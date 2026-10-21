@@ -26,7 +26,6 @@ import java.util.Objects;
  */
 public final class TradingWebBridge {
     private final TradingFacade facade;
-    private final Map<String, com.tradingglobal3d.core.replay.StrategyLabSandbox> activeSandboxes = new LinkedHashMap<>();
 
     public TradingWebBridge(TradingFacade facade) {
         this.facade = Objects.requireNonNull(facade);
@@ -59,6 +58,8 @@ public final class TradingWebBridge {
 
             JSONArray array = new JSONArray();
             for (Instrument inst : list) {
+                if (facade.getGameMode() == com.tradingglobal3d.core.model.GameMode.HISTORICAL_REPLAY
+                        && !facade.getReplayEngine().supportsInstrument(inst.getId())) continue;
                 JSONObject obj = new JSONObject();
                 obj.put("id", inst.getId());
                 obj.put("ticker", inst.getTicker());
@@ -83,6 +84,7 @@ public final class TradingWebBridge {
     @JavascriptInterface
     public String getIndices() {
         try {
+            if (facade.getGameMode() == com.tradingglobal3d.core.model.GameMode.HISTORICAL_REPLAY) return "[]";
             facade.getCatalog().recalculateAllIndices();
             JSONArray array = new JSONArray();
 
@@ -110,6 +112,8 @@ public final class TradingWebBridge {
     @JavascriptInterface
     public String getIndexDetail(String indexId) {
         try {
+            if (facade.getGameMode() == com.tradingglobal3d.core.model.GameMode.HISTORICAL_REPLAY)
+                return new JSONObject().put("success", false).put("message", "Dataset tidak mencakup indeks historis").toString();
             MarketIndex index = facade.getCatalog().getIndex(indexId);
             if (index == null) {
                 if ("N225".equalsIgnoreCase(indexId) || "HSI".equalsIgnoreCase(indexId)
@@ -248,6 +252,7 @@ public final class TradingWebBridge {
     private Order parseOrder(String json) throws JSONException {
         JSONObject obj = new JSONObject(json);
         String accountId = obj.optString("accountId", facade.getPersonalAccount().getId());
+        requirePlayerAccount(accountId);
         Instrument instrument = facade.getCatalog().getById(obj.getString("instrumentId"));
         if (instrument == null) throw new IllegalArgumentException("Instrumen tidak ditemukan");
         OrderType type = OrderType.valueOf(obj.getString("type"));
@@ -255,7 +260,16 @@ public final class TradingWebBridge {
         Money trigger = type == OrderType.STOP_LOSS || type == OrderType.TAKE_PROFIT
                 ? new Money(new BigDecimal(obj.getString("triggerPrice")), instrument.getCurrency()) : null;
         return new Order("ORD-" + java.util.UUID.randomUUID(), obj.getString("requestId"), accountId, instrument.getId(),
-                OrderSide.valueOf(obj.getString("side")), type, limit, trigger, obj.getLong("quantity"), System.currentTimeMillis(), null);
+                OrderSide.valueOf(obj.getString("side")), type, limit, trigger, obj.getLong("quantity"), facade.getClock().getGameTimestamp(), null);
+    }
+
+    private Account requirePlayerAccount(String id) {
+        Account account = facade.getAccount(id);
+        if (account == null || (account.getType() != com.tradingglobal3d.core.model.AccountType.PERSONAL
+                && account.getType() != com.tradingglobal3d.core.model.AccountType.CLIENT)) throw new IllegalArgumentException("Akun internal tidak dapat dioperasikan pemain");
+        if (account.getType() == com.tradingglobal3d.core.model.AccountType.CLIENT)
+            facade.getCareerManager().requireRank(com.tradingglobal3d.core.career.CareerRank.PORTFOLIO_MANAGER, "Akun klien");
+        return account;
     }
 
     @JavascriptInterface
@@ -293,6 +307,7 @@ public final class TradingWebBridge {
             Currency to = Currency.valueOf(request.getString("to"));
             Money amount = new Money(new BigDecimal(request.getString("amount")), from);
             String accountId = request.getString("accountId");
+            requirePlayerAccount(accountId);
             return (confirm ? facade.confirmFx(request.getString("requestId"), request.getString("quoteId"), accountId, from, to, amount)
                     : facade.previewFx(accountId, from, to, amount)).toString();
         } catch (Exception error) {
@@ -528,19 +543,65 @@ public final class TradingWebBridge {
 
     @JavascriptInterface
     public String setCompanyPolicy(String jsonRequest) {
+        return "{\"success\":false,\"message\":\"Tinjau perubahan kebijakan sebelum konfirmasi\"}";
+    }
+
+    @JavascriptInterface
+    public String previewCompanyAction(String jsonRequest) {
         try {
-            JSONObject req = new JSONObject(jsonRequest);
-            String compId = req.getString("companyId");
-            int hours = req.getInt("workHours");
-            var tier = com.tradingglobal3d.core.business.OperatingCompany.BenefitTier.valueOf(req.getString("benefitTier"));
-            var comp = facade.getCompanyManager().getCompany(compId);
-            if (comp == null) throw new IllegalArgumentException("Perusahaan tidak ditemukan");
-            comp.setWorkPolicy(hours, tier);
-            return new JSONObject().put("success", true).put("company", comp.toJsonObject()).toString();
-        } catch (Exception error) {
-            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
-            catch (JSONException impossible) { return "{\"success\":false}"; }
-        }
+            JSONObject r = new JSONObject(jsonRequest);
+            return facade.previewCompanyAction(r.getString("companyId"), r.getString("action"), r.optInt("workHours", 8), r.optString("benefitTier", "STANDARD")).toString();
+        } catch (Exception error) { return bridgeError(error); }
+    }
+
+    @JavascriptInterface
+    public String executeCompanyAction(String jsonRequest) {
+        try {
+            JSONObject r = new JSONObject(jsonRequest);
+            return facade.executeCompanyAction(r.getString("requestId"), r.getString("companyId"), r.getString("action"), r.optInt("workHours", 8), r.optString("benefitTier", "STANDARD"), r.getLong("expectedVersion")).toString();
+        } catch (Exception error) { return bridgeError(error); }
+    }
+
+    @JavascriptInterface
+    public String companyCapitalAction(String jsonRequest) {
+        try {
+            JSONObject r = new JSONObject(jsonRequest);
+            return facade.companyCapitalAction(r.optString("requestId", null), r.getString("companyId"), r.getBoolean("toCompany"),
+                    new Money(new BigDecimal(r.getString("amount")), Currency.IDR), r.optString("expectedVersion", null)).toString();
+        } catch (Exception error) { return bridgeError(error); }
+    }
+
+    @JavascriptInterface
+    public String multiAssetOrder(String jsonRequest) {
+        try {
+            JSONObject r = new JSONObject(jsonRequest);
+            return facade.multiAssetOrder(r.optString("requestId", null), r.getString("instrumentId"), r.getBoolean("buy"), r.getLong("quantity"), r.optString("quoteVersion", null)).toString();
+        } catch (Exception error) { return bridgeError(error); }
+    }
+
+    @JavascriptInterface
+    public String getPerformanceReport() {
+        try { return facade.getPerformanceReport().toString(); }
+        catch (Exception error) { return bridgeError(error); }
+    }
+
+    @JavascriptInterface
+    public String getHistoricalDatasets() {
+        try {
+            JSONArray datasets = new JSONArray();
+            for (String id : com.tradingglobal3d.core.market.HistoricalDatasetLoader.availableDatasetIds()) {
+                var bars = com.tradingglobal3d.core.market.HistoricalDatasetLoader.loadDataset(id);
+                datasets.put(new JSONObject().put("id", id).put("resolution", "1D").put("source", "Nasdaq WIKI — public domain")
+                        .put("start", bars.get(0).getDate().toString()).put("end", bars.get(bars.size()-1).getDate().toString()).put("bars", bars.size()));
+            }
+            return new JSONObject().put("success", true).put("datasets", datasets).toString();
+        } catch (Exception error) { return bridgeError(error); }
+    }
+
+    @JavascriptInterface
+    public String resumeSavedMode(String mode) {
+        try { return facade.resumeSavedMode(mode).toString(); }
+        catch (Exception error) { return bridgeError(error); }
     }
 
     @JavascriptInterface
@@ -718,7 +779,7 @@ public final class TradingWebBridge {
             Money principal = new Money(new BigDecimal(req.getString("principal")), Currency.IDR);
             int tenor = req.getInt("tenorDays");
             String collateralId = req.optString("collateralItemId", null);
-            String quoteVersion = req.getString("expectedQuoteVersion");
+            String quoteVersion = req.has("expectedQuoteVersion") ? req.getString("expectedQuoteVersion") : req.getString("quoteVersion");
             return facade.disburseReviewedLoan(requestId, productId, isPersonal, compId, principal, tenor, collateralId, quoteVersion).toString();
         } catch (Exception error) {
             try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
@@ -929,6 +990,7 @@ public final class TradingWebBridge {
     @JavascriptInterface
     public String getIpoOfferings() {
         try {
+            if (facade.getGameMode() == com.tradingglobal3d.core.model.GameMode.HISTORICAL_REPLAY) return "[]";
             JSONArray result = new JSONArray();
             for (com.tradingglobal3d.core.corporate.IpoOffering ipo : facade.getCorporateService().getIpoOfferings()) {
                 result.put(new JSONObject()
@@ -954,7 +1016,7 @@ public final class TradingWebBridge {
             String ipoId = req.getString("ipoId");
             long lots = req.getLong("lots");
             if (lots <= 0) return new JSONObject().put("success", false).put("message", "Jumlah lot harus positif").toString();
-            com.tradingglobal3d.core.corporate.IpoSubscription sub = facade.orderIpo(ipoId, lots);
+            com.tradingglobal3d.core.corporate.IpoSubscription sub = facade.orderIpo(ipoId, lots, req.getString("requestId"));
             return new JSONObject().put("success", true)
                     .put("subscriptionId", sub.getId())
                     .put("ipoId", sub.getIpoId())
@@ -971,6 +1033,7 @@ public final class TradingWebBridge {
     @JavascriptInterface
     public String getShareholderAgendas() {
         try {
+            if (facade.getGameMode() == com.tradingglobal3d.core.model.GameMode.HISTORICAL_REPLAY) return "[]";
             Account personal = facade.getPersonalAccount();
             String accountId = personal != null ? personal.getId() : "";
             JSONArray result = new JSONArray();
@@ -981,6 +1044,10 @@ public final class TradingWebBridge {
                         .put("title", a.getTitle())
                         .put("resolutionText", a.getResolutionText())
                         .put("recordingDate", a.getRecordingDate().toString())
+                        .put("deadline", a.getDeadline().toString()).put("isClosed", a.isClosed())
+                        .put("entitledShares", a.getEntitledShares(accountId)).put("result", a.getResult()).put("consequence", a.getConsequence())
+                        .put("canVote", a.isRecorded() && !a.isClosed() && !a.hasVoted(accountId) && a.getEntitledShares(accountId) > 0
+                                && !facade.getClock().getCurrentDate().isAfter(a.getDeadline()))
                         .put("votesFor", a.getTotalVotesFor())
                         .put("votesAgainst", a.getTotalVotesAgainst())
                         .put("votesAbstain", a.getTotalVotesAbstain())
@@ -1012,6 +1079,7 @@ public final class TradingWebBridge {
     @JavascriptInterface
     public String getCorporateActions() {
         try {
+            if (facade.getGameMode() == com.tradingglobal3d.core.model.GameMode.HISTORICAL_REPLAY) return "[]";
             JSONArray result = new JSONArray();
             for (com.tradingglobal3d.core.corporate.CorporateAction ca : facade.getCorporateService().getCorporateActions()) {
                 result.put(new JSONObject()
@@ -1022,6 +1090,7 @@ public final class TradingWebBridge {
                         .put("currency", ca.getCurrency() != null ? ca.getCurrency().name() : JSONObject.NULL)
                         .put("recordingDate", ca.getRecordingDate().toString())
                         .put("executionDate", ca.getExecutionDate().toString())
+                        .put("approvalStatus", facade.getCorporateService().getApprovalStatus(ca)).put("isCancelled", ca.isCancelled())
                         .put("isExecuted", ca.isExecuted()));
             }
             return result.toString();
@@ -1031,9 +1100,11 @@ public final class TradingWebBridge {
     @JavascriptInterface
     public String getMultiAssets() {
         try {
+            if (facade.getGameMode() == com.tradingglobal3d.core.model.GameMode.HISTORICAL_REPLAY) return "{\"bonds\":[],\"commodities\":[]}";
             JSONObject result = new JSONObject();
             JSONArray bonds = new JSONArray();
             for (com.tradingglobal3d.core.multiasset.BondInstrument b : facade.getFundBuilder().getAllBonds()) {
+                Position holding = facade.getPersonalAccount().getPosition("BOND:" + b.getTicker());
                 bonds.put(new JSONObject()
                         .put("id", b.getId())
                         .put("ticker", b.getTicker())
@@ -1043,11 +1114,15 @@ public final class TradingWebBridge {
                         .put("couponRateAnnual", b.getCouponAnnualRate().toPlainString())
                         .put("maturityDate", b.getMaturityDate().toString())
                         .put("cleanPrice", b.getCurrentCleanPrice().format())
-                        .put("status", "Katalog pasif/simulasi")
-                        .put("note", "Perdagangan sekunder obligasi belum aktif"));
+                        .put("unitPriceRaw", b.getCurrentCleanPrice().getAmount().toPlainString())
+                        .put("quantity", holding == null ? 0 : holding.getQuantity()).put("positionId", "BOND:" + b.getTicker())
+                        .put("marketValue", holding == null ? Money.zero(b.getCurrency()).format() : holding.getMarketValue().format())
+                        .put("status", "Tersedia")
+                        .put("note", "Fee 0,1%; harga bersih, kupon sesuai waktu kepemilikan; risiko harga dan penerbit"));
             }
             JSONArray comms = new JSONArray();
             for (com.tradingglobal3d.core.multiasset.CommodityInstrument c : facade.getFundBuilder().getAllCommodities()) {
+                Position holding = facade.getPersonalAccount().getPosition("COMM:" + c.getCode());
                 comms.put(new JSONObject()
                         .put("id", c.getId())
                         .put("ticker", c.getCode())
@@ -1055,8 +1130,11 @@ public final class TradingWebBridge {
                         .put("currency", c.getCurrency().name())
                         .put("unit", c.getUnitOfMeasure())
                         .put("spotPrice", c.getSpotPricePerUnit().format())
-                        .put("status", "Katalog pasif/simulasi")
-                        .put("note", "Perdagangan fisik/futures komoditas belum aktif"));
+                        .put("unitPriceRaw", c.getSpotPricePerUnit().getAmount().toPlainString())
+                        .put("quantity", holding == null ? 0 : holding.getQuantity()).put("positionId", "COMM:" + c.getCode())
+                        .put("marketValue", holding == null ? Money.zero(c.getCurrency()).format() : holding.getMarketValue().format())
+                        .put("status", "Tersedia")
+                        .put("note", "Unit emas game; fee 0,1%, risiko harga; tanpa leverage"));
             }
             result.put("bonds", bonds);
             result.put("commodities", comms);
@@ -1278,7 +1356,7 @@ public final class TradingWebBridge {
     @JavascriptInterface
     public String getPortfolio(String accountId) {
         try {
-            Account account = facade.getAccount(accountId);
+            Account account = requirePlayerAccount(accountId);
             if (account == null) return new JSONObject().put("success", false).put("message", "Akun tidak ditemukan").toString();
             JSONObject result = new JSONObject().put("success", true).put("accountId", account.getId())
                     .put("accountName", account.getName()).put("accountType", account.getType().name());
@@ -1312,6 +1390,7 @@ public final class TradingWebBridge {
     @JavascriptInterface
     public String getLedger(String accountId) {
         try {
+            requirePlayerAccount(accountId);
             JSONArray result = new JSONArray();
             for (com.tradingglobal3d.core.economy.LedgerEntry entry : facade.getLedger().getEntriesForAccount(accountId)) {
                 result.put(new JSONObject().put("accountId", entry.getAccountId()).put("id", entry.getId())
@@ -1327,6 +1406,7 @@ public final class TradingWebBridge {
     @JavascriptInterface
     public String getOrders(String accountId, boolean activeOnly) {
         try {
+            requirePlayerAccount(accountId);
             JSONArray result = new JSONArray();
             List<Order> orders = activeOnly ? facade.getOrderManager().getActiveOrdersForAccount(accountId)
                     : facade.getOrderManager().getOrdersForAccount(accountId);
@@ -1340,6 +1420,7 @@ public final class TradingWebBridge {
         try {
             Order order = facade.getOrderManager().getOrderByRequest(requestId);
             if (order == null) return new JSONObject().put("success", false).put("message", "Order tidak ditemukan").toString();
+            requirePlayerAccount(order.getAccountId());
             return new JSONObject().put("success", true).put("orderId", order.getId()).put("requestId", order.getRequestId())
                     .put("accountId", order.getAccountId()).put("instrumentId", order.getInstrumentId())
                     .put("status", order.getStatus().name()).put("filledQuantity", order.getFilledQuantity())
@@ -1352,9 +1433,11 @@ public final class TradingWebBridge {
 
     @JavascriptInterface
     public String cancelOrder(String requestId) {
-        Order order = facade.getOrderManager().getOrderByRequest(requestId);
-        if (order != null) facade.cancelOrder(order);
-        return getOrderStatus(requestId);
+        try {
+            Order order = facade.getOrderManager().getOrderByRequest(requestId);
+            if (order != null) { requirePlayerAccount(order.getAccountId()); facade.cancelOrder(order); facade.save(); }
+            return getOrderStatus(requestId);
+        } catch (Exception error) { return bridgeError(error); }
     }
 
     @JavascriptInterface
@@ -1476,62 +1559,44 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String researchQuery(String jsonRequest) {
+        try { return facade.researchQuery(new JSONObject(jsonRequest)).toString(); }
+        catch (Exception error) { return bridgeError(error); }
+    }
+
+    @JavascriptInterface
+    public String corporateOfferAction(String jsonRequest) {
+        try { return facade.corporateOfferAction(new JSONObject(jsonRequest)).toString(); }
+        catch (Exception error) { return bridgeError(error); }
+    }
+
+    @JavascriptInterface
+    public String strategyLab(String jsonRequest) {
+        try { return facade.strategyLab(new JSONObject(jsonRequest)).toString(); }
+        catch (Exception error) { return bridgeError(error); }
+    }
+
+    @JavascriptInterface
     public String createStrategyLab(String sandboxId) {
         try {
-            String sid = sandboxId != null && !sandboxId.trim().isEmpty() ? sandboxId : "LAB-" + System.currentTimeMillis();
-            com.tradingglobal3d.core.replay.StrategyLabSandbox sandbox = facade.createStrategySandbox(sid);
-            activeSandboxes.put(sid, sandbox);
-            return new JSONObject().put("success", true)
-                    .put("sandboxId", sid)
-                    .put("accountName", sandbox.getClonedAccount().getName())
-                    .put("cashIdr", sandbox.getClonedAccount().getTotalCash(Currency.IDR).format())
-                    .put("cashUsd", sandbox.getClonedAccount().getTotalCash(Currency.USD).format())
-                    .put("positionsCount", sandbox.getClonedAccount().getPositions().size())
-                    .put("message", "Sandbox lab strategi " + sid + " berhasil dibuat (terisolasi dari akun utama)").toString();
-        } catch (Exception error) {
-            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
-            catch (JSONException impossible) { return "{\"success\":false}"; }
-        }
+            String sid = sandboxId == null || sandboxId.trim().isEmpty() ? "LAB-" + java.util.UUID.randomUUID() : sandboxId;
+            JSONObject result = facade.strategyLab(new JSONObject().put("action", "create").put("sandboxId", sid));
+            JSONObject state = result.getJSONObject("state");
+            { java.util.Iterator<String> _sk = state.keys(); while (_sk.hasNext()) { String key = _sk.next(); result.put(key, state.get(key)); } }
+            return result.put("message", "Lab terisolasi berhasil disimpan").toString();
+        } catch (Exception error) { return bridgeError(error); }
     }
 
     @JavascriptInterface
     public String simulateLabTrade(String jsonRequest) {
         try {
-            JSONObject req = new JSONObject(jsonRequest);
-            String sid = req.getString("sandboxId");
-            com.tradingglobal3d.core.replay.StrategyLabSandbox sandbox = activeSandboxes.get(sid);
-            if (sandbox == null) {
-                sandbox = facade.createStrategySandbox(sid);
-                activeSandboxes.put(sid, sandbox);
-            }
-            String instId = req.getString("instrumentId");
-            Instrument inst = facade.getCatalog().getById(instId);
-            if (inst == null) return new JSONObject().put("success", false).put("message", "Instrumen tidak ditemukan: " + instId).toString();
-            long shares = req.getLong("shares");
-            BigDecimal price = new BigDecimal(req.get("price").toString());
-            String side = req.optString("side", "BUY").toUpperCase();
-
-            boolean ok;
-            if ("BUY".equals(side)) {
-                ok = sandbox.simulateBuy(inst, shares, price);
-            } else {
-                ok = sandbox.simulateSell(inst, shares, price);
-            }
-
-            if (!ok) return new JSONObject().put("success", false).put("message", "Simulasi transaksi lab gagal (saldo kas atau posisi tidak mencukupi)").toString();
-
-            return new JSONObject().put("success", true)
-                    .put("sandboxId", sid)
-                    .put("simulatedTradesCount", sandbox.getSimulatedTradesCount())
-                    .put("simulatedRealizedPnL", sandbox.getSimulatedRealizedPnL().toPlainString())
-                    .put("availableCashIdr", sandbox.getClonedAccount().getAvailableCash(Currency.IDR).format())
-                    .put("message", "Simulasi " + side + " " + shares + " lembar " + inst.getTicker() + " berhasil dieksekusi di lab").toString();
-        } catch (Exception error) {
-            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
-            catch (JSONException impossible) { return "{\"success\":false}"; }
-        }
+            JSONObject request = new JSONObject(jsonRequest).put("action", "trade");
+            JSONObject result = facade.strategyLab(request);
+            JSONObject state = result.getJSONObject("state");
+            { java.util.Iterator<String> _sk2 = state.keys(); while (_sk2.hasNext()) { String key = _sk2.next(); result.put(key, state.get(key)); } }
+            return result.put("message", result.getBoolean("success") ? "Keputusan lab tersimpan" : "Kas/posisi lab tidak cukup").toString();
+        } catch (Exception error) { return bridgeError(error); }
     }
-
     @JavascriptInterface
     public String startNewGame(String jsonConfig) {
         try {
@@ -1542,13 +1607,13 @@ public final class TradingWebBridge {
             if (capital <= 0) capital = 50_000_000L;
 
             if (mode == com.tradingglobal3d.core.model.GameMode.HISTORICAL_REPLAY) {
-                String datasetId = cfg.optString("datasetId", "IDX:BBCA");
+                String datasetId = cfg.optString("datasetId", "US:AAPL");
                 JSONObject replayResult = facade.startHistoricalReplay(datasetId, BigDecimal.valueOf(capital));
                 facade.save();
                 return replayResult.toString();
             }
 
-            facade.initializeNewGame(mode, BigDecimal.valueOf(capital));
+            facade.startInternalGame(BigDecimal.valueOf(capital));
             facade.save();
             return new JSONObject().put("success", true)
                     .put("mode", mode.name())

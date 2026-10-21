@@ -153,4 +153,10 @@ strong, .metric-hero { font-variant-numeric: tabular-nums; }
 .firm-summary, .asset-overview { margin-bottom: 24px; }.firm-summary > .wealth-hero, .asset-overview > .wealth-hero { margin-top: 12px; }.news-card h3 { margin: 10px 0; }summary { min-height: 48px; display: list-item; align-content: center; cursor: pointer; color: var(--secondary); }.article-copy { line-height: 1.8; margin-top: 20px !important; }
 
 .highlight.neutral { background: var(--surface); border-color: var(--divider); }.highlight.neutral p { color: var(--muted); }
+.check-row { display: flex; align-items: flex-start; gap: 12px; min-height: 48px; padding: 12px 0; line-height: 1.5; }
+.check-row input { flex: 0 0 24px; width: 24px; height: 24px; margin-top: 3px; accent-color: var(--action); }
+.player-row { border-left: 3px solid var(--action); padding-left: 12px; }
+.player-row small { display: block; color: var(--muted); }
+html.high-contrast { --background: #080D12; --surface: #101A24; --surface-raised: #172330; --text-primary: #FFFFFF; --text-secondary: #E3EBF2; --text-muted: #C6D5E1; --primary: #FFFFFF; --secondary: #E3EBF2; --muted: #C6D5E1; --divider: #7B8FA1; }
+html.reduced-motion *, html.reduced-motion *::before, html.reduced-motion *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 @media (max-width: 599px) { .header-identity { display: none; }.wealth-chip { margin-left: auto; max-width: 80%; } }

@@ -76,14 +76,19 @@ public final class FxExchangeService {
 
     public synchronized ConversionResult executeReviewedConversion(String requestId, String quoteId, Account account,
             Currency from, Currency to, Money amount, long now, EconomyLedger ledger) {
+        return executeReviewedConversion(requestId, quoteId, account, from, to, amount, now, now, ledger);
+    }
+
+    public synchronized ConversionResult executeReviewedConversion(String requestId, String quoteId, Account account,
+            Currency from, Currency to, Money amount, long quoteCheckTimeMs, long ledgerGameTimestampMs, EconomyLedger ledger) {
         Receipt receipt = receipts.get(requestId);
         if (receipt != null) {
             if (!receipt.quote.getQuoteId().equals(quoteId)) return new ConversionResult(false, "ID permintaan terikat quote berbeda", null);
-            return executeConversion(requestId, account, receipt.quote, from, to, amount, now, ledger);
+            return executeConversion(requestId, account, receipt.quote, from, to, amount, quoteCheckTimeMs, ledgerGameTimestampMs, ledger);
         }
-        if (currentQuote == null || !currentQuote.getQuoteId().equals(quoteId) || currentQuote.isExpired(now))
+        if (currentQuote == null || !currentQuote.getQuoteId().equals(quoteId) || currentQuote.isExpired(quoteCheckTimeMs))
             return new ConversionResult(false, "Kuotasi berubah atau kedaluwarsa; tinjau ulang konversi", null);
-        return executeConversion(requestId, account, currentQuote, from, to, amount, now, ledger);
+        return executeConversion(requestId, account, currentQuote, from, to, amount, quoteCheckTimeMs, ledgerGameTimestampMs, ledger);
     }
 
     public synchronized void setMidRate(BigDecimal midRate) {
@@ -127,6 +132,19 @@ public final class FxExchangeService {
             Money fromAmount,
             long currentTimestamp,
             EconomyLedger ledger) {
+        return executeConversion(requestId, account, quote, from, to, fromAmount, currentTimestamp, currentTimestamp, ledger);
+    }
+
+    public synchronized ConversionResult executeConversion(
+            String requestId,
+            Account account,
+            FxQuote quote,
+            Currency from,
+            Currency to,
+            Money fromAmount,
+            long quoteCheckTimeMs,
+            long ledgerGameTimestampMs,
+            EconomyLedger ledger) {
 
         Objects.requireNonNull(account);
         Objects.requireNonNull(quote);
@@ -143,8 +161,8 @@ public final class FxExchangeService {
             return new ConversionResult(true, "Hasil konversi yang sudah diselesaikan", p);
         }
 
-        // 1. Validasi Kedaluwarsa Kuotasi (FR-06.03)
-        if (quote.isExpired(currentTimestamp)) {
+        // 1. Validasi Kedaluwarsa Kuotasi (FR-06.03) menggunakan waktu nyata
+        if (quote.isExpired(quoteCheckTimeMs)) {
             return new ConversionResult(false, "Kuotasi nilai tukar telah kedaluwarsa. Silakan perbarui kurs.", null);
         }
 
@@ -166,14 +184,14 @@ public final class FxExchangeService {
         ledger.recordMutation(
                 debitReqId, account,
                 LedgerEntryType.FX_CONVERSION_DEBIT,
-                fromAmount, false, currentTimestamp,
+                fromAmount, false, ledgerGameTimestampMs,
                 "Konversi FX jual " + fromAmount + " ke " + to + " @ " + preview.effectiveRate
         );
 
         ledger.recordMutation(
                 creditReqId, account,
                 LedgerEntryType.FX_CONVERSION_CREDIT,
-                preview.netToAmount, true, currentTimestamp,
+                preview.netToAmount, true, ledgerGameTimestampMs,
                 "Konversi FX terima " + preview.netToAmount + " dari " + from
         );
 

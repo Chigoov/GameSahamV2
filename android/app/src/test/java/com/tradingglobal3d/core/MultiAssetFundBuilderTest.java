@@ -75,9 +75,9 @@ public class MultiAssetFundBuilderTest {
         // Bayar kupon ke kas akun pemain
         Account personal = facade.getPersonalAccount();
         Money cashBefore = personal.getTotalCash(Currency.IDR);
-        fundService.payBondCoupon(fr91, personal, 90, 10, facade.getLedger(), System.currentTimeMillis());
-
-        assertEquals(cashBefore.add(coupon), personal.getTotalCash(Currency.IDR));
+        try { fundService.payBondCoupon(fr91, personal, 90, 10, facade.getLedger(), System.currentTimeMillis()); fail("Arbitrary coupon must not mint cash"); }
+        catch (UnsupportedOperationException expected) { }
+        assertEquals(cashBefore, personal.getTotalCash(Currency.IDR));
         assertTrue(facade.reconcileAll());
     }
 

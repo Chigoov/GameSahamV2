@@ -100,10 +100,10 @@ public class MutualFundRebalanceTest {
         MutualFundManager mgr = game.getMutualFundManager();
 
         JSONObject mmStatus = mgr.getFund("FUND-MM-01").toJsonObject("PLAYER");
-        assertEquals("CASH_ACCRUAL_DAILY_YIELD", mmStatus.getString("backingModel"));
+        assertEquals("CANONICAL_DEPOSIT_CONTRACT", mmStatus.getString("backingModel"));
 
         JSONObject fiStatus = mgr.getFund("FUND-FI-01").toJsonObject("PLAYER");
-        assertEquals("CASH_ACCRUAL_DAILY_YIELD", fiStatus.getString("backingModel"));
+        assertEquals("CANONICAL_BOND_CONTRACT", fiStatus.getString("backingModel"));
     }
 
     @Test

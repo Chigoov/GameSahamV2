@@ -41,6 +41,7 @@ public class CorporateActionIpoVotingTest {
         facade = new TradingFacade(SaveManager.forDirectory(testDir));
         facade.setCatalog(catalog);
         facade.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(50_000_000));
+        catalog = facade.getCatalog();
 
         bbca = catalog.getById("IDX:BBCA");
         assertNotNull(bbca);
@@ -105,7 +106,7 @@ public class CorporateActionIpoVotingTest {
         // Posisi baru: jumlah lembar 500, average cost Rp 2.000
         Position postSplit = personal.getPosition("BBCA");
         assertEquals(500, postSplit.getQuantity());
-        assertEquals(new BigDecimal("2000.0000"), postSplit.getAverageCost());
+        assertEquals(0, new BigDecimal("2000").compareTo(postSplit.getAverageCost()));
 
         // Total modal perolehan tetap sama persis (Rp 1.000.000)
         assertEquals(initialTotalCost, postSplit.getTotalCost());
@@ -155,6 +156,11 @@ public class CorporateActionIpoVotingTest {
         ShareholderMeetingAgenda agenda = facade.getCorporateService().getAgenda("RUPS-BBCA-01");
         assertNotNull(agenda);
         assertEquals(0, agenda.getTotalVotesFor());
+
+        // Advance the game clock to the recording date, then freeze ownership before voting.
+        facade.getClock().advanceGameSeconds(86400);
+        assertEquals(agenda.getRecordingDate(), facade.getClock().getCurrentDate());
+        agenda.captureEntitlements(java.util.Collections.singletonList(personal));
 
         // Pemain memberikan suara "FOR" (Setuju)
         facade.castShareholderVote("RUPS-BBCA-01", ShareholderMeetingAgenda.VoteChoice.FOR);

@@ -51,6 +51,7 @@ public final class FundBuilderService {
 
     public synchronized void reset() {
         savedPlans.clear();
+        bonds.clear(); commodities.clear(); initializeMultiAssets();
     }
 
     public List<BondInstrument> getAllBonds() {
@@ -75,19 +76,7 @@ public final class FundBuilderService {
             EconomyLedger ledger,
             long gameTimestamp) {
 
-        Money coupon = bond.calculateAccruedCoupon(daysHeld, unitsHeld);
-        if (coupon.isPositive()) {
-            ledger.recordMutation(
-                    "COUPON-" + bond.getTicker() + "-" + System.nanoTime(),
-                    holderAccount,
-                    LedgerEntryType.DIVIDEND,
-                    coupon,
-                    true,
-                    gameTimestamp,
-                    "Pembayaran Kupon Bunga " + bond.getName() + " (" + daysHeld + " hari)"
-            );
-        }
-        return coupon;
+        throw new UnsupportedOperationException("Gunakan settlement kupon berbasis kepemilikan, waktu, dan kas penerbit canonical");
     }
 
     /**

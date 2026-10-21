@@ -138,6 +138,8 @@ public class EndToEndGrandIntegrationTest {
         assertEquals(25, ipoSub.getAllottedLots());
 
         // 8. [FR-14] Voting RUPS Pemegang Saham Idempoten
+        // Maju 1 hari agar recordingDate RUPS-BBCA-01 (gameBase+1) tercapai
+        facade.getClock().advanceGameSeconds(86400);
         facade.castShareholderVote("RUPS-BBCA-01", ShareholderMeetingAgenda.VoteChoice.FOR);
         try {
             facade.castShareholderVote("RUPS-BBCA-01", ShareholderMeetingAgenda.VoteChoice.FOR);

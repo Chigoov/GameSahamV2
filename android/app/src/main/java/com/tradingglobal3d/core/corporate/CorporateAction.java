@@ -19,6 +19,7 @@ public final class CorporateAction {
     private final LocalDate recordingDate;
     private final LocalDate executionDate;
     private boolean isExecuted;
+    private boolean cancelled;
 
     public CorporateAction(String id, String ticker, CorporateActionType type,
                            BigDecimal valueOrRatio, Currency currency,
@@ -30,6 +31,7 @@ public final class CorporateAction {
         this.currency = currency;
         this.recordingDate = Objects.requireNonNull(recordingDate);
         this.executionDate = Objects.requireNonNull(executionDate);
+        if (valueOrRatio.signum() <= 0 || executionDate.isBefore(recordingDate)) throw new IllegalArgumentException("Nilai/rasio atau jadwal aksi korporasi tidak valid");
         this.isExecuted = false;
     }
 
@@ -41,6 +43,8 @@ public final class CorporateAction {
     public LocalDate getRecordingDate() { return recordingDate; }
     public LocalDate getExecutionDate() { return executionDate; }
     public boolean isExecuted() { return isExecuted; }
+    public boolean isCancelled() { return cancelled; }
+    public void cancel() { cancelled = true; }
 
     public void markExecuted() {
         this.isExecuted = true;

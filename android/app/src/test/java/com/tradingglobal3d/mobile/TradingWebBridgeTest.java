@@ -146,7 +146,7 @@ public class TradingWebBridgeTest {
         Money initialAvail = facade.getPersonalAccount().getAvailableCash(Currency.IDR);
 
         // Pesan 10 lot (@ Rp 500 x 100 lembar = Rp 50.000 / lot -> 10 lot = Rp 500.000)
-        JSONObject orderReq = new JSONObject().put("ipoId", "IPO-CLOUD").put("lots", 10);
+        JSONObject orderReq = new JSONObject().put("ipoId", "IPO-CLOUD").put("lots", 10).put("requestId", "IPO-BRIDGE-TEST-01");
         JSONObject orderRes = new JSONObject((String) orderIpo.invoke(bridge, orderReq.toString()));
         assertTrue(orderRes.getBoolean("success"));
         assertEquals("PENDING", orderRes.getString("status"));
@@ -166,6 +166,9 @@ public class TradingWebBridgeTest {
         JSONObject agenda = agendas.getJSONObject(0);
         assertEquals("RUPS-BBCA-01", agenda.getString("id"));
         assertFalse(agenda.getBoolean("hasVoted"));
+
+        // Masuk ke jendela voting (hari recording date: gameBase + 1 hari)
+        facade.getClock().advanceGameSeconds(86400);
 
         // Tanpa kepemilikan saham, voting harus ditolak (0 hak suara)
         java.lang.reflect.Method castVote = TradingWebBridge.class.getMethod("castShareholderVote", String.class);
@@ -1013,13 +1016,31 @@ public class TradingWebBridgeTest {
         assertTrue(prodsRes.getBoolean("success"));
         assertEquals(2, prodsRes.getJSONArray("products").length());
 
-        // 2. Disburse personal loan Rp 10.000.000 tenor 14 days
-        JSONObject disburseReq = new JSONObject()
+        // 2. Alur pinjaman wajib: getLoanQuote → disburseReviewedLoan
+        // Beli koleksi sebagai agunan (personal loan wajib agunan)
+        facade.buyCollection("COL-CAR-00"); // Vespa Klasik sebagai agunan
+
+        // 2a. Get quote
+        JSONObject quoteReq = new JSONObject()
                 .put("productId", "LOAN-PERS-01")
                 .put("isPersonal", true)
                 .put("principal", "10000000")
-                .put("tenorDays", 14);
-        JSONObject disburseRes = new JSONObject(bridge.disburseLoan(disburseReq.toString()));
+                .put("tenorDays", 14)
+                .put("collateralItemId", "COL-CAR-00");
+        JSONObject quoteRes = new JSONObject(bridge.getLoanQuote(quoteReq.toString()));
+        assertTrue("Quote harus berhasil: " + quoteRes.optString("message",""), quoteRes.getBoolean("success"));
+        String quoteVersion = quoteRes.getString("quoteVersion");
+
+        // 2b. Disburse setelah review (confirmed via quoteVersion)
+        JSONObject disburseReq = new JSONObject()
+                .put("requestId", "BRIDGE-LOAN-DISBURSE-01")
+                .put("productId", "LOAN-PERS-01")
+                .put("isPersonal", true)
+                .put("principal", "10000000")
+                .put("tenorDays", 14)
+                .put("collateralItemId", "COL-CAR-00")
+                .put("quoteVersion", quoteVersion);
+        JSONObject disburseRes = new JSONObject(bridge.disburseReviewedLoan(disburseReq.toString()));
         assertTrue(disburseRes.getBoolean("success"));
         String loanId = disburseRes.getString("loanId");
 

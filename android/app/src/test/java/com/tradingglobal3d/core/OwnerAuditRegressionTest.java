@@ -224,38 +224,38 @@ public class OwnerAuditRegressionTest {
     @Test public void productionBridgeCanStartHistoricalReplayMode() throws Exception {
         TradingFacade game = game();
         com.tradingglobal3d.mobile.TradingWebBridge bridge = new com.tradingglobal3d.mobile.TradingWebBridge(game);
-        org.json.JSONObject result = new org.json.JSONObject(bridge.startNewGame("{\"mode\":\"HISTORICAL_REPLAY\",\"datasetId\":\"IDX:BBCA\",\"initialCapital\":50000000}"));
+        org.json.JSONObject result = new org.json.JSONObject(bridge.startNewGame("{\"mode\":\"HISTORICAL_REPLAY\",\"datasetId\":\"US:AAPL\",\"initialCapital\":50000000}"));
         assertTrue(result.getBoolean("success"));
         assertEquals(GameMode.HISTORICAL_REPLAY, game.getGameMode());
-        assertEquals("IDX:BBCA", result.getString("datasetId"));
+        assertEquals("US:AAPL", result.getString("datasetId"));
         assertTrue(game.getReplayEngine().isReplayActive());
 
         // 1. Chart anti-leak: only 1 visible bar initially
-        org.json.JSONObject chart = game.getChartData("IDX:BBCA", "1D");
+        org.json.JSONObject chart = game.getChartData("US:AAPL", "1D");
         assertTrue(chart.getBoolean("success"));
         org.json.JSONArray bars = chart.getJSONArray("bars");
         assertEquals(1, bars.length());
-        assertEquals("2019-07-29", bars.getJSONObject(0).getString("time"));
+        assertEquals("2016-05-09", bars.getJSONObject(0).getString("time"));
 
         // 2. Submit order in historical replay
         org.json.JSONObject orderReq = new org.json.JSONObject()
                 .put("requestId", "HIST-ORDER-1")
-                .put("instrumentId", "IDX:BBCA")
+                .put("instrumentId", "US:AAPL")
                 .put("side", "BUY")
                 .put("type", "LIMIT")
-                .put("quantity", 100)
-                .put("limitPrice", "31000"); // High is 31150, Low is 30800, so 31000 can fill!
+                .put("quantity", 10)
+                .put("limitPrice", "93.0"); // Open is 93.0, Low is 92.59, High is 93.77
         org.json.JSONObject orderRes = new org.json.JSONObject(bridge.submitOrder(orderReq.toString()));
         assertTrue(orderRes.getBoolean("success"));
         assertEquals("FILLED", orderRes.getString("status"));
-        assertEquals(100, game.getPersonalAccount().getPosition("IDX:BBCA").getQuantity());
+        assertEquals(10, game.getPersonalAccount().getPosition("US:AAPL").getQuantity());
 
         // 3. Advance to next day
         game.skipDay("HIST-SKIP-1");
-        org.json.JSONObject chart2 = game.getChartData("IDX:BBCA", "1D");
+        org.json.JSONObject chart2 = game.getChartData("US:AAPL", "1D");
         org.json.JSONArray bars2 = chart2.getJSONArray("bars");
         assertEquals(2, bars2.length());
-        assertEquals("2019-07-30", bars2.getJSONObject(1).getString("time"));
+        assertEquals("2016-05-10", bars2.getJSONObject(1).getString("time"));
 
         // 4. Save and reload
         bridge.saveGame();

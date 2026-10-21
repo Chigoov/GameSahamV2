@@ -59,9 +59,13 @@ public final class ShareholderMeetingAgenda {
         if (recorded) return;
         for (Account account : accounts) {
             Position position = account.getPosition(ticker.contains(":") ? ticker : "IDX:" + ticker);
-            entitlementShares.put(account.getId(), position == null ? 0 : position.getQuantity());
+            entitlementShares.put(account.getId(), position == null ? 0 : Math.max(0, position.getQuantity()));
         }
         recorded = true;
+    }
+    public void captureAccountEntitlement(Account account) {
+        Position position = account.getPosition(ticker.contains(":") ? ticker : "IDX:" + ticker);
+        entitlementShares.put(account.getId(), position == null ? 0 : Math.max(0, position.getQuantity()));
     }
     public void close() { closed = true; }
     public org.json.JSONObject exportEligibility() throws org.json.JSONException {
@@ -71,11 +75,11 @@ public final class ShareholderMeetingAgenda {
         if (obj == null) return;
         recorded = obj.optBoolean("recorded", false); closed = obj.optBoolean("closed", false);
         org.json.JSONObject shares = obj.optJSONObject("shares");
-        if (shares != null) for (String id : shares.keySet()) {
+        if (shares != null) { java.util.Iterator<String> _it = shares.keys(); while (_it.hasNext()) { String id = _it.next();
             long count = shares.getLong(id);
             if (count < 0) throw new IllegalArgumentException("Hak suara save negatif");
             entitlementShares.put(id, count);
-        }
+        } }
     }
 
     public long getTotalVotesFor() { return totalVotesFor; }
@@ -91,6 +95,8 @@ public final class ShareholderMeetingAgenda {
     }
 
     public synchronized void restoreVotes(long votesFor, long votesAgainst, long votesAbstain, Collection<String> votedIds) {
+        if (votesFor < 0 || votesAgainst < 0 || votesAbstain < 0) throw new IllegalArgumentException("Jumlah suara save tidak boleh negatif");
+        Math.addExact(Math.addExact(votesFor, votesAgainst), votesAbstain);
         this.totalVotesFor = votesFor;
         this.totalVotesAgainst = votesAgainst;
         this.totalVotesAbstain = votesAbstain;

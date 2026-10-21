@@ -98,6 +98,7 @@ public final class TradingFacade {
     private final FirmManager firmManager = new FirmManager();
     private final ResearchService researchService = new ResearchService();
     private final FundBuilderService fundBuilder = new FundBuilderService();
+    private final MultiAssetTradingService multiAssetTrading = new MultiAssetTradingService(fundBuilder);
     private final CorporateActionService corporateService = new CorporateActionService();
     private final RiskComplianceService riskService = new RiskComplianceService();
     private final HistoricalReplayEngine replayEngine = new HistoricalReplayEngine();
@@ -111,6 +112,7 @@ public final class TradingFacade {
     private final PlayerProfileManager playerProfileManager = new PlayerProfileManager();
     private final Map<String, JSONObject> dayCloseReceipts = new LinkedHashMap<>();
     private final Map<String, JSONObject> skipDayReceipts = new LinkedHashMap<>();
+    private final Map<String, StrategyLabSandbox> strategyLabs = new LinkedHashMap<>();
     public static final int GAME_SECONDS_PER_REAL_SECOND = 288;
 
     public synchronized JSONObject closeDay(String requestId) throws JSONException {
@@ -260,6 +262,48 @@ public final class TradingFacade {
         return companyManager.getStaff(companyId);
     }
 
+    public synchronized JSONObject previewCompanyAction(String companyId, String action, int hours, String benefitTier) throws JSONException {
+        careerManager.requireRank(CareerRank.NOVICE_TRADER, "Pengelolaan perusahaan");
+        return companyManager.previewCompanyAction(companyId, action, hours, benefitTier);
+    }
+
+    public synchronized JSONObject executeCompanyAction(String requestId, String companyId, String action, int hours, String benefitTier, long version) throws JSONException {
+        careerManager.requireRank(CareerRank.NOVICE_TRADER, "Pengelolaan perusahaan");
+        var company = companyManager.getCompany(companyId);
+        if (company == null) throw new IllegalArgumentException("Perusahaan tidak ditemukan");
+        JSONObject result = companyManager.executeCompanyAction(requestId, companyId, action, hours, benefitTier, version,
+                accounts.get(company.getAccountId()), ledger, clock.getGameTimestamp());
+        persistFinancialMutation();
+        return result;
+    }
+
+    public synchronized JSONObject companyCapitalAction(String requestId, String companyId, boolean toCompany, Money amount, String version) throws JSONException {
+        var company = companyManager.getCompany(companyId);
+        if (company == null || getPersonalAccount() == null) throw new IllegalArgumentException("Perusahaan tidak ditemukan");
+        Account companyAccount = accounts.get(company.getAccountId());
+        if (requestId == null) return companyManager.previewCapitalTransfer(companyId, toCompany, getPersonalAccount(), companyAccount, amount);
+        JSONObject result = companyManager.executeCapitalTransfer(requestId, companyId, toCompany, getPersonalAccount(), companyAccount, amount, version, ledger, clock.getGameTimestamp());
+        persistFinancialMutation();
+        return result;
+    }
+
+    public synchronized JSONObject multiAssetOrder(String requestId, String id, boolean buy, long quantity, String version) throws JSONException {
+        if (gameMode == GameMode.HISTORICAL_REPLAY) throw new IllegalStateException("Replay hanya mendukung instrumen dataset");
+        careerManager.requireRank(CareerRank.SENIOR_ANALYST, "Perdagangan multi-aset");
+        Account personal = getPersonalAccount(), dealer = accounts.get("ACC-NPC-MM-01");
+        multiAssetTrading.updateValuations(catalog, fxService, accounts, clock.getGameTimestamp());
+        if (requestId == null) return multiAssetTrading.quote(id, buy, quantity, personal, dealer, clock.getGameTimestamp());
+        JSONObject result = multiAssetTrading.transact(requestId, id, buy, quantity, version, personal, dealer, ledger, clock.getGameTimestamp());
+        String fillId = "MULTI-" + requestId;
+        if (!playerProfileManager.hasRecordedFill(fillId)) {
+            Money realized = result.isNull("realizedNetPnL") ? null : new Money(new BigDecimal(result.getString("realizedNetPnL")), Currency.IDR);
+            playerProfileManager.recordFillResult(fillId, realized);
+            periodicMissionManager.recordActivity("TRADE:" + fillId, "TRADE", 1, clock.getCurrentDate());
+        }
+        persistFinancialMutation();
+        return result;
+    }
+
     public synchronized JSONObject previewCompanyStaffAction(String companyId, String action, String employeeId, String role) throws JSONException {
         careerManager.requireRank(CareerRank.NOVICE_TRADER, "Pengelolaan pegawai");
         return companyManager.previewStaffAction(companyId, action, employeeId, role);
@@ -311,6 +355,28 @@ public final class TradingFacade {
 
     public synchronized FundBuilderService getFundBuilder() {
         return fundBuilder;
+    }
+
+    public synchronized JSONObject researchQuery(JSONObject request) throws JSONException {
+        if (gameMode == GameMode.HISTORICAL_REPLAY) throw new IllegalStateException("Dataset replay tidak mencakup riset historis");
+        long now = clock.getGameTimestamp();
+        switch (request.getString("kind")) {
+            case "inbox": return researchService.getAnalystInbox(now);
+            case "consensus": return researchService.getConsensus(requireInstrument(request.getString("instrumentId")), now);
+            case "alternative": return researchService.getAlternativeData(requireInstrument(request.getString("instrumentId")), now);
+            case "comparison":
+                List<Instrument> selected = new ArrayList<>();
+                JSONArray ids = request.getJSONArray("instrumentIds");
+                for (int i = 0; i < ids.length(); i++) selected.add(requireInstrument(ids.getString(i)));
+                return researchService.compareInstruments(selected, now);
+            default: throw new IllegalArgumentException("Jenis riset tidak dikenal");
+        }
+    }
+
+    private Instrument requireInstrument(String id) {
+        Instrument instrument = catalog.getById(id);
+        if (instrument == null) throw new IllegalArgumentException("Instrumen tidak ditemukan: " + id);
+        return instrument;
     }
 
     public synchronized ResearchService getResearchService() {
@@ -394,19 +460,25 @@ public final class TradingFacade {
     }
 
     public synchronized void initializeNewGame(GameMode mode, BigDecimal initialIdrCapital) {
+        initializeNewGame(mode, initialIdrCapital, GameClock.createDefault());
+    }
+
+    private void initializeNewGame(GameMode mode, BigDecimal initialIdrCapital, GameClock startClock) {
         if (initialIdrCapital == null || initialIdrCapital.signum() <= 0)
             throw new IllegalArgumentException("Modal awal harus positif");
         this.gameMode = Objects.requireNonNull(mode);
-        this.clock = GameClock.createDefault();
+        this.clock = startClock;
         this.accounts.clear();
         this.ledger.clear();
         this.dayCloseReceipts.clear();
         this.skipDayReceipts.clear();
+        this.strategyLabs.clear();
         this.runId = java.util.UUID.randomUUID().toString();
         this.firmManager.reset();
-        this.corporateService.reset();
+        this.corporateService.reset(clock.getCurrentDate());
         this.riskService.reset();
         this.fundBuilder.reset();
+        this.multiAssetTrading.reset();
         this.orderManager.reset();
         this.marketEngine.reset();
         this.progressManager.reset();
@@ -427,7 +499,14 @@ public final class TradingFacade {
         }
         this.researchService.resetForGame(clock.getGameTimestamp());
         if (initialCatalogState != null) {
-            try { catalog.restoreState(initialCatalogState); }
+            try {
+                if (catalog != null) {
+                    catalog.resetToInitialState(initialCatalogState);
+                } else {
+                    catalog = catalogForSave(new JSONObject().put("catalog", initialCatalogState));
+                    catalog.restoreState(initialCatalogState);
+                }
+            }
             catch (JSONException error) { throw new IllegalStateException("Katalog awal tidak dapat dipulihkan", error); }
         }
 
@@ -472,6 +551,9 @@ public final class TradingFacade {
 
         // Registrasi pool accounts reksa dana schema3
         mutualFundManager.registerPoolAccounts(accounts, ledger, clock.getGameTimestamp());
+        leagueManager.bindMarket(accounts, ledger, catalog, clock.getGameTimestamp());
+        multiAssetTrading.initializeDealer(accounts.get("ACC-NPC-MM-01"));
+        collectionManager.updateValuations(clock.getGameTimestamp());
 
         careerManager.beginDay(personal, fxService.getMidRate(), ledger);
         weeklyBaselineNetWorth = getPersonalNetWorth();
@@ -483,6 +565,7 @@ public final class TradingFacade {
     }
 
     public synchronized JSONObject startHistoricalReplay(String datasetId, BigDecimal initialCapital) {
+        if (initialCapital != null && initialCapital.signum() <= 0) throw new IllegalArgumentException("Modal awal harus positif");
         String ds = com.tradingglobal3d.core.market.HistoricalDatasetLoader.canonicalDatasetId(datasetId == null ? "US:AAPL" : datasetId);
         List<com.tradingglobal3d.core.market.HistoricalBar> bars;
         try {
@@ -497,7 +580,7 @@ public final class TradingFacade {
         try { if (clock != null && getPersonalAccount() != null) save(); }
         catch (IOException | JSONException error) { throw new IllegalStateException("Simpan progres aktif sebelum membuka replay", error); }
         saveManager = new SaveManager(primarySaveManager.getSaveFile().getParentFile(), "save_replay_v2.json");
-        initializeNewGame(GameMode.HISTORICAL_REPLAY, initialCapital != null ? initialCapital : BigDecimal.valueOf(50_000_000));
+        initializeNewGame(GameMode.HISTORICAL_REPLAY, initialCapital != null ? initialCapital : BigDecimal.valueOf(50_000_000), new GameClock(bars.get(0).getDate(), LocalTime.of(9, 0)));
         replayEngine.startReplay(ds, bars);
 
         com.tradingglobal3d.core.market.HistoricalBar firstBar = bars.get(0);
@@ -505,7 +588,17 @@ public final class TradingFacade {
 
         Instrument inst = catalog.getById(ds);
         if (inst != null) {
-            inst.updatePrice(new Money(firstBar.getOpen(), inst.getCurrency()), 0);
+            inst.resetReferencePrice(new Money(firstBar.getOpen(), inst.getCurrency()));
+            Account personalAcc = getPersonalAccount();
+            if (inst.getCurrency() == Currency.USD && personalAcc != null && personalAcc.getTotalCash(Currency.USD).isZero()) {
+                BigDecimal usdRate = fxService != null ? fxService.getMidRate() : BigDecimal.valueOf(15800);
+                BigDecimal usdAmount = (initialCapital != null ? initialCapital : BigDecimal.valueOf(50_000_000))
+                        .divide(usdRate, 2, java.math.RoundingMode.HALF_UP);
+                Money usdMoney = new Money(usdAmount, Currency.USD);
+                personalAcc.creditCash(usdMoney);
+                ledger.recordMutation("INIT-REPLAY-USD-" + personalAccountId, personalAcc,
+                        LedgerEntryType.INITIAL_CAPITAL, usdMoney, true, clock.getGameTimestamp(), "Modal kas USD Replay " + ds);
+            }
         }
         weeklyBaselineNetWorth = getPersonalNetWorth();
         weeklyPerformance = new com.tradingglobal3d.core.career.PerformancePeriod(clock.getGameTimestamp(), weeklyBaselineNetWorth,
@@ -532,6 +625,17 @@ public final class TradingFacade {
                 ? new SaveManager(primarySaveManager.getSaveFile().getParentFile(), "save_replay_v2.json") : primarySaveManager;
         if (!target.getSaveFile().isFile() && !target.getBackupFile().isFile())
             throw new IllegalStateException("Belum ada progres tersimpan untuk mode ini");
+        TradingFacade staged = new TradingFacade(target);
+        InstrumentCatalog detached = new InstrumentCatalog();
+        Set<String> baseIds = new HashSet<>();
+        if (initialCatalogState != null) for (int i = 0; i < initialCatalogState.getJSONArray("instruments").length(); i++)
+            baseIds.add(initialCatalogState.getJSONArray("instruments").getJSONObject(i).getString("id"));
+        for (Instrument source : catalog.getAllInstruments()) if (baseIds.isEmpty() || baseIds.contains(source.getId())) detached.registerInstrument(new Instrument(source.getId(), source.getTicker(),
+                source.getName(), source.getExchange(), source.getSector(), source.getCurrency(), source.getLotSize(),
+                source.getSharesOutstanding(), source.isActiveTrading(), source.getCurrentPrice()));
+        staged.setCatalog(detached);
+        if (!staged.load() || staged.getGameMode() != selected)
+            throw new IllegalStateException("Progres mode tidak dapat divalidasi; permainan aktif dipertahankan");
         save();
         SaveManager previous = saveManager;
         saveManager = target;
@@ -540,6 +644,8 @@ public final class TradingFacade {
     }
 
     public synchronized void startInternalGame(BigDecimal capital) {
+        if (capital == null || capital.signum() <= 0) throw new IllegalArgumentException("Modal awal harus positif");
+        if (clock != null) persistFinancialMutation();
         saveManager = primarySaveManager;
         initializeNewGame(GameMode.INTERNAL_MARKET, capital);
     }
@@ -581,7 +687,7 @@ public final class TradingFacade {
                     LedgerEntryType.DEPOSIT,
                     initialDeposit,
                     true,
-                    System.currentTimeMillis(),
+                    clock.getGameTimestamp(),
                     "Setoran modal awal mandat klien " + name
             );
         }
@@ -591,13 +697,13 @@ public final class TradingFacade {
     public synchronized LedgerEntry deposit(String requestId, String accountId, Money amount, String description) {
         Account acc = accounts.get(accountId);
         if (acc == null) throw new IllegalArgumentException("Akun tidak ditemukan: " + accountId);
-        return ledger.recordMutation(requestId, acc, LedgerEntryType.DEPOSIT, amount, true, System.currentTimeMillis(), description);
+        return ledger.recordMutation(requestId, acc, LedgerEntryType.DEPOSIT, amount, true, clock.getGameTimestamp(), description);
     }
 
     public synchronized LedgerEntry withdraw(String requestId, String accountId, Money amount, String description) {
         Account acc = accounts.get(accountId);
         if (acc == null) throw new IllegalArgumentException("Akun tidak ditemukan: " + accountId);
-        return ledger.recordMutation(requestId, acc, LedgerEntryType.WITHDRAWAL, amount, false, System.currentTimeMillis(), description);
+        return ledger.recordMutation(requestId, acc, LedgerEntryType.WITHDRAWAL, amount, false, clock.getGameTimestamp(), description);
     }
 
     public synchronized JSONObject previewOrder(Order order) throws JSONException {
@@ -616,7 +722,7 @@ public final class TradingFacade {
             }
         }
         JSONObject preview = marketEngine.getMatchingEngine().previewOrder(order, account, instrument,
-                marketEngine.getOrCreateBook(instrument), System.currentTimeMillis());
+                marketEngine.getOrCreateBook(instrument), clock.getGameTimestamp());
         return preview.put("mode", gameMode.getDisplayName());
     }
 
@@ -640,6 +746,18 @@ public final class TradingFacade {
         if (acc.getType() == AccountType.CLIENT) careerManager.requireRank(CareerRank.PORTFOLIO_MANAGER, "Trading klien");
         Instrument inst = catalog.getById(order.getInstrumentId());
         if (inst == null) throw new IllegalArgumentException("Instrumen tidak ditemukan: " + order.getInstrumentId());
+        if (gameMode == GameMode.HISTORICAL_REPLAY) {
+            var replayBar = replayEngine.getCurrentBar();
+            if (!replayEngine.supportsInstrument(inst.getId()) || replayBar == null || !replayBar.getDate().equals(clock.getCurrentDate())
+                    || clock.getCurrentTime().isBefore(LocalTime.of(9, 0)) || !clock.getCurrentTime().isBefore(LocalTime.of(16, 0)))
+                throw new IllegalStateException("Instrumen atau sesi replay tidak tersedia pada waktu ini");
+        }
+        if (order.isSell()) {
+            Position position = acc.getPosition(inst.getId());
+            long reserved = corporateService.reservedCorporateShares(acc.getId(), inst.getId());
+            if (position != null && position.getQuantity() - reserved < order.getTotalQuantity())
+                throw new IllegalStateException("Saham telah direservasi untuk aksi korporasi");
+        }
 
         String validationError = MatchingEngine.validateOrder(order, acc, inst);
         if (validationError != null) {
@@ -667,51 +785,22 @@ public final class TradingFacade {
             return new MatchingEngine.OrderResult(order, true, "Order pemicu tersimpan menunggu harga menyentuh trigger", Collections.emptyList());
         }
 
-        if (gameMode == GameMode.HISTORICAL_REPLAY && replayEngine.isReplayActive()) {
-            com.tradingglobal3d.core.market.HistoricalBar bar = replayEngine.getCurrentBar();
-            if (bar != null) {
-                if (replayEngine.canFillOrderOnHistoricalBar(order, bar)) {
-                    Money fillPrice = order.getLimitPrice() != null ? order.getLimitPrice() : new Money(bar.getClose(), inst.getCurrency());
-                    long fillQty = order.getRemainingQuantity();
-                    TradeFill fill = new TradeFill(
-                            "FILL-HIST-" + System.nanoTime(),
-                            order.getId(),
-                            "HIST-MM",
-                            order.getSide() == OrderSide.BUY ? acc.getId() : "ACC-NPC-MM-01",
-                            order.getSide() == OrderSide.SELL ? acc.getId() : "ACC-NPC-MM-01",
-                            inst.getId(),
-                            fillPrice,
-                            fillQty,
-                            clock.getGameTimestamp()
-                    );
-                    Money gross = fill.getTotalAmount();
-                    Money fee = new Money(gross.getAmount().multiply(new BigDecimal("0.0015")), inst.getCurrency());
-                    if (order.isBuy()) {
-                        Position pos = acc.getPosition(inst.getId());
-                        if (pos == null) {
-                            pos = new Position(inst.getTicker(), inst.getExchange().name(), inst.getCurrency(), 0, BigDecimal.ZERO, fillPrice.getAmount());
-                            acc.addPosition(pos);
-                        }
-                        pos.addBuy(fillQty, fillPrice.getAmount());
-                        ledger.recordMutation("BUY-HIST-" + order.getId(), acc, LedgerEntryType.TRADE_BUY, gross, false, clock.getGameTimestamp(), "Beli replay " + inst.getTicker());
-                        ledger.recordMutation("FEE-HIST-" + order.getId(), acc, LedgerEntryType.TRANSACTION_FEE, fee, false, clock.getGameTimestamp(), "Biaya beli replay " + inst.getTicker());
-                    } else {
-                        Position pos = acc.getPosition(inst.getId());
-                        if (pos != null) {
-                            pos.addSell(fillQty, fillPrice.getAmount());
-                        }
-                        ledger.recordMutation("SELL-HIST-" + order.getId(), acc, LedgerEntryType.TRADE_SELL, gross, true, clock.getGameTimestamp(), "Jual replay " + inst.getTicker());
-                        ledger.recordMutation("FEE-HIST-" + order.getId(), acc, LedgerEntryType.TRANSACTION_FEE, fee, false, clock.getGameTimestamp(), "Biaya jual replay " + inst.getTicker());
-                    }
-                    order.applyFill(fillQty);
-                    orderManager.registerOrder(order);
-                    evaluateRecordedCareerProgress();
-                    return new MatchingEngine.OrderResult(order, true, "Order terisi pada candle historis " + bar.getDate(), List.of(fill));
-                } else {
-                    order.setStatus(OrderStatus.OPEN);
-                    orderManager.registerOrder(order);
-                    return new MatchingEngine.OrderResult(order, true, "Order tersimpan menunggu harga bar historis menyentuh limit", Collections.emptyList());
+        if (gameMode == GameMode.HISTORICAL_REPLAY) {
+            if (!replayEngine.supportsInstrument(inst.getId())) throw new IllegalArgumentException("Instrumen tidak termasuk dataset replay aktif");
+            var replayBar = replayEngine.getCurrentBar();
+            if (replayBar != null && replayEngine.canFillOrderOnHistoricalBar(order, replayBar)) {
+                Account dealer = accounts.get("ACC-NPC-MM-01");
+                if (dealer != null) {
+                    Money matchPrice = order.getLimitPrice() != null ? order.getLimitPrice() : new Money(replayBar.getOpen(), inst.getCurrency());
+                    OrderSide counterSide = order.getSide() == OrderSide.BUY ? OrderSide.SELL : OrderSide.BUY;
+                    String reqId = "REPLAY-FILL-" + order.getId();
+                    Order counterOrder = new Order(reqId, reqId, dealer.getId(), inst.getId(), counterSide, OrderType.LIMIT,
+                            matchPrice, null, order.getTotalQuantity(), clock.getGameTimestamp(), Money.zero(inst.getCurrency()));
+                    orderManager.registerOrder(counterOrder);
+                    marketEngine.submitOrder(counterOrder, dealer, inst, ledger, accounts, clock.getGameTimestamp());
                 }
+            } else {
+                refreshReplayLiquidity();
             }
         }
 
@@ -731,7 +820,7 @@ public final class TradingFacade {
         }
         Account clientAcc = createClientAccount(mandate.getClientName(), mandate.getId(), mandate.getInitialDeposit());
         mandate.setClientAccountId(clientAcc.getId());
-        progressManager.onMandateAccepted(System.currentTimeMillis());
+        progressManager.onMandateAccepted(clock.getGameTimestamp());
         return clientAcc;
     }
 
@@ -752,7 +841,7 @@ public final class TradingFacade {
             throw new IllegalArgumentException("Mandat aktif tidak ditemukan: " + mandateId);
         }
         Account clientAcc = accounts.get(mandate.getClientAccountId());
-        firmManager.processClientDeposit(mandate, clientAcc, amount, ledger, System.currentTimeMillis());
+        firmManager.processClientDeposit(mandate, clientAcc, amount, ledger, clock.getGameTimestamp());
     }
 
     public synchronized boolean clientWithdraw(String mandateId, Money amount) {
@@ -761,7 +850,7 @@ public final class TradingFacade {
             throw new IllegalArgumentException("Mandat aktif tidak ditemukan: " + mandateId);
         }
         Account clientAcc = accounts.get(mandate.getClientAccountId());
-        return firmManager.processClientWithdrawal(mandate, clientAcc, amount, ledger, System.currentTimeMillis());
+        return firmManager.processClientWithdrawal(mandate, clientAcc, amount, ledger, clock.getGameTimestamp());
     }
 
     private JSONObject fxPayload(Account account, FxQuote quote, FxQuote.ConversionPreview preview) throws JSONException {
@@ -788,8 +877,12 @@ public final class TradingFacade {
     public synchronized JSONObject confirmFx(String requestId, String quoteId, String accountId, Currency from, Currency to, Money amount) throws JSONException {
         Account account = accounts.get(accountId);
         if (account == null || recoveryRequired) throw new IllegalArgumentException("Akun belum tersedia");
-        FxExchangeService.ConversionResult result = fxService.executeReviewedConversion(requestId, quoteId, account, from, to, amount, System.currentTimeMillis(), ledger);
+        long realNow = System.currentTimeMillis();
+        long gameTimestamp = clock != null ? clock.getGameTimestamp() : realNow;
+        FxExchangeService.ConversionResult result = fxService.executeReviewedConversion(
+                requestId, quoteId, account, from, to, amount, realNow, gameTimestamp, ledger);
         if (!result.isSuccess) return new JSONObject().put("success", false).put("message", result.message).put("requestId", requestId);
+        persistFinancialMutation();
         return fxPayload(account, fxService.getReceiptQuote(requestId), result.preview).put("requestId", requestId)
                 .put("status", "SETTLED").put("message", result.message);
     }
@@ -802,8 +895,13 @@ public final class TradingFacade {
     public synchronized FxExchangeService.ConversionResult convertFx(String requestId, String accountId, Currency from, Currency to, Money amount) {
         Account acc = accounts.get(accountId);
         if (acc == null) throw new IllegalArgumentException("Akun tidak ditemukan: " + accountId);
-        FxQuote quote = fxService.getOrGenerateQuote(System.currentTimeMillis());
-        return fxService.executeConversion(requestId, acc, quote, from, to, amount, System.currentTimeMillis(), ledger);
+        long realNow = System.currentTimeMillis();
+        long gameTimestamp = clock != null ? clock.getGameTimestamp() : realNow;
+        FxQuote quote = fxService.getOrGenerateQuote(realNow);
+        FxExchangeService.ConversionResult result = fxService.executeConversion(
+                requestId, acc, quote, from, to, amount, realNow, gameTimestamp, ledger);
+        if (result.isSuccess) persistFinancialMutation();
+        return result;
     }
 
     public synchronized boolean cancelOrder(Order order) {
@@ -841,6 +939,7 @@ public final class TradingFacade {
             for (TradeFill fill : book.getTradeHistory()) {
                 boolean sold = personalAccountId.equals(fill.getSellAccountId());
                 if (!sold && !personalAccountId.equals(fill.getBuyAccountId())) continue;
+                if (playerProfileManager.hasRecordedFill(fill.getFillId())) continue;
                 Money net = sold ? fill.getSellerRealizedNetPnL() : null;
                 if (net != null && net.getCurrency() == Currency.USD)
                     net = new Money(net.getAmount().multiply(fxService.getMidRate()), Currency.IDR);
@@ -853,21 +952,54 @@ public final class TradingFacade {
         }
     }
 
+    private void refreshReplayLiquidity() {
+        if (!replayEngine.isReplayActive()) return;
+        Instrument instrument = catalog.getById(replayEngine.getActiveDatasetId());
+        Account dealer = accounts.get("ACC-NPC-MM-01");
+        if (instrument == null || dealer == null) return;
+        var bar = replayEngine.getCurrentBar();
+        BigDecimal tick = bar == null ? BigDecimal.ZERO : instrument.getExchange().getTickSize(bar.getOpen());
+        for (Order order : orderManager.getOrdersForAccount(dealer.getId()))
+            if (order.getId().startsWith("REPLAY-MM-") && !order.getStatus().isFinal()
+                    && (bar == null || order.getLimitPrice().getAmount().compareTo(bar.getOpen().add(order.isBuy() ? tick.negate() : tick)) != 0
+                        || java.time.Instant.ofEpochMilli(order.getCreatedAt()).atOffset(java.time.ZoneOffset.ofHours(7)).toLocalDate().isBefore(clock.getCurrentDate())
+                        || !clock.getCurrentTime().isBefore(LocalTime.of(16, 0)))) marketEngine.cancelOrder(order, dealer);
+        if (bar == null || !bar.getDate().equals(clock.getCurrentDate()) || clock.getCurrentTime().isBefore(LocalTime.of(9, 0))
+                || !clock.getCurrentTime().isBefore(LocalTime.of(16, 0))) return;
+        // ponytail: finite opening-reference quotes, not reconstructed intraday liquidity from daily volume.
+        for (OrderSide side : OrderSide.values()) {
+            if (orderManager.getOrdersForAccount(dealer.getId()).stream().anyMatch(o -> o.getId().startsWith("REPLAY-MM-") && !o.getStatus().isFinal() && o.getSide() == side)) continue;
+            String request = "REPLAY-MM-" + clock.getGameTimestamp() + "-" + side;
+            if (orderManager.getOrderByRequest(request) != null) continue;
+            Position held = dealer.getPosition(instrument.getId());
+            long quantity = side == OrderSide.SELL ? (held == null ? 0 : Math.min(1000, held.getQuantity())) : 1000;
+            quantity = quantity / instrument.getLotSize() * instrument.getLotSize();
+            if (quantity <= 0) continue;
+            Money quotePrice = new Money(bar.getOpen().add(side == OrderSide.BUY ? tick.negate() : tick), instrument.getCurrency());
+            Order quote = new Order(request, request, dealer.getId(), instrument.getId(), side, OrderType.LIMIT,
+                    quotePrice, null, quantity, clock.getGameTimestamp(), Money.zero(instrument.getCurrency()));
+            orderManager.registerOrder(quote);
+            marketEngine.submitOrder(quote, dealer, instrument, ledger, accounts, clock.getGameTimestamp());
+        }
+        evaluateRecordedCareerProgress();
+    }
+
     public synchronized void generateNpcLiquidity() {
+        if (gameMode == GameMode.HISTORICAL_REPLAY) { refreshReplayLiquidity(); return; }
         marketEngine.tick(clock.getGameTimestamp(), catalog, ledger, accounts);
         evaluateRecordedCareerProgress();
     }
 
     public synchronized List<NewsArticle> getNewsFeed() {
-        return researchService.getPublishedNews(clock.getGameTimestamp());
+        return gameMode == GameMode.HISTORICAL_REPLAY ? Collections.emptyList() : researchService.getPublishedNews(clock.getGameTimestamp());
     }
 
     public synchronized List<AnalystReport> getAnalystReports() {
-        return researchService.getPublishedReports(clock.getGameTimestamp());
+        return gameMode == GameMode.HISTORICAL_REPLAY ? Collections.emptyList() : researchService.getPublishedReports(clock.getGameTimestamp());
     }
 
     public synchronized List<CalendarEvent> getCalendar() {
-        return careerManager.hasRank(CareerRank.SENIOR_ANALYST) ? researchService.getCalendarEvents() : Collections.emptyList();
+        return gameMode != GameMode.HISTORICAL_REPLAY && careerManager.hasRank(CareerRank.SENIOR_ANALYST) ? researchService.getCalendarEvents() : Collections.emptyList();
     }
 
     public synchronized boolean subscribeTerminal(TerminalTier tier) {
@@ -886,6 +1018,8 @@ public final class TradingFacade {
                 ? firmManager.getMandate(acc.getClientMandateId())
                 : null;
 
+        if (acc.getType() != AccountType.PERSONAL && acc.getType() != AccountType.CLIENT)
+            throw new IllegalArgumentException("Fund Builder hanya untuk akun pemain atau klien");
         return fundBuilder.saveAllocationPlan(planId, accountId, name, targetWeights, cashWeight, mandate);
     }
 
@@ -895,6 +1029,8 @@ public final class TradingFacade {
         if (plan == null) throw new IllegalArgumentException("Plan tidak ditemukan: " + planId);
 
         Account acc = accounts.get(plan.getAccountId());
+        if (acc == null || (acc.getType() != AccountType.PERSONAL && acc.getType() != AccountType.CLIENT))
+            throw new IllegalArgumentException("Akun rencana tidak dapat dioperasikan pemain");
         List<MatchingEngine.OrderResult> results = new ArrayList<>();
         if (!plan.getExecutionRequests().isEmpty()) {
             for (String request : plan.getExecutionRequests()) {
@@ -923,46 +1059,126 @@ public final class TradingFacade {
     }
 
     public synchronized int executeCashDividend(CorporateAction action) {
-        Instrument inst = catalog.getById("IDX:" + action.getTicker());
-        if (inst == null) inst = catalog.getById("US:" + action.getTicker());
-        return corporateService.executeCashDividend(action, inst, accounts.values(), ledger, System.currentTimeMillis());
+        Instrument inst = corporateInstrument(action);
+        return corporateService.executeCashDividend(action, inst, accounts.values(), ledger, clock.getGameTimestamp());
     }
 
     public synchronized void executeStockSplit(CorporateAction action) {
-        Instrument inst = catalog.getById("IDX:" + action.getTicker());
-        if (inst == null) inst = catalog.getById("US:" + action.getTicker());
-        corporateService.executeStockSplit(action, inst, accounts.values());
+        Instrument inst = corporateInstrument(action);
+        if (inst == null) throw new IllegalArgumentException("Instrumen split tidak ditemukan");
+        if (hasActiveShort(inst)) throw new IllegalStateException("Split ditunda selama pinjaman saham masih terbuka");
+        cancelInstrumentOrders(inst.getId(), null);
+        corporateService.executeStockSplit(action, inst, accounts.values(), ledger, clock.getGameTimestamp());
+    }
+
+    private Instrument corporateInstrument(CorporateAction action) {
+        return requireInstrument(action.getTicker().contains(":") ? action.getTicker()
+                : (action.getCurrency() == Currency.USD ? "US:" : "IDX:") + action.getTicker());
+    }
+
+    private boolean hasActiveShort(Instrument instrument) {
+        for (Account account : accounts.values()) {
+            ShortPosition shortPosition = riskService.getShortPosition(account.getId(), instrument.getTicker());
+            if (shortPosition != null && shortPosition.getBorrowedShares() > 0 && shortPosition.getExchange().equals(instrument.getExchange().name())) return true;
+        }
+        return false;
+    }
+
+    private void cancelInstrumentOrders(String instrumentId, String accountId) {
+        for (Account account : accounts.values()) {
+            if (accountId != null && !accountId.equals(account.getId())) continue;
+            for (Order order : orderManager.getOrdersForAccount(account.getId()))
+                if (instrumentId.equals(order.getInstrumentId()) && !order.getStatus().isFinal()) cancelOrder(order);
+        }
+    }
+
+    public synchronized JSONObject corporateOfferAction(JSONObject request) throws JSONException {
+        if (gameMode == GameMode.HISTORICAL_REPLAY) throw new IllegalStateException("Aksi korporasi sintetis tidak tersedia dalam replay historis");
+        Account owner = getPersonalAccount();
+        String action = request.getString("action");
+        JSONArray offers = corporateService.getOffers(owner, clock.getCurrentDate());
+        for (int i = 0; i < offers.length(); i++) offers.getJSONObject(i).put("requests", offers.getJSONObject(i).getJSONArray("participations"));
+        if ("list".equals(action)) return new JSONObject().put("success", true).put("offers", offers);
+        if ("cancel".equals(action)) {
+            JSONObject result = corporateService.cancelParticipation(request.getString("requestId"), owner, clock.getCurrentDate());
+            persistFinancialMutation(); return result;
+        }
+        JSONObject offer = null;
+        String id = request.getString("offerId");
+        for (int i = 0; i < offers.length(); i++) if (id.equals(offers.getJSONObject(i).getString("id"))) offer = offers.getJSONObject(i);
+        if (offer == null) throw new IllegalArgumentException("Penawaran tidak ditemukan");
+        long shares = request.getLong("shares");
+        if ("participate".equals(action)) {
+            JSONArray previous = offer.getJSONArray("participations");
+            for (int i = 0; i < previous.length(); i++) if (request.getString("requestId").equals(previous.getJSONObject(i).getString("requestId"))) {
+                JSONObject result = corporateService.participateOffer(id, owner, shares, request.getString("requestId"), clock.getCurrentDate(), ledger, clock.getGameTimestamp());
+                persistFinancialMutation(); return result;
+            }
+        }
+        if (shares <= 0 || !offer.getBoolean("open") || shares > offer.getLong("availableShares"))
+            throw new IllegalArgumentException("Jumlah melebihi hak atau penawaran belum aktif");
+        Money nominal = new Money(new BigDecimal(offer.getString("cashPrice")).multiply(BigDecimal.valueOf(shares)), Currency.IDR);
+        if ("RIGHTS_ISSUE".equals(offer.getString("kind"))) {
+            if (owner.getAvailableCash(Currency.IDR).isLessThan(nominal)) throw new IllegalStateException("Kas tersedia tidak cukup untuk rights");
+        } else {
+            Position holding = owner.getPosition(offer.getString("instrumentId"));
+            if (holding == null || shares > holding.getQuantity() - corporateService.reservedCorporateShares(owner.getId(), offer.getString("instrumentId")))
+                throw new IllegalStateException("Saham tersedia tidak cukup untuk tender");
+        }
+        if ("MERGER_TENDER".equals(offer.getString("kind")) && BigDecimal.valueOf(shares).multiply(new BigDecimal(offer.getString("exchangeRatio"))).stripTrailingZeros().scale() > 0)
+            throw new IllegalArgumentException("Jumlah saham tender harus menghasilkan saham tujuan bulat");
+        if ("preview".equals(action)) return new JSONObject(offer.toString()).put("success", true).put("offerId", id).put("shares", shares)
+                .put("amount", new BigDecimal(offer.getString("cashPrice")).multiply(BigDecimal.valueOf(shares)).toPlainString());
+        if (!"participate".equals(action)) throw new IllegalArgumentException("Aksi penawaran tidak dikenal");
+        // Existing resting and trigger sells must release their claims before tender reservation.
+        if (!"RIGHTS_ISSUE".equals(offer.getString("kind"))) cancelInstrumentOrders(offer.getString("instrumentId"), owner.getId());
+        JSONObject result = corporateService.participateOffer(id, owner, shares, request.getString("requestId"), clock.getCurrentDate(), ledger, clock.getGameTimestamp());
+        persistFinancialMutation(); return result;
     }
 
     public synchronized IpoSubscription orderIpo(String ipoId, long lots) {
+        return orderIpo(ipoId, lots, "IPO-" + UUID.randomUUID());
+    }
+
+    public synchronized IpoSubscription orderIpo(String ipoId, long lots, String requestId) {
+        if (gameMode == GameMode.HISTORICAL_REPLAY) throw new IllegalStateException("IPO game tidak tersedia dalam replay historis");
         IpoOffering ipo = corporateService.getIpo(ipoId);
         if (ipo == null) throw new IllegalArgumentException("IPO tidak ditemukan: " + ipoId);
         Account personal = getPersonalAccount();
-        return corporateService.orderIpo(ipo, personal, lots, System.currentTimeMillis());
+        IpoSubscription receipt = corporateService.orderIpo(ipo, personal, lots, requestId, clock.getGameTimestamp());
+        persistFinancialMutation();
+        return receipt;
     }
 
     public synchronized void allotIpo(String ipoId, double ratio) {
         IpoOffering ipo = corporateService.getIpo(ipoId);
         if (ipo == null) throw new IllegalArgumentException("IPO tidak ditemukan: " + ipoId);
-        corporateService.allotIpo(ipo, ratio, accounts, ledger, System.currentTimeMillis());
+        corporateService.allotIpo(ipo, ratio, accounts, ledger, clock.getGameTimestamp());
+        String exchange = ipo.getCurrency() == Currency.USD ? "US" : "IDX";
+        if (catalog.getById(exchange + ":" + ipo.getTicker()) == null)
+            catalog.registerInstrument(new Instrument(exchange + ":" + ipo.getTicker(), ipo.getTicker(), ipo.getCompanyName(),
+                    com.tradingglobal3d.core.market.MarketExchange.valueOf(exchange), "IPO", ipo.getCurrency(), ipo.getLotSize(),
+                    ipo.getSharesOffered(), true, ipo.getOfferingPrice()));
     }
 
     public synchronized void castShareholderVote(String agendaId, ShareholderMeetingAgenda.VoteChoice choice) {
+        if (gameMode == GameMode.HISTORICAL_REPLAY) throw new IllegalStateException("Voting game tidak tersedia dalam replay historis");
         ShareholderMeetingAgenda agenda = corporateService.getAgenda(agendaId);
         if (agenda == null) throw new IllegalArgumentException("Agenda RUPS tidak ditemukan: " + agendaId);
         Account personal = getPersonalAccount();
-        corporateService.castVote(agenda, personal, choice, System.currentTimeMillis());
+        corporateService.castVote(agenda, personal, choice, clock.getGameTimestamp());
+        persistFinancialMutation();
     }
 
     public synchronized void takeMarginLoan(Money amount) {
         careerManager.requireRank(CareerRank.PORTFOLIO_MANAGER, "Pinjaman margin");
         Account personal = getPersonalAccount();
-        riskService.takeMarginLoan(personal, amount, ledger, System.currentTimeMillis());
+        riskService.takeMarginLoan(personal, amount, ledger, clock.getGameTimestamp());
     }
 
     public synchronized void repayMarginLoan(Money amount) {
         Account personal = getPersonalAccount();
-        riskService.repayMarginLoan(personal, amount, ledger, System.currentTimeMillis());
+        riskService.repayMarginLoan(personal, amount, ledger, clock.getGameTimestamp());
     }
 
     public synchronized ShortPosition openShortPosition(String ticker, long shares) {
@@ -972,7 +1188,7 @@ public final class TradingFacade {
         if (inst == null) inst = catalog.getById("US:" + ticker);
         if (inst == null) throw new IllegalArgumentException("Saham tidak ditemukan: " + ticker);
         Account mm = accounts.get("ACC-NPC-MM-01");
-        return riskService.openShortPosition(personal, inst, shares, mm, ledger, System.currentTimeMillis());
+        return riskService.openShortPosition(personal, inst, shares, mm, ledger, clock.getGameTimestamp());
     }
 
     public synchronized void closeShortPosition(String ticker, long shares) {
@@ -981,7 +1197,7 @@ public final class TradingFacade {
         if (inst == null) inst = catalog.getById("US:" + ticker);
         if (inst == null) throw new IllegalArgumentException("Saham tidak ditemukan: " + ticker);
         Account mm = accounts.get("ACC-NPC-MM-01");
-        riskService.closeShortPosition(personal, inst, shares, mm, ledger, System.currentTimeMillis());
+        riskService.closeShortPosition(personal, inst, shares, mm, ledger, clock.getGameTimestamp());
     }
 
     public synchronized RiskComplianceService.MarginHealthReport evaluateMarginHealth() {
@@ -994,12 +1210,50 @@ public final class TradingFacade {
         Instrument inst = catalog.getById("IDX:" + ticker);
         if (inst == null) inst = catalog.getById("US:" + ticker);
         if (inst == null) throw new IllegalArgumentException("Saham tidak ditemukan: " + ticker);
-        return riskService.executeForcedLiquidation(personal, inst, marketEngine.isHalted(inst.getId()), ledger, System.currentTimeMillis());
+        return riskService.executeForcedLiquidation(personal, inst, marketEngine.isHalted(inst.getId()), ledger, clock.getGameTimestamp());
     }
 
     public synchronized StrategyLabSandbox createStrategySandbox(String sandboxId) {
+        if (sandboxId == null || !sandboxId.matches("[A-Za-z0-9_-]{1,80}")) throw new IllegalArgumentException("Identitas lab tidak valid");
+        if (strategyLabs.containsKey(sandboxId)) return strategyLabs.get(sandboxId);
+        if (strategyLabs.size() >= 20) throw new IllegalStateException("Maksimal 20 lab tersimpan");
         Account personal = getPersonalAccount();
-        return replayEngine.createSandbox(sandboxId, personal);
+        StrategyLabSandbox lab = new StrategyLabSandbox(sandboxId, personal, clock.getGameTimestamp(), fxService.getMidRate());
+        strategyLabs.put(sandboxId, lab);
+        persistFinancialMutation();
+        return lab;
+    }
+
+    public synchronized JSONObject strategyLab(JSONObject request) throws JSONException {
+        String action = request.getString("action");
+        if ("list".equals(action)) {
+            JSONArray labs = new JSONArray();
+            for (StrategyLabSandbox lab : strategyLabs.values()) labs.put(labView(lab));
+            return new JSONObject().put("success", true).put("sandboxes", labs);
+        }
+        String sid = request.getString("sandboxId");
+        StrategyLabSandbox lab = "create".equals(action) ? createStrategySandbox(sid) : strategyLabs.get(sid);
+        if (lab == null) throw new IllegalArgumentException("Lab belum dibuat");
+        JSONObject result = new JSONObject().put("success", true);
+        switch (action) {
+            case "create": case "history": break;
+            case "reset": lab.resetDecisions(); persistFinancialMutation(); break;
+            case "replay": result = lab.replayDecisions(); persistFinancialMutation(); break;
+            case "trade":
+                result = lab.executeDecision(request.getString("side"), requireInstrument(request.getString("instrumentId")),
+                        request.getLong("shares"), new BigDecimal(request.get("price").toString()), clock.getGameTimestamp());
+                persistFinancialMutation(); break;
+            default: throw new IllegalArgumentException("Aksi lab tidak dikenal");
+        }
+        return result.put("sandboxId", sid).put("state", labView(lab)).put("decisions", lab.getDecisionHistory());
+    }
+
+    private JSONObject labView(StrategyLabSandbox lab) throws JSONException {
+        return new JSONObject().put("sandboxId", lab.getSandboxId()).put("accountName", lab.getClonedAccount().getName())
+                .put("cashIdr", lab.getClonedAccount().getTotalCash(Currency.IDR).format())
+                .put("cashUsd", lab.getClonedAccount().getTotalCash(Currency.USD).format())
+                .put("positionsCount", lab.getClonedAccount().getPositions().size()).put("simulatedTradesCount", lab.getSimulatedTradesCount())
+                .put("simulatedRealizedPnL", lab.getSimulatedRealizedPnL().toPlainString());
     }
 
     public synchronized StressTestResult runStressTest(StressTestScenario scenario) {
@@ -1082,7 +1336,9 @@ public final class TradingFacade {
         }
 
         // Biaya pemeliharaan harian barang koleksi & properti
+        collectionManager.updateValuations(now);
         collectionManager.processDailyMaintenance(personal, ledger, now);
+        multiAssetTrading.settleCoupon(personal, accounts.get("ACC-NPC-MM-01"), ledger, now);
 
         // Akrual hasil reksa dana harian
         mutualFundManager.advanceDay(0.0, ledger, now);
@@ -1112,11 +1368,18 @@ public final class TradingFacade {
         if (!advanceToMorning) return report;
         LocalDate nextDate = clock.getCurrentDate().plusDays(1);
         this.clock = new GameClock(nextDate, java.time.LocalTime.of(8, 30, 0));
+        for (Instrument inst : catalog.getAllInstruments()) {
+            inst.startNewTradingDay();
+        }
         processCalendarActions(nextDate);
         return report;
     }
 
     private void processCalendarActions(LocalDate nextDate) {
+        if (gameMode == GameMode.INTERNAL_MARKET) {
+            try { corporateService.processDate(nextDate, accounts, ledger, clock.getGameTimestamp()); }
+            catch (JSONException error) { throw new IllegalStateException("Penyelesaian aksi korporasi gagal", error); }
+        }
         // 1. Update kalender misi dan rollover mingguan liga (D07, D09)
         periodicMissionManager.updateCalendar(nextDate, careerManager.getCurrentRank());
         if (nextDate.getDayOfWeek() == java.time.DayOfWeek.MONDAY) {
@@ -1133,11 +1396,17 @@ public final class TradingFacade {
         }
 
         // 2. Eksekusi otomatis aksi korporasi yang jatuh tempo pada hari berikutnya
+        if (gameMode == GameMode.HISTORICAL_REPLAY) return;
         for (com.tradingglobal3d.core.corporate.CorporateAction ca : corporateService.getCorporateActions()) {
-            if (!ca.isExecuted() && !ca.getExecutionDate().isAfter(nextDate)) {
+            if (!ca.isExecuted() && !ca.isCancelled() && !ca.getExecutionDate().isAfter(nextDate)) {
+                String approval = corporateService.getApprovalStatus(ca);
+                if ("PENDING".equals(approval)) continue;
+                if ("REJECTED".equals(approval)) { ca.cancel(); continue; }
                 if (ca.getType() == com.tradingglobal3d.core.corporate.CorporateActionType.CASH_DIVIDEND) {
                     executeCashDividend(ca);
-                } else if (ca.getType() == com.tradingglobal3d.core.corporate.CorporateActionType.STOCK_SPLIT) {
+                } else if (ca.getType() == com.tradingglobal3d.core.corporate.CorporateActionType.STOCK_SPLIT || ca.getType() == com.tradingglobal3d.core.corporate.CorporateActionType.REVERSE_SPLIT) {
+                    Instrument splitInstrument = catalog.getById(ca.getTicker().contains(":") ? ca.getTicker() : (ca.getCurrency() == Currency.USD ? "US:" : "IDX:") + ca.getTicker());
+                    if (splitInstrument != null && hasActiveShort(splitInstrument)) continue;
                     executeStockSplit(ca);
                 }
             }
@@ -1155,6 +1424,9 @@ public final class TradingFacade {
     public synchronized void evaluateTriggers() {
         long now = clock.getGameTimestamp();
         for (Instrument inst : catalog.getActiveUniverse()) {
+            if (gameMode == GameMode.HISTORICAL_REPLAY && (!replayEngine.supportsInstrument(inst.getId())
+                    || replayEngine.getCurrentBar() == null || !replayEngine.getCurrentBar().getDate().equals(clock.getCurrentDate())
+                    || clock.getCurrentTime().isBefore(LocalTime.of(9, 0)) || !clock.getCurrentTime().isBefore(LocalTime.of(16, 0)))) continue;
             orderManager.checkAndActivateTriggers(inst, marketEngine, ledger, accounts, now);
         }
         evaluateRecordedCareerProgress();
@@ -1193,6 +1465,9 @@ public final class TradingFacade {
         // ponytail: economy runs on absolute minute boundaries; sub-minute events need an explicit event boundary here.
         LocalDate initialDate = clock.getCurrentDate();
         while (remaining > 0) {
+            if (gameMode == GameMode.HISTORICAL_REPLAY && replayEngine.isReplayCompleted(clock.getCurrentDate(), clock.getCurrentTime())) {
+                clock.pause(); break;
+            }
             long midnight = 86400 - clock.getCurrentTime().toSecondOfDay();
             long secondsToMinute = 60 - clock.getCurrentTime().getSecond();
             long step = Math.min(remaining, Math.min(secondsToMinute, midnight));
@@ -1202,14 +1477,7 @@ public final class TradingFacade {
                 clock.advanceGameSeconds(1);
                 processCalendarActions(clock.getCurrentDate());
                 if (gameMode == GameMode.HISTORICAL_REPLAY && replayEngine.isReplayActive()) {
-                    boolean advanced = replayEngine.advanceBar();
-                    if (advanced) {
-                        com.tradingglobal3d.core.market.HistoricalBar bar = replayEngine.getCurrentBar();
-                        Instrument inst = catalog.getById(replayEngine.getActiveDatasetId());
-                        if (inst != null && bar != null) {
-                            inst.updatePrice(new Money(bar.getClose(), inst.getCurrency()), bar.getVolume());
-                        }
-                    }
+                    replayEngine.synchronizeToDate(clock.getCurrentDate());
                 }
             } else {
                 clock.advanceGameSeconds(step);
@@ -1244,9 +1512,19 @@ public final class TradingFacade {
                 }
             }
             if (clock.getCurrentTime().getSecond() == 0) {
-                if (clock.getCurrentMarketSession().isOpenForTrading()) generateNpcLiquidity();
+                if (gameMode == GameMode.HISTORICAL_REPLAY) {
+                    refreshReplayLiquidity();
+                    Instrument replayInstrument = catalog.getById(replayEngine.getActiveDatasetId());
+                    BigDecimal observable = replayEngine.getObservablePrice(clock.getCurrentDate(), clock.getCurrentTime());
+                    if (replayInstrument != null && observable != null) replayInstrument.updatePrice(new Money(observable, replayInstrument.getCurrency()), 0);
+                } else if (clock.getCurrentMarketSession().isOpenForTrading()) {
+                    generateNpcLiquidity();
+                    if (clock.getCurrentTime().getMinute() % 30 == 0)
+                        for (Order npcOrder : leagueManager.getNpcOrders(clock.getGameTimestamp())) submitOrder(npcOrder);
+                }
                 evaluateTriggers();
             }
+            multiAssetTrading.updateValuations(catalog, fxService, accounts, clock.getGameTimestamp());
         }
         return !initialDate.equals(clock.getCurrentDate());
     }
@@ -1264,10 +1542,13 @@ public final class TradingFacade {
                 .put("from", clock.getCurrentDate()+"T"+clock.getCurrentTime()).put("status", "PROCESSING");
         skipDayReceipts.put(requestId, receipt);
         try {
+            long before = clock.getGameTimestamp();
             advanceWorldSeconds(86400);
             this.lastRealTimeAnchor = System.currentTimeMillis();
-            receipt.put("success", true).put("status", "COMPLETED")
-                    .put("to", clock.getCurrentDate()+"T"+clock.getCurrentTime()).put("gameSeconds", 86400);
+            long elapsed = (clock.getGameTimestamp() - before) / 1000;
+            receipt.put("success", elapsed == 86400).put("status", elapsed == 86400 ? "COMPLETED" : "DATASET_COMPLETE")
+                    .put("to", clock.getCurrentDate()+"T"+clock.getCurrentTime()).put("gameSeconds", elapsed);
+            if (elapsed != 86400) receipt.put("message", "Replay berakhir pada batas dataset; tidak ada waktu atau harga buatan setelahnya");
         } catch (RuntimeException failure) {
             clock.pause();
             receipt.put("status", "NEEDS_REVIEW").put("message", "Kemajuan berhenti; periksa status sebelum mencoba lagi");
@@ -1322,7 +1603,11 @@ public final class TradingFacade {
         runtime.put("subscription", researchService.exportState());
         runtime.put("fx", fxService.exportState());
         runtime.put("fundPlans", fundBuilder.exportState());
+        runtime.put("multiAssetTrading", multiAssetTrading.exportState());
         runtime.put("corporate", corporateService.exportState());
+        JSONArray labs = new JSONArray();
+        for (StrategyLabSandbox lab : strategyLabs.values()) labs.put(lab.exportState());
+        runtime.put("strategyLabs", labs);
         runtime.put("companies", companyManager.exportState());
         runtime.put("collections", collectionManager.exportState());
         runtime.put("playerProgress", progressManager.exportState());
@@ -1348,9 +1633,20 @@ public final class TradingFacade {
         // Validate the saved graph in detached managers before touching the live run.
         Map<String, JSONObject> restoredDayReceipts = new LinkedHashMap<>();
         Map<String, JSONObject> restoredSkipReceipts = new LinkedHashMap<>();
+        Map<String, StrategyLabSandbox> restoredLabs = new LinkedHashMap<>();
+        InstrumentCatalog restoredCatalog;
         try {
             new GameClock(state.getGameDate(), state.getGameTime()).setSpeedMultiplier(state.getSpeedMultiplier());
             JSONObject runtime = state.getRuntimeState();
+            JSONArray labs = runtime.optJSONArray("strategyLabs");
+            if (labs != null) {
+                if (labs.length() > 20) throw new IllegalArgumentException("Terlalu banyak lab pada save");
+                for (int i = 0; i < labs.length(); i++) {
+                    StrategyLabSandbox lab = StrategyLabSandbox.fromState(labs.getJSONObject(i));
+                    if (restoredLabs.put(lab.getSandboxId(), lab) != null) throw new IllegalArgumentException("Identitas lab duplikat");
+                }
+            }
+            restoredCatalog = catalogForSave(runtime);
             JSONObject skips = runtime.optJSONObject("skipDayReceipts");
             if (skips != null) {
                 Iterator<String> keys = skips.keys();
@@ -1383,7 +1679,7 @@ public final class TradingFacade {
                     restoredDayReceipts.put(key, receipt);
                 }
             }
-            if (runtime.has("catalog")) catalog.validateState(runtime.getJSONObject("catalog"));
+            if (runtime.has("catalog")) restoredCatalog.validateState(runtime.getJSONObject("catalog"));
             if (runtime.has("career")) new CareerManager().restoreState(runtime.getJSONObject("career"));
             if (runtime.has("mandates")) new FirmManager().restoreState(runtime.getJSONArray("mandates"));
             if (runtime.has("subscription")) new ResearchService().restoreState(runtime.getJSONObject("subscription"));
@@ -1396,8 +1692,8 @@ public final class TradingFacade {
             new RiskComplianceService().restoreState(runtime.optJSONObject("risk") != null ? runtime.getJSONObject("risk") : new JSONObject());
             OrderManager stagedOrders = new OrderManager();
             MarketEngine stagedMarket = new MarketEngine();
-            stagedOrders.restoreState(runtime.optJSONArray("orders") != null ? runtime.getJSONArray("orders") : new JSONArray(), catalog, stagedMarket);
-            if (runtime.has("books")) stagedMarket.restoreState(runtime.getJSONArray("books"), catalog, stagedOrders);
+            stagedOrders.restoreState(runtime.optJSONArray("orders") != null ? runtime.getJSONArray("orders") : new JSONArray(), restoredCatalog, stagedMarket);
+            if (runtime.has("books")) stagedMarket.restoreState(runtime.getJSONArray("books"), restoredCatalog, stagedOrders);
             FundBuilderService stagedFunds = new FundBuilderService();
             stagedFunds.restoreState(runtime.has("fundPlans") ? runtime.getJSONArray("fundPlans") : new JSONArray());
             for (FundAllocationPlan plan : stagedFunds.getAllPlans()) {
@@ -1439,13 +1735,20 @@ public final class TradingFacade {
             if (runtime.has("mutualFunds")) {
                 MutualFundManager stagedMutualFunds = new MutualFundManager();
                 stagedMutualFunds.restoreState(runtime.getJSONArray("mutualFunds"));
+                SaveState detachedState = SaveState.fromJsonString(state.toJsonString());
                 Map<String, Account> savedAccounts = new LinkedHashMap<>();
-                for (Account account : state.getAccounts()) savedAccounts.put(account.getId(), account);
+                for (Account account : detachedState.getAccounts()) savedAccounts.put(account.getId(), account);
                 stagedMutualFunds.validateAccounts(savedAccounts);
+                EconomyLedger stagedLedger = new EconomyLedger(); stagedLedger.restoreEntries(detachedState.getLedgerEntries());
+                stagedMutualFunds.registerPoolAccounts(savedAccounts, stagedLedger, new GameClock(state.getGameDate(), state.getGameTime()).getGameTimestamp());
+                stagedMutualFunds.bindAccounts(savedAccounts, restoredCatalog);
             }
             if (runtime.has("installmentLoans")) {
                 InstallmentLoanManager stagedLoans = new InstallmentLoanManager();
                 stagedLoans.restoreState(runtime.getJSONArray("installmentLoans"), new GameClock(state.getGameDate(), state.getGameTime()).getGameTimestamp());
+                var stagedCollateral = new com.tradingglobal3d.core.collection.CollectionManager();
+                if (runtime.has("collections")) stagedCollateral.restoreState(runtime.getJSONArray("collections"));
+                stagedLoans.validateCollateral(stagedCollateral);
                 for (LoanContract loan : stagedLoans.getAllLoans()) {
                     Account borrower = null;
                     for (Account account : state.getAccounts()) if (account.getId().equals(loan.getAccountId())) borrower = account;
@@ -1459,12 +1762,15 @@ public final class TradingFacade {
             if (runtime.has("periodicMissions")) new PeriodicMissionManager().restoreState(runtime.getJSONObject("periodicMissions"));
             if (runtime.has("league")) new LeagueManager().restoreState(runtime.getJSONObject("league"));
             if (runtime.has("playerProfile")) new PlayerProfileManager().restoreState(runtime.getJSONObject("playerProfile"));
+            new MultiAssetTradingService(new FundBuilderService()).restore(runtime.optJSONObject("multiAssetTrading") != null ? runtime.getJSONObject("multiAssetTrading") : new JSONObject());
             if (runtime.has("weeklyPerformance")) com.tradingglobal3d.core.career.PerformancePeriod.restore(runtime.getJSONObject("weeklyPerformance"));
             if (runtime.has("runPerformance")) com.tradingglobal3d.core.career.PerformancePeriod.restore(runtime.getJSONObject("runPerformance"));
         } catch (Exception invalidState) {
             return false;
         }
         this.runId = state.getRuntimeState().optString("runId", "LEGACY-" + java.util.UUID.nameUUIDFromBytes((state.getGameDate() + ":" + state.getLedgerEntries().size()).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        this.catalog = restoredCatalog;
+        this.strategyLabs.clear(); this.strategyLabs.putAll(restoredLabs);
         String savedBaseline = state.getRuntimeState().optString("weeklyBaselineNetWorth", null);
         this.weeklyBaselineNetWorth = savedBaseline != null ? new Money(new BigDecimal(savedBaseline), Currency.IDR) : getPersonalNetWorth();
         this.gameMode = state.getGameMode();
@@ -1491,6 +1797,7 @@ public final class TradingFacade {
             if (runtime.has("subscription")) researchService.restoreState(runtime.getJSONObject("subscription"));
             fxService.restoreState(runtime.has("fx") ? runtime.getJSONObject("fx") : new FxExchangeService().exportState());
             fundBuilder.restoreState(runtime.has("fundPlans") ? runtime.getJSONArray("fundPlans") : new JSONArray());
+            multiAssetTrading.restore(runtime.optJSONObject("multiAssetTrading") != null ? runtime.getJSONObject("multiAssetTrading") : new JSONObject());
             if (runtime.has("corporate")) corporateService.restoreState(runtime.getJSONObject("corporate"));
             companyManager.reset(); collectionManager.reset(); mutualFundManager.reset();
             installmentLoanManager.reset(); periodicMissionManager.reset(); leagueManager.reset();
@@ -1521,6 +1828,7 @@ public final class TradingFacade {
             // Bind fund pool accounts setelah restore akun dan katalog
             mutualFundManager.registerPoolAccounts(accounts, ledger, clock.getGameTimestamp());
             mutualFundManager.bindAccounts(accounts, catalog);
+            leagueManager.bindMarket(accounts, ledger, catalog, clock.getGameTimestamp());
             weeklyPerformance = runtime.has("weeklyPerformance") ? com.tradingglobal3d.core.career.PerformancePeriod.restore(runtime.getJSONObject("weeklyPerformance"))
                     : new com.tradingglobal3d.core.career.PerformancePeriod(clock.getGameTimestamp(), getPersonalNetWorth(), ledger.getEntriesForAccount(personalAccountId).size());
             runPerformance = runtime.has("runPerformance") ? com.tradingglobal3d.core.career.PerformancePeriod.restore(runtime.getJSONObject("runPerformance")) : weeklyPerformance;
@@ -1532,6 +1840,37 @@ public final class TradingFacade {
         return true;
     }
 
+    /** Restore only catalog additions proven by persisted IPO allotment; never accept unknown save symbols. */
+    private InstrumentCatalog catalogForSave(JSONObject runtime) throws JSONException {
+        InstrumentCatalog result = new InstrumentCatalog();
+        CorporateActionService savedCorporate = new CorporateActionService();
+        if (runtime.has("corporate")) savedCorporate.restoreState(runtime.getJSONObject("corporate"));
+        Map<String, IpoOffering> listed = new HashMap<>();
+        for (IpoOffering ipo : savedCorporate.getIpoOfferings()) if (ipo.isAllotted())
+            listed.put((ipo.getCurrency() == Currency.USD ? "US:" : "IDX:") + ipo.getTicker(), ipo);
+        JSONArray saved = runtime.has("catalog") ? runtime.getJSONObject("catalog").getJSONArray("instruments") : catalog.exportState().getJSONArray("instruments");
+        Set<String> ids = new HashSet<>();
+        for (int i = 0; i < saved.length(); i++) {
+            String id = saved.getJSONObject(i).getString("id");
+            if (!ids.add(id)) throw new IllegalArgumentException("ID katalog save duplikat");
+            Instrument source = catalog.getById(id);
+            IpoOffering ipo = listed.get(id);
+            if (source == null && ipo == null) throw new IllegalArgumentException("Instrumen save tidak dikenal: " + id);
+            result.registerInstrument(source != null ? new Instrument(source.getId(), source.getTicker(), source.getName(), source.getExchange(),
+                    source.getSector(), source.getCurrency(), source.getLotSize(), source.getSharesOutstanding(), source.isActiveTrading(), source.getCurrentPrice())
+                    : new Instrument(id, ipo.getTicker(), ipo.getCompanyName(), com.tradingglobal3d.core.market.MarketExchange.valueOf(ipo.getCurrency() == Currency.USD ? "US" : "IDX"),
+                    "IPO", ipo.getCurrency(), ipo.getLotSize(), ipo.getSharesOffered(), true, ipo.getOfferingPrice()));
+        }
+        if (initialCatalogState != null) {
+            JSONArray required = initialCatalogState.getJSONArray("instruments");
+            for (int i = 0; i < required.length(); i++) if (!ids.contains(required.getJSONObject(i).getString("id")))
+                throw new IllegalArgumentException("Instrumen dasar save hilang");
+        }
+        for (MarketIndex index : catalog.getAllIndices()) result.registerIndex(new MarketIndex(index.getId(), index.getTicker(), index.getName(),
+                index.getExchange(), index.getBaseValue(), index.getMethod(), index.getMemberIds()));
+        return result;
+    }
+
     /**
      * Menghasilkan JSON snapshot ringkas untuk disajikan ke UI / Android WebView.
      */
@@ -1541,6 +1880,10 @@ public final class TradingFacade {
         root.put("recoveryRequired", recoveryRequired);
         root.put("gameMode", gameMode != null ? gameMode.name() : "NONE");
         root.put("gameModeLabel", gameMode != null ? gameMode.getDisplayName() : "-");
+        if (gameMode == GameMode.HISTORICAL_REPLAY && clock != null) root.put("replay", new JSONObject()
+                .put("datasetId", replayEngine.getActiveDatasetId()).put("barIndex", replayEngine.getCurrentBarIndex())
+                .put("totalBars", replayEngine.getTotalBars()).put("completed", replayEngine.isReplayCompleted(clock.getCurrentDate(), clock.getCurrentTime()))
+                .put("executionModel", "Daily opening-reference quotes with one tick spread; finite game dealer inventory, not historical order book"));
 
         if (clock != null) {
             JSONObject clockObj = new JSONObject();
@@ -1713,6 +2056,21 @@ public final class TradingFacade {
                 bObj.put("close", b.getClose().doubleValue());
                 bObj.put("volume", b.getVolume());
                 bObj.put("isReference", false);
+                barsArr.put(bObj);
+            }
+            if (replayEngine.getCurrentBar() != null
+                    && !replayEngine.getCurrentBar().getDate().isAfter(clock.getCurrentDate())
+                    && !barsArr.toString().contains(replayEngine.getCurrentBar().getDate().toString())) {
+                BigDecimal openPrice = replayEngine.getObservablePrice(clock.getCurrentDate(), clock.getCurrentTime());
+                if (openPrice == null) openPrice = replayEngine.getCurrentBar().getOpen();
+                JSONObject bObj = new JSONObject();
+                bObj.put("time", replayEngine.getCurrentBar().getDate().toString());
+                bObj.put("open", openPrice.doubleValue());
+                bObj.put("high", openPrice.doubleValue());
+                bObj.put("low", openPrice.doubleValue());
+                bObj.put("close", openPrice.doubleValue());
+                bObj.put("volume", 0);
+                bObj.put("isReference", true);
                 barsArr.put(bObj);
             }
             JSONObject result = new JSONObject();
@@ -2030,9 +2388,10 @@ public final class TradingFacade {
         return receipt;
     }
 
-    private void persistFinancialMutation() throws JSONException {
+    private void persistFinancialMutation() {
         try { save(); }
         catch (IOException error) { throw new IllegalStateException("Penyimpanan gagal; ulangi permintaan dengan ID yang sama", error); }
+        catch (org.json.JSONException error) { throw new IllegalStateException("Serialisasi save gagal", error); }
     }
 
     // =========================================================================
@@ -2183,7 +2542,8 @@ public final class TradingFacade {
         Money totalLiabilities = marginDebt.add(installmentDebt).add(collectionManager.getTotalMaintenanceLiability());
 
         Money grossAssets = personalCash.add(securitiesVal).add(fundUnitsVal).add(collectionVal).add(companyEquityVal);
-        Money netWorth = grossAssets.subtract(totalLiabilities);
+        Money netWorth = getPersonalNetWorth();
+        totalLiabilities = grossAssets.subtract(netWorth);
 
         JSONObject res = new JSONObject();
         res.put("success", true);
@@ -2244,6 +2604,7 @@ public final class TradingFacade {
     }
 
     public synchronized JSONObject confirmPrestige(String requestId, String expectedRunId) throws JSONException {
+        if (gameMode == GameMode.HISTORICAL_REPLAY) throw new IllegalStateException("Prestige tidak tersedia dalam replay historis");
         if (requestId == null || !requestId.matches("[A-Za-z0-9_-]{1,160}")) throw new IllegalArgumentException("ID prestige tidak valid");
         JSONArray history = playerProfileManager.exportState().getJSONArray("prestigeHistory");
         for (int i=0; i<history.length(); i++) {

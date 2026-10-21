@@ -34,6 +34,7 @@ public final class IpoSubscription {
         this.accountId = Objects.requireNonNull(accountId);
         this.orderedLots = orderedLots;
         this.reservedMoney = Objects.requireNonNull(reservedMoney);
+        if (orderedLots <= 0 || !reservedMoney.isPositive()) throw new IllegalArgumentException("Jumlah lot dan reservasi IPO harus positif");
         this.allottedLots = 0;
         this.status = SubscriptionStatus.PENDING;
     }
@@ -50,7 +51,7 @@ public final class IpoSubscription {
     public void applyAllotment(long allottedLots, Money refundMoney) {
         this.allottedLots = allottedLots;
         this.refundMoney = refundMoney;
-        this.status = SubscriptionStatus.ALLOTTED;
+        this.status = allottedLots == 0 ? SubscriptionStatus.REFUNDED : SubscriptionStatus.ALLOTTED;
     }
 
     public void setAllottedLots(long allottedLots) { this.allottedLots = allottedLots; }

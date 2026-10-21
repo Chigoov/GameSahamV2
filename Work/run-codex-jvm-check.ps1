@@ -1,10 +1,11 @@
-param([string[]]$Tests)
+param([string[]]$Tests, [string]$OutputDirectory = 'Artifacts/Codex-Resume-2026-10-20')
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 if ((git -C $repo rev-parse --show-toplevel).Replace('\','/') -ne $repo.Replace('\','/')) { throw 'Wrong production root' }
 Push-Location $repo
 try {
-    $output = Join-Path $repo 'Artifacts/Codex-Resume-2026-10-20'
+    $output = [IO.Path]::GetFullPath((Join-Path $repo $OutputDirectory))
+    if (!$output.StartsWith($repo + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Output must stay inside production root' }
     New-Item -ItemType Directory -Force -Path "$output/classes" | Out-Null
     $javaBin = 'C:/Program Files/Android/Android Studio/jbr/bin'
     $jars = @(rg --files "$env:USERPROFILE/.gradle/caches/modules-2/files-2.1" | Where-Object { $_ -match '(junit-4.13.2|hamcrest-core-1.3|json-20240303)\.jar$' })

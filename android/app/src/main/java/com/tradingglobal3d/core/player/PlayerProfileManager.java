@@ -152,6 +152,8 @@ public final class PlayerProfileManager {
         }
     }
 
+    public synchronized boolean hasRecordedFill(String fillId) { return recordedFills.containsKey(fillId); }
+
     public synchronized void recordFillResult(String fillId, Money realizedNetPnL) {
         if (fillId == null || fillId.trim().isEmpty() || fillId.length() > 200)
             throw new IllegalArgumentException("ID fill tidak valid");

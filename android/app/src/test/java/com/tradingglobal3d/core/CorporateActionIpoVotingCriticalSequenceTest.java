@@ -156,7 +156,7 @@ public class CorporateActionIpoVotingCriticalSequenceTest {
                     ShareholderMeetingAgenda agenda = new ShareholderMeetingAgenda(
                             agendaId, "BBCA", "Persetujuan Rencana Investasi " + step,
                             "Resolusi ekspansi usaha " + step,
-                            facade.getClock().getCurrentDate().plusDays(5)
+                            facade.getClock().getCurrentDate() // recordingDate = hari ini agar voting bisa dilakukan
                     );
                     facade.getCorporateService().registerAgenda(agenda);
                     facade.castShareholderVote(agendaId, ShareholderMeetingAgenda.VoteChoice.FOR);

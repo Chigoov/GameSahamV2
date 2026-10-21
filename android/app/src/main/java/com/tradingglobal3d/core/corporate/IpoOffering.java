@@ -31,6 +31,8 @@ public final class IpoOffering {
         this.lotSize = lotSize;
         this.sharesOffered = sharesOffered;
         this.listingDate = Objects.requireNonNull(listingDate);
+        if (lotSize <= 0 || sharesOffered <= 0 || sharesOffered % lotSize != 0 || !offeringPrice.isPositive() || offeringPrice.getCurrency() != currency)
+            throw new IllegalArgumentException("Harga, mata uang, jumlah saham dan lot IPO tidak valid");
         this.isAllotted = false;
     }
 

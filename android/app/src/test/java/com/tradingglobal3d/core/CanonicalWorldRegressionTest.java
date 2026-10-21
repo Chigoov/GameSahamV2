@@ -106,15 +106,27 @@ public class CanonicalWorldRegressionTest {
     @Test public void bridgePaymentRetryPersistsOneReceiptAndRejectsInvalidRestructure() throws Exception {
         TradingFacade game = game();
         var bridge = new com.tradingglobal3d.mobile.TradingWebBridge(game);
-        String loanId = game.disburseLoan("LOAN-PERS-01", true, null, Money.of(1_000_000, Currency.IDR), 7).getString("loanId");
-        assertEquals(Money.of(50_995_000, Currency.IDR), game.getPersonalAccount().getTotalCash(Currency.IDR));
+        // Alur pinjaman wajib: beli koleksi agunan → getLoanQuote → disburseReviewedLoan
+        game.buyCollection("COL-CAR-00"); // Vespa Klasik sebagai agunan
+        JSONObject quoteResult = game.getLoanQuote("LOAN-PERS-01", true, null, Money.of(1_000_000, Currency.IDR), 7, "COL-CAR-00");
+        assertTrue("Quote harus sukses: " + quoteResult.optString("message",""), quoteResult.getBoolean("success"));
+        JSONObject disburseResult = game.disburseReviewedLoan("CANON-DISBURSE-01", "LOAN-PERS-01", true, null, Money.of(1_000_000, Currency.IDR), 7, "COL-CAR-00", quoteResult.getString("quoteVersion"));
+        assertTrue("Pencairan harus sukses: " + disburseResult.optString("message",""), disburseResult.getBoolean("success"));
+        String loanId = disburseResult.getString("loanId");
+        // Catat saldo setelah pencairan sebagai baseline (bukan nilai absolut — koleksi sudah dibeli)
+        Money cashAfterDisburse = game.getPersonalAccount().getTotalCash(Currency.IDR);
+        assertTrue("Saldo setelah pencairan harus positif", cashAfterDisburse.isPositive());
         String request = new JSONObject().put("loanId", loanId).put("amount", "100000").put("requestId", "PAY-ONCE").toString();
         JSONObject receipt = new JSONObject(bridge.payLoan(request));
         assertTrue(receipt.toString(), receipt.getBoolean("success"));
-        assertEquals(Money.of(50_895_000, Currency.IDR), game.getPersonalAccount().getTotalCash(Currency.IDR));
+        // Setelah bayar Rp100.000, saldo harus turun Rp100.000
+        Money cashAfterPay = game.getPersonalAccount().getTotalCash(Currency.IDR);
+        assertEquals(cashAfterDisburse.subtract(Money.of(100_000, Currency.IDR)), cashAfterPay);
         assertTrue(game.load());
+        // Idempotency: pembayaran ulang harus identik
         assertEquals(receipt.toString(), new JSONObject(bridge.payLoan(request)).toString());
-        assertEquals(Money.of(50_895_000, Currency.IDR), game.getPersonalAccount().getTotalCash(Currency.IDR));
+        // Saldo tidak berubah setelah pembayaran idempoten
+        assertEquals(cashAfterPay, game.getPersonalAccount().getTotalCash(Currency.IDR));
         int reputation = game.getCareerManager().getReputationScore();
         try { game.restructureLoan(loanId, 0); fail("Invalid extension accepted"); } catch (IllegalArgumentException expected) { }
         assertEquals(reputation, game.getCareerManager().getReputationScore());

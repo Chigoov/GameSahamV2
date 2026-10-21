@@ -160,6 +160,16 @@ public final class InstrumentCatalog {
         parseWatchlist(state.getJSONArray("watchlist"));
     }
 
+    public synchronized void resetToInitialState(JSONObject state) throws JSONException {
+        JSONArray instArray = state.getJSONArray("instruments");
+        Set<String> targetIds = new HashSet<>();
+        for (int i = 0; i < instArray.length(); i++) {
+            targetIds.add(instArray.getJSONObject(i).getString("id"));
+        }
+        instrumentsById.keySet().removeIf(id -> !targetIds.contains(id));
+        restoreState(state);
+    }
+
     public synchronized void restoreState(JSONObject state) throws JSONException {
         List<Instrument> staged = parseMarketState(state.getJSONArray("instruments"));
         Set<String> watchlist = parseWatchlist(state.getJSONArray("watchlist"));

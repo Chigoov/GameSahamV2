@@ -24,6 +24,7 @@ public final class PerformancePeriod {
         long duration = Math.max(0, end - start);
         for (int i = Math.min(firstEntry, entries.size()); i < entries.size(); i++) {
             LedgerEntry entry = entries.get(i);
+            if (entry.getRequestId().startsWith("MARGIN-LOAN-") || entry.getRequestId().startsWith("MARGIN-REPAY-")) continue;
             switch (entry.getType()) {
                 case DEPOSIT: case WITHDRAWAL: case SALARY: case MISSION_REWARD: case BAILOUT: break;
                 default: continue;

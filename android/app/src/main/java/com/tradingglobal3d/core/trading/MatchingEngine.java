@@ -338,7 +338,7 @@ public final class MatchingEngine {
                     buyerPos = new Position(instrument.getTicker(), instrument.getExchange().name(), cur, 0, BigDecimal.ZERO, askPrice);
                     buyer.addPosition(buyerPos);
                 }
-                buyerPos.addBuy(matchQty, askPrice);
+                buyerPos.addBuy(matchQty, askPrice, buyFee);
 
                 // Catat di ledger buyer (otomatis mendebit kas buyer)
                 ledger.recordMutation("BUY-FILL-" + System.nanoTime(), buyer, LedgerEntryType.TRADE_BUY, tradeValue, false, timestamp, "Beli " + matchQty + " " + instrument.getTicker());
@@ -430,7 +430,7 @@ public final class MatchingEngine {
                     buyerPos = new Position(instrument.getTicker(), instrument.getExchange().name(), cur, 0, BigDecimal.ZERO, bidPrice);
                     buyer.addPosition(buyerPos);
                 }
-                buyerPos.addBuy(matchQty, bidPrice);
+                buyerPos.addBuy(matchQty, bidPrice, buyFee);
 
                 ledger.recordMutation("BUY-FILL-" + System.nanoTime(), buyer, LedgerEntryType.TRADE_BUY, tradeValue, false, timestamp, "Beli " + matchQty + " " + instrument.getTicker());
                 ledger.recordMutation("BUY-FEE-" + System.nanoTime(), buyer, LedgerEntryType.TRANSACTION_FEE, buyFee, false, timestamp, "Biaya beli " + instrument.getTicker());
@@ -470,7 +470,7 @@ public final class MatchingEngine {
 
     private Money netSaleResult(Position position, long quantity, BigDecimal executionPrice, Money saleFee) {
         BigDecimal cost = position.getAverageCost().multiply(BigDecimal.valueOf(quantity));
-        Money allocatedBuyFee = new Money(cost.multiply(BUY_FEE_RATE), position.getCurrency());
+        Money allocatedBuyFee = position.previewAcquisitionFeeAllocation(quantity);
         return new Money(executionPrice.multiply(BigDecimal.valueOf(quantity)).subtract(cost), position.getCurrency())
                 .subtract(saleFee).subtract(allocatedBuyFee);
     }
@@ -623,7 +623,7 @@ public final class MatchingEngine {
                     bPos = new Position(instrument.getTicker(), instrument.getExchange().name(), instrument.getCurrency(), 0, BigDecimal.ZERO, clearingPrice);
                     buyer.addPosition(bPos);
                 }
-                bPos.addBuy(matchQty, clearingPrice);
+                bPos.addBuy(matchQty, clearingPrice, buyFee);
 
                 ledger.recordMutation("AUCTION-BUY-" + System.nanoTime(), buyer, LedgerEntryType.TRADE_BUY, tradeValue, false, gameTimestamp, "Lelang Beli " + matchQty + " " + instrument.getTicker());
                 ledger.recordMutation("AUCTION-BUYFEE-" + System.nanoTime(), buyer, LedgerEntryType.TRANSACTION_FEE, buyFee, false, gameTimestamp, "Biaya Lelang " + instrument.getTicker());

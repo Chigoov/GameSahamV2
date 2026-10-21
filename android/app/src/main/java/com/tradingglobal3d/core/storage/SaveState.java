@@ -146,6 +146,8 @@ public final class SaveState {
                 posObj.put("averageCost", p.getAverageCost().toPlainString());
                 posObj.put("currentPrice", p.getCurrentPrice().toPlainString());
                 posObj.put("realizedPnL", p.getRealizedPnL() == null ? JSONObject.NULL : p.getRealizedPnL().getAmount().toPlainString());
+                posObj.put("acquisitionFeesRemaining", p.getAcquisitionFeesRemaining().getAmount().toPlainString());
+                posObj.put("acquisitionFeeQuantity", p.getAcquisitionFeeQuantity());
 
                 positionsArray.put(posObj);
             }
@@ -223,7 +225,8 @@ public final class SaveState {
 
                 BigDecimal realized = posObj.has("realizedPnL") && !posObj.isNull("realizedPnL")
                         ? new BigDecimal(posObj.getString("realizedPnL")) : null;
-                Position p = new Position(ticker, exchange, cur, qty, avgCost, curPrice, realized);
+                Position p = new Position(ticker, exchange, cur, qty, avgCost, curPrice, realized,
+                        new Money(new BigDecimal(posObj.optString("acquisitionFeesRemaining", "0")), cur), posObj.optLong("acquisitionFeeQuantity", qty));
                 acc.addPosition(p);
             }
             accounts.add(acc);

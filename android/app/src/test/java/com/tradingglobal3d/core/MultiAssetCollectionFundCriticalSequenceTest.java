@@ -106,8 +106,13 @@ public class MultiAssetCollectionFundCriticalSequenceTest {
                 case 0: { // Pembayaran kupon obligasi FR91
                     BondInstrument fr91 = facade.getFundBuilder().getBond("BOND:FR0091");
                     if (fr91 != null) {
-                        facade.getFundBuilder().payBondCoupon(fr91, facade.getPersonalAccount(), 90, 10,
-                                facade.getLedger(), System.currentTimeMillis());
+                        Money beforeCoupon = facade.getPersonalAccount().getTotalCash(Currency.IDR);
+                        try {
+                            facade.getFundBuilder().payBondCoupon(fr91, facade.getPersonalAccount(), 90, 10,
+                                    facade.getLedger(), System.currentTimeMillis());
+                            fail("Legacy arbitrary coupon must be rejected");
+                        } catch (UnsupportedOperationException expected) { }
+                        assertEquals(beforeCoupon, facade.getPersonalAccount().getTotalCash(Currency.IDR));
                         actionsCount++;
                     }
                     break;

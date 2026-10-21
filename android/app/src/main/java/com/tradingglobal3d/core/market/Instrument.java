@@ -64,6 +64,10 @@ public final class Instrument {
     public Money getDayHigh() { return dayHigh; }
     public Money getDayLow() { return dayLow; }
     public long getDayVolume() { return dayVolume; }
+    public void resetReferencePrice(Money price) {
+        if (price == null || price.getCurrency() != currency || !price.isPositive()) throw new IllegalArgumentException("Harga referensi tidak valid");
+        currentPrice = price; previousClosePrice = price; dayHigh = price; dayLow = price; dayVolume = 0;
+    }
 
     public Money getMarketCap() {
         BigDecimal cap = currentPrice.getAmount().multiply(BigDecimal.valueOf(sharesOutstanding));

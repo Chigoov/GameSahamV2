@@ -15,6 +15,10 @@
     let latestSnapshot = null;
     const scrollPositions = {};
     let flowOpener = null;
+    function formatMoney(value) {
+        const amount=Number(value);
+        return Number.isFinite(amount) ? 'Rp ' + amount.toLocaleString('id-ID',{maximumFractionDigits:0}) : 'Belum tersedia';
+    }
 
     // Mock Web Bridge untuk browser testing
     const MockBridge = {
@@ -171,11 +175,28 @@
     }
 
     // 4. Data Refreshers
+    let preferenceRunId = null;
+    function applyPlayerPreferences(preferences) {
+        document.documentElement.style.fontSize = preferences.textSize === '200%' ? '200%' : '';
+        document.documentElement.classList.toggle('high-contrast', preferences.highContrast === true);
+        document.documentElement.classList.toggle('reduced-motion', preferences.reducedMotion === true);
+    }
+    function persistPlayerPreferences(patch) {
+        const profile=bridgeResult('getPlayerProfile');
+        const preferences=Object.assign({},profile.preferences || {},patch);
+        const result=bridgeResult('updatePlayerProfile',JSON.stringify({playerName:profile.playerName,preferences}));
+        applyPlayerPreferences(result.preferences || preferences);
+        return result;
+    }
     function refreshSnapshot() {
         try {
             const raw = bridge.getSnapshot();
             const snap = JSON.parse(raw);
             latestSnapshot = snap;
+            if (snap.runId && preferenceRunId !== snap.runId && bridge.getPlayerProfile) {
+                const profile=JSON.parse(bridge.getPlayerProfile());
+                if (profile.success !== false && profile.preferences) { applyPlayerPreferences(profile.preferences); preferenceRunId=snap.runId; }
+            }
             document.getElementById('home-clock-state').textContent = snap.clock
                 ? `${snap.clock.sessionLabel} · ${snap.clock.isPaused ? 'Dijeda' : 'Berjalan'} ${snap.clock.speed}×`
                 : 'Waktu domain belum tersedia.';
@@ -571,6 +592,20 @@
                         staffBtn.textContent = 'Pegawai & Organisasi';
                         staffBtn.onclick = () => openCompanyStaffModal(c);
                         btnRow.append(polBtn, transBtn, staffBtn);
+                        flowButton(btnRow,'Pinjaman modal kerja',()=>openDisburseLoanModal('LOAN-CORP-01',c.id));
+                        flowButton(btnRow, 'Tingkatkan perusahaan', () => {
+                            const request = {companyId:c.id, action:'UPGRADE', workHours:c.workHours || 8, benefitTier:c.benefitTier || 'STANDARD'};
+                            reviewCompanyAction(request);
+                        });
+                        flowButton(btnRow, 'Laporan operasional', () => {
+                            const detail = showFlow(`Laporan — ${c.name}`);
+                            const reports = c.operationalReports || [];
+                            if (!reports.length) flowText(detail, 'Laporan', 'Belum ada hari operasional selesai.');
+                            reports.slice().reverse().forEach(report => {
+                                const card = node('section', 'card'); detail.append(card);
+                                Object.entries(report).forEach(([key,value]) => flowText(card, ({date:'Tanggal',revenue:'Pendapatan',operatingCost:'Biaya operasi',payrollPaid:'Gaji dibayar',arrears:'Tunggakan',netCashflow:'Arus kas bersih',currency:'Mata uang'})[key] || key, String(value)));
+                            });
+                        });
                         cCard.append(btnRow);
                         compSection.append(cCard);
                     });
@@ -871,12 +906,7 @@
                     workHours: Number(hourSelect.value),
                     benefitTier: benSelect.value
                 };
-                const res = JSON.parse(bridge.setCompanyPolicy(JSON.stringify(req)));
-                if (!res.success) throw new Error(res.message);
-                statusMsg.textContent = 'Kebijakan kerja berhasil diperbarui!';
-                statusMsg.style.color = 'var(--positive)';
-                refreshSnapshot();
-                setTimeout(() => { closeFlow(); loadFirmaView(); }, 600);
+                reviewCompanyAction(Object.assign(req, {action:'POLICY'}));
             } catch (err) {
                 statusMsg.textContent = 'Gagal: ' + err.message;
                 statusMsg.style.color = 'var(--negative)';
@@ -921,15 +951,14 @@
                 if (amt <= 0) throw new Error('Jumlah transfer harus lebih dari 0');
                 const req = {
                     companyId: company.id,
-                    amount: amt,
-                    direction: dirSelect.value
+                    amount: String(amt),
+                    toCompany: dirSelect.value === 'TO_COMPANY'
                 };
-                const res = JSON.parse(bridge.transferCompanyCapital(JSON.stringify(req)));
-                if (!res.success) throw new Error(res.message);
-                statusMsg.textContent = 'Transfer modal berhasil diproses!';
-                statusMsg.style.color = 'var(--positive)';
-                refreshSnapshot();
-                setTimeout(() => { closeFlow(); loadFirmaView(); }, 600);
+                const quote = JSON.parse(bridge.companyCapitalAction(JSON.stringify(req)));
+                commandReview('Review transfer modal', quote, [
+                    ['Jumlah', formatMoney(req.amount)], ['Arah', req.toCompany ? 'Pribadi → Perusahaan' : 'Perusahaan → Pribadi'],
+                    ['Cadangan operasi', formatMoney(quote.reserve || quote.reserveRaw || 0)]
+                ], (requestId) => bridge.companyCapitalAction(JSON.stringify(Object.assign({}, req, {requestId,expectedVersion:quote.version}))), loadFirmaView);
             } catch (err) {
                 statusMsg.textContent = 'Transfer gagal: ' + err.message;
                 statusMsg.style.color = 'var(--negative)';
@@ -937,6 +966,154 @@
         };
 
         panel.append(dirLabel, dirSelect, amtLabel, amtInput, submitBtn, statusMsg);
+    }
+
+    function commandReview(title, quote, rows, execute, after) {
+        if (!quote || quote.success === false || quote.eligible === false) throw new Error((quote && quote.message) || 'Syarat transaksi belum terpenuhi');
+        const panel = showFlow(title);
+        rows.forEach(([label,value]) => flowText(panel,label,String(value)));
+        const requestId = 'CMD-' + Date.now() + '-' + Math.random().toString(36).slice(2,10);
+        const status = node('p'); status.setAttribute('role','status'); panel.append(status);
+        const button = flowButton(panel, 'Konfirmasi', () => {
+            button.disabled = true; status.textContent = 'Memproses…';
+            try {
+                const result = JSON.parse(execute(requestId));
+                if (!result || result.success === false) throw new Error((result && result.message) || 'Hasil belum terkonfirmasi');
+                status.textContent = 'Tindakan selesai dan tersimpan.';
+                refreshSnapshot();
+                flowButton(panel, 'Selesai', () => { closeFlow(); if (after) after(); });
+            } catch (error) { button.disabled = false; status.textContent = error.message + ' Ulangi dengan permintaan yang sama.'; }
+        });
+    }
+
+    function reviewCompanyAction(request) {
+        try {
+        const quote = bridgeResult('previewCompanyAction',JSON.stringify(request));
+        commandReview(request.action === 'UPGRADE' ? 'Review peningkatan perusahaan' : 'Review kebijakan kerja', quote, [
+            ['Level', `${quote.levelBefore} → ${quote.levelAfter}`], ['Biaya', formatMoney(quote.cost)],
+            ['Gaji harian', `${formatMoney(quote.dailyPayrollBefore)} → ${formatMoney(quote.dailyPayrollAfter)}`],
+            ['Biaya operasi', `${formatMoney(quote.dailyOperatingCostBefore)} → ${formatMoney(quote.dailyOperatingCostAfter)}`],
+            ['Berlaku', 'Pada perhitungan operasional berikutnya']
+        ], requestId => bridge.executeCompanyAction(JSON.stringify(Object.assign({}, request,{requestId,expectedVersion:quote.version}))), loadFirmaView);
+        } catch(error) { const panel=showFlow('Perubahan perusahaan belum tersedia');flowText(panel,'Alasan',error.message); }
+    }
+
+    function openMultiAssetOrder(product, buy) {
+        const panel = showFlow(`${buy ? 'Beli' : 'Jual'} ${product.ticker}`);
+        const label = node('label','','Jumlah unit'); const input = node('input','input-field');
+        input.type='number'; input.min='1'; input.step='1'; input.value='1'; input.id='multiasset-quantity'; label.htmlFor=input.id;
+        panel.append(label,input); const status=node('p'); status.setAttribute('role','status'); panel.append(status);
+        flowButton(panel,'Tinjau transaksi',()=>{
+            try {
+                const request={instrumentId:product.id,buy,quantity:Number(input.value)};
+                const quote=JSON.parse(bridge.multiAssetOrder(JSON.stringify(request)));
+                commandReview('Review transaksi multi-aset',quote,[['Produk',product.name],['Jumlah',request.quantity],['Harga / unit',formatMoney(quote.unitPrice)],['Biaya',formatMoney(quote.fee)],['Perubahan kas',formatMoney(quote.cashChange)]],
+                    requestId=>bridge.multiAssetOrder(JSON.stringify(Object.assign({},request,{requestId,quoteVersion:quote.quoteVersion}))),loadAsetView);
+            } catch(error) { status.textContent=error.message; }
+        });
+    }
+
+    function bridgeResult(method, ...args) {
+        if (typeof bridge[method] !== 'function') throw new Error('Fitur belum dapat dihubungkan. Buka kembali aplikasi.');
+        const result = JSON.parse(bridge[method](...args));
+        if (!result || result.success === false) throw new Error((result && result.message) || 'Permintaan belum terkonfirmasi');
+        return result;
+    }
+
+    function instrumentSelect(panel, label, id, multiple = false) {
+        const caption = node('label', '', label); caption.htmlFor = id;
+        const select = node('select', 'input-field'); select.id = id; select.multiple = multiple;
+        const stocks = JSON.parse(bridge.getInstruments('', '', null, true));
+        stocks.forEach(stock => {
+            const option = node('option', '', `${stock.ticker} · ${stock.exchange} — ${stock.name}`);
+            option.value = stock.id; select.append(option);
+        });
+        if (multiple) { select.size = 5; flowText(panel, 'Pilihan', 'Pilih 2–4 instrumen. Gunakan Ctrl/Command di desktop untuk memilih lebih dari satu.'); }
+        panel.append(caption, select); return select;
+    }
+
+    function openResearchTerminal() {
+        const panel = showFlow('Terminal riset');
+        const label = node('label', '', 'Jenis riset'); label.htmlFor = 'terminal-kind';
+        const kind = node('select', 'input-field'); kind.id = 'terminal-kind';
+        [['inbox','Kotak masuk analis'],['consensus','Konsensus analis · Pro'],['comparison','Bandingkan instrumen · Pro'],['alternative','Data alternatif · Enterprise']].forEach(([value,title]) => {
+            const option = node('option','',title); option.value=value; kind.append(option);
+        });
+        panel.append(label,kind);
+        const selection = node('section'); panel.append(selection);
+        let selected;
+        const changeKind = () => {
+            selection.replaceChildren(); selected = null;
+            if (kind.value !== 'inbox') selected = instrumentSelect(selection, kind.value === 'comparison' ? 'Instrumen pembanding' : 'Instrumen', 'terminal-instruments', kind.value === 'comparison');
+        };
+        kind.onchange=changeKind; changeKind();
+        const status=node('p'); status.setAttribute('role','status');
+        const results=node('section');
+        flowButton(panel,'Tampilkan riset',()=>{
+            status.textContent='Memuat…'; results.replaceChildren();
+            try {
+                const request={kind:kind.value};
+                if (selected && kind.value === 'comparison') request.instrumentIds=Array.from(selected.selectedOptions, option=>option.value);
+                else if (selected) request.instrumentId=selected.value;
+                const data=bridgeResult('researchQuery',JSON.stringify(request));
+                status.textContent='';
+                flowText(results,'Waktu data',new Date(data.asOf).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'}));
+                if (data.source) flowText(results,'Sumber',data.source);
+                if (kind.value === 'inbox') {
+                    if (!(data.messages || []).length) emptyState(results,'Belum ada pesan','Laporan analis yang sudah terbit akan muncul di sini.');
+                    (data.messages || []).forEach(message=>{
+                        const card=node('article','card'); results.append(card);
+                        card.append(node('h2','',`${message.ticker} — ${message.analyst}`));
+                        flowText(card,'Perusahaan riset',message.firm); flowText(card,'Opini',message.recommendation);
+                        flowText(card,'Target',`${message.currency} ${message.targetPrice}`);
+                        flowText(card,'Terbit',new Date(message.publishedAt).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'}));
+                        card.append(node('p','article-copy',message.thesis));
+                    });
+                } else if (kind.value === 'comparison') {
+                    (data.instruments || []).forEach(item=>{
+                        const card=node('article','card'); results.append(card); card.append(node('h2','',item.name));
+                        flowText(card,'Instrumen',item.instrumentId); flowText(card,'Sektor',item.sector);
+                        flowText(card,'Harga',`${item.currency} ${item.price}`); flowText(card,'Perubahan sesi',`${Number(item.dailyChangePercent).toFixed(2)}%`);
+                        flowText(card,'Volume sesi',item.sessionVolume); flowText(card,'Jumlah opini',item.consensus.sampleCount);
+                        flowText(card,'Target rata-rata',item.consensus.meanTarget == null ? 'Belum tersedia' : `${item.currency} ${item.consensus.meanTarget}`);
+                    });
+                } else if (kind.value === 'consensus') {
+                    flowText(results,'Jumlah opini',data.sampleCount);
+                    [['meanTarget','Target rata-rata'],['medianTarget','Target median'],['minTarget','Target terendah'],['maxTarget','Target tertinggi']].forEach(([key,title])=>flowText(results,title,data[key] == null ? 'Belum tersedia' : `${data.currency} ${data[key]}`));
+                    flowText(results,'Sebaran opini',`Beli ${data.buy} · Tahan ${data.hold} · Jual ${data.sell}`);
+                    (data.reports || []).forEach(report=>flowText(results,`${report.analyst} · ${report.firm}`,`${report.recommendation} · ${report.currency} ${report.targetPrice}`));
+                } else {
+                    flowText(results,'Jendela berita',`${data.observationWindowDays} hari game`); flowText(results,'Jumlah sumber',data.sampleCount);
+                    flowText(results,'Sentimen berita',data.newsSentiment); flowText(results,'Volume sesi',data.observedSessionVolume);
+                    flowText(results,'Perubahan harga',`${Number(data.priceChangePercent).toFixed(2)}%`);
+                    (data.sources || []).forEach(source=>flowText(results,new Date(source.publishedAt).toLocaleDateString('id-ID',{timeZone:'Asia/Jakarta'}),source.headline));
+                }
+                if (data.uncertainty) results.append(node('p','notice',data.uncertainty));
+            } catch(error) { status.textContent=error.message; }
+        });
+        flowButton(panel,'Lihat paket terminal',openResearchTiersModal);
+        panel.append(status,results);
+    }
+
+    function openPerformanceReport() {
+        const panel=showFlow('Hasil investasi & arus kas');
+        try {
+            const data=bridgeResult('getPerformanceReport');
+            [['weekly','Minggu berjalan'],['run','Perjalanan saat ini']].forEach(([key,title])=>{
+                const period=data[key]; if (!period) return;
+                const card=node('section','card'); panel.append(card); card.append(node('h2','',title));
+                flowText(card,'Awal periode',new Date(period.startTimestamp).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'}));
+                flowText(card,'Kekayaan awal',formatMoney(period.openingRaw)); flowText(card,'Kekayaan akhir',formatMoney(period.closingRaw));
+                flowText(card,'Arus noninvestasi',formatMoney(period.nonInvestmentFlowsRaw)); flowText(card,'Hasil investasi',formatMoney(period.investmentResultRaw));
+                flowText(card,'Return',period.returnAvailable ? `${Number(period.returnPercent).toFixed(2)}%` : 'Belum tersedia');
+                flowText(card,'Metode','Modified Dietz'); if (!period.returnAvailable) flowText(card,'Alasan',period.reason);
+            });
+            const history=data.weeklyHistory || [];
+            if (history.length) {
+                const archived=node('details','card'); archived.append(node('summary','','Riwayat minggu selesai')); panel.append(archived);
+                history.slice().reverse().forEach(period=>flowText(archived,new Date(period.endTimestamp).toLocaleDateString('id-ID',{timeZone:'Asia/Jakarta'}),period.returnAvailable ? `${Number(period.returnPercent).toFixed(2)}%` : 'Return tidak tersedia'));
+            }
+        } catch(error) { flowText(panel,'Laporan tidak dapat dimuat',error.message); }
     }
 
     function openResearchTiersModal() {
@@ -1021,6 +1198,8 @@
 
         hubSection.append(pBtn, mBtn, lBtn, cBtn);
         view.append(hubSection);
+        flowButton(view,'Terminal: analis, konsensus & perbandingan',openResearchTerminal);
+        flowButton(view,'Hasil investasi & arus kas',openPerformanceReport);
 
         if (!bridge.getResearchFeed) {
             flowText(view, 'Riset', 'Riset belum dapat dimuat.'); return;
@@ -1612,6 +1791,56 @@
         }
     }
 
+    function appendCorporateOffers(panel) {
+        const section=node('section','card'); section.append(node('h2','','Rights issue & tender')); panel.append(section);
+        try {
+            const data=bridgeResult('corporateOfferAction',JSON.stringify({action:'list'}));
+            if (!(data.offers || []).length) emptyState(section,'Belum ada penawaran','Penawaran korporasi yang tersedia akan muncul di sini.');
+            (data.offers || []).forEach(offer=>{
+                const card=node('article','card'); section.append(card);
+                const names={RIGHTS_ISSUE:'Rights issue',BUYBACK_TENDER:'Tender buyback',MERGER_TENDER:'Tender merger'};
+                card.append(node('h3','',`${names[offer.kind] || offer.kind} · ${offer.instrumentId}`));
+                flowText(card,'Status',({UPCOMING:'Belum dibuka',OPEN:'Dibuka',CLOSED:'Ditutup'})[offer.status] || offer.status);
+                flowText(card,'Record date',offer.recordDate); flowText(card,'Batas partisipasi',offer.deadline); flowText(card,'Penyelesaian',offer.settlementDate);
+                flowText(card,'Hak tersedia',offer.availableShares == null ? offer.entitledShares : offer.availableShares);
+                if (offer.kind === 'MERGER_TENDER') flowText(card,'Konversi',`${offer.targetInstrumentId || offer.targetInstrument} · rasio ${offer.exchangeRatio}`);
+                else flowText(card,offer.kind === 'RIGHTS_ISSUE' ? 'Harga tebus / saham' : 'Harga tender / saham',`${offer.currency || 'IDR'} ${offer.cashPrice}`);
+                flowButton(card,'Lihat penawaran',()=>openCorporateOfferDetail(offer));
+            });
+        } catch(error) { flowText(section,'Penawaran belum dapat dimuat',error.message); }
+    }
+
+    function openCorporateOfferDetail(offer) {
+        const panel=showFlow(`Penawaran — ${offer.instrumentId}`);
+        flowText(panel,'Jenis',({RIGHTS_ISSUE:'Rights issue',BUYBACK_TENDER:'Tender buyback',MERGER_TENDER:'Tender merger'})[offer.kind] || offer.kind);
+        flowText(panel,'Hak tercatat',offer.entitledShares); flowText(panel,'Hak terpakai',offer.usedShares || 0);
+        flowText(panel,'Batas partisipasi',offer.deadline); flowText(panel,'Penyelesaian',offer.settlementDate);
+        const label=node('label','','Jumlah saham'); label.htmlFor='corporate-shares';
+        const input=node('input','input-field'); input.id='corporate-shares'; input.type='number'; input.min='1'; input.step='1'; input.value='1';
+        const status=node('p'); status.setAttribute('role','status'); panel.append(label,input,status);
+        const review=flowButton(panel,'Tinjau partisipasi',()=>{
+            try {
+                const request={action:'preview',offerId:offer.id || offer.offerId,shares:Number(input.value)};
+                const quote=bridgeResult('corporateOfferAction',JSON.stringify(request));
+                commandReview('Review partisipasi korporasi',quote,[['Instrumen',offer.instrumentId],['Jumlah saham',request.shares],['Nilai kas',`${quote.currency || 'IDR'} ${quote.amount || quote.reservedCash || '0'}`],['Penyelesaian',offer.settlementDate]],
+                    requestId=>bridge.corporateOfferAction(JSON.stringify(Object.assign({},request,{action:'participate',requestId}))),openCorporateActionModal);
+            } catch(error) { status.textContent=error.message; }
+        });
+        if (offer.status !== 'OPEN' || Number(offer.availableShares) <= 0) { review.disabled=true; status.textContent=offer.status !== 'OPEN' ? 'Partisipasi hanya tersedia selama jendela penawaran terbuka.' : 'Tidak ada hak partisipasi yang tersedia pada penawaran ini.'; }
+        const participations=offer.participations || offer.requests || [];
+        if (!participations.length) flowText(panel,'Partisipasi','Belum ada permintaan untuk penawaran ini.');
+        participations.forEach(receipt=>{
+            const card=node('section','card'); panel.append(card);
+            flowText(card,'ID permintaan',receipt.requestId); flowText(card,'Jumlah',receipt.shares); flowText(card,'Status',receipt.status);
+            if (receipt.status === 'RESERVED' && offer.status === 'OPEN') flowButton(card,'Batalkan partisipasi',()=>{
+                try {
+                    bridgeResult('corporateOfferAction',JSON.stringify({action:'cancel',requestId:receipt.requestId}));
+                    refreshSnapshot(); openCorporateActionModal();
+                } catch(error) { status.textContent=error.message; }
+            });
+        });
+    }
+
     function openCorporateActionModal() {
         const panel = showFlow('Aksi korporasi & voting RUPS');
         flowText(panel, 'Informasi', 'Hak aksi korporasi (Dividen, Stock Split) dan hak suara RUPS berdasarkan kepemilikan saham pada recording date.');
@@ -1635,13 +1864,14 @@
                         row.style.padding = '8px 0';
                         flowText(row, `${act.type} — ${act.ticker}`, `Nilai/Rasio: ${act.valueOrRatio} ${act.currency || ''}`);
                         flowText(row, 'Jadwal', `Recording: ${act.recordingDate} | Eksekusi: ${act.executionDate}`);
-                        flowText(row, 'Status', act.isExecuted ? 'Sudah dieksekusi' : 'Menunggu tanggal eksekusi');
+                        flowText(row, 'Status', act.isExecuted ? 'Sudah dieksekusi' : act.isCancelled ? 'Dibatalkan' : 'Menunggu tanggal eksekusi');
                         corpSection.append(row);
                     });
                 }
             } catch (e) { flowText(corpSection, 'Gagal memuat aksi', e.message); }
         }
         panel.append(corpSection);
+        appendCorporateOffers(panel);
 
         const voteSection = document.createElement('section');
         voteSection.className = 'card';
@@ -1665,10 +1895,13 @@
                         card.append(h);
                         flowText(card, 'Resolusi', ag.resolutionText);
                         flowText(card, 'Recording date', ag.recordingDate);
+                        flowText(card, 'Tenggat voting', ag.deadline);
+                        flowText(card, 'Hak suara tercatat', ag.entitledShares == null ? 'Belum ditetapkan' : ag.entitledShares);
+                        if (ag.closed || ag.isClosed) { flowText(card,'Hasil',ag.result); flowText(card,'Konsekuensi',ag.consequence); }
                         flowText(card, 'Hasil suara sementara', `Setuju: ${ag.votesFor} | Tolak: ${ag.votesAgainst} | Abstain: ${ag.votesAbstain}`);
                         flowText(card, 'Status partisipasi', ag.hasVoted ? 'Sudah memberikan suara' : 'Belum memberikan suara');
 
-                        if (!ag.hasVoted && bridge.castShareholderVote) {
+                        if (!ag.hasVoted && ag.canVote !== false && !ag.closed && !ag.isClosed && bridge.castShareholderVote) {
                             const btnGroup = document.createElement('div');
                             btnGroup.style.display = 'flex';
                             btnGroup.style.gap = '8px';
@@ -1746,6 +1979,8 @@
                         errText.setAttribute('role', 'alert');
                         errText.style.color = 'var(--negative)';
 
+                        lotInput.oninput = () => { card._ipoReqId = null; errText.textContent = ''; };
+
                         const orderBtn = document.createElement('button');
                         orderBtn.className = 'btn-primary';
                         orderBtn.textContent = 'Pesan saham IPO';
@@ -1753,7 +1988,8 @@
                             const lots = Number(lotInput.value);
                             if (!Number.isFinite(lots) || lots <= 0) { errText.textContent = 'Isi jumlah lot positif.'; return; }
                             try {
-                                const res = JSON.parse(bridge.orderIpo(JSON.stringify({ ipoId: ipo.id, lots })));
+                                if (!card._ipoReqId) card._ipoReqId = 'REQ-IPO-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+                                const res = JSON.parse(bridge.orderIpo(JSON.stringify({ ipoId: ipo.id, lots, requestId: card._ipoReqId })));
                                 if (!res.success) throw new Error(res.message);
                                 refreshSnapshot();
                                 flowText(card, 'Pemesanan berhasil', `${res.message} — Tertahan: ${res.reservedMoney}`);
@@ -1800,7 +2036,10 @@
                     flowText(card, 'Kupon tahunan', `${(Number(b.couponRateAnnual) * 100).toFixed(3)}% p.a.`);
                     flowText(card, 'Harga bersih (clean price)', b.cleanPrice);
                     flowText(card, 'Jatuh tempo', b.maturityDate);
+                    flowText(card, 'Kepemilikan portofolio', `${b.quantity} unit (Nilai pasar: ${b.marketValue})`);
                     flowText(card, 'Status perdagangan', `${b.status} — ${b.note}`);
+                    flowButton(card,'Beli obligasi',()=>openMultiAssetOrder(b,true));
+                    flowButton(card,'Jual obligasi',()=>openMultiAssetOrder(b,false));
                     bondSection.append(card);
                 });
             }
@@ -1823,8 +2062,11 @@
                     h.textContent = `${c.ticker} — ${c.name}`;
                     card.append(h);
                     flowText(card, 'Harga spot per unit', `${c.spotPrice} / ${c.unit}`);
-                    flowText(card, 'Underlying', 'Fisik teralokasi (allocated physical backing)');
+                    flowText(card, 'Kepemilikan portofolio', `${c.quantity} unit (Nilai pasar: ${c.marketValue})`);
+                    flowText(card, 'Unit', 'Kepemilikan emas dalam game, tanpa pengiriman fisik.');
                     flowText(card, 'Status perdagangan', `${c.status} — ${c.note}`);
+                    flowButton(card,'Beli emas',()=>openMultiAssetOrder(c,true));
+                    flowButton(card,'Jual emas',()=>openMultiAssetOrder(c,false));
                     commSection.append(card);
                 });
             }
@@ -1853,6 +2095,7 @@
             nameLabel.htmlFor = 'fund-plan-name';
             nameLabel.textContent = 'Nama rencana alokasi';
             const nameInput = document.createElement('input');
+            nameInput.id = 'player-name'; nameLabel.htmlFor = nameInput.id;
             nameInput.id = 'fund-plan-name';
             nameInput.type = 'text';
             nameInput.value = 'Portofolio Seimbang BBCA/BMRI';
@@ -2073,179 +2316,105 @@
 
     let currentLabSandboxId = null;
     function openStrategyLabModal() {
-        const panel = showFlow('Lab strategi & sandbox what-if');
-        flowText(panel, 'Isolasi terjamin', 'Eksperimen strategi trading di lingkungan terisolasi penuh. Segala transaksi beli/jual di lab menggunakan kloning akun dan TIDAK AKAN mengubah saldo kas atau posisi akun riil Anda.');
-
-        if (!bridge.createStrategyLab || !bridge.simulateLabTrade) {
-            flowText(panel, 'Lab strategi', 'Lab strategi belum dapat dimuat.'); return;
-        }
-
+        const panel=showFlow('Lab strategi & replay keputusan');
+        panel.append(node('p','notice','Eksperimen memakai salinan akun terpisah. Transaksi lab tidak mengubah permainan utama.'));
         try {
+            const list=bridgeResult('strategyLab',JSON.stringify({action:'list'}));
+            const saved=list.sandboxes || [];
+            if (currentLabSandboxId && !saved.some(item=>(typeof item === 'string' ? item : item.sandboxId) === currentLabSandboxId)) currentLabSandboxId=null;
+            if (!currentLabSandboxId && saved.length) currentLabSandboxId=typeof saved[0] === 'string' ? saved[0] : saved[0].sandboxId;
             if (!currentLabSandboxId) {
-                const initRes = JSON.parse(bridge.createStrategyLab('LAB-EXP-01'));
-                if (initRes.success) currentLabSandboxId = initRes.sandboxId;
+                currentLabSandboxId='LAB-' + Date.now();
+                bridgeResult('strategyLab',JSON.stringify({action:'create',sandboxId:currentLabSandboxId}));
             }
-
-            const statusCard = document.createElement('section');
-            statusCard.className = 'card';
-            const h = document.createElement('h2');
-            h.className = 'card-title';
-            h.textContent = `Sesi Sandbox: ${currentLabSandboxId || 'Baru'}`;
-            statusCard.append(h);
-
-            flowButton(statusCard, 'Reset / Kloning ulang dari akun riil', () => {
-                currentLabSandboxId = 'LAB-' + Date.now();
-                bridge.createStrategyLab(currentLabSandboxId);
-                openStrategyLabModal();
-            });
-            panel.append(statusCard);
-
-            const formCard = document.createElement('section');
-            formCard.className = 'card';
-            const formTitle = document.createElement('h2');
-            formTitle.className = 'card-title';
-            formTitle.textContent = 'Simulasikan transaksi what-if';
-            formCard.append(formTitle);
-
-            const instLabel = document.createElement('label');
-            instLabel.htmlFor = 'lab-inst-select';
-            instLabel.textContent = 'Pilih instrumen saham';
-            const instSelect = document.createElement('select');
-            instSelect.id = 'lab-inst-select';
-            instSelect.className = 'input-field';
-            [
-                { id: 'IDX:BBCA', name: 'BBCA — Bank Central Asia (Rp 10.250)' },
-                { id: 'IDX:BMRI', name: 'BMRI — Bank Mandiri (Rp 6.800)' }
-            ].forEach(opt => {
-                const o = document.createElement('option');
-                o.value = opt.id; o.textContent = opt.name;
-                instSelect.append(o);
-            });
-
-            const sideLabel = document.createElement('label');
-            sideLabel.htmlFor = 'lab-side-select';
-            sideLabel.textContent = 'Aksi simulasi';
-            const sideSelect = document.createElement('select');
-            sideSelect.id = 'lab-side-select';
-            sideSelect.className = 'input-field';
-            [
-                { value: 'BUY', label: 'Beli (Simulate Buy)' },
-                { value: 'SELL', label: 'Jual (Simulate Sell)' }
-            ].forEach(opt => {
-                const o = document.createElement('option');
-                o.value = opt.value; o.textContent = opt.label;
-                sideSelect.append(o);
-            });
-
-            const qtyLabel = document.createElement('label');
-            qtyLabel.htmlFor = 'lab-qty-input';
-            qtyLabel.textContent = 'Jumlah lembar saham';
-            const qtyInput = document.createElement('input');
-            qtyInput.id = 'lab-qty-input';
-            qtyInput.type = 'number';
-            qtyInput.value = '500';
-            qtyInput.min = '100';
-            qtyInput.step = '100';
-            qtyInput.className = 'input-field';
-
-            const priceLabel = document.createElement('label');
-            priceLabel.htmlFor = 'lab-price-input';
-            priceLabel.textContent = 'Harga eksekusi simulasi';
-            const priceInput = document.createElement('input');
-            priceInput.id = 'lab-price-input';
-            priceInput.type = 'number';
-            priceInput.value = '10250';
-            priceInput.className = 'input-field';
-
-            const tradeAlert = document.createElement('p');
-            tradeAlert.setAttribute('role', 'alert');
-
-            const tradeBtn = document.createElement('button');
-            tradeBtn.className = 'btn-primary';
-            tradeBtn.textContent = 'Eksekusi transaksi lab';
-            tradeBtn.onclick = () => {
-                try {
-                    const payload = {
-                        sandboxId: currentLabSandboxId,
-                        instrumentId: instSelect.value,
-                        side: sideSelect.value,
-                        shares: Number(qtyInput.value),
-                        price: priceInput.value
-                    };
-                    const res = JSON.parse(bridge.simulateLabTrade(JSON.stringify(payload)));
-                    if (!res.success) throw new Error(res.message);
-                    tradeAlert.textContent = `${res.message} — Total trade lab: ${res.simulatedTradesCount} — Kas lab sisa: ${res.availableCashIdr}`;
-                    tradeAlert.style.color = 'var(--positive)';
-                } catch (err) {
-                    tradeAlert.textContent = 'Simulasi gagal: ' + err.message;
-                    tradeAlert.style.color = 'var(--negative)';
-                }
+            const summary=node('section','card'); panel.append(summary);
+            const history=node('section','card');
+            const status=node('p'); status.setAttribute('role','status');
+            const loadHistory=()=>{
+                const data=bridgeResult('strategyLab',JSON.stringify({action:'history',sandboxId:currentLabSandboxId}));
+                const state=data.state || data;
+                summary.replaceChildren(node('h2','','Ringkasan lab'));
+                flowText(summary,'ID lab',currentLabSandboxId);
+                flowText(summary,'Kas IDR',state.cashIdr); flowText(summary,'Kas USD',state.cashUsd);
+                flowText(summary,'Transaksi lab',state.simulatedTradesCount == null ? (data.decisions || []).length : state.simulatedTradesCount);
+                flowText(summary,'Hasil terealisasi IDR',state.simulatedRealizedPnL || state.realizedNetPnLIdr || '0');
+                history.replaceChildren(node('h2','','Riwayat keputusan'));
+                if (!(data.decisions || []).length) emptyState(history,'Belum ada keputusan','Transaksi percobaan akan tercatat di sini dan dapat diulang.');
+                (data.decisions || []).forEach((decision,i)=>flowText(history,`${i+1}. ${decision.action} ${decision.instrumentId}`,`${decision.shares} saham × ${decision.currency} ${decision.price}`));
             };
-
-            formCard.append(instLabel, instSelect, sideLabel, sideSelect, qtyLabel, qtyInput, priceLabel, priceInput, tradeAlert, tradeBtn);
-            panel.append(formCard);
-
-        } catch (e) { flowText(panel, 'Gagal memuat lab strategi', e.message); }
+            if (saved.length > 1) {
+                const label=node('label','','Lab tersimpan');label.htmlFor='lab-saved';
+                const select=node('select','input-field');select.id='lab-saved';
+                saved.forEach(item=>{const id=typeof item === 'string' ? item : item.sandboxId;const option=node('option','',id);option.value=id;select.append(option);});
+                select.value=currentLabSandboxId;select.onchange=()=>{currentLabSandboxId=select.value;loadHistory();};panel.append(label,select);
+            }
+            flowButton(panel,'Kloning akun ke lab baru',()=>{
+                try { currentLabSandboxId='LAB-'+Date.now();bridgeResult('strategyLab',JSON.stringify({action:'create',sandboxId:currentLabSandboxId}));openStrategyLabModal(); }
+                catch(error){status.textContent=error.message;}
+            });
+            const form=node('section','card'); form.append(node('h2','','Transaksi percobaan'));panel.append(form);
+            const instrument=instrumentSelect(form,'Instrumen','lab-inst-select');
+            const sideLabel=node('label','','Aksi');sideLabel.htmlFor='lab-side-select';
+            const side=node('select','input-field');side.id='lab-side-select';
+            [['BUY','Beli'],['SELL','Jual']].forEach(([value,title])=>{const option=node('option','',title);option.value=value;side.append(option);});
+            const qtyLabel=node('label','','Jumlah saham');qtyLabel.htmlFor='lab-qty-input';
+            const qty=node('input','input-field');qty.id='lab-qty-input';qty.type='number';qty.min='1';qty.step='1';qty.value='100';
+            const priceLabel=node('label','','Harga percobaan');priceLabel.htmlFor='lab-price-input';
+            const price=node('input','input-field');price.id='lab-price-input';price.type='number';price.min='0.01';price.step='any';
+            const updatePrice=()=>{const stocks=JSON.parse(bridge.getInstruments('', '', null, true));const stock=stocks.find(item=>item.id===instrument.value);price.value=stock ? stock.currentPriceRaw : '';};
+            instrument.onchange=updatePrice;updatePrice();
+            form.append(sideLabel,side,qtyLabel,qty,priceLabel,price);
+            flowButton(form,'Eksekusi transaksi lab',()=>{
+                try {
+                    bridgeResult('strategyLab',JSON.stringify({action:'trade',sandboxId:currentLabSandboxId,instrumentId:instrument.value,side:side.value,shares:Number(qty.value),price:price.value}));
+                    status.textContent='Transaksi lab tercatat dan tersimpan.';loadHistory();
+                }catch(error){status.textContent=error.message;}
+            });
+            flowButton(panel,'Putar ulang keputusan',()=>{
+                try{const result=bridgeResult('strategyLab',JSON.stringify({action:'replay',sandboxId:currentLabSandboxId}));status.textContent=`Keputusan diputar ulang: ${result.replayed == null ? (result.decisions || []).length : result.replayed}.`;loadHistory();}
+                catch(error){status.textContent=error.message;}
+            });
+            flowButton(panel,'Kosongkan keputusan lab',()=>{
+                try{bridgeResult('strategyLab',JSON.stringify({action:'reset',sandboxId:currentLabSandboxId}));status.textContent='Lab kembali ke keadaan awal.';loadHistory();}
+                catch(error){status.textContent=error.message;}
+            });
+            panel.append(status,history);loadHistory();
+        }catch(error){flowText(panel,'Lab belum dapat dimuat',error.message);}
     }
 
     function openHistoricalReplayModal() {
-        const panel = showFlow('Replay historis data nyata');
-        flowText(panel, 'Mode replay', 'Simulasi trading berbasis bar harian nyata anti-future leak (FR-01, FR-17).');
-
-        const card = document.createElement('section');
-        card.className = 'card';
-        const h = document.createElement('h2');
-        h.className = 'card-title';
-        h.textContent = 'Konfigurasi & pilihan dataset';
-        card.append(h);
-
-        const dsLabel = document.createElement('label');
-        dsLabel.textContent = 'Pilih dataset historis';
-        const dsSelect = document.createElement('select');
-        dsSelect.className = 'input-field';
-        dsSelect.innerHTML = `
-            <option value="IDX:BBCA">IDX:BBCA — Bank Central Asia Tbk (149 hari BEI nyata, CC BY-NC 4.0)</option>
-            <option value="US:AAPL">US:AAPL — Apple Inc. (149 hari Nasdaq/US nyata, Apache 2.0)</option>
-        `;
-
-        const capLabel = document.createElement('label');
-        capLabel.textContent = 'Modal awal replay';
-        const capSelect = document.createElement('select');
-        capSelect.className = 'input-field';
-        capSelect.innerHTML = `
-            <option value="50000000">Rp 50.000.000 (Standar)</option>
-            <option value="25000000">Rp 25.000.000 (Tantangan)</option>
-            <option value="100000000">Rp 100.000.000 (Ekspansif)</option>
-        `;
-
-        const startBtn = document.createElement('button');
-        startBtn.className = 'btn-primary';
-        startBtn.textContent = 'Mulai replay historis';
-        const statusMsg = document.createElement('p');
-        statusMsg.style.margin = '8px 0';
-
-        startBtn.onclick = () => {
-            try {
-                const cfg = {
-                    mode: 'HISTORICAL_REPLAY',
-                    datasetId: dsSelect.value,
-                    initialCapital: Number(capSelect.value)
-                };
-                const res = JSON.parse(bridge.startNewGame(JSON.stringify(cfg)));
-                if (!res.success) throw new Error(res.message);
-                statusMsg.textContent = res.message;
-                statusMsg.style.color = 'var(--positive)';
-                refreshSnapshot();
-                setTimeout(() => { closeFlow(); switchTab('pasar'); loadPasarView(); }, 600);
-            } catch (err) {
-                statusMsg.textContent = 'Gagal memulai replay: ' + err.message;
-                statusMsg.style.color = 'var(--negative)';
-            }
-        };
-
-        flowText(card, 'Integritas data', 'Data bar harian nyata dengan validasi urutan tanggal, anti-future leak, dan fill logic jujur (Low <= Limit Buy <= High).');
-        card.append(dsLabel, dsSelect, capLabel, capSelect, startBtn, statusMsg);
-        panel.append(card);
+        const panel=showFlow('Replay historis data nyata');
+        panel.append(node('p','notice','Replay disimpan terpisah. Bar harian lengkap terbuka setelah penutupan model; pergerakan intraday tidak direkonstruksi.'));
+        const status=node('p');status.setAttribute('role','status');
+        try {
+            const data=bridgeResult('getHistoricalDatasets');
+            const datasets=data.datasets || [];
+            const label=node('label','','Dataset');label.htmlFor='replay-dataset';
+            const select=node('select','input-field');select.id='replay-dataset';
+            datasets.forEach(dataset=>{const option=node('option','',`${dataset.id} · ${dataset.start}–${dataset.end} · ${dataset.bars} bar`);option.value=dataset.id;select.append(option);});
+            const detail=node('section','card');
+            const renderDataset=()=>{detail.replaceChildren();const dataset=datasets.find(item=>item.id===select.value);if(!dataset)return;flowText(detail,'Sumber',dataset.source);flowText(detail,'Resolusi',dataset.resolution);flowText(detail,'Model eksekusi',dataset.executionModel || 'Referensi pembukaan harian dengan spread model; bukan order book historis.');};
+            select.onchange=renderDataset;renderDataset();panel.append(label,select,detail);
+            const capLabel=node('label','','Modal replay · IDR');capLabel.htmlFor='replay-capital';
+            const capital=node('select','input-field');capital.id='replay-capital';
+            [50000000,25000000,100000000].forEach(value=>{const option=node('option','',formatMoney(value));option.value=String(value);capital.append(option);});
+            const consentLabel=node('label','check-row');const consent=node('input');consent.type='checkbox';consent.id='replay-new-confirm';
+            consentLabel.append(consent,node('span','','Mulai replay baru dan ganti slot replay sebelumnya. Progres pasar internal tetap disimpan.'));
+            panel.append(capLabel,capital,consentLabel);
+            const start=flowButton(panel,'Mulai replay baru',()=>{
+                if(!consent.checked){status.textContent='Centang persetujuan untuk mengganti slot replay.';return;}
+                start.disabled=true;
+                try{bridgeResult('startNewGame',JSON.stringify({mode:'HISTORICAL_REPLAY',datasetId:select.value,initialCapital:Number(capital.value)}));refreshSnapshot();closeFlow();switchTab('pasar');}
+                catch(error){start.disabled=false;status.textContent=error.message;}
+            });
+            start.disabled=!datasets.length;
+            if(!datasets.length)emptyState(panel,'Dataset belum tersedia','Belum ada dataset dengan sumber dan hak yang terverifikasi.');
+            [['HISTORICAL_REPLAY','Lanjutkan replay tersimpan'],['INTERNAL_MARKET','Kembali ke permainan utama']].forEach(([mode,title])=>flowButton(panel,title,()=>{
+                try{bridgeResult('resumeSavedMode',mode);refreshSnapshot();closeFlow();switchTab('beranda');}
+                catch(error){status.textContent=error.message;}
+            }));
+        }catch(error){flowText(panel,'Replay belum dapat dimuat',error.message);}
+        panel.append(status);
     }
 
     function openConsolidatedWealthModal() {
@@ -2587,6 +2756,15 @@
         amtInput.value = '10000000';
         amtInput.step = '1000000';
 
+        const companySection=node('section');
+        const companyLabel=node('label','','Perusahaan peminjam');companyLabel.htmlFor='loan-company';
+        const companySelect=node('select','input-field');companySelect.id='loan-company';
+        try {
+            const data=bridgeResult('getCompanies');
+            (data.companies || []).forEach(company=>{const option=node('option','',company.name);option.value=company.id;companySelect.append(option);});
+            if(companyId)companySelect.value=companyId;
+        }catch(error){companySection.append(node('p','notice',error.message));}
+        companySection.append(companyLabel,companySelect);
         // Pemilih agunan (hanya untuk pinjaman pribadi)
         const collateralSection = document.createElement('div');
         collateralSection.style.margin = '8px 0';
@@ -2603,11 +2781,12 @@
 
         function loadCollateralOptions() {
             try {
-                const collections = JSON.parse(bridge.getCollections());
+                const collectionResponse = JSON.parse(bridge.getCollections());
+                const collections = Array.isArray(collectionResponse) ? collectionResponse : (collectionResponse.collections || []);
                 const eligible = [];
                 if (Array.isArray(collections)) {
                     collections.forEach(c => {
-                        if (c.isOwned && !c.pledgedLoanId && c.ownerAccountId) {
+                        if (c.isOwned && !c.pledgedLoanId && latestSnapshot && latestSnapshot.personalAccount && c.ownerAccountId === latestSnapshot.personalAccount.id) {
                             eligible.push(c);
                         }
                     });
@@ -2621,7 +2800,7 @@
                     eligible.forEach(c => {
                         const opt = document.createElement('option');
                         opt.value = c.id;
-                        const valuation = c.currentValuation ? 'Rp ' + formatMoney(c.currentValuation) : '';
+                        const valuation = c.currentValuation ? formatMoney(c.currentValuation) : '';
                         opt.textContent = (c.name || c.id) + (valuation ? ' (' + valuation + ')' : '');
                         collateralSelect.append(opt);
                     });
@@ -2659,7 +2838,7 @@
                 const quoteReq = {
                     productId: pSelect.value,
                     isPersonal: isPersonal,
-                    companyId: isPersonal ? null : companyId,
+                    companyId: isPersonal ? null : companySelect.value,
                     principal: String(amt),
                     tenorDays: Number(tenorSelect.value),
                     collateralItemId: selectedCollateral
@@ -2677,9 +2856,9 @@
                     reviewDiv.style.margin = '8px 0';
                     reviewDiv.innerHTML =
                         '<strong>Review Pinjaman</strong><br>' +
-                        'Pokok: Rp ' + formatMoney(quoteRes.principalRaw) + '<br>' +
-                        'Biaya pencairan: Rp ' + formatMoney(quoteRes.feeRaw) + '<br>' +
-                        'Dana cair bersih: Rp ' + formatMoney(quoteRes.netCashRaw) + '<br>' +
+                        'Pokok: ' + formatMoney(quoteRes.principalRaw) + '<br>' +
+                        'Biaya pencairan: ' + formatMoney(quoteRes.feeRaw) + '<br>' +
+                        'Dana cair bersih: ' + formatMoney(quoteRes.netCashRaw) + '<br>' +
                         'Tenor: ' + quoteRes.tenorDays + ' hari<br>' +
                         'Aturan kelayakan: ' + quoteRes.eligibilityRule;
                     statusMsg.append(reviewDiv);
@@ -2688,27 +2867,29 @@
                     confirmBtn.className = 'btn-primary';
                     confirmBtn.style.marginTop = '8px';
                     confirmBtn.textContent = 'Konfirmasi & Cairkan';
+                    const reviewedRequestId='LOAN-' + Date.now() + '-' + Math.random().toString(36).substring(2,8);
+                    const confirmationStatus=node('p');confirmationStatus.setAttribute('role','status');
                     confirmBtn.onclick = () => {
                         confirmBtn.disabled = true;
                         confirmBtn.textContent = 'Memproses...';
                         try {
-                            const reqId = 'LOAN-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);
+                            if (pSelect.value !== quoteReq.productId || String(Number(amtInput.value)) !== quoteReq.principal || Number(tenorSelect.value) !== quoteReq.tenorDays || (isPersonal && collateralSelect.value !== quoteReq.collateralItemId) || (!isPersonal && companySelect.value !== quoteReq.companyId)) throw new Error('Input berubah. Tinjau ulang quote sebelum konfirmasi.');
                             const disburseReq = Object.assign({}, quoteReq, {
-                                requestId: reqId,
+                                requestId: reviewedRequestId,
                                 expectedQuoteVersion: quoteRes.quoteVersion
                             });
                             const disburseRes = JSON.parse(bridge.disburseReviewedLoan(JSON.stringify(disburseReq)));
-                            if (!disburseRes.success && disburseRes.message) throw new Error(disburseRes.message);
-                            statusMsg.innerHTML = '<span style="color:var(--positive)">✓ Pinjaman berhasil dicairkan</span>';
+                            if (!disburseRes.success) throw new Error(disburseRes.message || 'Hasil pencairan belum terkonfirmasi');
+                            confirmationStatus.textContent='Pinjaman berhasil dicairkan dan tersimpan.';
                             refreshSnapshot();
                             setTimeout(() => { closeFlow(); openLoansModal(); }, 600);
                         } catch (dErr) {
                             confirmBtn.disabled = false;
                             confirmBtn.textContent = 'Konfirmasi & Cairkan';
-                            statusMsg.innerHTML = '<span style="color:var(--negative)">Gagal: ' + dErr.message + '</span>';
+                            confirmationStatus.textContent='Gagal: '+dErr.message;
                         }
                     };
-                    statusMsg.append(confirmBtn);
+                    statusMsg.append(confirmBtn,confirmationStatus);
                 } else {
                     throw new Error('Fitur quote pinjaman belum tersedia. Hubungi pengembang.');
                 }
@@ -2718,7 +2899,9 @@
             }
         };
 
-        panel.append(pSelectLabel, pSelect, collateralSection, tenorLabel, tenorSelect, amtLabel, amtInput, submitBtn, statusMsg);
+        const updateLoanKind=()=>{const personal=pSelect.value==='LOAN-PERS-01';collateralSection.hidden=!personal;companySection.hidden=personal;};
+        pSelect.addEventListener('change',updateLoanKind);updateLoanKind();
+        panel.append(pSelectLabel, pSelect, companySection, collateralSection, tenorLabel, tenorSelect, amtLabel, amtInput, submitBtn, statusMsg);
     }
 
     function openPayInstallmentModal(loan) {
@@ -2822,77 +3005,34 @@
         }
     }
 
-    function openLeagueAndRivalModal() {
-        const panel = showFlow('Liga & Rivalitas Konglomerat');
-        flowText(panel, 'Kompetisi mingguan (D09, D13)', 'Bertanding melawan 20 konglomerat dan trader NPC fiktif persisten. Raih promosi divisi setiap evaluasi hari Senin!');
-
-        if (!bridge.getLeagueLeaderboard || !bridge.getRivalStatus) {
-            flowText(panel, 'Status', 'Bridge liga dan rival belum tersedia.');
-            return;
-        }
-
+    function openLeagueAndRivalModal(mode = 'NET_WORTH') {
+        const panel=showFlow('Liga & rival');
         try {
-            // 1. Rival Personal Mingguan
-            const rivalRes = JSON.parse(bridge.getRivalStatus());
-            if (rivalRes.success) {
-                const rivalCard = document.createElement('section');
-                rivalCard.className = 'card';
-                const rH = document.createElement('h2');
-                rH.className = 'card-title';
-                rH.textContent = `Rival Minggu Ini: ${rivalRes.rivalName}`;
-                rivalCard.append(rH);
-
-                metricCard(rivalCard, 'SELISIH RETURN MINGGUAN', rivalRes.returnDifference, rivalRes.summary);
-                flowText(rivalCard, 'Gaya trading rival', `${rivalRes.rivalStyle} (${rivalRes.rivalTitle})`);
-                flowText(rivalCard, 'Kekayaan rival vs kamu', `${rivalRes.rivalNetWorth} vs ${rivalRes.playerNetWorth}`);
-                flowText(rivalCard, 'Return mingguan rival vs kamu', `${rivalRes.rivalWeeklyReturn} vs ${rivalRes.playerWeeklyReturn}`);
-                panel.append(rivalCard);
-            }
-
-            // 2. Leaderboard Liga
-            const lbRes = JSON.parse(bridge.getLeagueLeaderboard('NET_WORTH'));
-            if (lbRes.success) {
-                const lbSection = document.createElement('section');
-                lbSection.className = 'card';
-                lbSection.style.marginTop = '12px';
-
-                const lbH = document.createElement('h2');
-                lbH.className = 'card-title';
-                lbH.textContent = `${lbRes.tierLabel} (Minggu ke-${lbRes.seasonWeek})`;
-                lbSection.append(lbH);
-
-                metricCard(lbSection, 'PERINGKAT NASIONAL KAMU', `#${lbRes.playerRank}`, `Peringkat kamu dari ${lbRes.totalCompetitors} peserta`);
-
-                const listDiv = document.createElement('div');
-                listDiv.style.marginTop = '10px';
-
-                (lbRes.leaderboard || []).forEach(e => {
-                    const row = document.createElement('div');
-                    row.className = 'data-row';
-                    row.style.padding = '8px 6px';
-                    if (e.isPlayer) {
-                        row.style.borderLeft = '3px solid var(--accent, #66E4D5)';
-                        row.style.backgroundColor = 'rgba(102, 228, 213, 0.08)';
-                    }
-                    const left = document.createElement('div');
-                    left.innerHTML = `<strong>#${e.rank} ${e.name}</strong><br><small style="color:var(--text-muted);">${e.title} · ${e.style}</small>`;
-                    const right = document.createElement('strong');
-                    right.style.color = e.isPlayer ? 'var(--accent, #66E4D5)' : 'var(--amber, #FFBD59)';
-                    right.textContent = e.netWorth;
-                    row.append(left, right);
-                    listDiv.append(row);
-                });
-                lbSection.append(listDiv);
-                panel.append(lbSection);
-            }
-        } catch (e) {
-            flowText(panel, 'Gagal memuat liga', e.message);
-        }
+            const rival=bridgeResult('getRivalStatus');
+            const card=node('section','card'); panel.append(card);card.append(node('h2','',`Rival: ${rival.rivalName}`));
+            flowText(card,'Gaya',`${rival.rivalStyle} · ${rival.rivalTitle}`);
+            flowText(card,'Kekayaan rival / kamu',`${rival.rivalNetWorth} / ${rival.playerNetWorth}`);
+            flowText(card,'Return rival / kamu',`${rival.rivalWeeklyReturn} / ${rival.playerWeeklyReturn}`);
+            flowText(card,'Selisih return',rival.returnDifference);if(rival.summary)card.append(node('p','notice',rival.summary));
+            const label=node('label','','Urutkan peringkat');label.htmlFor='league-mode';
+            const filter=node('select','input-field');filter.id='league-mode';
+            [['NET_WORTH','Total kekayaan'],['WEEKLY_RETURN','Return minggu berjalan']].forEach(([value,title])=>{const option=node('option','',title);option.value=value;filter.append(option);});
+            filter.value=mode;filter.onchange=()=>openLeagueAndRivalModal(filter.value);panel.append(label,filter);
+            const data=bridgeResult('getLeagueLeaderboard',mode);
+            panel.append(node('h2','',`${data.tierLabel} · Minggu ${data.seasonWeek}`));
+            metricCard(panel,'Peringkat kamu',data.playerRank == null ? 'Belum tersedia' : `#${data.playerRank}`,data.playerRank == null ? 'Return memerlukan periode dan modal tertimbang yang valid.' : `${data.totalCompetitors} peserta`);
+            (data.leaderboard || []).forEach(entry=>{
+                const row=node('section','data-row');if(entry.isPlayer)row.classList.add('player-row');
+                const identity=node('div');identity.append(node('strong','',`#${entry.rank} ${entry.name}`),node('small','',`${entry.title} · ${entry.style}`));
+                row.append(identity,node('strong','',mode === 'WEEKLY_RETURN' ? (entry.weeklyReturn || entry.weeklyReturnPercent || '0%') : entry.netWorth));panel.append(row);
+            });
+            flowButton(panel,'Riwayat hasil mingguan',openPerformanceReport);
+        }catch(error){flowText(panel,'Liga belum dapat dimuat',error.message);}
     }
 
     function openPlayerProfileModal() {
         const panel = showFlow('Profil Pemain & Statistik');
-        flowText(panel, 'Identitas lokal (D16)', 'Rekor statistik, rekam jejak performa, dan preferensi tampilan offline tersimpan di perangkat.');
+        flowText(panel, 'Profil lokal', 'Identitas, statistik dan preferensi tersimpan di perangkat.');
 
         if (!bridge.getPlayerProfile) {
             flowText(panel, 'Status', 'Bridge profil belum tersedia.');
@@ -2915,6 +3055,7 @@
             flowText(statCard, 'Puncak kekayaan tertinggi', p.lifetimePeakNetWorth);
             flowText(statCard, 'Lama bermain', `${p.lifetimeDaysPlayed} hari game`);
             panel.append(statCard);
+            flowButton(panel,'Laporan hasil investasi',openPerformanceReport);
 
             // Edit Profil Form
             const formCard = document.createElement('section');
@@ -2933,12 +3074,18 @@
             const textScaleLabel = document.createElement('label');
             textScaleLabel.textContent = 'Ukuran teks tampilan';
             const textScaleSelect = document.createElement('select');
+            textScaleSelect.id = 'player-text-size'; textScaleLabel.htmlFor = textScaleSelect.id;
             textScaleSelect.className = 'input-field';
             textScaleSelect.innerHTML = `
                 <option value="100%" ${p.preferences && p.preferences.textSize === '100%' ? 'selected' : ''}>100% (Standar)</option>
                 <option value="200%" ${p.preferences && p.preferences.textSize === '200%' ? 'selected' : ''}>200% (Teks Besar Aksesibel)</option>
             `;
 
+            const highContrastLabel=node('label','check-row');const highContrast=node('input');highContrast.type='checkbox';highContrast.checked=Boolean(p.preferences && p.preferences.highContrast);
+            highContrastLabel.append(highContrast,node('span','','Kontras tinggi'));
+            const reducedMotionLabel=node('label','check-row');const reducedMotion=node('input');reducedMotion.type='checkbox';reducedMotion.checked=Boolean(p.preferences && p.preferences.reducedMotion);
+            reducedMotionLabel.append(reducedMotion,node('span','','Kurangi gerakan'));
+            const profileStatus=node('p');profileStatus.setAttribute('role','status');
             const saveBtn = document.createElement('button');
             saveBtn.className = 'btn-primary';
             saveBtn.style.marginTop = '12px';
@@ -2950,19 +3097,18 @@
                         playerName: nameInput.value.trim(),
                         preferences: {
                             textSize: textScaleSelect.value,
-                            highContrast: false,
-                            reducedMotion: false
+                            highContrast: highContrast.checked,
+                            reducedMotion: reducedMotion.checked
                         }
                     };
-                    const res = JSON.parse(bridge.updatePlayerProfile(JSON.stringify(req)));
-                    document.documentElement.style.fontSize = textScaleSelect.value === '200%' ? '200%' : '';
-                    alert('Profil dan preferensi berhasil disimpan!');
+                    const res = bridgeResult('updatePlayerProfile',JSON.stringify(req));
+                    applyPlayerPreferences(res.preferences || req.preferences);
+                    profileStatus.textContent='Profil dan preferensi tersimpan.';
                     refreshSnapshot();
-                    closeFlow();
-                } catch (err) { alert('Gagal menyimpan: ' + err.message); }
+                } catch (err) { profileStatus.textContent='Gagal menyimpan: '+err.message; }
             };
 
-            formCard.append(nameLabel, nameInput, textScaleLabel, textScaleSelect, saveBtn);
+            formCard.append(nameLabel, nameInput, textScaleLabel, textScaleSelect, highContrastLabel, reducedMotionLabel, saveBtn, profileStatus);
             panel.append(formCard);
         } catch (e) {
             flowText(panel, 'Gagal memuat profil', e.message);
@@ -3871,8 +4017,8 @@
                 refreshSnapshot();
             } catch (error) { flowText(panel, 'Load gagal', error.message); }
         });
-        flowButton(panel, 'Ukuran teks 200%', () => { document.documentElement.style.fontSize = '200%'; });
-        flowButton(panel, 'Ukuran teks standar', () => { document.documentElement.style.fontSize = ''; });
+        flowButton(panel, 'Ukuran teks 200%', () => { try { persistPlayerPreferences({textSize:'200%'}); } catch(error) { flowText(panel,'Preferensi belum tersimpan',error.message); } });
+        flowButton(panel, 'Ukuran teks standar', () => { try { persistPlayerPreferences({textSize:'100%'}); } catch(error) { flowText(panel,'Preferensi belum tersimpan',error.message); } });
         flowText(panel, 'Gerak', 'Preferensi reduced motion sistem dihormati. Preferensi teks lokal belum dipersist.');
     });
 
