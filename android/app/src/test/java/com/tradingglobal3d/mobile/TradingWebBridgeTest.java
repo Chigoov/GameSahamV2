@@ -115,7 +115,13 @@ public class TradingWebBridgeTest {
     public void testGetInstrumentsAndIndices() throws Exception {
         String instRaw = bridge.getInstruments("", "", "", true);
         JSONArray instruments = new JSONArray(instRaw);
-        assertEquals(20, instruments.length()); // 10 IDX + 10 US
+        assertEquals(100, instruments.length()); // 50 IDX + 50 US, all active in the game.
+        JSONArray all = new JSONArray(bridge.getInstruments("", "", "", false));
+        assertEquals(100, all.length());
+        for (int i = 0; i < all.length(); i++) assertTrue(all.getJSONObject(i).getBoolean("isActiveTrading"));
+        JSONArray category = new JSONArray(bridge.getInstruments("", "US", "Teknologi", true));
+        assertTrue(category.length() > 0);
+        for (int i = 0; i < category.length(); i++) assertEquals("Teknologi", category.getJSONObject(i).getString("sector"));
 
         String idxRaw = bridge.getIndices();
         JSONArray indices = new JSONArray(idxRaw);

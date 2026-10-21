@@ -15,6 +15,7 @@ import java.util.*;
  * serta manajemen watchlist.
  */
 public final class InstrumentCatalog {
+    public static final int STATE_VERSION = 2;
     private final Map<String, Instrument> instrumentsById = new LinkedHashMap<>();
     private final Map<String, MarketIndex> indicesById = new LinkedHashMap<>();
     private final Set<String> watchlistIds = new LinkedHashSet<>();
@@ -123,7 +124,7 @@ public final class InstrumentCatalog {
                 .put("previous", inst.getPreviousClosePrice().getAmount().toPlainString())
                 .put("high", inst.getDayHigh().getAmount().toPlainString())
                 .put("low", inst.getDayLow().getAmount().toPlainString()).put("volume", inst.getDayVolume()));
-        return new JSONObject().put("instruments", instruments).put("watchlist", new JSONArray(watchlistIds));
+        return new JSONObject().put("catalogVersion", STATE_VERSION).put("instruments", instruments).put("watchlist", new JSONArray(watchlistIds));
     }
 
     private List<Instrument> parseMarketState(JSONArray saved) throws JSONException {

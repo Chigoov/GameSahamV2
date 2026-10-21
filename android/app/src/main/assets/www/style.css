@@ -403,6 +403,7 @@ strong, .metric-hero {
 
 .page-heading {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
     gap: 12px;
@@ -528,26 +529,19 @@ strong, .metric-hero {
 
 .hero-cash {
     border-top: 1px solid rgba(255, 255, 255, 0.08);
-    margin-top: 20px;
-    padding-top: 16px;
+    margin-top: 18px;
+    padding-top: 14px;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 8px;
 }
 
 .hero-cash > div {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 12px;
-    padding: 8px 12px;
-}
-
-.hero-cash > div:first-child {
-    grid-column: 1/-1;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    padding: 8px 10px;
+    min-width: 0;
 }
 
 .hero-cash small {
@@ -557,11 +551,18 @@ strong, .metric-hero {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: .05em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .hero-cash strong {
-    font-size: .95rem;
+    font-size: .92rem;
     font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
 }
 
 .hero-cash > div:nth-child(2) strong {
@@ -729,6 +730,239 @@ strong, .metric-hero {
 }
 
 /* =========================================================================
+   BAR AKSI CEPAT FINANSIAL (REFERENSI VISUAL 01 & 03)
+   ========================================================================= */
+
+.quick-actions-bar {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 14px 0 20px;
+    padding: 2px 2px 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.quick-action-circle {
+    flex: 1 1 0;
+    min-width: 52px;
+    background: transparent;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    padding: 4px 0;
+    border-radius: 14px;
+    transition: transform 150ms ease, background-color 150ms ease;
+}
+
+.quick-action-circle:focus-visible {
+    outline: 2px solid var(--teal);
+    outline-offset: 2px;
+}
+
+.qa-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, rgba(32, 41, 69, 0.8) 0%, rgba(18, 23, 40, 0.95) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: var(--teal);
+    transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.quick-action-circle:hover:not(:disabled) .qa-icon {
+    transform: translateY(-2px);
+    border-color: rgba(20, 241, 149, 0.4);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 14px rgba(20, 241, 149, 0.25);
+}
+
+.quick-action-circle:active:not(:disabled) .qa-icon {
+    transform: scale(0.92);
+}
+
+.qa-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-align: center;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+/* =========================================================================
+   DUAL ACTION DOCK DETAIL INSTRUMEN (REFERENSI VISUAL 01 & 02)
+   ========================================================================= */
+
+.detail-actions-dock {
+    display: grid;
+    grid-template-columns: 1fr 1.25fr;
+    gap: 12px;
+    margin-top: 18px;
+    position: sticky;
+    bottom: 0;
+    padding: 12px 0 4px;
+    background: linear-gradient(180deg, transparent 0%, rgba(7, 9, 14, 0.95) 30%, #07090E 100%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 10;
+}
+
+.btn-detail-sell {
+    background: rgba(255, 59, 105, 0.12);
+    border: 1px solid rgba(255, 59, 105, 0.4);
+    color: #FF6B8B;
+    font-weight: 700;
+    min-height: 48px;
+    border-radius: 14px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: transform 150ms ease, background 150ms ease;
+}
+
+.btn-detail-sell:hover:not(:disabled) {
+    background: rgba(255, 59, 105, 0.22);
+    transform: translateY(-1px);
+}
+
+.btn-detail-buy {
+    background: linear-gradient(135deg, #14F195 0%, #00B87A 100%);
+    border: 1px solid rgba(20, 241, 149, 0.6);
+    color: #05080E;
+    font-weight: 700;
+    min-height: 48px;
+    border-radius: 14px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    box-shadow: 0 4px 18px rgba(20, 241, 149, 0.35);
+    transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.btn-detail-buy:hover:not(:disabled) {
+    box-shadow: 0 6px 24px rgba(20, 241, 149, 0.55);
+    transform: translateY(-1px);
+}
+
+/* =========================================================================
+   TOAST NOTIFICATION REALTIME SYSTEM (U4)
+   ========================================================================= */
+
+.toast-container {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 24px);
+    max-width: 400px;
+    z-index: 2000;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.game-toast {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: rgba(14, 18, 34, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65), 0 0 20px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+    transition: opacity 220ms ease, transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: auto;
+}
+
+.game-toast.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.game-toast.success {
+    border-color: rgba(20, 241, 149, 0.5);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65), 0 0 22px rgba(20, 241, 149, 0.25);
+}
+
+.game-toast.achievement {
+    border-color: rgba(255, 184, 0, 0.5);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65), 0 0 22px rgba(255, 184, 0, 0.25);
+}
+
+.toast-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.08);
+    color: #FFF;
+    flex-shrink: 0;
+}
+
+.game-toast.success .toast-icon {
+    background: rgba(20, 241, 149, 0.18);
+    color: var(--teal);
+}
+
+.game-toast.achievement .toast-icon {
+    background: rgba(255, 184, 0, 0.18);
+    color: var(--gold);
+}
+
+.toast-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.toast-body strong {
+    font-size: 0.88rem;
+    color: #FFFFFF;
+    line-height: 1.25;
+}
+
+.toast-body small {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    line-height: 1.2;
+}
+
+/* Price Flash Animations */
+@keyframes flashPriceUp {
+    0% { background-color: rgba(20, 241, 149, 0.4); }
+    100% { background-color: transparent; }
+}
+
+@keyframes flashPriceDown {
+    0% { background-color: rgba(255, 59, 105, 0.4); }
+    100% { background-color: transparent; }
+}
+
+.price-flash-up {
+    animation: flashPriceUp 600ms ease-out;
+}
+
+.price-flash-down {
+    animation: flashPriceDown 600ms ease-out;
+}
+
+/* =========================================================================
    FLOATING BOTTOM NAVIGATION BAR (DOCK)
    ========================================================================= */
 
@@ -865,6 +1099,7 @@ strong, .metric-hero {
 }
 
 .highlight {
+    overflow-wrap: anywhere;
     border-radius: 18px;
     padding: 16px;
     border: 1px solid rgba(20, 241, 149, 0.3);
@@ -904,7 +1139,7 @@ strong, .metric-hero {
 
 .market-tools {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr));
     gap: 10px;
     margin-bottom: 20px;
 }
@@ -1801,6 +2036,30 @@ label {
         overflow-wrap: break-word;
         word-break: break-word;
     }
+    .quick-actions-bar {
+        gap: 4px;
+        margin: 10px 0 14px;
+    }
+    .qa-icon {
+        width: 42px;
+        height: 42px;
+        font-size: 1.1rem;
+    }
+    .qa-label {
+        font-size: 0.62rem;
+    }
+    .hero-cash {
+        gap: 6px 4px;
+    }
+    .hero-cash > div {
+        padding: 6px 8px;
+    }
+    .hero-cash strong {
+        font-size: .82rem;
+    }
+    .hero-cash small {
+        font-size: .62rem;
+    }
 }
 
 @media (max-height: 480px) {
@@ -1916,7 +2175,10 @@ html.power-save .bottom-nav,
 html.power-save .shortcut,
 html.power-save .index-card,
 html.power-save .stock-list-item,
-html.power-save .achievement-card {
+html.power-save .achievement-card,
+html.power-save .game-toast,
+html.power-save .qa-icon,
+html.power-save .detail-actions-dock {
     background: var(--surface-solid) !important;
     border-color: rgba(255, 255, 255, 0.1) !important;
 }

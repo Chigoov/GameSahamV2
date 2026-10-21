@@ -47,9 +47,9 @@
     "syntheticDataAsHistorical": false
   },
   "universe": {
-    "activeCountIDX": 10,
-    "activeCountUS": 10,
-    "passiveCatalogCount": 6,
+    "activeCountIDX": 50,
+    "activeCountUS": 50,
+    "passiveCatalogCount": 0,
     "indicesCount": 3
   }
 }

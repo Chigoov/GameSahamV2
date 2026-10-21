@@ -7,11 +7,13 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Container Toast Notifikasi Realtime / Feedback Transaksi (Referensi Visual & UX) -->
+    <div id="toast-container" class="toast-container" role="status" aria-live="polite"></div>
     <a class="skip-link" href="#main-content">Lewati ke konten</a>
     <header class="app-header">
         <button id="btn-settings" class="brand-button" aria-label="Buka pengaturan dan simpan permainan"><span class="brand-mark">G<span>↗</span></span></button>
         <div class="header-identity"><span class="eyebrow">GLOBAL TRADER</span><strong id="header-title">Beranda</strong></div>
-        <button id="header-wealth-chip" class="wealth-chip" aria-label="Total kekayaan pribadi, buka rincian"><small>Kekayaan pribadi ↗</small><strong id="header-net-worth">Memuat…</strong></button>
+        <button id="header-wealth-chip" class="wealth-chip" aria-label="Kas tersedia pribadi, buka portofolio"><small>Kas Tersedia ↗</small><strong id="header-net-worth">Memuat…</strong></button>
     </header>
     <div class="context-strip">
         <div class="session-indicator"><span id="session-dot" class="status-dot"></span><span id="session-label">Memuat sesi</span><time id="clock-display"></time></div>
@@ -31,11 +33,43 @@
         <section id="view-beranda" class="screen-view active">
             <div class="page-heading"><div><span class="eyebrow" id="home-date">HARI PERDAGANGAN</span><h1>Bangun langkahmu.</h1></div><span class="live-badge">Simulasi</span></div>
             <section class="card wealth-hero" aria-label="Ringkasan kekayaan pribadi">
-                <div class="hero-top"><span class="eyebrow">TOTAL KEKAYAAN BERSIH</span><span class="hero-symbol" aria-hidden="true">↗</span></div>
+                <div class="hero-top">
+                    <span class="eyebrow">TOTAL KEKAYAAN BERSIH</span>
+                    <span id="home-wealth-change" class="change-pill positive">▲ +0.0% hari ini</span>
+                </div>
                 <div id="home-net-worth" class="metric-hero">Memuat…</div>
-                <p class="hero-caption">Aset pribadi dikurangi kewajiban · IDR</p>
-                <div class="hero-cash"><div><small>Kas IDR</small><strong id="home-total-cash">Memuat…</strong></div><div><small>Tersedia</small><strong id="home-avail-cash">Memuat…</strong></div><div><small>Tertahan</small><strong id="home-reserved-cash">Memuat…</strong></div></div>
-                </section>
+                <p class="hero-caption">Aset portofolio, kas, bisnis & koleksi · IDR</p>
+                <div class="hero-cash">
+                    <div><small>Kas IDR Total</small><strong id="home-total-cash">Memuat…</strong></div>
+                    <div><small>Tersedia</small><strong id="home-avail-cash">Memuat…</strong></div>
+                    <div><small>Tertahan</small><strong id="home-reserved-cash">Memuat…</strong></div>
+                    <div><small>Kewajiban / Utang</small><strong id="home-liabilities" style="color:var(--text-muted);">Rp 0</strong></div>
+                </div>
+            </section>
+
+            <!-- Bar Aksi Cepat Finansial (Referensi Visual 01 & 03) -->
+            <div class="quick-actions-bar" aria-label="Aksi cepat transaksi">
+                <button id="btn-qa-buy" class="quick-action-circle" aria-label="Beli Saham">
+                    <span class="qa-icon" aria-hidden="true">🛒</span>
+                    <span class="qa-label">Beli Saham</span>
+                </button>
+                <button id="btn-qa-portfolio" class="quick-action-circle" aria-label="Portofolio Saya">
+                    <span class="qa-icon" aria-hidden="true">💼</span>
+                    <span class="qa-label">Portofolio</span>
+                </button>
+                <button id="btn-qa-business" class="quick-action-circle" aria-label="Kelola Bisnis">
+                    <span class="qa-icon" aria-hidden="true">🏢</span>
+                    <span class="qa-label">Bisnis</span>
+                </button>
+                <button id="btn-qa-sponsor" class="quick-action-circle" aria-label="Klaim Hibah Sponsor">
+                    <span class="qa-icon" aria-hidden="true">🎁</span>
+                    <span class="qa-label">Klaim Hibah</span>
+                </button>
+                <button id="btn-qa-loans" class="quick-action-circle" aria-label="Pinjaman Beragunan">
+                    <span class="qa-icon" aria-hidden="true">💳</span>
+                    <span class="qa-label">Pinjaman</span>
+                </button>
+            </div>
                 <!-- Modul Sponsor Harian (Pengganti Ad-Reward) -->
                 <section class="card sponsor-card" id="home-sponsor-card" style="border-color:rgba(20, 241, 149, 0.35); background:linear-gradient(135deg, rgba(20, 241, 149, 0.12) 0%, rgba(13, 17, 30, 0.9) 100%);">
                     <div class="section-heading">
@@ -101,6 +135,12 @@
                         <option value="">Semua</option>
                         <option value="IDX">IDX (Indonesia)</option>
                         <option value="US">US (Wall St)</option>
+                    </select>
+                </div>
+                <div style="flex:1 1 160px; min-width:0;">
+                    <label for="filter-sector-select">Kategori / sektor</label>
+                    <select id="filter-sector-select" class="input-field" style="margin:0;">
+                        <option value="">Semua kategori</option>
                     </select>
                 </div>
             </div>

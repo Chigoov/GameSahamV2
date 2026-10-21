@@ -62,26 +62,34 @@ public class InstrumentCatalogIndexTest {
     }
 
     @Test
-    public void testActiveUniverseCountAndPassiveIsolation() {
+    public void testAtLeast100CategorizedCompaniesAreAllActive() throws Exception {
         List<Instrument> activeList = catalog.getActiveUniverse();
-        // 10 IDX + 10 US = 20 instrumen aktif
-        assertEquals(20, activeList.size());
+        assertTrue(activeList.size() >= 100);
+        assertEquals(catalog.getAllInstruments().size(), activeList.size());
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        org.json.JSONArray raw = new JSONObject(jsonUniverseData).getJSONArray("instruments");
+        for (int i = 0; i < raw.length(); i++) assertTrue("ID katalog tidak boleh duplikat", ids.add(raw.getJSONObject(i).getString("id")));
+        assertEquals(raw.length(), activeList.size());
 
         for (Instrument inst : activeList) {
             assertTrue("Seluruh instrumen di active universe harus tradable", inst.isActiveTrading());
             assertTrue(inst.isTradable());
+            assertFalse(inst.getSector().trim().isEmpty());
+            assertTrue(inst.getCurrentPrice().isPositive());
+            assertTrue(inst.getSharesOutstanding() > 0);
+            assertTrue(catalog.search(inst.getTicker(), inst.getExchange(), inst.getSector(), true).contains(inst));
         }
 
-        // Cek instrumen pasif
+        // The previous six passive entries remain present and now trade in the internal game.
         Instrument bbni = catalog.getById("IDX:BBNI");
         assertNotNull(bbni);
-        assertFalse("BBNI adalah katalog pasif", bbni.isActiveTrading());
-        assertFalse("Instrumen pasif tidak boleh tradable", bbni.isTradable());
+        assertTrue(bbni.isActiveTrading());
+        assertTrue(bbni.isTradable());
 
         Instrument dis = catalog.getById("US:DIS");
         assertNotNull(dis);
-        assertFalse(dis.isActiveTrading());
-        assertFalse(dis.isTradable());
+        assertTrue(dis.isActiveTrading());
+        assertTrue(dis.isTradable());
     }
 
     @Test
@@ -90,17 +98,17 @@ public class InstrumentCatalogIndexTest {
         List<Instrument> banks = catalog.search("Bank", MarketExchange.IDX, null, true);
         assertTrue(banks.size() >= 3); // BBCA, BMRI, BBRI
 
-        // Filter sektor "Technology" di US
-        List<Instrument> usTech = catalog.search(null, MarketExchange.US, "Technology", true);
+        // Filter the same category vocabulary displayed by the Indonesian UI.
+        List<Instrument> usTech = catalog.search(null, MarketExchange.US, "Teknologi", true);
         assertFalse(usTech.isEmpty());
         for (Instrument t : usTech) {
             assertEquals(MarketExchange.US, t.getExchange());
-            assertTrue(t.getSector().contains("Technology"));
+            assertEquals("Teknologi", t.getSector());
         }
 
         // Filter pasif saja
         List<Instrument> passiveOnly = catalog.search(null, null, null, false);
-        assertEquals(6, passiveOnly.size()); // 3 IDX + 3 US pasif
+        assertTrue(passiveOnly.isEmpty());
     }
 
     @Test
@@ -164,9 +172,11 @@ public class InstrumentCatalogIndexTest {
         assertTrue(aaplEntry.getString("license").contains("Apache"));
 
         JSONObject universe = manifest.getJSONObject("universe");
-        assertEquals(10, universe.getInt("activeCountIDX"));
-        assertEquals(10, universe.getInt("activeCountUS"));
-        assertEquals(6, universe.getInt("passiveCatalogCount"));
+        assertEquals(50, universe.getInt("activeCountIDX"));
+        assertEquals(50, universe.getInt("activeCountUS"));
+        assertEquals(0, universe.getInt("passiveCatalogCount"));
+        assertEquals(universe.getInt("activeCountIDX"), catalog.search(null, MarketExchange.IDX, null, true).size());
+        assertEquals(universe.getInt("activeCountUS"), catalog.search(null, MarketExchange.US, null, true).size());
         assertEquals(3, universe.getInt("indicesCount"));
     }
 

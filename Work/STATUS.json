@@ -22,7 +22,7 @@
     "13"
   ],
   "hermes_session_id": "20261020_230515_5c4e96",
-  "next_action": "Instal APK pada HP fisik pengguna untuk validasi touch/haptic/IME/battery nyata (scope mandiri di luar laptop).",
+  "next_action": "Kirim Work/ASSET-REQUESTS-UX-MOTION-REALTIME-2026-10-21.md ke Codex untuk dibuatkan aset gambar via imagegen; APK GameSaham-v1.0.0-final.apk siap untuk pengujian mandiri di HP Android.",
   "tasks": [
     {
       "id": "00",
@@ -264,15 +264,16 @@
     }
   ],
   "evidence": {
-    "domain": "PASS_455_JVM_TESTS_0_FAILURES_54_SUITES_INCLUDING_10X100_EXTREME_ALL_FEATURES",
-    "browser": "PASS_70_ROOT_266_FLOW_PLAYWRIGHT_ZERO_OVERFLOW",
+    "domain": "PASS_461_JVM_TESTS_0_FAILURES_55_SUITES_CATALOG100_REGRESSION",
+    "browser": "PASS_70_ROOT_266_FLOW_PLAYWRIGHT_ZERO_OVERFLOW_8_LIVE_SYNC_CHECKS",
     "native_bridge": "VERIFIED_VIA_TRADING_WEB_BRIDGE_102_METHODS",
     "historical_dataset": "VERIFIED_US_AAPL_61_BARS_WIKI_PUBLIC_DOMAIN_QUARANTINE_EXCLUDED_FROM_APK",
-    "apk_build": "VERIFIED_FRESH_APK_BUILD_836KB_QUARANTINE_EXCLUDED",
-    "performance": "PASS_HOST_P95_NAV_85MS_ACTION_86MS_POWER_SAVE_MODE_VERIFIED",
+    "apk_build": "VERIFIED_UX_MOTION_REALTIME_APK_952643_BYTES_SHA256_382F0FF2",
+    "performance": "PASS_HOST_P95_NAV_62MS_ACTION_68MS_POWER_SAVE_MODE_VERIFIED",
+    "asset_requests": "ASSETS_PENDING_CODEX_19_ITEMS_REQUESTED",
     "hardware_device_scope": "PHYSICAL_DEVICE_DEFERRED_NOT_TESTED"
   },
-  "last_checkpoint": "2026-10-21T15:45:00+07:00",
+  "last_checkpoint": "2026-10-21T21:15:00+07:00",
   "blockers": [],
   "open_product_decisions": [
     "OQ-01",
@@ -356,5 +357,23 @@
     "browser_scope": "Java-host browser, not native runtime",
     "native_runtime": "NOT_TESTED"
   },
-  "execution_state": "PAUSED_BY_OWNER"
+  "execution_state": "PAUSED_BY_OWNER",
+  "catalog_expansion": {
+    "status": "COMPLETE_FOR_SOURCE_HOST_BROWSER_APK",
+    "checkpoint": "Work/CHECKPOINT-CATALOG-100-2026-10-21.md",
+    "baseline": "8c61169",
+    "companies": 100,
+    "active": 100,
+    "inactive": 0,
+    "idx": 50,
+    "us": 50,
+    "categories": 12,
+    "full_jvm_tests": 461,
+    "browser_evidence": "Artifacts/Catalog100-2026-10-21/browser-result.json",
+    "verification": "Artifacts/Catalog100-2026-10-21/verification.json",
+    "apk": "Artifacts/Catalog100-2026-10-21/GameSaham-100-Perusahaan.apk",
+    "sha256": "77faf2da9a6bb6b3297cd4cb1db3b875d7a9aceb16e4009ea67baa97c19a1024",
+    "native_device": "NOT_TESTED",
+    "note": "Scoped catalog update; does not re-certify all prior 14-phase browser/native gates."
+  }
 }

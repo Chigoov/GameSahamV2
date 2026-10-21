@@ -91,6 +91,13 @@ public final class TradingFacade {
     private final SaveManager primarySaveManager;
     private InstrumentCatalog catalog = new InstrumentCatalog();
     private JSONObject initialCatalogState;
+    // ponytail: only the shipped 26-company baseline is migratable; future expansions need their own versioned baseline.
+    private static final Set<String> LEGACY_CATALOG_IDS = new HashSet<>(Arrays.asList(
+            "IDX:BBCA", "IDX:BMRI", "IDX:BBRI", "IDX:TLKM", "IDX:ASII", "IDX:UNVR", "IDX:ICBP", "IDX:GOTO", "IDX:ANTM", "IDX:ADRO",
+            "US:AAPL", "US:MSFT", "US:GOOGL", "US:AMZN", "US:NVDA", "US:TSLA", "US:META", "US:JNJ", "US:JPM", "US:BRK.B",
+            "IDX:BBNI", "IDX:KLBF", "IDX:PGAS", "US:DIS", "US:NFLX", "US:WMT"));
+    private static final Set<String> LEGACY_PASSIVE_IDS = new HashSet<>(Arrays.asList(
+            "IDX:BBNI", "IDX:KLBF", "IDX:PGAS", "US:DIS", "US:NFLX", "US:WMT"));
     private final MarketEngine marketEngine = new MarketEngine();
     private final FxExchangeService fxService = new FxExchangeService();
     private final OrderManager orderManager = new OrderManager();
@@ -1646,7 +1653,25 @@ public final class TradingFacade {
                     if (restoredLabs.put(lab.getSandboxId(), lab) != null) throw new IllegalArgumentException("Identitas lab duplikat");
                 }
             }
+            int savedCatalogVersion = runtime.has("catalog") ? runtime.getJSONObject("catalog").optInt("catalogVersion", 1) : InstrumentCatalog.STATE_VERSION;
             restoredCatalog = catalogForSave(runtime);
+            if (savedCatalogVersion == 1 && runtime.has("catalog")
+                    && runtime.getJSONObject("catalog").optInt("catalogVersion", 1) == InstrumentCatalog.STATE_VERSION) {
+                Account dealer = null;
+                for (Account account : state.getAccounts()) if ("ACC-NPC-MM-01".equals(account.getId())) dealer = account;
+                if (dealer == null) throw new IllegalArgumentException("Akun likuiditas migrasi tidak tersedia");
+                Set<String> baselineIds = new HashSet<>();
+                JSONArray baseline = initialCatalogState.getJSONArray("instruments");
+                for (int i = 0; i < baseline.length(); i++) baselineIds.add(baseline.getJSONObject(i).getString("id"));
+                // Seed only newly tradable inventory once; normal reload must never replenish sold positions.
+                for (Instrument inst : restoredCatalog.getActiveUniverse()) {
+                    if (!baselineIds.contains(inst.getId())) continue;
+                    if (LEGACY_CATALOG_IDS.contains(inst.getId()) && !LEGACY_PASSIVE_IDS.contains(inst.getId())) continue;
+                    if (dealer.getPosition(inst.getId()) == null && dealer.getPosition(inst.getTicker()) == null)
+                        dealer.addPosition(new Position(inst.getTicker(), inst.getExchange().name(), inst.getCurrency(),
+                                inst.getLotSize() * 200L, inst.getCurrentPrice().getAmount(), inst.getCurrentPrice().getAmount()));
+                }
+            }
             JSONObject skips = runtime.optJSONObject("skipDayReceipts");
             if (skips != null) {
                 Iterator<String> keys = skips.keys();
@@ -1843,6 +1868,12 @@ public final class TradingFacade {
     /** Restore only catalog additions proven by persisted IPO allotment; never accept unknown save symbols. */
     private InstrumentCatalog catalogForSave(JSONObject runtime) throws JSONException {
         InstrumentCatalog result = new InstrumentCatalog();
+        JSONObject catalogState = runtime.optJSONObject("catalog");
+        Object versionValue = catalogState == null ? InstrumentCatalog.STATE_VERSION
+                : catalogState.has("catalogVersion") ? catalogState.get("catalogVersion") : 1;
+        if (!(versionValue instanceof Integer) || (Integer) versionValue < 1 || (Integer) versionValue > InstrumentCatalog.STATE_VERSION)
+            throw new IllegalArgumentException("Versi katalog save tidak didukung");
+        int version = (Integer) versionValue;
         CorporateActionService savedCorporate = new CorporateActionService();
         if (runtime.has("corporate")) savedCorporate.restoreState(runtime.getJSONObject("corporate"));
         Map<String, IpoOffering> listed = new HashMap<>();
@@ -1863,6 +1894,27 @@ public final class TradingFacade {
         }
         if (initialCatalogState != null) {
             JSONArray required = initialCatalogState.getJSONArray("instruments");
+            Set<String> requiredIds = new HashSet<>();
+            for (int i = 0; i < required.length(); i++) requiredIds.add(required.getJSONObject(i).getString("id"));
+            Set<String> savedBaseIds = new HashSet<>(ids);
+            savedBaseIds.retainAll(requiredIds);
+            boolean upgrade = version == 1 && catalogState != null && requiredIds.size() >= 100
+                    && savedBaseIds.equals(LEGACY_CATALOG_IDS) && requiredIds.containsAll(LEGACY_CATALOG_IDS);
+            if (upgrade) {
+                for (int i = 0; i < required.length(); i++) {
+                    JSONObject initial = required.getJSONObject(i);
+                    String id = initial.getString("id");
+                    if (ids.add(id)) {
+                        Instrument source = catalog.getById(id);
+                        result.registerInstrument(new Instrument(source.getId(), source.getTicker(), source.getName(), source.getExchange(),
+                                source.getSector(), source.getCurrency(), source.getLotSize(), source.getSharesOutstanding(),
+                                source.isActiveTrading(), new Money(new BigDecimal(initial.getString("price")), source.getCurrency())));
+                        saved.put(new JSONObject(initial.toString()));
+                    }
+                }
+                // Only the detached SaveState changes here; disk stays intact until normal atomic save + .bak rotation.
+                catalogState.put("catalogVersion", InstrumentCatalog.STATE_VERSION);
+            }
             for (int i = 0; i < required.length(); i++) if (!ids.contains(required.getJSONObject(i).getString("id")))
                 throw new IllegalArgumentException("Instrumen dasar save hilang");
         }
