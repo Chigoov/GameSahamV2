@@ -109,6 +109,17 @@ public class MainActivity extends Activity {
         }
     }
 
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // Fail-safe autosave saat aplikasi diminimalkan / diswipe keluar
+        if (facade != null) {
+            try {
+                facade.save();
+            } catch (Exception ignored) {}
+        }
+    }
+
     private boolean saveFailed;
 
     @Override protected void onResume() {

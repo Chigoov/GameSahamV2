@@ -1884,6 +1884,31 @@ html.high-contrast {
     --divider: #475569;
 }
 
+/* Mode Hemat Daya / Kinerja Cepat untuk HP Menengah */
+html.power-save *, html.power-save *::before, html.power-save *::after {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+
+html.power-save .card,
+html.power-save .wealth-hero,
+html.power-save .modal-sheet,
+html.power-save .flow-page,
+html.power-save .bottom-nav,
+html.power-save .shortcut,
+html.power-save .index-card,
+html.power-save .stock-list-item,
+html.power-save .achievement-card {
+    background: var(--surface-solid) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+html.power-save .bottom-nav {
+    background: #0A0D16 !important;
+}
+
 html.reduced-motion *, html.reduced-motion *::before, html.reduced-motion *::after {
     animation: none !important;
     transition: none !important;

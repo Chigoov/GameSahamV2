@@ -4134,7 +4134,16 @@
         });
         flowButton(panel, 'Ukuran teks 200%', () => { try { persistPlayerPreferences({textSize:'200%'}); } catch(error) { flowText(panel,'Preferensi belum tersimpan',error.message); } });
         flowButton(panel, 'Ukuran teks standar', () => { try { persistPlayerPreferences({textSize:'100%'}); } catch(error) { flowText(panel,'Preferensi belum tersimpan',error.message); } });
-        flowText(panel, 'Gerak', 'Preferensi reduced motion sistem dihormati. Preferensi teks lokal belum dipersist.');
+
+        const isPowerSave = document.documentElement.classList.contains('power-save');
+        const psBtn = flowButton(panel, isPowerSave ? 'Mode Grafis: Hemat Daya (Aktif)' : 'Mode Grafis: Full Glassmorphism (Normal)', () => {
+            const next = !document.documentElement.classList.contains('power-save');
+            document.documentElement.classList.toggle('power-save', next);
+            try { localStorage.setItem('game_power_save', next ? 'true' : 'false'); } catch(e) {}
+            psBtn.textContent = next ? 'Mode Grafis: Hemat Daya (Aktif)' : 'Mode Grafis: Full Glassmorphism (Normal)';
+        });
+
+        flowText(panel, 'Gerak', 'Preferensi reduced motion sistem dihormati. Mode hemat daya mematikan efek blur untuk kelancaran di HP kelas menengah.');
     });
 
     document.getElementById('btn-home-market').addEventListener('click', () => switchTab('pasar'));
@@ -4143,7 +4152,12 @@
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape' && !orderModal.classList.contains('active') && flowPanel) { event.preventDefault(); closeFlow(); }
     });
-    // Initial Load
+    // Initial Load & Power Save preference restore
+    try {
+        if (localStorage.getItem('game_power_save') === 'true') {
+            document.documentElement.classList.add('power-save');
+        }
+    } catch(e) {}
     refreshSnapshot(); loadHomeMarket();
 
     window.showNativeSaveFailure = () => {
@@ -4155,9 +4169,19 @@
         document.body.prepend(warning);
     };
 
-    // Measure elapsed active time only. Java owns the time ratio and market advancement.
+    // Force-close resilience: autosave on backgrounding, swipe-away, or pagehide
     let lastClockSample = performance.now();
-    document.addEventListener('visibilitychange', () => { lastClockSample = performance.now(); });
+    const autoSaveOnExit = () => {
+        try {
+            if (bridge && bridge.saveGame) bridge.saveGame();
+        } catch(e) {}
+    };
+    document.addEventListener('visibilitychange', () => {
+        lastClockSample = performance.now();
+        if (document.hidden) autoSaveOnExit();
+    });
+    window.addEventListener('pagehide', autoSaveOnExit);
+    window.addEventListener('beforeunload', autoSaveOnExit);
     setInterval(() => {
         const now = performance.now();
         if (document.hidden) { lastClockSample = now; return; }
