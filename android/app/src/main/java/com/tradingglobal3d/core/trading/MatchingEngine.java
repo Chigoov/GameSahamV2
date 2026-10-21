@@ -497,11 +497,14 @@ public final class MatchingEngine {
     public synchronized boolean cancelOrder(Order order, Account account, OrderBook book) {
         if (order.getStatus().isFinal()) return false;
         boolean removed = book.cancelOrder(order.getId());
-        if (removed && order.isBuy()) {
-            Money remainingReserved = order.getReservedMoney();
-            if (remainingReserved != null && remainingReserved.isPositive()) {
-                account.releaseReservedCash(remainingReserved);
-                order.setReservedMoney(Money.zero(order.getLimitPrice() != null ? order.getLimitPrice().getCurrency() : Currency.IDR));
+        if (removed) {
+            order.cancel();
+            if (order.isBuy()) {
+                Money remainingReserved = order.getReservedMoney();
+                if (remainingReserved != null && remainingReserved.isPositive()) {
+                    account.releaseReservedCash(remainingReserved);
+                    order.setReservedMoney(Money.zero(order.getLimitPrice() != null ? order.getLimitPrice().getCurrency() : Currency.IDR));
+                }
             }
         }
         return removed;

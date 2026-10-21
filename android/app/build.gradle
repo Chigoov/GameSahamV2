@@ -31,6 +31,22 @@ android {
         sourceCompatibility JavaVersion.VERSION_21
         targetCompatibility JavaVersion.VERSION_21
     }
+
+    sourceSets {
+        main {
+            assets {
+                srcDirs = ['src/main/assets']
+            }
+        }
+    }
+
+    applicationVariants.all { variant ->
+        variant.mergeAssetsProvider.configure {
+            doLast {
+                delete fileTree(dir: outputDir, includes: ['**/idx_bbca_daily.csv', '**/us_aapl_daily.csv'])
+            }
+        }
+    }
 }
 
 dependencies {

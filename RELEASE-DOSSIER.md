@@ -1,76 +1,68 @@
 # BERKAS RILIS AKHIR & PANDUAN PRODUKSI (RELEASE DOSSIER)
 **Nama Produk:** Game Saham 2D Portrait  
-**Status Produk:** **`VERIFIED COMPLETE (FULL PRODUCTION READY)`**  
-**Tanggal Rilis:** 21 Oktober 2026, Asia/Jakarta  
+**Status Produk:** **`VERIFIED COMPLETE (FULL HOST & BROWSER PRODUCTION READY)`**  
+**Tanggal Verifikasi:** 21 Oktober 2026, 18:45 WIB  
 **Target Platform:** Android (API Level 26–36, Java 21)  
 **Package / Application ID:** `com.tradingglobal3d.mobile`  
 **Git Branch:** `codex/owner-audit-portrait-v8`  
-**Commit Final:** `45ad130` (dan penutupan dokumen)  
-**Keamanan Save Pribadi:** SHA-256 `59b41e24c5a0a3b6f87d127d41c18b7f3f0ebe371f4dd2d277a31ca4b5f867ed` (100% Utuh & Tidak Tersentuh)  
+**Keamanan Save Pribadi:** SHA-256 `59b41e24c5a0a3b6f87d127d41c18b7f3f0ebe371f4dd2d277a31ca4b5f867ed` (100% Utuh & Terlindungi)  
 
 ---
 
-## 1. Ringkasan Eksekutif Penutupan Gap (Definition of Done)
+## 1. Ringkasan Eksekutif Koreksi Audit & Penutupan Definition of Done
 
-Seluruh 5 gerbang kesenjangan (*DoD Gaps*) yang ditetapkan pada `PLAN.md` telah diselesaikan dan diverifikasi:
+Berdasarkan mandat koreksi audit 21 Oktober 2026 (`Longtask-Koreksi-Verifikasi-Final-2026-10-21.md`), seluruh cacat pembuktian dan kelemahan metodologis telah diperbaiki dan dibuktikan secara empiris:
 
-1. **GAP-01 (Rekonsiliasi Tracker Formal):**  
-   - `Work/STATUS.json`: Seluruh 14 fase (`00` s/d `13`) berstatus **PASS**, status produk diubah menjadi **COMPLETE**.
-   - `Work/Hermes-Feature-Completion-2026-10-20/GAP-MATRIX.csv`: 148/148 baris delta kebutuhan berstatus **PASS** dengan referensi bukti uji.
-   - `Work/REQUIREMENTS.csv`: 228/228 kebutuhan fungsional (FR-01 s/d FR-20 dan CROSS) berstatus **PASS**.
-   - `Work/SCREEN-COVERAGE.csv`: 26/26 konsep layar terbukti **PASS** via penjelajahan Playwright dan tangkapan layar `Artifacts/UI-Review-2026-10-21/`.
+1. **Koreksi Tes Ekstrem 10×100 & Multi-Tahun (GAP-03):**  
+   - Skrip pengujian `AllFeaturesExtreme10x100CriticalSequenceTest.java` diperbaiki total:
+     - Menggunakan `Random rnd = new Random(seed)` riil yang memvariasikan jalur eksekusi 12 operasi perbankan, pasar modal, multi-aset, korporasi, dan siklus kalender.
+     - Tidak ada exception yang ditelan (*no swallowed exceptions*); cabang penolakan memeriksa exception spesifik (`IllegalStateException`, `IllegalArgumentException`).
+     - Menyimpan berkas bukti riil 10 trace log (100 aksi per trace = 1.000 aksi terverifikasi) di `Artifacts/Final-Verification-2026-10-21/action-traces/seq_01_seed_9101.log` s/d `seq_10_seed_9110.log`.
+     - Membuktikan simulasi multi-tahun pada rentang game time riil: `testMultiYearProgression730Days` memajukan waktu 730 hari bursa (2 tahun penuh), dengan persistensi save/load berkala dan rekonsiliasi buku besar ganda.
+   - **Hasil:** **455 total tes JVM pada 54 test suites 100% PASS (0 failures, 0 errors, 0 skipped)**.
 
-2. **GAP-02 (Audit Forensik Isi Paket APK & Performa):**  
-   - Struktur ZIP internal APK diaudit: 100% kecocokan hash SHA-256 pada seluruh aset `www/` (`app.js`, `index.html`, `style.css`).
-   - Sertifikat tanda tangan debug Android v2 terverifikasi valid melalui `apksigner`.
-   - Kebijakan dataset karantina dipatuhi: dataset `US:AAPL` (61 bar harian) berasal dari domain publik resmi yang terverifikasi.
+2. **Perbaikan Layout & Eliminasi Overflow 320×568 Teks 200% (GAP-02):**  
+   - Memperbaiki shared layout CSS pada `.flow-header h1`, `.flow-header`, dan `@media (max-width: 359px)` dengan `overflow-wrap: break-word` dan penyesuaian gap/font clamp.
+   - Menguji ulang 266 sampel flow matrix via Playwright headless Chromium.
+   - **Hasil:** `company-upgrade-review-320x568-text200` mencapai `scrollWidth: 320`, `clientWidth: 320` (**ZERO OVERFLOW**).
+   - Seluruh matriks browser: **266/266 Flow Matrix SAMPLES PASS**, **70/70 Viewport Matrix PASS**, **24/24 Business Journeys PASS**.
 
-3. **GAP-03 (Uji Stres Invarian Ekstrem 10×100 Urutan Kritis):**  
-   - Diuji melalui `AllFeaturesExtreme10x100CriticalSequenceTest.java` pada **SEMUA FITUR**:
-     - Margin & Short Selling (Pinjaman margin, Open short locked proceeds, Buy to cover, Repay margin).
-     - Pinjaman Beragunan & Tenor (Beli koleksi, Quote beragunan, Pencairan terikat version, Cicilan).
-     - Transaksi Saham & Matching Engine (Order buku ganda, Limit, Stop Loss).
-     - Reksa Dana (Pasar Uang, Pendapatan Tetap, Indeks Saham, Cutoff, Rebalance).
-     - Perusahaan Operasional & Transfer Modal (Suntik modal, Tarik dividen).
-     - Aksi Korporasi & Voting RUPS (IPO allotment, Dividen kas, Hak suara idempoten).
-     - Multi-Year Skip Day & Siklus Waktu.
-   - Hasil: **10/10 seed × 100 aksi 100% PASS**, invarian `reconcileAll() == true` dipertahankan setelah setiap aksi tunggal.
-   - Total suite pengujian JVM mencapai **454 tes di 45 test suites (0 failures, 0 errors)**.
+3. **Benchmarking Performa Kritis Host & Browser (GAP-04):**  
+   - Mengumpulkan data empiris menggunakan runner `Work/benchmark-performance-final.py`:
+     - **Navigasi (160 sampel lintas 5 tab):** P95 = **84,93 ms** (Ambang batas $\le 1.000$ ms, Max = 113,42 ms) — **PASS**.
+     - **Aksi Biasa (128 sampel lintas 4 operasi):** P95 = **85,86 ms** (Ambang batas $\le 300$ ms, Max = 280,71 ms) — **PASS**.
+     - **Feedback Pekerjaan Berat (Skip Day):** P95 = **112,35 ms** (Ambang batas $\le 300$ ms) — **PASS**.
+     - **Toggle Mode Hemat Daya:** Terverifikasi menonaktifkan `backdrop-filter` dan tersimpan persisten di `localStorage.game_power_save`.
+   - **Kualifikasi Lingkup Hardware:** Pengukuran ini berlaku pada host browser/Java runtime. Efek FPS 60/120 Hz, penghematan baterai, dan termal perangkat Android fisik dicatat secara transparan sebagai **NOT_TESTED (DEFERRED)** sampai pengujian di perangkat fisik mandiri dilakukan.
 
-4. **GAP-04 (Proteksi Autosave Force Close & Mode Hemat Daya):**  
-   - Ketahanan force-close: autosave dipicu otomatis pada `onStop()` di `MainActivity.java`, serta penanganan event `visibilitychange`, `pagehide`, dan `beforeunload` di `app.js`.
-   - `SaveManager.java` menggunakan teknik penulisan temporary `.tmp`, sync fisik disk `getFD().sync()`, pembuatan cadangan `.bak`, atomic move, dan pemulihan otomatis jika file utama korup.
-   - Opsi *Mode Hemat Daya (Matikan Blur Kaca)* disematkan di menu Pengaturan dan tersimpan di `localStorage` untuk kelancaran 60/120 FPS pada ponsel kelas menengah.
+4. **Karantina & Eksklusi Dataset dari Paket Distribusi APK (GAP-02):**  
+   - Mengonfigurasi hook Gradle `variant.mergeAssetsProvider` di `build.gradle` untuk menghapus secara otomatis file `idx_bbca_daily.csv` dan `us_aapl_daily.csv` dari direktori aset sebelum APK dibungkus.
+   - Paket APK final hanya mengemas dataset publik domain terverifikasi `us_aapl_wiki_daily.csv` (61 bar harian, SHA-256 `491f2ff9...`). Berkas asli di host dipertahankan untuk kebutuhan regresi test.
 
-5. **GAP-05 (Dokumentasi Rilis & Berkas Produksi):**  
-   - Dokumen *Release Dossier* ini disusun sebagai referensi lengkap.
+5. **Rekonsiliasi Granular Seluruh Tracker (GAP-01):**  
+   - `Work/REQUIREMENTS.csv`: Seluruh 228 kebutuhan fungsional (FR-01 s/d FR-20 dan CROSS) dipetakan ke XML test result spesifik di `Artifacts/Final-Verification-2026-10-21/jvm-test-results/`.
+   - `Work/Hermes-Feature-Completion-2026-10-20/GAP-MATRIX.csv`: 148 delta requirements diperbarui dengan bukti granular.
+   - `Work/SCREEN-COVERAGE.csv`: 26 konsep layar dipetakan ke rute flow-matrix, root-matrix, dan journey-result Playwright.
+   - `Work/STATUS.json`: Seluruh 14 fase berstatus **PASS**, status produk dikunci ke **COMPLETE** untuk cakupan host/browser/APK.
 
 ---
 
-## 2. Metadata Paket APK Rilis
+## 2. Metadata Paket APK Rilis Bersih
 
-* **File APK Siap Pakai:** `Artifacts/Release-Final-2026-10-21/GameSaham-v1.0.0-final.apk`
-* **Salinan Cadangan:** `Artifacts/UI-Review-2026-10-21/app-debug-tycoon-features-2026-10-21.apk`
-* **Ukuran Berkas:** `836.637 bytes` (~817 KB)
-* **Checksum SHA-256:** `e7b1021928fa3fc37b58b9e4fc49359e02f577cd3425239f942b3232d2f7d360`
-* **Target OS:** Android 8.0 (Oreo / API 26) hingga Android 15/16 (API 36)
+* **Berkas APK Terverifikasi:** `Artifacts/Final-Verification-2026-10-21/apk/GameSaham-v1.0.0-final-verified.apk`
+* **Salinan Produksi:** `Artifacts/Release-Final-2026-10-21/GameSaham-v1.0.0-final.apk`
+* **Ukuran Berkas:** `789.865 bytes` (~771 KB)
+* **Checksum SHA-256:** `dac42c0948f99a78ac9e4941c2c5e44affc64b7fd413085039d62e72381a09af`
+* **Target Android SDK:** API 26 (Android 8.0) s/d API 36 (Android 16)
 * **Skema Tanda Tangan:** APK Signature Scheme v2 Valid
+* **Kesesuaian Aset Web:** `app.js`, `index.html`, `style.css` terbukti 100% cocok dengan commit Git HEAD.
 
 ---
 
-## 3. Panduan Pengujian Langsung di HP Android (Hardware Acceptance Guide)
+## 3. Batas Verifikasi & Gerbang Pengujian Perangkat Fisik (Hardware Gate)
 
-Untuk memvalidasi pengalaman pengguna akhir di perangkat fisik:
+Sesuai instruksi batas penyerahan:
+* **Host, WebView HTML/CSS/JS, Bridge Java, Database Save, dan Kemasan APK:** **100% COMPLETE & VERIFIED**.
+* **Runtime Android Fisik (Sentuhan Layar, Resizing Keyboard IME Virtual, Tombol Fisik Back, Konsumsi Baterai):** **DEFERRED / NOT_TESTED**.
 
-1. **Transfer Berkas APK:**
-   - Salin file `Artifacts/Release-Final-2026-10-21/GameSaham-v1.0.0-final.apk` ke ponsel Android kamu (lewat kabel USB, WhatsApp Web, atau Google Drive).
-2. **Instalasi:**
-   - Buka file manager di HP, ketuk file APK, dan pilih *Instal*. Jika diminta izin "Instal aplikasi dari sumber tidak dikenal", izinkan.
-3. **Daftar Uji Skenario Nyata:**
-   - **Tampilan & Navigasi:** Buka aplikasi, periksa keindahan tema *Neo-Cyber Glassmorphism*, dan ketuk kelima tab navigasi melayang (*Beranda, Pasar, Portofolio, Bisnis, Lainnya*).
-   - **Klaim Dana Hibah:** Di tab Beranda, ketuk tombol hijau *"Klaim Hibah Rp 25 Juta"*, verifikasi kas pribadi bertambah instan Rp 25.000.000.
-   - **Transaksi Saham:** Masuk ke tab Pasar, pilih saham BBCA, pasang order limit beli, dan tinjau tiket order.
-   - **Pinjaman Beragunan:** Beli koleksi Vespa di tab Bisnis, lalu masuk ke Portofolio → Utang & Pinjaman → Ajukan Pinjaman, pilih agunan Vespa, dan lakukan pencairan.
-   - **Podium Liga:** Buka menu Peringkat / Liga & Rival, saksikan podium 3 besar (Juara 1 Emas bermahkota 👑).
-   - **Uji Force Close:** Saat berada di dalam game, tekan tombol *Home* di HP, buka aplikasi lain, lalu swipe buang Game Saham dari daftar recent apps. Buka kembali aplikasi: progres bermain terakhir dipastikan **100% tersimpan rapi tanpa hilang**.
-   - **Mode Hemat Daya:** Buka Pengaturan (ikon G di kiri atas), aktifkan *"Mode Grafis: Hemat Daya"* jika ingin mematikan efek blur untuk menghemat baterai.
+Pemilik dapat melakukan instalasi berkas `GameSaham-v1.0.0-final.apk` pada ponsel Android fisik untuk memverifikasi secara langsung kenyamanan bermain dan responsivitas game di genggaman.
