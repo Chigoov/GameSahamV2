@@ -4,6 +4,7 @@ import com.tradingglobal3d.core.career.CareerRank;
 import com.tradingglobal3d.core.corporate.CorporateAction;
 import com.tradingglobal3d.core.corporate.CorporateActionType;
 import com.tradingglobal3d.core.corporate.IpoSubscription;
+import com.tradingglobal3d.core.corporate.IpoOffering;
 import com.tradingglobal3d.core.corporate.ShareholderMeetingAgenda;
 import com.tradingglobal3d.core.economy.FxQuote;
 import com.tradingglobal3d.core.facade.TradingFacade;
@@ -131,9 +132,12 @@ public class EndToEndGrandIntegrationTest {
         assertTrue(divCount >= 1);
 
         // 7. [FR-13] Pemesanan Saham IPO dan Penjatahan
-        IpoSubscription ipoSub = facade.orderIpo("IPO-CLOUD", 50);
+        IpoOffering ipo = facade.getCorporateService().getIpoOfferings().stream()
+                .filter(i -> !i.isAllotted() && !i.getListingDate().isBefore(facade.getClock().getCurrentDate()))
+                .findFirst().orElseThrow(() -> new AssertionError("Katalog harus memuat IPO terbuka"));
+        IpoSubscription ipoSub = facade.orderIpo(ipo.getId(), 50);
         assertNotNull(ipoSub);
-        facade.allotIpo("IPO-CLOUD", 0.50);
+        facade.allotIpo(ipo.getId(), 0.50);
         assertEquals(IpoSubscription.SubscriptionStatus.ALLOTTED, ipoSub.getStatus());
         assertEquals(25, ipoSub.getAllottedLots());
 

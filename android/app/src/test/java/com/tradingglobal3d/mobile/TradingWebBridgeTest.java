@@ -143,24 +143,28 @@ public class TradingWebBridgeTest {
         java.lang.reflect.Method getIpo = TradingWebBridge.class.getMethod("getIpoOfferings");
         JSONArray ipos = new JSONArray((String) getIpo.invoke(bridge));
         assertTrue(ipos.length() >= 1);
-        JSONObject ipo = ipos.getJSONObject(0);
-        assertEquals("IPO-CLOUD", ipo.getString("id"));
-        assertEquals("NCLD", ipo.getString("ticker"));
+        com.tradingglobal3d.core.corporate.IpoOffering offering = facade.getCorporateService().getIpoOfferings().stream()
+                .filter(item -> !item.isAllotted() && !item.getListingDate().isBefore(facade.getClock().getCurrentDate()))
+                .findFirst().orElseThrow();
+        JSONObject ipo = null;
+        for (int i = 0; i < ipos.length(); i++) if (ipos.getJSONObject(i).getString("id").equals(offering.getId())) ipo = ipos.getJSONObject(i);
+        assertNotNull("Open offering must be exposed by bridge", ipo);
+        assertEquals(offering.getTicker(), ipo.getString("ticker"));
         assertEquals("IDR", ipo.getString("currency"));
 
         java.lang.reflect.Method orderIpo = TradingWebBridge.class.getMethod("orderIpo", String.class);
         Money initialAvail = facade.getPersonalAccount().getAvailableCash(Currency.IDR);
 
-        // Pesan 10 lot (@ Rp 500 x 100 lembar = Rp 50.000 / lot -> 10 lot = Rp 500.000)
-        JSONObject orderReq = new JSONObject().put("ipoId", "IPO-CLOUD").put("lots", 10).put("requestId", "IPO-BRIDGE-TEST-01");
+        Money reservation = offering.getOfferingPrice().multiply(BigDecimal.valueOf(10L * offering.getLotSize()));
+        JSONObject orderReq = new JSONObject().put("ipoId", offering.getId()).put("lots", 10).put("requestId", "IPO-BRIDGE-TEST-01");
         JSONObject orderRes = new JSONObject((String) orderIpo.invoke(bridge, orderReq.toString()));
         assertTrue(orderRes.getBoolean("success"));
         assertEquals("PENDING", orderRes.getString("status"));
-        assertEquals(Money.of(500_000, Currency.IDR), facade.getPersonalAccount().getReservedCash(Currency.IDR));
-        assertEquals(initialAvail.subtract(Money.of(500_000, Currency.IDR)), facade.getPersonalAccount().getAvailableCash(Currency.IDR));
+        assertEquals(reservation, facade.getPersonalAccount().getReservedCash(Currency.IDR));
+        assertEquals(initialAvail.subtract(reservation), facade.getPersonalAccount().getAvailableCash(Currency.IDR));
 
         // Pesan dengan lot 0 atau IPO tidak dikenal harus ditolak
-        JSONObject invalidLots = new JSONObject().put("ipoId", "IPO-CLOUD").put("lots", 0);
+        JSONObject invalidLots = new JSONObject().put("ipoId", offering.getId()).put("lots", 0);
         assertFalse(new JSONObject((String) orderIpo.invoke(bridge, invalidLots.toString())).getBoolean("success"));
         JSONObject invalidIpo = new JSONObject().put("ipoId", "IPO-UNKNOWN").put("lots", 5);
         assertFalse(new JSONObject((String) orderIpo.invoke(bridge, invalidIpo.toString())).getBoolean("success"));
@@ -979,7 +983,7 @@ public class TradingWebBridgeTest {
         JSONObject fundsRes = new JSONObject(bridge.getMutualFunds());
         assertTrue(fundsRes.getBoolean("success"));
         JSONArray funds = fundsRes.getJSONArray("funds");
-        assertEquals(3, funds.length()); // 3 Fund types (D06)
+        assertEquals(facade.getMutualFundManager().getAllFunds().size(), funds.length());
 
         // 2. Subscribe to Money Market Fund Rp 10.000.000
         JSONObject subReq = new JSONObject()
@@ -993,7 +997,7 @@ public class TradingWebBridgeTest {
         assertEquals(Money.of(10_000_000, Currency.IDR), facade.getPersonalAccount().getReservedCash(Currency.IDR));
         assertEquals(BigDecimal.ZERO.setScale(6), facade.getMutualFundManager().getFund("FUND-MM-01").getUnits(facade.getPersonalAccount().getId()));
         facade.getClock().play();
-        facade.advanceRealMs(281250, true); // 08:30 -> 16:00, canonical cutoff settles once (27,000s game / 96 = 281,250ms).
+        facade.advanceRealMs(93750, true); // 08:30 -> 16:00: 27,000s game / 288.
         facade.getClock().pause();
         assertEquals("SETTLED", facade.getMutualFundManager().getFund("FUND-MM-01").getOrder("FUND-BRIDGE-SUB-ONE").getString("status"));
         assertTrue(facade.reconcileAll());

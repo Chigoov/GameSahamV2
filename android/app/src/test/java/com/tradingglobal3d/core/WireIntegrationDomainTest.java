@@ -72,14 +72,19 @@ public class WireIntegrationDomainTest {
 
     @Test public void ipoRequestRetryPersistsAndListedHoldingCanReload() throws Exception {
         File dir = dir(); TradingFacade game = game(dir); TradingWebBridge bridge = new TradingWebBridge(game);
-        String request = "{\"ipoId\":\"IPO-CLOUD\",\"lots\":2,\"requestId\":\"QA-IPO\"}";
+        com.tradingglobal3d.core.corporate.IpoOffering ipo = game.getCorporateService().getIpoOfferings().stream()
+                .filter(i -> !i.isAllotted() && !i.getListingDate().isBefore(game.getClock().getCurrentDate()))
+                .findFirst().orElseThrow(() -> new AssertionError("Katalog harus memuat IPO terbuka"));
+        String instrumentId = "IDX:" + ipo.getTicker();
+        Money reserved = ipo.getOfferingPrice().multiply(BigDecimal.valueOf(2L * ipo.getLotSize()));
+        String request = new JSONObject().put("ipoId", ipo.getId()).put("lots", 2).put("requestId", "QA-IPO").toString();
         assertTrue(call(bridge.orderIpo(request)).getBoolean("success")); assertTrue(call(bridge.orderIpo(request)).getBoolean("success"));
-        assertEquals(100000, game.getPersonalAccount().getReservedCash(Currency.IDR).getAmount().longValueExact());
-        game.allotIpo("IPO-CLOUD", 1.0); game.save();
-        assertNotNull(game.getCatalog().getById("IDX:NCLD"));
+        assertEquals(reserved, game.getPersonalAccount().getReservedCash(ipo.getCurrency()));
+        game.allotIpo(ipo.getId(), 1.0); game.save();
+        assertNotNull(game.getCatalog().getById(instrumentId));
         TradingFacade loaded = new TradingFacade(SaveManager.forDirectory(dir)); loaded.setCatalog(catalog()); assertTrue(loaded.load());
-        assertNotNull(loaded.getCatalog().getById("IDX:NCLD")); assertEquals(200, loaded.getPersonalAccount().getPosition("IDX:NCLD").getQuantity());
-        loaded.startInternalGame(new BigDecimal("50000000")); assertNull(loaded.getCatalog().getById("IDX:NCLD"));
+        assertNotNull(loaded.getCatalog().getById(instrumentId)); assertEquals(2L * ipo.getLotSize(), loaded.getPersonalAccount().getPosition(instrumentId).getQuantity());
+        loaded.startInternalGame(new BigDecimal("50000000")); assertNull(loaded.getCatalog().getById(instrumentId));
     }
 
     @Test public void bridgeRejectsInternalAccountsAndMissingReplayPreservesCurrentRun() throws Exception {

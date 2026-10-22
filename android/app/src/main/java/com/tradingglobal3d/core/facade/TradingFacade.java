@@ -127,7 +127,7 @@ public final class TradingFacade {
     private final Map<String, JSONObject> dayCloseReceipts = new LinkedHashMap<>();
     private final Map<String, JSONObject> skipDayReceipts = new LinkedHashMap<>();
     private final Map<String, StrategyLabSandbox> strategyLabs = new LinkedHashMap<>();
-    public static final int GAME_SECONDS_PER_REAL_SECOND = 96;
+    public static final int GAME_SECONDS_PER_REAL_SECOND = (int) GameClock.FOREGROUND_GAME_SECONDS_PER_REAL_SECOND;
 
     // A12: Waktu Nyata Asia/Jakarta (00.00 WIB) untuk Hibah Harian
     private java.time.Clock realTimeClock = java.time.Clock.system(java.time.ZoneId.of("Asia/Jakarta"));
@@ -2068,7 +2068,7 @@ public final class TradingFacade {
             clockObj.put("isAnyTradingOpen", clock.isAnyMarketOpen());
             clockObj.put("isIdxTradingOpen", clock.isTradingOpenFor(com.tradingglobal3d.core.market.MarketExchange.IDX));
             clockObj.put("isUsTradingOpen", clock.isTradingOpenFor(com.tradingglobal3d.core.market.MarketExchange.US));
-            clockObj.put("speed", 1);
+            clockObj.put("speed", clock.getSpeedMultiplier());
             clockObj.put("isPaused", clock.isPaused());
             root.put("clock", clockObj);
         }

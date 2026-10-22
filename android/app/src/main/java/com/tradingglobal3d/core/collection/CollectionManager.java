@@ -296,7 +296,7 @@ public final class CollectionManager {
             JSONObject restored = canonical.toJsonObject();
             for (String field : Arrays.asList("currentValuation", "isOwned", "purchasePrice", "purchaseTimestamp",
                     "ownerAccountId", "pledgedLoanId", "maintenanceArrears", "lastMaintenanceDay", "transactionReceipts",
-                    "valuationAnchorDay", "valuationAsOfDay", "valuationAnchorPrice"))
+                    "valuationRule", "valuationAnchorDay", "valuationAsOfDay", "valuationAnchorPrice"))
                 if (obj.has(field)) restored.put(field, obj.get(field));
             CollectibleItem item = CollectibleItem.fromJsonObject(restored);
             JSONObject receipts = restored.optJSONObject("transactionReceipts");

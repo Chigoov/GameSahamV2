@@ -85,7 +85,8 @@ public class CollectionAccountingRegressionTest {
         Account other = new Account("OTHER", "Other", AccountType.PERSONAL, null);
         try { manager.sellItem("OTHER", ITEM, other, ledger, null, time(0)); fail(); }
         catch (IllegalStateException expected) { }
-        for (Money invalid : new Money[]{Money.zero(Currency.IDR), Money.of(-1, Currency.IDR), Money.of(1, Currency.USD)}) {
+        for (Money invalid : new Money[]{null, Money.of(-1, Currency.IDR), Money.of(1, Currency.USD),
+                new Money(java.math.BigDecimal.valueOf(Long.MAX_VALUE).add(java.math.BigDecimal.ONE), Currency.IDR)}) {
             try { manager.getItem(ITEM).setValuation(invalid); fail(); }
             catch (IllegalArgumentException expected) { }
         }
@@ -94,7 +95,33 @@ public class CollectionAccountingRegressionTest {
         try { manager.restoreState(corrupted); fail(); }
         catch (IllegalArgumentException expected) { }
         assertEquals(before, manager.exportState().toString());
-        assertEquals(12, manager.getAllItems().size());
+        assertEquals(150, manager.getAllItems().size());
+        assertTrue(ledger.reconcile(account, Currency.IDR));
+    }
+
+    @Test public void zeroValuationPersistsAndSaleCannotMintCashOrAssets() throws Exception {
+        CollectionManager manager = new CollectionManager();
+        EconomyLedger ledger = new EconomyLedger();
+        Account account = account(ledger, 50_000_000);
+        manager.buyItem("BUY", ITEM, account, ledger, null, time(0));
+        Money cash = account.getTotalCash(Currency.IDR);
+        manager.getItem(ITEM).setValuation(Money.zero(Currency.IDR));
+        manager.restoreState(new JSONArray(manager.exportState().toString()));
+        manager.updateValuations(time(0));
+        manager.updateValuations(time(20));
+        manager.restoreState(new JSONArray(manager.exportState().toString()));
+        assertTrue(manager.getItem(ITEM).isOwned());
+        assertEquals(Money.zero(Currency.IDR), manager.calculateTotalValuation());
+        assertEquals(cash, wealth(manager, account));
+        JSONObject receipt = manager.sellItem("ZERO-SELL", ITEM, account, ledger, null, time(20));
+        assertEquals("0", receipt.getString("amount"));
+        int entries = ledger.getEntries().size();
+        manager.restoreState(new JSONArray(manager.exportState().toString()));
+        assertEquals(receipt.toString(), manager.sellItem("ZERO-SELL", ITEM, account, ledger, null, time(20)).toString());
+        assertFalse(manager.getItem(ITEM).isOwned());
+        assertEquals(entries, ledger.getEntries().size());
+        assertEquals(cash, account.getTotalCash(Currency.IDR));
+        assertEquals(cash, wealth(manager, account));
         assertTrue(ledger.reconcile(account, Currency.IDR));
     }
 }

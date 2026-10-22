@@ -12,7 +12,7 @@ import java.util.Objects;
  * Mengontrol tanggal bursa, waktu sesi (WIB / UTC+7), percepatan, dan pause.
  */
 public final class GameClock {
-    public static final long FOREGROUND_GAME_SECONDS_PER_REAL_SECOND = 96L;
+    public static final long FOREGROUND_GAME_SECONDS_PER_REAL_SECOND = 288L;
     public static final long INACTIVE_GAME_SECONDS_PER_REAL_SECOND = 24L;
     public static final long SECONDS_PER_GAME_DAY = 86400L;
     public static final long MS_PER_GAME_DAY = 86400000L;
@@ -63,9 +63,9 @@ public final class GameClock {
 
     /**
      * Konversi eksak real millisecond ke game millisecond sesuai kontrak TIME-ACCEPTANCE.
-     * Foreground 1x: 96 game ms / real ms (900 detik nyata = 1 hari game / 86400 detik game).
-     * Foreground 2x: 192 game ms / real ms.
-     * Foreground 5x: 480 game ms / real ms.
+     * Foreground 1x: 288 game ms / real ms (300 detik nyata = 1 hari game / 86400 detik game).
+     * Foreground 2x: 576 game ms / real ms.
+     * Foreground 5x: 1440 game ms / real ms.
      * Inactive (background / ditutup): 24 game ms / real ms (3600 detik nyata = 1 hari game, mengabaikan speedMultiplier).
      */
     public static long convertRealMsToGameMs(long realMs, boolean foreground, int speedMultiplier) {

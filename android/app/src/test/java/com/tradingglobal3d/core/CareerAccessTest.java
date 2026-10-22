@@ -24,6 +24,10 @@ public class CareerAccessTest {
     }
     @Test public void lockedCommandsCannotMutateMoneyAccountsOrXp() throws Exception {
         int entries = game.getLedger().getEntries().size();
+        java.util.Set<String> accountIds = new java.util.HashSet<>();
+        for (Account account : game.getAllAccounts()) accountIds.add(account.getId());
+        Money idr = game.getPersonalAccount().getTotalCash(Currency.IDR);
+        Money usd = game.getPersonalAccount().getTotalCash(Currency.USD);
         Runnable[] commands = {
                 () -> game.acceptClientMandate("MANDATE-01"),
                 () -> game.createClientAccount("Bypass", null, Money.of(1000, Currency.IDR)),
@@ -37,17 +41,40 @@ public class CareerAccessTest {
             catch (IllegalStateException expected) { assertTrue(expected.getMessage().contains("jabatan")); }
         }
         assertEquals(entries, game.getLedger().getEntries().size());
-        // 3 base (personal + MM + Retail) + 3 fund pool + 2 fund debt issuer (MM/FI) + 20 NPC liga = 28
-        assertEquals(28, game.getAllAccounts().size());
+        java.util.Set<String> afterIds = new java.util.HashSet<>();
+        for (Account account : game.getAllAccounts()) afterIds.add(account.getId());
+        assertEquals(accountIds, afterIds);
+        assertEquals(idr, game.getPersonalAccount().getTotalCash(Currency.IDR));
+        assertEquals(usd, game.getPersonalAccount().getTotalCash(Currency.USD));
         assertEquals(0, game.getProgressManager().getCurrentXp());
         assertTrue(game.getCalendar().isEmpty());
         assertTrue(game.subscribeTerminal(TerminalTier.BASIC));
     }
     @Test public void realTradingRewardsAndSalaryReachClientManagementWithoutInjectedState() throws Exception {
-        game.setClockState(true, 1); game.tick(20); game.setClockState(false, 1);
+        long untilOpen = java.time.Duration.between(game.getClock().getCurrentTime(), java.time.LocalTime.of(9,0)).getSeconds();
+        long rate = com.tradingglobal3d.core.clock.GameClock.FOREGROUND_GAME_SECONDS_PER_REAL_SECOND;
+        game.setClockState(true, 1); game.tick((int)((untilOpen + rate - 1)/rate)); game.setClockState(false, 1);
+        assertTrue(game.getClock().isTradingOpenFor(com.tradingglobal3d.core.market.MarketExchange.IDX));
         String account = game.getPersonalAccount().getId();
-        assertTrue(game.submitOrder(Order.createLimit("CAREER-BBCA", "IDX:BBCA", account, OrderSide.BUY, Money.of(10500, Currency.IDR), 100, 1)).order.getFilledQuantity()>0);
-        assertTrue(game.submitOrder(Order.createLimit("CAREER-TLKM", "IDX:TLKM", account, OrderSide.BUY, Money.of(3150, Currency.IDR), 100, 2)).order.getFilledQuantity()>0);
+        for (String instrument : new String[]{"IDX:BBCA", "IDX:TLKM"}) {
+            com.tradingglobal3d.core.market.Instrument stock = game.getCatalog().getById(instrument);
+            OrderBook book = game.getMarketEngine().getOrCreateBook(stock);
+            BigDecimal tick = stock.getExchange().getTickSize(stock.getCurrentPrice().getAmount());
+            BigDecimal ask = stock.getCurrentPrice().getAmount().add(tick);
+            if (!book.getBids().isEmpty()) ask = ask.max(book.getBids().firstKey().add(tick));
+            // ponytail: fund the fixture through an existing dealer's real shares, not a fabricated fill.
+            MatchingEngine.OrderResult quote = game.submitOrder(Order.createLimit("CAREER-MM-"+instrument,
+                    instrument, "ACC-NPC-MM-01", OrderSide.SELL, new Money(ask, stock.getCurrency()), 100, game.getGameTimestamp()));
+            assertTrue(quote.message, quote.isSuccess);
+            assertEquals(100, quote.order.getRemainingQuantity());
+            Order buy = new Order("CAREER-"+instrument, "REQ-CAREER-"+instrument, account, instrument,
+                    OrderSide.BUY, OrderType.MARKET, null, null, 100, game.getGameTimestamp(), null);
+            MatchingEngine.OrderResult result = game.submitOrder(buy);
+            assertTrue(result.message, result.isSuccess);
+            assertEquals(result.message, OrderStatus.FILLED, result.order.getStatus());
+            assertEquals(100, result.order.getFilledQuantity());
+            assertEquals(100, game.getPersonalAccount().getPosition(instrument).getQuantity());
+        }
         assertTrue(game.getCareerManager().getMission("MIS-01").isCompleted());
         assertTrue(game.getCareerManager().getMission("MIS-02").isCompleted());
         game.claimMission("MIS-01"); game.claimMission("MIS-02");

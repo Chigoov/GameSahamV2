@@ -66,7 +66,7 @@ public class OwnerAuditRegressionTest {
             java.time.LocalTime time = game.getClock().getCurrentTime();
             game.getClock().setSpeedMultiplier(speed);
             game.getClock().play();
-            assertTrue(game.tick(900/speed));
+            assertTrue(game.tick(300/speed));
             assertEquals(start.plusDays(1), game.getClock().getCurrentDate());
             assertEquals(time, game.getClock().getCurrentTime());
             assertEquals(1, game.getCareerManager().getSessionReports().size());
@@ -134,10 +134,43 @@ public class OwnerAuditRegressionTest {
         TradingFacade game = game();
         assertEquals(2, game.getNewsFeed().size());
         assertFalse(game.recordResearchRead("NEWS-FUTURE-01"));
+        org.json.JSONArray announced = new org.json.JSONArray(game.getNewsFeedJson());
+        java.util.Map<String, Long> schedule = new java.util.HashMap<>();
+        for (int i=0; i<announced.length(); i++) {
+            org.json.JSONObject article = announced.getJSONObject(i);
+            schedule.put(article.getString("id"), article.getLong("publishedAt"));
+        }
+        long publication = schedule.get("NEWS-FUTURE-01");
+        game.getClock().advanceGameSeconds((publication - game.getGameTimestamp()) / 1000 - 1);
+        assertFalse(game.getNewsFeed().stream().anyMatch(article -> article.getId().equals("NEWS-FUTURE-01")));
+        assertFalse(game.recordResearchRead("NEWS-FUTURE-01"));
+        game.getClock().advanceGameSeconds(1);
+        assertTrue(game.getNewsFeed().stream().anyMatch(article -> article.getId().equals("NEWS-FUTURE-01")));
+        game.recordResearchRead("NEWS-FUTURE-01");
+        assertEquals(1, game.getProgressManager().getAchievement("reader").getCurrentProgress());
+        assertFalse(game.recordResearchRead("NEWS-FUTURE-01"));
+        long secondPublication = schedule.get("NEWS-FUTURE-02");
+        game.getClock().advanceGameSeconds((secondPublication - game.getGameTimestamp()) / 1000 - 1);
+        assertFalse(game.getNewsFeed().stream().anyMatch(article -> article.getId().equals("NEWS-FUTURE-02")));
+        assertFalse(game.recordResearchRead("NEWS-FUTURE-02"));
+        game.getClock().advanceGameSeconds(1);
+        assertTrue(game.getNewsFeed().stream().anyMatch(article -> article.getId().equals("NEWS-FUTURE-02")));
         game.skipDay("NEWS-NEXT-DAY");
-        assertEquals(3, game.getNewsFeed().size());
+        java.util.Set<String> expected = new java.util.HashSet<>();
+        for (java.util.Map.Entry<String, Long> article : schedule.entrySet())
+            if (article.getValue() <= game.getGameTimestamp()) expected.add(article.getKey());
+        java.util.Set<String> published = new java.util.HashSet<>();
+        for (com.tradingglobal3d.core.research.NewsArticle article : game.getNewsFeed()) published.add(article.getId());
+        assertEquals(expected, published);
         assertTrue(game.load());
-        assertEquals(3, game.getNewsFeed().size());
+        java.util.Set<String> reloaded = new java.util.HashSet<>();
+        for (com.tradingglobal3d.core.research.NewsArticle article : game.getNewsFeed()) {
+            reloaded.add(article.getId());
+            assertEquals(schedule.get(article.getId()).longValue(), article.getPublishedAt());
+        }
+        assertEquals(published, reloaded);
+        assertFalse(game.recordResearchRead("NEWS-FUTURE-01"));
+        assertEquals(1, game.getProgressManager().getAchievement("reader").getCurrentProgress());
         GameTestSupport.unlockManager(game);
         assertEquals(game.getClock().getCurrentDate().minusDays(1), game.getCalendar().get(0).getDate());
     }
@@ -284,9 +317,19 @@ public class OwnerAuditRegressionTest {
     @Test public void readerBadgeIsReachableWithActualGameContent() throws Exception {
         TradingFacade game = game();
         for (int i=0; i<3; i++) game.skipDay("READER-DAY-"+i);
-        assertEquals(5, game.getNewsFeed().size());
-        for (com.tradingglobal3d.core.research.NewsArticle article : game.getNewsFeed()) game.recordResearchRead(article.getId());
+        int target = game.getProgressManager().getAchievement("reader").getTargetProgress();
+        assertEquals(5, target);
+        assertTrue(game.getNewsFeed().size() >= target);
+        for (int i=0; i<target; i++) {
+            boolean unlocked = game.recordResearchRead(game.getNewsFeed().get(i).getId());
+            assertEquals(i == target-1, unlocked);
+            assertEquals(i == target-1 ? 150 : 0, game.getProgressManager().getCurrentXp());
+        }
         assertTrue(game.getProgressManager().getAchievement("reader").isUnlocked());
+        assertEquals(150, game.getProgressManager().getCurrentXp());
+        for (com.tradingglobal3d.core.research.NewsArticle article : game.getNewsFeed()) assertFalse(game.recordResearchRead(article.getId()));
+        game.save(); assertTrue(game.load());
+        for (com.tradingglobal3d.core.research.NewsArticle article : game.getNewsFeed()) assertFalse(game.recordResearchRead(article.getId()));
         assertEquals(150, game.getProgressManager().getCurrentXp());
     }
 }
