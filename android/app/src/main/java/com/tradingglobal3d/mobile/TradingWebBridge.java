@@ -26,9 +26,28 @@ import java.util.Objects;
  */
 public final class TradingWebBridge {
     private final TradingFacade facade;
+    private MainActivity activity;
 
     public TradingWebBridge(TradingFacade facade) {
+        this(facade, null);
+    }
+
+    public TradingWebBridge(TradingFacade facade, MainActivity activity) {
         this.facade = Objects.requireNonNull(facade);
+        this.activity = activity;
+    }
+
+    public void attachActivity(MainActivity activity) {
+        this.activity = activity;
+    }
+
+    @JavascriptInterface
+    public String notifyIpoAlert(String title, String message) {
+        if (activity != null) {
+            activity.runOnUiThread(() -> activity.triggerIpoNotification(title, message));
+            return "{\"success\":true,\"method\":\"NATIVE_NOTIFICATION\"}";
+        }
+        return "{\"success\":true,\"method\":\"FALLBACK_INBOX_BANNER\"}";
     }
 
     @JavascriptInterface
@@ -215,6 +234,65 @@ public final class TradingWebBridge {
             return facade.getChartData(instrumentId, timeframe).toString();
         } catch (Exception e) {
             return "{\"success\":false,\"message\":\"" + e.getMessage() + "\"}";
+        }
+    }
+
+    @JavascriptInterface
+    public String getTimeDepositProducts() {
+        try {
+            return facade.getTimeDepositProducts().toString();
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    @JavascriptInterface
+    public String getActiveTimeDeposits() {
+        try {
+            return facade.getActiveTimeDeposits().toString();
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    @JavascriptInterface
+    public String openTimeDeposit(String jsonReq) {
+        try {
+            JSONObject req = new JSONObject(jsonReq);
+            String productId = req.getString("productId");
+            BigDecimal amount = new BigDecimal(req.getString("amount"));
+            return facade.openTimeDeposit(productId, amount).toString();
+        } catch (Exception error) {
+            return bridgeError(error);
+        }
+    }
+
+    @JavascriptInterface
+    public String withdrawTimeDeposit(String jsonReq) {
+        try {
+            JSONObject req = new JSONObject(jsonReq);
+            String depositId = req.getString("depositId");
+            return facade.withdrawTimeDeposit(depositId).toString();
+        } catch (Exception error) {
+            return bridgeError(error);
+        }
+    }
+
+    @JavascriptInterface
+    public String getNewsFeed() {
+        try {
+            return facade.getNewsFeedJson();
+        } catch (Exception error) {
+            return bridgeError(error);
+        }
+    }
+
+    @JavascriptInterface
+    public String getIssuerFundamentals(String instrumentId) {
+        try {
+            return facade.getIssuerFundamentals(instrumentId).toString();
+        } catch (Exception error) {
+            return bridgeError(error);
         }
     }
 
@@ -1020,6 +1098,9 @@ public final class TradingWebBridge {
     public String getIpoOfferings() {
         try {
             if (facade.getGameMode() == com.tradingglobal3d.core.model.GameMode.HISTORICAL_REPLAY) return "[]";
+            if (facade.getClock() != null) {
+                facade.getCorporateService().ensureMonthlyIpoSchedule(facade.getClock().getCurrentDate());
+            }
             JSONArray result = new JSONArray();
             for (com.tradingglobal3d.core.corporate.IpoOffering ipo : facade.getCorporateService().getIpoOfferings()) {
                 result.put(new JSONObject()
@@ -1269,18 +1350,7 @@ public final class TradingWebBridge {
             result.put("tierTitle", tier.getTitle());
             result.put("expiresAt", rs.getSubscriptionExpiresAt());
 
-            JSONArray news = new JSONArray();
-            for (com.tradingglobal3d.core.research.NewsArticle a : facade.getNewsFeed()) {
-                news.put(new JSONObject()
-                        .put("id", a.getId())
-                        .put("headline", a.getHeadline())
-                        .put("content", a.getContent())
-                        .put("category", a.getCategory().name())
-                        .put("categoryLabel", a.getCategory().getLabel())
-                        .put("relatedTicker", a.getRelatedTicker() != null ? a.getRelatedTicker() : JSONObject.NULL)
-                        .put("sentimentImpact", a.getSentimentImpact())
-                        .put("publishedAt", a.getPublishedAt()));
-            }
+            JSONArray news = rs.getNewsFeed(facade.getGameTimestamp());
             result.put("news", news);
 
             JSONArray analysts = new JSONArray();

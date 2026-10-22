@@ -25,7 +25,12 @@ public enum LedgerEntryType {
     COMPANY_REVENUE("Pendapatan Operasional Perusahaan"),
     COLLECTION_PURCHASE("Pembelian Barang Koleksi"),
     COLLECTION_SALE("Penjualan Barang Koleksi"),
-    COLLECTION_MAINTENANCE("Biaya Pemeliharaan Koleksi");
+    COLLECTION_MAINTENANCE("Biaya Pemeliharaan Koleksi"),
+    TIME_DEPOSIT_PLACEMENT("Penempatan Deposito Berjangka"),
+    TIME_DEPOSIT_MATURITY("Pencairan Deposito Jatuh Tempo"),
+    TIME_DEPOSIT_EARLY_WITHDRAWAL("Pencairan Dini Deposito"),
+    TIME_DEPOSIT_INTEREST("Bunga Deposito Perbankan"),
+    TIME_DEPOSIT_PENALTY("Penalti Pencairan Dini Deposito");
 
     private final String description;
 

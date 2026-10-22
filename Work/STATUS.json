@@ -3,10 +3,19 @@
   "project_root": "C:\\Users\\HYPE AMD\\Downloads\\VIBE CODING\\GAME SAHAM",
   "product": "Game Saham 2D Portrait",
   "prepared_date": "2026-10-22",
-  "status": "READY_FOR_OWNER_PLAYTEST",
-  "current_task": "ALL_LONGTASK_8_TASKS_COMPLETED",
-  "longtask_8_tracker": "Work/TRACKER-LONGTASK-8-FULL.md",
-  "longtask_8_active_milestone": "INT-04",
+  "status": "LONGTASK_14_COMPLETED",
+  "current_task": "INT",
+  "longtask_14_tracker": "Work/Owner-Revision-14-2026-10-22/TRACKER.csv",
+  "longtask_14_active_milestone": "COMPLETED",
+  "longtask_14_summary": {
+    "totalTasks": 20,
+    "completedTasks": 20,
+    "apkPath": "android/app/build/outputs/apk/debug/app-debug.apk",
+    "apkBytes": 981805,
+    "apkSha256": "ccf476a3305612d70c8911b88acfbf1edd89a5ea8c3d51751cd77bd13a8a7ba0",
+    "personalSaveSha256": "59b41e24c5a0a3b6f87d127d41c18b7f3f0ebe371f4dd2d277a31ca4b5f867ed",
+    "personalSaveStatus": "UNTOUCHED_AND_VERIFIED"
+  },
   "completed_tasks": [
     "00",
     "01",
@@ -22,10 +31,11 @@
     "11",
     "12",
     "13",
-    "LONGTASK_8"
+    "LONGTASK_8",
+    "OWNER_REVISION_14"
   ],
   "hermes_session_id": "20261022_153151_b6efc6",
-  "next_action": "Menunggu playtest dan review independen pemilik proyek (REVIEW_INDEPENDEN_PENDING). Seluruh gate host mandatory A1-A12 telah lulus verifikasi dan artefak APK kandidat siap diuji.",
+  "next_action": "Seluruh 20 pekerjaan paket Owner Revision 14 selesai dan diverifikasi deterministik.",
   "tasks": [
     {
       "id": "00",

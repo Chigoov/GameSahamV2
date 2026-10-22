@@ -147,6 +147,8 @@ public final class CareerManager {
     }
 
     public synchronized void evaluateRecordedTrades(Account account, EconomyLedger ledger) {
+        CareerMission m = missions.get("MIS-01");
+        if (m != null && m.isCompleted()) return;
         for (com.tradingglobal3d.core.economy.LedgerEntry entry : ledger.getEntriesForAccount(account.getId())) {
             if ((entry.getType() == LedgerEntryType.TRADE_BUY || entry.getType() == LedgerEntryType.TRADE_SELL)
                     && entry.getAmount().isPositive()) {
@@ -323,11 +325,6 @@ public final class CareerManager {
         // Majukan siklus hari bursa
         this.daysTraded++;
         beginDay(personalAccount, fxRate, ledger);
-
-        // Reset batas harian instrumen (open, high, low, volume)
-        for (Instrument inst : catalog.getAllInstruments()) {
-            inst.startNewTradingDay();
-        }
 
         return report;
     }

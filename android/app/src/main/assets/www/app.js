@@ -179,6 +179,60 @@
     let lastKnownLevel = null;
     let lastKnownAchievements = null;
     let activeDetailStock = null;
+    let anchorGameTimestamp = 0;
+    let anchorPerfNow = performance.now();
+    let anchorRate = 96;
+    let latestDailySponsor = null;
+
+    function renderFlowingClock() {
+        if (!anchorGameTimestamp) return;
+        const elapsedRealMs = performance.now() - anchorPerfNow;
+        const currentSimMs = anchorGameTimestamp + elapsedRealMs * anchorRate;
+        // Waktu game dihitung dalam offset WIB (UTC+7)
+        const date = new Date(currentSimMs + 7 * 3600000);
+        const hours = String(date.getUTCHours()).padStart(2, '0');
+        const mins = String(date.getUTCMinutes()).padStart(2, '0');
+        const secs = String(date.getUTCSeconds()).padStart(2, '0');
+        if (clockDisplay) {
+            clockDisplay.textContent = `${hours}:${mins}:${secs} WIB`;
+        }
+    }
+
+    function updateSponsorCountdown() {
+        const claimSponsorBtn = document.getElementById('btn-claim-sponsor');
+        const qaSponsor = document.getElementById('btn-qa-sponsor');
+        if (!latestDailySponsor) return;
+        if (latestDailySponsor.alreadyClaimed || !latestDailySponsor.eligible) {
+            const nextMs = latestDailySponsor.nextClaimAt || (Date.now() + 3600000);
+            const remaining = Math.max(0, nextMs - Date.now());
+            if (remaining === 0) {
+                refreshSnapshot();
+                return;
+            }
+            const hours = Math.floor(remaining / 3600000);
+            const mins = Math.floor((remaining % 3600000) / 60000);
+            const secs = Math.floor((remaining % 60000) / 1000);
+            const pad = n => String(n).padStart(2, '0');
+            const countdownStr = `${pad(hours)}:${pad(mins)}:${pad(secs)}`;
+            if (claimSponsorBtn) {
+                claimSponsorBtn.disabled = true;
+                claimSponsorBtn.textContent = `Klaim berikutnya ${countdownStr}`;
+            }
+            if (qaSponsor) {
+                qaSponsor.style.opacity = '0.5';
+                qaSponsor.setAttribute('aria-label', `Sudah diklaim hari ini. Klaim berikutnya ${countdownStr}`);
+            }
+        } else {
+            if (claimSponsorBtn) {
+                claimSponsorBtn.disabled = false;
+                claimSponsorBtn.textContent = 'Klaim Hibah Rp 25 Juta';
+            }
+            if (qaSponsor) {
+                qaSponsor.style.opacity = '1.0';
+                qaSponsor.setAttribute('aria-label', 'Klaim Hibah Sponsor Rp 25 Juta');
+            }
+        }
+    }
     let activeReceiptRequestId = null;
     let activeDetailPositionInstrumentId = null;
     const activeToastKeys = new Set();
@@ -253,32 +307,18 @@
             }
 
             if (snap.clock) {
-                clockDisplay.textContent = snap.clock.time;
+                anchorGameTimestamp = snap.clock.timestamp || anchorGameTimestamp;
+                anchorPerfNow = performance.now();
+                anchorRate = snap.clock.rate || 96;
+                if (clockDisplay) clockDisplay.textContent = snap.clock.time;
                 sessionLabel.textContent = snap.clock.sessionLabel;
                 sessionDot.className = 'status-dot ' + (snap.clock.isTradingOpen ? 'open' : 'halt');
+                document.getElementById('home-clock-state').textContent = `${snap.clock.sessionLabel} · Berjalan Otomatis`;
+                renderFlowingClock();
             }
             if (snap.dailySponsor) {
-                const claimSponsorBtn = document.getElementById('btn-claim-sponsor');
-                const qaSponsor = document.getElementById('btn-qa-sponsor');
-                if (snap.dailySponsor.alreadyClaimed || !snap.dailySponsor.eligible) {
-                    if (claimSponsorBtn) {
-                        claimSponsorBtn.disabled = true;
-                        claimSponsorBtn.textContent = 'Sudah Diklaim Hari Ini (Tersedia lagi 00.00 WIB) ✓';
-                    }
-                    if (qaSponsor) {
-                        qaSponsor.style.opacity = '0.5';
-                        qaSponsor.setAttribute('aria-label', 'Sudah diklaim hari ini. Tersedia lagi pukul 00.00 WIB');
-                    }
-                } else {
-                    if (claimSponsorBtn) {
-                        claimSponsorBtn.disabled = false;
-                        claimSponsorBtn.textContent = 'Klaim Hibah Rp 25 Juta';
-                    }
-                    if (qaSponsor) {
-                        qaSponsor.style.opacity = '1.0';
-                        qaSponsor.setAttribute('aria-label', 'Klaim Hibah Sponsor Rp 25 Juta');
-                    }
-                }
+                latestDailySponsor = snap.dailySponsor;
+                updateSponsorCountdown();
             }
             if (snap.gameModeLabel) {
                 modeLabel.textContent = snap.gameModeLabel;
@@ -400,36 +440,45 @@
             }
 
             container.innerHTML = '';
-            filtered.slice(0, 3).forEach(n => {
+            filtered.forEach(n => {
                 const card = document.createElement('article');
                 card.className = 'card news-card';
                 card.style.cssText = 'padding:12px; margin-bottom:8px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:14px; cursor:pointer;';
 
-                const sentimentBadge = Number(n.sentimentImpact) > 0
-                    ? '<span class="change-pill positive" style="font-size:0.65rem;">▲ Kabar Baik</span>'
-                    : (Number(n.sentimentImpact) < 0
-                        ? '<span class="change-pill negative" style="font-size:0.65rem;">▼ Kabar Buruk</span>'
-                        : '<span class="change-pill" style="font-size:0.65rem;">● Netral</span>');
+                const isGood = n.direction === 'POSITIF' || Number(n.sentimentImpact) > 0;
+                const isBad = n.direction === 'NEGATIF' || Number(n.sentimentImpact) < 0;
+
+                const sentimentBadge = isGood
+                    ? `<span class="change-pill positive" style="font-size:0.65rem;">▲ ${n.direction || 'POSITIF'} (${n.estimatedRange || '+2%'})</span>`
+                    : (isBad
+                        ? `<span class="change-pill negative" style="font-size:0.65rem;">▼ ${n.direction || 'NEGATIF'} (${n.estimatedRange || '-2%'})</span>`
+                        : `<span class="change-pill" style="font-size:0.65rem;">● ${n.direction || 'NETRAL'}</span>`);
+
+                const timingBadge = n.isPublished
+                    ? `<span style="color:var(--text-muted); font-size:0.7rem;">⏱ ${n.countdownLabel || 'Terbit'}</span>`
+                    : `<span style="color:var(--amber); font-weight:600; font-size:0.7rem;">⏳ ${n.countdownLabel || 'Mendatang'}</span>`;
 
                 card.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <span class="eyebrow" style="font-size:0.65rem; color:var(--text-muted);">${n.categoryLabel || 'Pasar'}${n.relatedTicker ? ' · ' + n.relatedTicker : ''}</span>
+                        <span class="eyebrow" style="font-size:0.65rem; color:var(--text-muted);">${n.categoryLabel || 'Pasar'}${n.affectedSector ? ' · ' + n.affectedSector : ''}${n.relatedTicker ? ' (' + n.relatedTicker + ')' : ''}</span>
                         ${sentimentBadge}
                     </div>
                     <h3 style="font-size:0.95rem; color:#FFF; margin:0 0 6px; line-height:1.35;">${n.headline}</h3>
-                    <p style="font-size:0.78rem; color:var(--text-secondary); margin:0 0 6px; line-height:1.4;">${n.content ? n.content.substring(0, 100) + '…' : ''}</p>
+                    <p style="font-size:0.78rem; color:var(--text-secondary); margin:0 0 6px; line-height:1.4;">${n.content ? n.content.substring(0, 110) + '…' : ''}</p>
                     <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.72rem; color:var(--text-muted);">
-                        <span>⏱ ${new Date(n.publishedAt).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})} WIB</span>
-                        <span style="color:var(--teal); font-weight:600;">Baca rincian →</span>
+                        ${timingBadge}
+                        <span style="color:var(--teal); font-weight:600;">Keyakinan: ${n.confidence || 'SEDANG'} · Rincian →</span>
                     </div>
                 `;
                 card.onclick = () => {
-                    const detail = showFlow('Kabar Pasar');
+                    const detail = showFlow('Kabar & Dampak Pasar');
                     detail.append(node('h2', '', n.headline));
-                    flowText(detail, 'Kategori', n.categoryLabel || 'Pasar');
+                    flowText(detail, 'Kategori & Sektor', `${n.categoryLabel || 'Pasar'} · ${n.affectedSector || 'Umum'}`);
                     if (n.relatedTicker) flowText(detail, 'Emiten terkait', n.relatedTicker);
-                    flowText(detail, 'Sentimen pasar', Number(n.sentimentImpact) > 0 ? 'Sentimen Positif (Kabar Baik)' : (Number(n.sentimentImpact) < 0 ? 'Sentimen Negatif (Kabar Buruk)' : 'Netral'));
-                    flowText(detail, 'Waktu terbit', new Date(n.publishedAt).toLocaleString('id-ID', {timeZone: 'Asia/Jakarta'}));
+                    flowText(detail, 'Arah & Estimasi Dampak', `${n.direction || 'NETRAL'} (Rentang Perkiraan: ${n.estimatedRange || '±1.5%'})`);
+                    flowText(detail, 'Tingkat Keyakinan (Confidence)', n.confidence || 'SEDANG');
+                    flowText(detail, 'Horizon Waktu', `${n.horizonDays || 2} hari permainan`);
+                    flowText(detail, 'Status Waktu Game', n.countdownLabel || 'Terjadwal');
                     detail.append(node('p', 'article-copy', n.content));
                     if (bridge.recordResearchRead) bridge.recordResearchRead(n.id);
                     refreshSnapshot();
@@ -929,8 +978,8 @@
         const listContainer = document.getElementById('stock-list-container');
         listContainer.innerHTML = '';
         document.getElementById('stock-list-status').textContent = stocks.length
-            ? `${stocks.length} instrumen pada daftar ini.`
-            : watchlistOnly && !query.trim() && !exchange && !sector ? 'Watchlist masih kosong.' : 'Tidak ada instrumen untuk filter ini.';
+            ? `${stocks.length} emiten pada daftar ini.`
+            : watchlistOnly && !query.trim() && !exchange && !sector ? 'Watchlist masih kosong.' : 'Tidak ada emiten untuk filter ini.';
 
         const movers = [...allStocks].filter(x => Number.isFinite(Number(x.dailyChangePercent))).sort((a,b) => Number(b.dailyChangePercent)-Number(a.dailyChangePercent));
         const highlights = document.getElementById('market-highlights'); highlights.replaceChildren();
@@ -963,23 +1012,33 @@
                 <div style="text-align:right; flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
                     <div class="stock-price" style="font-size:0.95rem; font-weight:700; color:#FFF;">${st.currentPrice}</div>
                     <div><span class="change-pill ${changeClass}" style="font-size:0.72rem; padding:2px 8px; border-radius:6px;">${changeSign}${st.dailyChangePercent}%</span></div>
-                    <button class="watchlist-star-btn" type="button" aria-label="Pantau ${st.ticker}" style="background:none; border:none; color:${isFav ? 'var(--gold, #FFD700)' : 'rgba(255,255,255,0.3)'}; font-size:1.1rem; cursor:pointer; padding:2px 0 0 0; line-height:1;">
-                        ${isFav ? '★' : '☆'}
+                    <button class="watchlist-star-btn" type="button" aria-label="${isFav ? 'Hapus pantauan ' + st.ticker : 'Pantau ' + st.ticker}" aria-pressed="${isFav}" style="background:none; border:none; color:${isFav ? 'var(--gold, #FFD700)' : 'rgba(255,255,255,0.3)'}; font-size:1.35rem; cursor:pointer; min-width:48px; min-height:48px; display:inline-flex; align-items:center; justify-content:center; padding:0; margin:-4px -8px -4px 0; border-radius:10px; touch-action:manipulation;">
+                        <span aria-hidden="true">${isFav ? '★' : '☆'}</span>
                     </button>
                 </div>
             `;
 
             const starBtn = item.querySelector('.watchlist-star-btn');
             if (starBtn) {
-                starBtn.addEventListener('click', (e) => {
+                const toggleWatchlistAction = (e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     if (bridge.toggleWatchlist) {
                         try {
                             const res = JSON.parse(bridge.toggleWatchlist(st.id));
                             st.isWatchlist = Boolean(res.inWatchlist !== undefined ? res.inWatchlist : res.isWatchlist);
-                            starBtn.textContent = st.isWatchlist ? '★' : '☆';
+                            const starSpan = starBtn.querySelector('span') || starBtn;
+                            starSpan.textContent = st.isWatchlist ? '★' : '☆';
                             starBtn.style.color = st.isWatchlist ? 'var(--gold, #FFD700)' : 'rgba(255,255,255,0.3)';
+                            starBtn.setAttribute('aria-pressed', String(st.isWatchlist));
+                            starBtn.setAttribute('aria-label', (st.isWatchlist ? 'Hapus pantauan ' : 'Pantau ') + st.ticker);
                         } catch(err) {}
+                    }
+                };
+                starBtn.addEventListener('click', toggleWatchlistAction);
+                starBtn.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        toggleWatchlistAction(e);
                     }
                 });
             }
@@ -987,8 +1046,12 @@
             item.tabIndex = 0;
             item.setAttribute('role', 'button');
             item.setAttribute('aria-label', `Detail ${st.ticker} ${st.exchange}, ${st.sector}`);
-            item.addEventListener('click', () => openInstrumentDetail(st));
+            item.addEventListener('click', (e) => {
+                if (e.target.closest('.watchlist-star-btn')) return;
+                openInstrumentDetail(st);
+            });
             item.addEventListener('keydown', event => {
+                if (event.target !== item) return;
                 if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openInstrumentDetail(st); }
             });
             listContainer.appendChild(item);
@@ -1501,14 +1564,59 @@
                 'VEHICLE': 'Kendaraan Mewah',
                 'REAL_ESTATE': 'Properti & Villa',
                 'JEWELRY': 'Perhiasan & Berlian',
-                'ART_AND_WATCHES': 'Seni & Jam Tangan'
+                'ART_AND_WATCHES': 'Seni & Jam Tangan',
+                'MOTOR': 'Motor & Kendaraan Roda Dua',
+                'MOBIL': 'Mobil & Kendaraan Kolektor',
+                'RUMAH': 'Hunian & Properti Ikonik',
+                'KOMERSIAL': 'Properti Komersial & Lahan',
+                'JAM': 'Jam Tangan Mewah',
+                'PERMATA': 'Perhiasan & Batu Mulia',
+                'SENI': 'Karya Seni Maestro',
+                'ANTIK': 'Barang Antik & Bersejarah',
+                'KAPAL': 'Yacht & Kapal Pesiar',
+                'PESAWAT': 'Jet Pribadi & Helikopter',
+                'TEKNO': 'Teknologi & Aset Digital',
+                'MEMO': 'Memorabilia Olahraga & Pop Culture'
             };
 
             const rarityLabels = {
-                'STANDARD': 'Standar',
+                'STANDARD': 'Umum',
+                'UMUM': 'Umum',
+                'TIDAK_UMUM': 'Tidak Umum',
                 'RARE': 'Langka',
-                'LEGENDARY': 'Legendaris'
+                'LANGKA': 'Langka',
+                'EPIK': 'Epik',
+                'LEGENDARY': 'Legendaris',
+                'LEGENDARIS': 'Legendaris'
             };
+
+            function getProceduralCollectionVisual(cat, rarity) {
+                const rarityColors = {
+                    'UMUM': '#A0AEC0',
+                    'STANDARD': '#A0AEC0',
+                    'TIDAK_UMUM': '#14F195',
+                    'LANGKA': '#00E5FF',
+                    'RARE': '#00E5FF',
+                    'EPIK': '#9945FF',
+                    'LEGENDARIS': '#FFD700',
+                    'LEGENDARY': '#FFD700'
+                };
+                const color = rarityColors[(rarity || '').toUpperCase()] || '#14F195';
+                const catIcons = {
+                    'MOTOR': '🏍️', 'VEHICLE': '🚗', 'MOBIL': '🏎️',
+                    'RUMAH': '🏛️', 'REAL_ESTATE': '🏰', 'KOMERSIAL': '🏢',
+                    'JAM': '⌚', 'PERMATA': '💎', 'JEWELRY': '💍',
+                    'SENI': '🎨', 'ART_AND_WATCHES': '🖼️', 'ANTIK': '🏺',
+                    'KAPAL': '🛥️', 'PESAWAT': '✈️', 'TEKNO': '💻', 'MEMO': '🏆'
+                };
+                const icon = catIcons[(cat || '').toUpperCase()] || '✨';
+                return `
+                    <div class="collection-visual-frame" style="width:100%; height:84px; border-radius:10px; background:radial-gradient(circle at center, ${color}22 0%, rgba(15,20,25,0.85) 100%); border:1px solid ${color}44; display:flex; flex-direction:column; align-items:center; justify-content:center; margin-bottom:10px; position:relative; overflow:hidden;">
+                        <div style="font-size:2.2rem; filter:drop-shadow(0 0 8px ${color});">${icon}</div>
+                        <span style="font-size:0.62rem; color:${color}; font-weight:700; letter-spacing:1px; margin-top:3px;">${rarity || 'STANDAR'} · ${cat || 'KOLEKSI'}</span>
+                    </div>
+                `;
+            }
 
             function createCollectionCard(item, isOwned) {
                 const card = document.createElement('article');
@@ -1537,6 +1645,11 @@
                 headerDiv.append(leftMeta);
                 headerDiv.innerHTML += `<span class="change-pill" style="font-size:0.65rem; background:rgba(153,69,255,0.15); color:var(--accent-purple); border:1px solid rgba(153,69,255,0.3);">${rarityIndo}</span>`;
                 card.appendChild(headerDiv);
+
+                // Visual Kartu Prosedural Neon Gelap Lokal
+                const visualWrap = document.createElement('div');
+                visualWrap.innerHTML = getProceduralCollectionVisual(item.category, item.rarity);
+                card.appendChild(visualWrap);
 
                 const title = document.createElement('h3');
                 title.style.cssText = 'margin:0 0 8px; font-size:1.05rem; color:#FFF;';
@@ -2764,34 +2877,130 @@
             } catch (error) { flowText(panel, 'Antrean gagal dimuat', error.message); }
         } else flowText(panel, 'Antrean', 'Bridge domain tidak tersedia pada pratinjau ini');
 
-        // Tentang Perusahaan (T9 & T10)
+        // Data Fundamental & Profil Emiten (R08)
+        let fundamentals = null;
         let companyProfile = null;
+        if (bridge.getIssuerFundamentals) {
+            try {
+                const fRes = JSON.parse(bridge.getIssuerFundamentals(stock.id));
+                if (fRes && fRes.success) fundamentals = fRes;
+            } catch(e) {}
+        }
         if (bridge.getCompanyProfile) {
             try {
                 const profRes = JSON.parse(bridge.getCompanyProfile(stock.id));
                 if (profRes && profRes.success) companyProfile = profRes;
             } catch(e) {}
         }
-        if (companyProfile) {
-            const profCard = document.createElement('section');
-            profCard.id = 'detail-company-profile';
-            profCard.className = 'card';
-            profCard.style.marginTop = '12px';
-            profCard.innerHTML = `
-                <h3 style="margin-bottom:8px; font-size:1.05rem; color:#FFF;">Tentang Perusahaan</h3>
-                <p style="font-size:0.85rem; color:var(--text-secondary); line-height:1.45; margin:0 0 10px;">${companyProfile.description}</p>
-                <div class="data-row"><span>Nama resmi</span><strong>${companyProfile.name}</strong></div>
-                <div class="data-row"><span>Bursa & negara</span><strong>${companyProfile.exchange} · ${companyProfile.country}</strong></div>
-                <div class="data-row"><span>Sektor</span><strong>${companyProfile.sector}</strong></div>
-                <div class="data-row"><span>Mata uang</span><strong>${companyProfile.currency}</strong></div>
-                ${companyProfile.website ? `<div class="data-row"><span>Situs resmi</span><a href="${companyProfile.website}" target="_blank" rel="noopener" style="color:var(--teal); font-weight:600; text-decoration:none;">${companyProfile.website} ↗</a></div>` : ''}
-                <details style="margin-top:10px; font-size:0.75rem; color:var(--text-muted);">
-                    <summary style="cursor:pointer; color:var(--text-secondary); font-weight:600;">Sumber Data & Provenance</summary>
-                    <p style="margin:4px 0 0;">Sumber: ${companyProfile.source} · Terverifikasi: ${companyProfile.verifiedDate}</p>
-                </details>
-            `;
-            panel.appendChild(profCard);
+
+        const fundContainer = document.createElement('section');
+        fundContainer.id = 'detail-fundamentals-container';
+        fundContainer.className = 'card';
+        fundContainer.style.marginTop = '12px';
+
+        const fundNav = document.createElement('div');
+        fundNav.style.cssText = 'display:flex; gap:6px; margin-bottom:12px; overflow-x:auto; padding-bottom:4px;';
+        const fundTabs = [
+            { id: 'ringkasan', label: 'Ringkasan' },
+            { id: 'valuasi', label: 'Valuasi & Rasio' },
+            { id: 'keuangan', label: 'Laporan Keuangan' },
+            { id: 'pemegang', label: 'Pemegang Saham' }
+        ];
+
+        const fundContent = document.createElement('div');
+        fundContent.id = 'fund-content-box';
+
+        function renderFundTab(tabId) {
+            fundNav.querySelectorAll('button').forEach(b => {
+                const active = b.dataset.tabId === tabId;
+                b.className = 'subtab-pill' + (active ? ' active' : '');
+            });
+            fundContent.replaceChildren();
+
+            if (tabId === 'ringkasan') {
+                if (companyProfile) {
+                    const desc = document.createElement('p');
+                    desc.style.cssText = 'font-size:0.85rem; color:var(--text-secondary); line-height:1.45; margin:0 0 10px;';
+                    desc.textContent = companyProfile.description;
+                    fundContent.appendChild(desc);
+                    flowText(fundContent, 'Nama resmi', companyProfile.name);
+                    flowText(fundContent, 'Bursa & negara', `${companyProfile.exchange} · ${companyProfile.country}`);
+                    flowText(fundContent, 'Sektor', companyProfile.sector);
+                    flowText(fundContent, 'Mata uang', companyProfile.currency);
+                    if (companyProfile.website) {
+                        const webRow = document.createElement('div');
+                        webRow.className = 'data-row';
+                        webRow.innerHTML = `<span>Situs resmi</span><a href="${companyProfile.website}" target="_blank" rel="noopener" style="color:var(--teal); font-weight:600; text-decoration:none;">${companyProfile.website} ↗</a>`;
+                        fundContent.appendChild(webRow);
+                    }
+                }
+            } else if (tabId === 'valuasi' && fundamentals) {
+                const v = fundamentals.valuationRatios || {};
+                flowText(fundContent, 'Kapitalisasi Pasar (Market Cap)', `Rp ${Number(v.marketCap || 0).toLocaleString('id-ID')}`);
+                flowText(fundContent, 'Laba per Saham (EPS)', `Rp ${v.eps || 0}`);
+                flowText(fundContent, 'Price-to-Earnings Ratio (PER)', v.per || 'N/A');
+                flowText(fundContent, 'Price-to-Book Value (PBV)', v.pbv || 'N/A');
+                flowText(fundContent, 'Return on Equity (ROE)', v.roe || 'N/A');
+                flowText(fundContent, 'Return on Assets (ROA)', v.roa || 'N/A');
+                flowText(fundContent, 'Debt-to-Equity Ratio (DER)', v.der || 'N/A');
+                flowText(fundContent, 'Dividen per Saham', `Rp ${v.dividendPerShare || 0} (${v.dividendPayoutRatio || '35%'} Payout)`);
+                flowText(fundContent, 'Dividend Yield', v.dividendYield || '0.00%');
+            } else if (tabId === 'keuangan' && fundamentals) {
+                const bs = fundamentals.balanceSheet || {};
+                const is = fundamentals.incomeStatement || {};
+                const cf = fundamentals.cashFlow || {};
+
+                const hNeraca = document.createElement('h4');
+                hNeraca.style.cssText = 'margin:8px 0 4px; font-size:0.85rem; color:var(--teal);';
+                hNeraca.textContent = '1. Neraca Keuangan (Aset = Liabilitas + Ekuitas)';
+                fundContent.appendChild(hNeraca);
+                flowText(fundContent, 'Total Aset', `Rp ${Number(bs.totalAssets || 0).toLocaleString('id-ID')}`);
+                flowText(fundContent, 'Total Liabilitas (Kewajiban)', `Rp ${Number(bs.totalLiabilities || 0).toLocaleString('id-ID')}`);
+                flowText(fundContent, 'Total Ekuitas Bersih', `Rp ${Number(bs.totalEquity || 0).toLocaleString('id-ID')}`);
+
+                const hLaba = document.createElement('h4');
+                hLaba.style.cssText = 'margin:12px 0 4px; font-size:0.85rem; color:var(--teal);';
+                hLaba.textContent = '2. Laporan Laba Rugi (Pendapatan & Laba Bersih)';
+                fundContent.appendChild(hLaba);
+                flowText(fundContent, 'Total Pendapatan (Revenue)', `Rp ${Number(is.totalRevenue || 0).toLocaleString('id-ID')}`);
+                flowText(fundContent, 'Laba Usaha (Operating Profit)', `Rp ${Number(is.operatingProfit || 0).toLocaleString('id-ID')}`);
+                flowText(fundContent, 'Laba Bersih (Net Profit)', `Rp ${Number(is.netProfit || 0).toLocaleString('id-ID')}`);
+
+                const hArus = document.createElement('h4');
+                hArus.style.cssText = 'margin:12px 0 4px; font-size:0.85rem; color:var(--teal);';
+                hArus.textContent = '3. Laporan Arus Kas (CFO + CFI + CFF)';
+                fundContent.appendChild(hArus);
+                flowText(fundContent, 'Arus Kas Operasional (CFO)', `Rp ${Number(cf.cfo || 0).toLocaleString('id-ID')}`);
+                flowText(fundContent, 'Arus Kas Investasi Capex (CFI)', `Rp ${Number(cf.cfi || 0).toLocaleString('id-ID')}`);
+                flowText(fundContent, 'Arus Kas Pendanaan (CFF)', `Rp ${Number(cf.cff || 0).toLocaleString('id-ID')}`);
+                flowText(fundContent, 'Arus Kas Bersih Konsisten', `Rp ${Number(cf.netCashflow || 0).toLocaleString('id-ID')}`);
+            } else if (tabId === 'pemegang' && fundamentals) {
+                const sh = fundamentals.shareStructure || {};
+                flowText(fundContent, 'Saham Beredar (Outstanding)', `${Number(sh.sharesOutstanding || 0).toLocaleString('id-ID')} lembar`);
+                flowText(fundContent, 'Porsi Saham Publik (Free Float)', `${Number(sh.freeFloatShares || 0).toLocaleString('id-ID')} lembar (${sh.freeFloatPercent || 40}%)`);
+                flowText(fundContent, 'Jumlah Pemegang Saham', `${Number(sh.totalShareholdersCount || 0).toLocaleString('id-ID')} investor`);
+                flowText(fundContent, 'Struktur Pemegang Utama', sh.majorShareholders || 'Pendiri, Institusi, & Publik');
+            }
+
+            const provNotice = document.createElement('div');
+            provNotice.style.cssText = 'margin-top:10px; font-size:0.72rem; color:var(--text-muted); border-top:1px solid rgba(255,255,255,0.06); padding-top:6px;';
+            provNotice.textContent = `Periode: FY2026 Model Game · Sumber: ${companyProfile ? companyProfile.source : 'Bursa Efek'} / Model Ekonomi Game`;
+            fundContent.appendChild(provNotice);
         }
+
+        fundTabs.forEach(t => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.dataset.tabId = t.id;
+            btn.className = 'subtab-pill' + (t.id === 'ringkasan' ? ' active' : '');
+            btn.textContent = t.label;
+            btn.onclick = () => renderFundTab(t.id);
+            fundNav.appendChild(btn);
+        });
+
+        fundContainer.append(fundNav, fundContent);
+        panel.appendChild(fundContainer);
+        renderFundTab('ringkasan');
 
         if (bridge.toggleWatchlist) {
             const watchlist = flowButton(panel, stock.isWatchlist ? 'Hapus dari watchlist' : 'Tambah ke watchlist', () => {
@@ -3184,6 +3393,116 @@
                 });
             }
             panel.append(commSection);
+
+            // 3. Deposito Berjangka Perbankan (R10)
+            const depSection = document.createElement('section');
+            depSection.className = 'card';
+            const depTitle = document.createElement('h2');
+            depTitle.className = 'card-title';
+            depTitle.textContent = 'Deposito Berjangka Perbankan (Time Deposit)';
+            depSection.append(depTitle);
+
+            if (bridge.getTimeDepositProducts) {
+                try {
+                    const products = JSON.parse(bridge.getTimeDepositProducts());
+                    const activeDeps = bridge.getActiveTimeDeposits ? JSON.parse(bridge.getActiveTimeDeposits()) : [];
+
+                    // Rincian Deposito Aktif
+                    if (activeDeps.length > 0) {
+                        const hActive = document.createElement('h3');
+                        hActive.style.cssText = 'margin:12px 0 6px; font-size:0.95rem; color:var(--teal);';
+                        hActive.textContent = `Deposito Aktif (${activeDeps.length} Penempatan)`;
+                        depSection.append(hActive);
+
+                        activeDeps.forEach(d => {
+                            const dCard = document.createElement('article');
+                            dCard.className = 'card';
+                            dCard.style.cssText = 'margin-bottom:8px; border:1px solid rgba(20,241,149,0.3);';
+                            flowText(dCard, 'Bank penerbit', d.bankName);
+                            flowText(dCard, 'Nominal pokok', d.principal);
+                            flowText(dCard, 'Suku bunga p.a.', d.annualInterestRate);
+                            flowText(dCard, 'Tenor', `${d.tenorDays} hari game`);
+                            flowText(dCard, 'Bunga berjalan (Accrued)', d.accruedInterest);
+                            flowText(dCard, 'Status', d.isMatured ? 'SUDAH JATUH TEMPO (Bunga Penuh)' : 'Sedang Berjalan');
+
+                            const btnWithdraw = document.createElement('button');
+                            btnWithdraw.className = d.isMatured ? 'btn-primary' : 'btn-secondary';
+                            btnWithdraw.style.marginTop = '6px';
+                            btnWithdraw.textContent = d.isMatured ? 'Cairkan Pokok & Bunga' : 'Tarik Dini (Penalti Bunga 50%)';
+                            btnWithdraw.onclick = () => {
+                                if (!d.isMatured && !confirm('Penarikan sebelum jatuh tempo akan dikenakan penalti bunga 50%. Lanjutkan penarikan?')) return;
+                                try {
+                                    const res = JSON.parse(bridge.withdrawTimeDeposit(JSON.stringify({ depositId: d.id })));
+                                    if (res.success) {
+                                        alert('Pencairan deposito berhasil diproses ke saldo kas IDR Anda.');
+                                        refreshSnapshot();
+                                        openMultiAssets();
+                                    } else {
+                                        alert('Gagal mencairkan: ' + res.message);
+                                    }
+                                } catch (err) { alert('Galat penarikan: ' + err.message); }
+                            };
+                            dCard.append(btnWithdraw);
+                            depSection.append(dCard);
+                        });
+                    }
+
+                    // Pilihan Produk Penempatan Baru
+                    const hProd = document.createElement('h3');
+                    hProd.style.cssText = 'margin:14px 0 6px; font-size:0.95rem; color:#FFF;';
+                    hProd.textContent = 'Pilihan Produk Deposito Bank';
+                    depSection.append(hProd);
+
+                    products.forEach(p => {
+                        const pCard = document.createElement('article');
+                        pCard.className = 'card';
+                        pCard.style.marginBottom = '8px';
+                        const h = document.createElement('h4');
+                        h.style.margin = '0 0 6px';
+                        h.textContent = `${p.bankName} (${p.tenorDays} Hari)`;
+                        pCard.append(h);
+                        flowText(pCard, 'Suku bunga tahunan', p.annualInterestRate + ' p.a.');
+                        flowText(pCard, 'Minimal penempatan', p.minPlacement);
+
+                        const formBox = document.createElement('div');
+                        formBox.style.cssText = 'display:flex; gap:8px; margin-top:8px; align-items:center;';
+
+                        const amtInput = document.createElement('input');
+                        amtInput.type = 'number';
+                        amtInput.className = 'input-field';
+                        amtInput.style.cssText = 'max-width:180px; padding:6px 10px; font-size:0.85rem;';
+                        amtInput.placeholder = 'Nominal IDR';
+                        amtInput.value = '10000000';
+
+                        const openBtn = document.createElement('button');
+                        openBtn.className = 'btn-primary';
+                        openBtn.style.padding = '6px 14px';
+                        openBtn.textContent = 'Buka Deposito';
+                        openBtn.onclick = () => {
+                            const val = parseFloat(amtInput.value);
+                            if (isNaN(val) || val <= 0) { alert('Nominal penempatan tidak sah'); return; }
+                            try {
+                                const res = JSON.parse(bridge.openTimeDeposit(JSON.stringify({ productId: p.id, amount: String(val) })));
+                                if (res.success) {
+                                    alert(`Berhasil membuka deposito di ${p.bankName} sebesar Rp ${val.toLocaleString('id-ID')}!`);
+                                    refreshSnapshot();
+                                    openMultiAssets();
+                                } else {
+                                    alert('Gagal membuka deposito: ' + (res.message || 'Periksa saldo kas Anda'));
+                                }
+                            } catch(err) { alert('Galat penempatan: ' + err.message); }
+                        };
+
+                        formBox.append(amtInput, openBtn);
+                        pCard.append(formBox);
+                        depSection.append(pCard);
+                    });
+
+                } catch (e) {
+                    flowText(depSection, 'Deposito', 'Layanan deposito belum terhubung: ' + e.message);
+                }
+            }
+            panel.append(depSection);
 
         } catch (e) { flowText(panel, 'Gagal memuat katalog multi-aset', e.message); }
     }
@@ -4063,58 +4382,206 @@
         panel.append(amtLabel, amtInput, payBtn, statusMsg);
     }
 
-    function openPeriodicMissionsModal() {
-        const panel = showFlow('Misi Harian & Mingguan');
-        flowText(panel, 'Kalender game (D07)', 'Misi harian berganti setiap pukul 00:00 WIB dan mingguan setiap hari Senin. Selesaikan target untuk klaim reward kas dan XP!');
+    function openPeriodicMissionsModal(activeTab = 'DAILY') {
+        const panel = showFlow('Pusat Misi & Target');
+        flowText(panel, 'Pusat Misi Terpadu', 'Selesaikan target harian, mingguan, dan misi karier untuk memperoleh hadiah modal kas dan reputasi.');
 
-        if (!bridge.getPeriodicMissions) {
-            flowText(panel, 'Status', 'Bridge misi periodik belum tersedia.');
-            return;
-        }
+        const navWrap = document.createElement('div');
+        navWrap.className = 'mission-tabs-nav';
+        navWrap.style.cssText = 'display:flex; gap:8px; margin:12px 0 16px; overflow-x:auto; padding-bottom:4px;';
+
+        const tabs = [
+            { id: 'DAILY', label: '📅 Misi Harian' },
+            { id: 'WEEKLY', label: '📆 Misi Mingguan' },
+            { id: 'CAREER', label: '🎯 Target Karier' }
+        ];
+
+        tabs.forEach(t => {
+            const btn = document.createElement('button');
+            btn.className = 'subtab-pill' + (activeTab === t.id ? ' active' : '');
+            btn.textContent = t.label;
+            btn.type = 'button';
+            btn.onclick = () => openPeriodicMissionsModal(t.id);
+            navWrap.appendChild(btn);
+        });
+        panel.appendChild(navWrap);
+
+        const contentBox = document.createElement('div');
+        contentBox.className = 'mission-content-box';
+        panel.appendChild(contentBox);
 
         try {
-            const mRes = JSON.parse(bridge.getPeriodicMissions());
-            if (!mRes.success) throw new Error(mRes.message || 'Gagal memuat misi');
+            if (activeTab === 'CAREER') {
+                const snap = latestSnapshot;
+                const missions = (snap && snap.career && snap.career.missions) || [];
+                if (!missions.length) {
+                    flowText(contentBox, 'Target Karier', 'Belum ada misi karier yang tersedia saat ini.');
+                    return;
+                }
 
-            const activeList = mRes.activeMissions || [];
-            if (activeList.length === 0) {
-                flowText(panel, 'Misi aktif', 'Belum ada misi aktif untuk periode ini.');
-            } else {
-                activeList.forEach(m => {
+                // Sort: siap diklaim -> belum selesai -> sudah diklaim
+                const sorted = missions.slice().sort((a, b) => {
+                    const score = m => (m.completed && !m.claimed) ? 0 : (!m.completed ? 1 : 2);
+                    return score(a) - score(b);
+                });
+
+                sorted.forEach(m => {
                     const card = document.createElement('article');
-                    card.className = 'card';
-                    card.style.marginTop = '10px';
+                    card.className = 'card mission-card';
+                    card.style.cssText = 'margin-bottom:10px; background:var(--surface-raised, #252B31); border-radius:14px; padding:14px; border:1px solid rgba(255,255,255,0.08);';
 
-                    const h = document.createElement('h3');
-                    h.textContent = `[${m.periodLabel}] ${m.title}`;
-                    card.append(h);
+                    const isReady = m.completed && !m.claimed;
+                    const isClaimed = Boolean(m.claimed);
 
-                    flowText(card, 'Target misi', m.description);
-                    flowText(card, 'Progres', m.progress);
-                    flowText(card, 'Imbalan', `${m.cashReward} + ${m.xpReward}`);
-                    flowText(card, 'Status', m.completed ? (m.claimed ? 'Sudah Diklaim' : 'Selesai — Siap Diklaim!') : 'Dalam Proses');
+                    card.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span class="eyebrow" style="color:var(--text-muted); font-size:0.68rem;">TARGET KARIER JANGKA PANJANG</span>
+                            <span class="badge" style="background:${isClaimed ? 'rgba(255,255,255,0.08)' : (isReady ? 'rgba(20,241,149,0.18)' : 'rgba(255,160,0,0.18)')}; color:${isClaimed ? 'var(--text-muted)' : (isReady ? 'var(--teal)' : '#FFA000')}; padding:2px 8px; border-radius:6px; font-size:0.68rem; font-weight:600;">
+                                ${isClaimed ? '✓ Sudah Diklaim' : (isReady ? '★ Selesai — Siap Klaim' : '○ Dalam Proses')}
+                            </span>
+                        </div>
+                        <h3 style="margin:0 0 6px; font-size:1.05rem; color:#FFF;">${m.title}</h3>
+                        <p style="margin:0 0 8px; font-size:0.8rem; color:var(--text-muted);">${m.description}</p>
+                    `;
 
-                    if (m.completed && !m.claimed) {
+                    // Progress bar
+                    const pct = isClaimed || isReady ? 100 : (m.progressPercent || (m.completed ? 100 : 40));
+                    const track = document.createElement('div');
+                    track.className = 'xp-track';
+                    track.style.cssText = 'height:6px; margin:8px 0; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden;';
+                    track.innerHTML = `<span style="display:block; height:100%; width:${pct}%; background:${isReady ? 'var(--teal)' : 'var(--accent-purple, #9945FF)'}; transition:width 300ms ease;"></span>`;
+                    card.appendChild(track);
+
+                    flowText(card, 'Imbalan Misi', `${m.reward || 'Rp 2.500.000 + Reputasi'}`);
+
+                    if (isReady) {
                         const claimBtn = document.createElement('button');
                         claimBtn.className = 'btn-primary';
-                        claimBtn.style.marginTop = '8px';
-                        claimBtn.textContent = `Klaim Hadiah (${m.cashReward} + ${m.xpReward})`;
+                        claimBtn.style.marginTop = '10px';
+                        claimBtn.textContent = 'Klaim Hadiah Karier ↗';
+                        let claiming = false;
                         claimBtn.onclick = () => {
+                            if (claiming) return;
+                            claiming = true;
+                            claimBtn.disabled = true;
+                            claimBtn.textContent = 'Mengklaim...';
+                            try {
+                                const r = JSON.parse(bridge.claimMission(m.id));
+                                if (!r.success) throw new Error(r.message);
+                                showGameToast('success', 'Misi Karier Selesai!', r.message || 'Hadiah berhasil diklaim');
+                                refreshSnapshot();
+                                openPeriodicMissionsModal('CAREER');
+                            } catch (err) {
+                                claiming = false;
+                                claimBtn.disabled = false;
+                                claimBtn.textContent = 'Klaim Hadiah Karier ↗';
+                                showGameToast('info', 'Klaim Gagal', err.message);
+                            }
+                        };
+                        card.appendChild(claimBtn);
+                    }
+                    contentBox.appendChild(card);
+                });
+
+            } else {
+                // DAILY or WEEKLY
+                if (!bridge.getPeriodicMissions) {
+                    flowText(contentBox, 'Status', 'Bridge misi periodik belum tersedia.');
+                    return;
+                }
+                const mRes = JSON.parse(bridge.getPeriodicMissions());
+                if (!mRes.success) throw new Error(mRes.message || 'Gagal memuat misi');
+
+                const allList = mRes.activeMissions || [];
+                const filtered = allList.filter(m => (m.period || '').toUpperCase() === activeTab);
+
+                // Header countdown
+                const headerNotice = document.createElement('div');
+                headerNotice.className = 'card';
+                headerNotice.style.cssText = 'padding:10px 14px; margin-bottom:12px; background:rgba(255,255,255,0.03); border-left:3px solid var(--teal);';
+                headerNotice.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.75rem; color:var(--text-muted);">Reset Kalender Game:</span>
+                        <strong style="color:var(--teal); font-size:0.8rem;">${activeTab === 'DAILY' ? 'Setiap 24:00 WIB (Tengah Malam)' : 'Setiap Hari Senin 00:00 WIB'}</strong>
+                    </div>
+                `;
+                contentBox.appendChild(headerNotice);
+
+                if (!filtered.length) {
+                    flowText(contentBox, 'Misi aktif', `Belum ada misi ${activeTab === 'DAILY' ? 'harian' : 'mingguan'} untuk periode ini.`);
+                    return;
+                }
+
+                // Sort: siap klaim -> belum selesai -> sudah diklaim
+                const sorted = filtered.slice().sort((a, b) => {
+                    const score = m => (m.completed && !m.claimed) ? 0 : (!m.completed ? 1 : 2);
+                    return score(a) - score(b);
+                });
+
+                sorted.forEach(m => {
+                    const card = document.createElement('article');
+                    card.className = 'card mission-card';
+                    card.style.cssText = 'margin-bottom:10px; background:var(--surface-raised, #252B31); border-radius:14px; padding:14px; border:1px solid rgba(255,255,255,0.08);';
+
+                    const isReady = m.completed && !m.claimed;
+                    const isClaimed = Boolean(m.claimed);
+
+                    card.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span class="eyebrow" style="color:var(--text-muted); font-size:0.68rem;">[${m.periodLabel || activeTab}]</span>
+                            <span class="badge" style="background:${isClaimed ? 'rgba(255,255,255,0.08)' : (isReady ? 'rgba(20,241,149,0.18)' : 'rgba(255,160,0,0.18)')}; color:${isClaimed ? 'var(--text-muted)' : (isReady ? 'var(--teal)' : '#FFA000')}; padding:2px 8px; border-radius:6px; font-size:0.68rem; font-weight:600;">
+                                ${isClaimed ? '✓ Sudah Diklaim' : (isReady ? '★ Selesai — Siap Klaim' : '○ Dalam Proses')}
+                            </span>
+                        </div>
+                        <h3 style="margin:0 0 6px; font-size:1.05rem; color:#FFF;">${m.title}</h3>
+                        <p style="margin:0 0 8px; font-size:0.8rem; color:var(--text-muted);">${m.description}</p>
+                    `;
+
+                    // Progress bar
+                    const currentUnits = Number(m.currentProgress || 0);
+                    const targetUnits = Number(m.targetProgress || 1);
+                    const pct = isClaimed || isReady ? 100 : Math.min(100, Math.round((currentUnits / targetUnits) * 100));
+
+                    const track = document.createElement('div');
+                    track.className = 'xp-track';
+                    track.style.cssText = 'height:6px; margin:8px 0; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden;';
+                    track.innerHTML = `<span style="display:block; height:100%; width:${pct}%; background:${isReady ? 'var(--teal)' : 'var(--accent-purple, #9945FF)'}; transition:width 300ms ease;"></span>`;
+                    card.appendChild(track);
+
+                    flowText(card, 'Progres', `${m.progress || currentUnits + ' / ' + targetUnits}`);
+                    flowText(card, 'Hadiah', `${m.cashReward || 'Rp 0'} + ${m.xpReward || '0 XP'}`);
+
+                    if (isReady) {
+                        const claimBtn = document.createElement('button');
+                        claimBtn.className = 'btn-primary';
+                        claimBtn.style.marginTop = '10px';
+                        claimBtn.textContent = `Klaim Hadiah (${m.cashReward} + ${m.xpReward}) ↗`;
+                        let claiming = false;
+                        claimBtn.onclick = () => {
+                            if (claiming) return;
+                            claiming = true;
+                            claimBtn.disabled = true;
+                            claimBtn.textContent = 'Mengklaim...';
                             try {
                                 const r = JSON.parse(bridge.claimPeriodicMission(m.id));
                                 if (!r.success) throw new Error(r.message);
-                                showGameToast('success', 'Misi Selesai!', r.message, 'MISSION_CLAIM:' + m.id);
+                                showGameToast('success', 'Misi Selesai!', r.message || 'Hadiah berhasil diklaim', 'MISSION_CLAIM:' + m.id);
                                 refreshSnapshot();
-                                openPeriodicMissionsModal();
-                            } catch (err) { showGameToast('info', 'Klaim Gagal', err.message); }
+                                openPeriodicMissionsModal(activeTab);
+                            } catch (err) {
+                                claiming = false;
+                                claimBtn.disabled = false;
+                                claimBtn.textContent = `Klaim Hadiah (${m.cashReward} + ${m.xpReward}) ↗`;
+                                showGameToast('info', 'Klaim Gagal', err.message);
+                            }
                         };
-                        card.append(claimBtn);
+                        card.appendChild(claimBtn);
                     }
-                    panel.append(card);
+                    contentBox.appendChild(card);
                 });
             }
         } catch (e) {
-            flowText(panel, 'Gagal memuat misi', e.message);
+            flowText(contentBox, 'Gagal memuat misi', e.message);
         }
     }
 
@@ -4257,9 +4724,9 @@
         }
     }
 
-    function openPlayerProfileModal() {
+    function openPlayerProfileModal(activeSubtab = 'KINERJA') {
         const panel = showFlow('Profil Saya');
-        flowText(panel, 'Identitas & Rekam Jejak', 'Statistik lengkap performa, portofolio finansial, dan pengaturan identitas lokal.');
+        flowText(panel, 'Identitas & Rekam Jejak', 'Statistik lengkap performa, portofolio finansial, dan pencapaian karier Anda.');
 
         if (!bridge.getPlayerProfile) {
             flowText(panel, 'Status', 'Bridge profil belum tersedia.');
@@ -4270,112 +4737,148 @@
             const p = JSON.parse(bridge.getPlayerProfile());
             const fin = p.financialSummary || {};
 
-            // 1. Seksi 1: Identitas & Karier
-            const idCard = document.createElement('section');
-            idCard.className = 'card';
-            idCard.innerHTML = `<h2 class="card-title">1. Identitas & Karier</h2>`;
-            flowText(idCard, 'Nama trader', p.playerName || 'Trader');
-            flowText(idCard, 'Pangkat / Gelar', `${p.careerRank || 'Intern'} (${p.careerRankId || '-'})`);
-            flowText(idCard, 'Level & XP', `Level ${p.currentLevel || 1} (${p.currentXp || 0} XP)`);
-            flowText(idCard, 'Hari perjalanan era aktif', `${p.runDaysPlayed || p.lifetimeDaysPlayed || 1} hari`);
-            flowText(idCard, 'Total hari bermain', `${p.lifetimeDaysPlayed || 1} hari`);
-            panel.append(idCard);
-
-            // 2. Seksi 2: Ringkasan Keuangan
-            const finCard = document.createElement('section');
-            finCard.className = 'card';
-            finCard.innerHTML = `<h2 class="card-title">2. Ringkasan Keuangan</h2>`;
-            metricCard(finCard, 'KEKAYAAN BERSIH PRIBADI', fin.personalNetWorth || p.netWorth, 'Valuasi gabungan kas & aset pribadi');
-            flowText(finCard, 'Kas pribadi IDR', fin.personalCashIdr || 'Rp 0');
-            flowText(finCard, 'Kas pribadi USD', fin.personalCashUsd || '$0.00');
-            flowText(finCard, 'Portofolio saham (IDR)', fin.securitiesValueIdr || 'Rp 0');
-            flowText(finCard, 'Koleksi aset mewah (IDR)', fin.collectionsValueIdr || 'Rp 0');
-            flowText(finCard, 'Reksa dana NAB (IDR)', fin.mutualFundsValueIdr || 'Rp 0');
-            flowText(finCard, 'Kewajiban utang margin', fin.liabilitiesIdr || 'Rp 0');
-            flowText(finCard, 'Dana kelolaan klien (AUM)', `${fin.clientAumIdr || 'Rp 0'} (Terpisah dari uang pribadi)`);
-            panel.append(finCard);
-
-            // 3. Seksi 3: Statistik Trading Komprehensif
-            const tradeCard = document.createElement('section');
-            tradeCard.className = 'card';
-            tradeCard.innerHTML = `<h2 class="card-title">3. Statistik Trading</h2>`;
-            flowText(tradeCard, 'Total order terealisasi', `${p.totalTrades || 0} transaksi`);
-            flowText(tradeCard, 'Transaksi untung / rugi', `${p.profitableTrades || 0} untung · ${p.lossTrades || 0} rugi`);
-            flowText(tradeCard, 'Rasio menang (Win Rate)', p.winRate || 'Belum Ada Data');
-            flowText(tradeCard, 'Transaksi terbaik', p.bestTradePnL || 'Rp 0');
-            flowText(tradeCard, 'Transaksi terburuk', p.worstTradePnL || 'Rp 0');
-            panel.append(tradeCard);
-
-            // 4. Seksi 4: Performa & Pencapaian
-            const perfCard = document.createElement('section');
-            perfCard.className = 'card';
-            perfCard.innerHTML = `<h2 class="card-title">4. Performa & Pencapaian</h2>`;
-            const weeklyRet = p.performance && p.performance.weekly && p.performance.weekly.returnAvailable ? `${p.performance.weekly.returnPercent >= 0 ? '+' : ''}${Number(p.performance.weekly.returnPercent).toFixed(1)}%` : '0.0%';
-            flowText(perfCard, 'ROI mingguan', weeklyRet);
-            flowText(perfCard, 'Puncak kekayaan tertinggi', p.lifetimePeakNetWorth || p.netWorth);
-            flowText(perfCard, 'Peringkat liga saat ini', `#${p.playerLeagueRank || 1}`);
-            flowButton(perfCard, 'Lihat Laporan Kinerja Lengkap', openPerformanceReport);
-            flowButton(perfCard, 'Lihat Peringkat & Rival', openLeagueAndRivalModal);
-            panel.append(perfCard);
-
-            // 5. Seksi 5: Perjalanan & Pengaturan Tampilan
-            const prefCard = document.createElement('section');
-            prefCard.className = 'card';
-            prefCard.innerHTML = `<h2 class="card-title">5. Pengaturan Identitas & Aksesibilitas</h2>`;
-
-            const nameLabel = document.createElement('label');
-            nameLabel.textContent = 'Ubah nama trader';
-            const nameInput = document.createElement('input');
-            nameInput.className = 'input-field';
-            nameInput.value = p.playerName || 'Trader';
-
-            const textScaleLabel = document.createElement('label');
-            textScaleLabel.textContent = 'Ukuran teks tampilan';
-            const textScaleSelect = document.createElement('select');
-            textScaleSelect.id = 'player-text-size'; textScaleLabel.htmlFor = textScaleSelect.id;
-            textScaleSelect.className = 'input-field';
-            textScaleSelect.innerHTML = `
-                <option value="100%" ${p.preferences && p.preferences.textSize === '100%' ? 'selected' : ''}>100% (Standar)</option>
-                <option value="200%" ${p.preferences && p.preferences.textSize === '200%' ? 'selected' : ''}>200% (Teks Besar Aksesibel)</option>
+            // Header Ringkasan Singkat di Atas
+            const headerHero = document.createElement('section');
+            headerHero.className = 'card wealth-hero';
+            headerHero.style.cssText = 'padding:14px; margin-bottom:12px; background:linear-gradient(135deg, rgba(153,69,255,0.12) 0%, rgba(20,241,149,0.08) 100%); border:1px solid rgba(153,69,255,0.3); border-radius:16px;';
+            headerHero.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <div>
+                        <span class="eyebrow" style="color:var(--text-muted); font-size:0.68rem;">TRADER IDENTITY</span>
+                        <h2 style="margin:2px 0 0; font-size:1.15rem; color:#FFF;">${p.playerName || 'Trader'}</h2>
+                    </div>
+                    <span class="badge" style="background:rgba(20,241,149,0.18); color:var(--teal); font-weight:700; padding:3px 10px; border-radius:8px; font-size:0.75rem;">
+                        ${p.careerRank || 'Intern'} · Lv. ${p.currentLevel || 1}
+                    </span>
+                </div>
+                <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px;">TOTAL KEKAYAAN BERSIH PRIBADI</div>
+                <strong style="font-size:1.4rem; color:var(--teal); font-weight:700; display:block;">${fin.personalNetWorth || p.netWorth}</strong>
             `;
+            panel.append(headerHero);
 
-            const highContrastLabel = node('label', 'check-row');
-            const highContrast = node('input'); highContrast.type = 'checkbox';
-            highContrast.checked = Boolean(p.preferences && p.preferences.highContrast);
-            highContrastLabel.append(highContrast, node('span', '', 'Kontras tinggi'));
+            // 3 Sub-Tabs Navigasi: Kinerja / Keuangan / Pencapaian
+            const navWrap = document.createElement('div');
+            navWrap.className = 'profile-subtabs-nav';
+            navWrap.style.cssText = 'display:flex; gap:8px; margin-bottom:14px;';
+            const subtabs = [
+                { id: 'KINERJA', label: '📈 Kinerja' },
+                { id: 'KEUANGAN', label: '💰 Keuangan' },
+                { id: 'PENCAPAIAN', label: '🏆 Pencapaian' }
+            ];
+            subtabs.forEach(tab => {
+                const btn = document.createElement('button');
+                btn.className = 'subtab-pill' + (activeSubtab === tab.id ? ' active' : '');
+                btn.textContent = tab.label;
+                btn.type = 'button';
+                btn.onclick = () => openPlayerProfileModal(tab.id);
+                navWrap.appendChild(btn);
+            });
+            panel.append(navWrap);
 
-            const reducedMotionLabel = node('label', 'check-row');
-            const reducedMotion = node('input'); reducedMotion.type = 'checkbox';
-            reducedMotion.checked = Boolean(p.preferences && p.preferences.reducedMotion);
-            reducedMotionLabel.append(reducedMotion, node('span', '', 'Kurangi gerakan'));
+            const contentBox = document.createElement('div');
+            panel.append(contentBox);
 
-            const profileStatus = node('p'); profileStatus.setAttribute('role', 'status');
-            const saveBtn = document.createElement('button');
-            saveBtn.className = 'btn-primary';
-            saveBtn.style.marginTop = '12px';
-            saveBtn.textContent = 'Simpan Profil & Preferensi';
+            if (activeSubtab === 'KINERJA') {
+                const tradeCard = document.createElement('section');
+                tradeCard.className = 'card';
+                tradeCard.innerHTML = `<h2 class="card-title">Statistik Trading & Return</h2>`;
+                flowText(tradeCard, 'Total order terealisasi', `${p.totalTrades || 0} transaksi`);
+                flowText(tradeCard, 'Transaksi untung / rugi', `${p.profitableTrades || 0} untung · ${p.lossTrades || 0} rugi`);
+                flowText(tradeCard, 'Rasio menang (Win Rate)', p.winRate || 'Belum Ada Data');
+                flowText(tradeCard, 'Transaksi terbaik', p.bestTradePnL || 'Rp 0');
+                flowText(tradeCard, 'Transaksi terburuk', p.worstTradePnL || 'Rp 0');
 
-            saveBtn.onclick = () => {
-                try {
-                    const req = {
-                        playerName: nameInput.value.trim(),
-                        preferences: {
-                            textSize: textScaleSelect.value,
-                            highContrast: highContrast.checked,
-                            reducedMotion: reducedMotion.checked
-                        }
-                    };
-                    const res = bridgeResult('updatePlayerProfile', JSON.stringify(req));
-                    applyPlayerPreferences(res.preferences || req.preferences);
-                    profileStatus.textContent = 'Profil dan preferensi tersimpan.';
-                    refreshSnapshot();
-                } catch (err) {
-                    profileStatus.textContent = 'Gagal menyimpan: ' + err.message;
-                }
-            };
+                const weeklyRet = p.performance && p.performance.weekly && p.performance.weekly.returnAvailable ? `${p.performance.weekly.returnPercent >= 0 ? '+' : ''}${Number(p.performance.weekly.returnPercent).toFixed(1)}%` : '0.0%';
+                flowText(tradeCard, 'ROI mingguan', weeklyRet);
+                flowButton(tradeCard, 'Lihat Laporan Kinerja Lengkap', openPerformanceReport);
+                contentBox.append(tradeCard);
 
-            prefCard.append(nameLabel, nameInput, textScaleLabel, textScaleSelect, highContrastLabel, reducedMotionLabel, saveBtn, profileStatus);
-            panel.append(prefCard);
+            } else if (activeSubtab === 'KEUANGAN') {
+                const finCard = document.createElement('section');
+                finCard.className = 'card';
+                finCard.innerHTML = `<h2 class="card-title">Portofolio & Struktur Aset/Utang</h2>`;
+                flowText(finCard, 'Kas pribadi IDR', fin.personalCashIdr || 'Rp 0');
+                flowText(finCard, 'Kas pribadi USD', fin.personalCashUsd || '$0.00');
+                flowText(finCard, 'Portofolio saham (IDR)', fin.securitiesValueIdr || 'Rp 0');
+                flowText(finCard, 'Koleksi aset mewah (IDR)', fin.collectionsValueIdr || 'Rp 0');
+                flowText(finCard, 'Reksa dana NAB (IDR)', fin.mutualFundsValueIdr || 'Rp 0');
+                flowText(finCard, 'Kewajiban utang margin', fin.liabilitiesIdr || 'Rp 0');
+                flowText(finCard, 'Dana kelolaan klien (AUM)', `${fin.clientAumIdr || 'Rp 0'} (Terpisah dari uang pribadi)`);
+                flowButton(finCard, 'Rincian Kekayaan Bersih Konsolidasi', openConsolidatedWealthModal);
+                contentBox.append(finCard);
+
+            } else if (activeSubtab === 'PENCAPAIAN') {
+                const achCard = document.createElement('section');
+                achCard.className = 'card';
+                achCard.innerHTML = `<h2 class="card-title">Pencapaian & Peringkat Liga</h2>`;
+                flowText(achCard, 'Puncak kekayaan tertinggi', p.lifetimePeakNetWorth || p.netWorth);
+                flowText(achCard, 'Hari perjalanan era aktif', `${p.runDaysPlayed || p.lifetimeDaysPlayed || 1} hari`);
+                flowText(achCard, 'Total hari bermain', `${p.lifetimeDaysPlayed || 1} hari`);
+                flowText(achCard, 'Peringkat liga saat ini', `#${p.playerLeagueRank || 1}`);
+                flowButton(achCard, 'Lihat Peringkat & Rival', openLeagueAndRivalModal);
+                flowButton(achCard, 'Buka Penghargaan & Medali', openAchievementsModal);
+                contentBox.append(achCard);
+
+                // Form Preferensi Aksesibilitas
+                const prefCard = document.createElement('section');
+                prefCard.className = 'card';
+                prefCard.style.marginTop = '10px';
+                prefCard.innerHTML = `<h2 class="card-title">Pengaturan Identitas & Aksesibilitas</h2>`;
+
+                const nameLabel = document.createElement('label');
+                nameLabel.textContent = 'Ubah nama trader';
+                const nameInput = document.createElement('input');
+                nameInput.className = 'input-field';
+                nameInput.value = p.playerName || 'Trader';
+
+                const textScaleLabel = document.createElement('label');
+                textScaleLabel.textContent = 'Ukuran teks tampilan';
+                const textScaleSelect = document.createElement('select');
+                textScaleSelect.id = 'player-text-size'; textScaleLabel.htmlFor = textScaleSelect.id;
+                textScaleSelect.className = 'input-field';
+                textScaleSelect.innerHTML = `
+                    <option value="100%" ${p.preferences && p.preferences.textSize === '100%' ? 'selected' : ''}>100% (Standar)</option>
+                    <option value="200%" ${p.preferences && p.preferences.textSize === '200%' ? 'selected' : ''}>200% (Teks Besar Aksesibel)</option>
+                `;
+
+                const highContrastLabel = node('label', 'check-row');
+                const highContrast = node('input'); highContrast.type = 'checkbox';
+                highContrast.checked = Boolean(p.preferences && p.preferences.highContrast);
+                highContrastLabel.append(highContrast, node('span', '', 'Kontras tinggi'));
+
+                const reducedMotionLabel = node('label', 'check-row');
+                const reducedMotion = node('input'); reducedMotion.type = 'checkbox';
+                reducedMotion.checked = Boolean(p.preferences && p.preferences.reducedMotion);
+                reducedMotionLabel.append(reducedMotion, node('span', '', 'Kurangi gerakan'));
+
+                const profileStatus = node('p'); profileStatus.setAttribute('role', 'status');
+                const saveBtn = document.createElement('button');
+                saveBtn.className = 'btn-primary';
+                saveBtn.style.marginTop = '12px';
+                saveBtn.textContent = 'Simpan Profil & Preferensi';
+
+                saveBtn.onclick = () => {
+                    try {
+                        const req = {
+                            playerName: nameInput.value.trim(),
+                            preferences: {
+                                textSize: textScaleSelect.value,
+                                highContrast: highContrast.checked,
+                                reducedMotion: reducedMotion.checked
+                            }
+                        };
+                        const res = bridgeResult('updatePlayerProfile', JSON.stringify(req));
+                        applyPlayerPreferences(res.preferences || req.preferences);
+                        profileStatus.textContent = 'Profil dan preferensi tersimpan.';
+                        refreshSnapshot();
+                    } catch (err) {
+                        profileStatus.textContent = 'Gagal menyimpan: ' + err.message;
+                    }
+                };
+
+                prefCard.append(nameLabel, nameInput, textScaleLabel, textScaleSelect, highContrastLabel, reducedMotionLabel, saveBtn, profileStatus);
+                contentBox.append(prefCard);
+            }
 
         } catch (e) {
             flowText(panel, 'Gagal memuat profil', e.message);
@@ -4384,7 +4887,7 @@
 
     function openInvestorArchetypeModal() {
         const panel = showFlow('Gaya Investor (Archetype)');
-        flowText(panel, 'Klasifikasi berbasis data (D15)', 'Menganalisis eksposur aset, frekuensi trading, dan pola risiko dari aktivitas transaksi riil di pasar game.');
+        flowText(panel, 'Evaluasi Gaya Berbasis Perilaku', 'Menganalisis eksposur aset, tingkat leverage, pola risiko, dan durasi kepemilikan dari aktivitas perdagangan riil Anda.');
 
         if (!bridge.getInvestorArchetype) {
             flowText(panel, 'Status', 'Bridge gaya investor belum tersedia.');
@@ -4393,17 +4896,33 @@
 
         try {
             const a = JSON.parse(bridge.getInvestorArchetype());
-            metricCard(panel, a.label, `Keyakinan: ${a.confidence}`, `Berdasarkan ${a.totalTrades} transaksi & ${a.daysElapsed} hari trading`);
+            metricCard(panel, a.label || 'Gaya Investasimu Sedang Terbentuk', a.confidence || 'Sedang Mengamati', a.progressText || `${a.totalTrades || 0}/5 transaksi · ${a.daysElapsed || 0}/7 hari trading`);
 
             const descCard = document.createElement('section');
             descCard.className = 'card';
-            const dTitle = document.createElement('h2');
-            dTitle.className = 'card-title';
-            dTitle.textContent = 'Karakteristik & Tesis Perilaku';
-            descCard.append(dTitle);
-            flowText(descCard, 'Karakteristik', a.description);
-            if (a.reasoning) flowText(descCard, 'Analisis perilaku', a.reasoning);
+            descCard.innerHTML = `<h2 class="card-title">Karakteristik & Status Evaluasi</h2>`;
+            flowText(descCard, 'Deskripsi gaya', a.description || 'Gaya investasi sedang dievaluasi otomatis tanpa kuis buatan.');
+            flowText(descCard, 'Analisis perilaku', a.reasoning || 'Belum cukup aktivitas perdagangan.');
             panel.append(descCard);
+
+            const indCard = document.createElement('section');
+            indCard.className = 'card';
+            indCard.innerHTML = `<h2 class="card-title">5 Indikator yang Diamati</h2>`;
+            const inds = a.observedIndicators || [
+                "Eksposur Saham & Portofolio Riil",
+                "Penggunaan Fasilitas Leverage Margin",
+                "Tingkat Konsentrasi & Diversifikasi Aset",
+                "Durasi Rata-rata Kepemilikan Saham (FIFO)",
+                "Perputaran Portofolio 7 Hari Game (Turnover)"
+            ];
+            inds.forEach(ind => {
+                const row = document.createElement('div');
+                row.className = 'data-row';
+                row.style.padding = '6px 0';
+                row.innerHTML = `<span style="color:var(--text-muted);">📊 ${ind}</span><strong style="color:var(--teal);">Dipantau</strong>`;
+                indCard.append(row);
+            });
+            panel.append(indCard);
         } catch (e) {
             flowText(panel, 'Gagal memuat gaya investor', e.message);
         }
@@ -4759,64 +5278,16 @@
     document.getElementById('btn-briefing').addEventListener('click', () => {
         refreshSnapshot();
         if (latestSnapshot && latestSnapshot.recoveryRequired) return;
-        const panel = showFlow('Atur Waktu');
+        const panel = showFlow('Jadwal & Sesi Bursa');
         const clock = latestSnapshot && latestSnapshot.clock;
-        flowText(panel, 'Tanggal & sesi pasar', clock ? `${clock.date} · ${clock.time} — ${clock.sessionLabel}` : 'Belum tersedia');
-        flowText(panel, 'Status waktu', clock ? `${clock.isPaused ? 'Dijeda' : 'Berjalan'} (${clock.speed}×)` : 'Belum tersedia');
-        flowText(panel, 'Akun transaksi', currentAccount ? `${currentAccount.name} (${currentAccount.type === 'CLIENT' ? 'Klien' : 'Pribadi'})` : 'Belum tersedia');
-        flowText(panel, 'Keterangan waktu', 'Kecepatan normal: 1 hari game = 15 menit nyata. Latar belakang: 1 hari game = 1 jam nyata.');
-        if (bridge.setClockState && clock) {
-            const speed = document.createElement('select'); speed.className = 'input-field';
-            speed.id = 'briefing-speed';
-            const label = document.createElement('label'); label.htmlFor = speed.id; label.textContent = 'Pilih percepatan waktu (opsional)';
-            [1, 2, 5].forEach(value => { const option = document.createElement('option'); option.value = value; option.textContent = `${value}×${value === 1 ? ' (Normal)' : ' (Percepatan)'}`; speed.append(option); });
-            speed.value = clock.speed; panel.append(label, speed);
-            const updateClock = playing => {
-                try {
-                    const result = JSON.parse(bridge.setClockState(playing, Number(speed.value)));
-                    lastClockSample = performance.now();
-                    if (!result.clock) throw new Error(result.message || 'Clock belum terkonfirmasi');
-                    refreshSnapshot();
-                    flowText(panel, 'Status terkonfirmasi', `${result.clock.isPaused ? 'Dijeda' : 'Berjalan'} ${result.clock.speed}×`);
-                } catch (error) { flowText(panel, 'Kontrol waktu gagal', error.message); }
-            };
-            if (clock.isPaused) {
-                flowButton(panel, 'Mulai / lanjutkan waktu', () => updateClock(true));
-            } else {
-                flowButton(panel, 'Jeda waktu', () => updateClock(false));
-            }
-        } else flowText(panel, 'Kontrol', 'Bridge kontrol domain belum tersedia pada pratinjau ini.');
-        if (bridge.skipDay && clock) flowButton(panel, 'Lewati 1 hari (24 jam game)', () => {
-            const paused = JSON.parse(bridge.setClockState(false, clock.speed));
-            lastClockSample = performance.now();
-            if (!paused.clock) return;
-            const review = showFlow('Tinjau lewati hari', true);
-            flowText(review, 'Durasi', '24 jam game dari waktu saat ini. Waktu tetap dijeda setelah selesai.');
-            flowText(review, 'Dampak', 'Order dapat terisi, pemicu diperiksa, serta biaya harian, fee klien, laporan dan aksi korporasi diproses.');
-            if (bridge.getOrders && currentAccount) {
-                const orders = JSON.parse(bridge.getOrders(currentAccount.id, true));
-                flowText(review, 'Order aktif pada akun terpilih', String(orders.length));
-            }
-            const requestId = 'REQ-SKIP-' + crypto.randomUUID();
-            let completed = false;
-            const confirm = flowButton(review, 'Konfirmasi lewati 24 jam', event => {
-                event.currentTarget.disabled = true;
-                try {
-                    const result = JSON.parse(bridge.skipDay(requestId));
-                    if (!result.success) throw new Error(result.message || 'Skip perlu diperiksa; waktu tetap dijeda.');
-                    completed = true;
-                    flowText(review, 'Selesai', `${result.from} → ${result.to}`);
-                    flowText(review, 'Penyimpanan', 'Hasil tersimpan. Lihat laporan sesi untuk rincian.');
-                    refreshSnapshot();
-                } catch (error) {
-                    flowText(review, 'Belum terkonfirmasi', error.message);
-                    confirm.textContent = 'Periksa / coba ulang permintaan yang sama';
-                } finally {
-                    confirm.disabled = completed;
-                    lastClockSample = performance.now();
-                }
-            });
-        });
+        flowText(panel, 'Waktu game saat ini', clock ? `${clock.date} · ${clock.time}` : 'Belum tersedia');
+        flowText(panel, 'Mode waktu', 'Berjalan Otomatis (1 hari game = 15 menit nyata)');
+        flowText(panel, 'Sesi IDX (Indonesia)', '09:00 - 11:30 (Sesi 1) · 13:30 - 16:00 (Sesi 2)');
+        flowText(panel, 'Sesi US (Wall Street)', '21:30 - 04:00 WIB (Sesi Reguler)');
+        flowText(panel, 'Status sesi aktif', clock ? clock.sessionLabel : 'Belum tersedia');
+        flowText(panel, 'Keterangan waktu latar', 'Saat aplikasi ditutup, waktu berlanjut dengan rasio 1 hari game = 1 jam nyata.');
+        flowButton(panel, 'Pusat Misi & Kalender Bursa', () => openPeriodicMissionsModal());
+
         if (bridge.closeDay) {
             flowButton(panel, 'Tutup Hari Bursa & Evaluasi Sesi', () => {
                 const reqId = 'REQ-DAY-CLOSE-' + Date.now();
@@ -4830,8 +5301,6 @@
                     flowText(panel, 'Penutupan hari ditolak / gagal', err.message);
                 }
             });
-        } else {
-            flowText(panel, 'Penutupan hari', 'Bridge closeDay belum tersedia.');
         }
     });
 
@@ -5365,6 +5834,11 @@
     });
     window.addEventListener('pagehide', autoSaveOnExit);
     window.addEventListener('beforeunload', autoSaveOnExit);
+    setInterval(() => {
+        renderFlowingClock();
+        updateSponsorCountdown();
+    }, 250);
+
     setInterval(() => {
         const now = performance.now();
         if (document.hidden) { lastClockSample = now; return; }

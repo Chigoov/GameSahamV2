@@ -23,7 +23,9 @@ public final class MutualFund {
     public enum FundType {
         MONEY_MARKET("Pasar Uang", "Rendah", 0.05),
         FIXED_INCOME("Pendapatan Tetap", "Moderat", 0.08),
-        EQUITY_INDEX("Indeks Saham", "Agresif", 0.12);
+        EQUITY_INDEX("Indeks Saham", "Agresif", 0.12),
+        MIXED("Campuran", "Moderat-Agresif", 0.10),
+        EQUITY_ACTIVE("Saham Aktif", "Agresif", 0.14);
         private final String label, riskLevel;
         private final double targetAnnualYield;
         FundType(String label, String riskLevel, double targetAnnualYield) {
@@ -33,6 +35,12 @@ public final class MutualFund {
         public String getRiskLevel() { return riskLevel; }
         /** Historical product metadata, never an accrual or guaranteed return. */
         public double getTargetAnnualYield() { return targetAnnualYield; }
+
+        public static FundType fromPolicy(String policy) {
+            if (policy == null) return MONEY_MARKET;
+            try { return FundType.valueOf(policy.toUpperCase()); }
+            catch (Exception e) { return MONEY_MARKET; }
+        }
     }
 
     public static final BigDecimal INITIAL_NAV = new BigDecimal("10000.000000000000");

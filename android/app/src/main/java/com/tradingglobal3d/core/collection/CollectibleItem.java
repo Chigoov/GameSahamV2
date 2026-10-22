@@ -19,21 +19,50 @@ public final class CollectibleItem {
         VEHICLE("Kendaraan"),
         REAL_ESTATE("Properti"),
         JEWELRY("Permata"),
-        ART_AND_WATCHES("Seni & Jam Tangan");
+        ART_AND_WATCHES("Seni & Jam Tangan"),
+        MOTOR("Motor & Roda Dua"),
+        MOBIL("Mobil Kolektor"),
+        RUMAH("Hunian Ikonik"),
+        KOMERSIAL("Properti Komersial"),
+        JAM("Jam Tangan Mewah"),
+        PERMATA("Perhiasan Mulia"),
+        SENI("Karya Seni"),
+        ANTIK("Barang Antik"),
+        KAPAL("Yacht & Kapal"),
+        PESAWAT("Jet Pribadi"),
+        TEKNO("Aset Digital"),
+        MEMO("Memorabilia & Trofi");
 
         private final String label;
         Category(String label) { this.label = label; }
         public String getLabel() { return label; }
+
+        public static Category fromCode(String code) {
+            if (code == null) return MOTOR;
+            try { return Category.valueOf(code.toUpperCase()); }
+            catch (Exception e) { return MOTOR; }
+        }
     }
 
     public enum Rarity {
         STANDARD("Standar"),
         RARE("Langka"),
-        LEGENDARY("Legenda");
+        LEGENDARY("Legenda"),
+        UMUM("Umum"),
+        TIDAK_UMUM("Tidak Umum"),
+        LANGKA("Langka"),
+        EPIK("Epik"),
+        LEGENDARIS("Legendaris");
 
         private final String label;
         Rarity(String label) { this.label = label; }
         public String getLabel() { return label; }
+
+        public static Rarity fromCode(String code) {
+            if (code == null) return UMUM;
+            try { return Rarity.valueOf(code.toUpperCase()); }
+            catch (Exception e) { return UMUM; }
+        }
     }
 
     private final String id;
@@ -136,9 +165,9 @@ public final class CollectibleItem {
     }
 
     private static void validatePrice(Money price) {
-        if (price == null || price.getCurrency() != Currency.IDR || !price.isPositive()
+        if (price == null || price.getCurrency() != Currency.IDR || price.isNegative()
                 || price.getAmount().compareTo(BigDecimal.valueOf(Long.MAX_VALUE)) > 0)
-            throw new IllegalArgumentException("Valuasi wajib IDR positif dalam batas nominal");
+            throw new IllegalArgumentException("Valuasi wajib IDR nonnegatif dalam batas nominal");
     }
 
     public void setValuation(Money valuation) {
@@ -225,13 +254,13 @@ public final class CollectibleItem {
     public static CollectibleItem fromJsonObject(JSONObject obj) throws JSONException {
         String id = obj.getString("id");
         String name = obj.getString("name");
-        Category category = Category.valueOf(obj.getString("category"));
+        Category category = Category.fromCode(obj.getString("category"));
         Money basePrice = new Money(new BigDecimal(obj.getString("basePrice")), Currency.IDR);
         Money dailyCost = new Money(new BigDecimal(obj.getString("dailyMaintenanceCost")), Currency.IDR);
         int rep = obj.getInt("reputationBonus");
 
         CollectibleItem item = new CollectibleItem(id, name, category,
-                Rarity.valueOf(obj.optString("rarity", "STANDARD")), basePrice, dailyCost, rep);
+                Rarity.fromCode(obj.optString("rarity", "UMUM")), basePrice, dailyCost, rep);
         if (obj.has("currentValuation")) {
             item.setValuation(new Money(new BigDecimal(obj.getString("currentValuation")), Currency.IDR));
         }

@@ -1,0 +1,354 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-22",
+  "status": "OWNER_ANSWERS_RECEIVED",
+  "implementation_status": "NOT_STARTED_BY_THIS_PACKAGE",
+  "answers": [
+    {
+      "id": "Q01",
+      "owner_answer_verbatim": "15 menit nyata per hari game, mempertahankan tempo terbaru (Rekomendasi)",
+      "working_interpretation": "Foreground otomatis96x; background existing24x tetap."
+    },
+    {
+      "id": "Q02",
+      "owner_answer_verbatim": "mengapa tidak di sesuikan dengan gaya nya  dia",
+      "working_interpretation": "Profil mengikuti perilaku aktual; tampil sejak awal sebagai belum cukup data; tidak ada kuis wajib."
+    },
+    {
+      "id": "Q03",
+      "owner_answer_verbatim": "Tab Harian/Mingguan/Karier dengan kartu ringkas dan progress bar (Rekomendasi)",
+      "working_interpretation": "Pusat misi tiga tab."
+    },
+    {
+      "id": "Q04",
+      "owner_answer_verbatim": "Ringkasan singkat di atas, tab Kinerja/Keuangan/Pencapaian untuk detail (Rekomendasi)",
+      "working_interpretation": "Profil ringkas dengan tiga tab detail."
+    },
+    {
+      "id": "Q05",
+      "owner_answer_verbatim": "Seperti aplikasi investasi: ringkas, angka mudah dibaca, detail dibuka saat diperlukan (Rekomendasi)",
+      "working_interpretation": "Pola aplikasi investasi; token tema existing konsisten."
+    },
+    {
+      "id": "Q06",
+      "owner_answer_verbatim": "ambil dari data emiten asli dan kdang juga buat emiten sendiri yang tdak ada diduna nyata (jangan labeli smulasi)",
+      "working_interpretation": "IPO campuran dominan identitas nyata bila cadangan tersedia; tanpa badge simulasi berulang pada kartu. Konteks game/uang virtual dijelaskan terpusat; data internal tidak diklaim data resmi dunia nyata."
+    },
+    {
+      "id": "Q07",
+      "owner_answer_verbatim": "poin 1 dan 2",
+      "working_interpretation": "Inbox+banner dalam game serta notifikasi Android opsional dengan izin sistem."
+    },
+    {
+      "id": "Q08",
+      "owner_answer_verbatim": "Seluruh fundamental adalah simulasi game yang konsisten, dengan identitas perusahaan tetap jelas",
+      "working_interpretation": "Angka fundamental berasal dari domain game, identitas nyata/fiktif dipisahkan dari sumber angka."
+    },
+    {
+      "id": "Q09",
+      "owner_answer_verbatim": "Paket lengkap inti: market cap, saham beredar/free float, pemilik, laba, neraca, arus kas, rasio, dividen, periode dan sumber (Rekomendasi)",
+      "working_interpretation": "Paket fundamental inti lengkap."
+    },
+    {
+      "id": "Q10",
+      "owner_answer_verbatim": "Komoditas/aset digital spot, reksa dana unit-NAB, deposito tenor dengan bunga dan penalti jelas (Rekomendasi)",
+      "working_interpretation": "Empat kelompok wajib; obligasi existing tetap tersedia."
+    },
+    {
+      "id": "Q11",
+      "owner_answer_verbatim": "Sektor/emiten terdampak, arah, rentang estimasi, horizon waktu, dan tingkat keyakinan; hasil tetap tidak pasti (Rekomendasi)",
+      "working_interpretation": "Forecast probabilistik; news benar-benar masuk ekonomi/NPC/matching."
+    },
+    {
+      "id": "Q12",
+      "owner_answer_verbatim": "Sekitar 150 item total dalam 12 kategori, dengan lebih banyak target jangka panjang",
+      "working_interpretation": "Target penerimaan150item total termasuk12existing,12kategori."
+    },
+    {
+      "id": "Q13",
+      "owner_answer_verbatim": "5 tingkat: Umum, Tidak Umum, Langka, Epik, Legendaris (Rekomendasi)",
+      "working_interpretation": "Lima tier; legacy STANDARD/RARE/LEGENDARY dimigrasi aman."
+    },
+    {
+      "id": "Q14",
+      "owner_answer_verbatim": "24 produk termasuk strategi sektor dan global yang lebih beragam",
+      "working_interpretation": "24produk total termasuk3existing; bukan24tambahan."
+    },
+    {
+      "id": "Q15",
+      "owner_answer_verbatim": "Lebih agresif dan menantang: volatilitas serta reaksi berita lebih besar, dengan penjelasan risiko yang jelas",
+      "working_interpretation": "Rezim agresif terukur melalui NPC/matching; tanpa memalsukan fill/quote/return."
+    }
+  ],
+  "unchanged_constraints": [
+    "Java authoritative domain",
+    "Android WebView local UI",
+    "offline virtual money",
+    "personal save protected",
+    "15 minute foreground day; 1 hour inactive day",
+    "no real broker or paid service or publication"
+  ],
+  "catalog_tuning_status": "Reviewer design proposal for agent calibration, not measured balance or real-world valuation",
+  "baseline_catalogs": {
+    "collections": [
+      {
+        "item_id": "COL-CAR-00",
+        "nama": "Vespa Klasik 1965 Restorasi",
+        "kategori_id": "MOTOR",
+        "kategori": "Motor & Kendaraan Roda Dua",
+        "rarity": "UMUM",
+        "status": "EXISTING",
+        "legacy_category": "VEHICLE",
+        "legacy_rarity": "STANDARD",
+        "harga_awal_game_idr": "25000000",
+        "biaya_pemeliharaan_harian_game_idr": "20000",
+        "bonus_reputasi": "5",
+        "cara_perolehan": "BUY",
+        "syarat_awal": "PRESERVE_EXISTING_RULE",
+        "dapat_dijual": "true",
+        "dapat_diagunkan": "true",
+        "valuation_policy": "LEGACY_PRESERVE",
+        "art_brief": "Ilustrasi lokal objek Vespa Klasik 1965 Restorasi; konsisten dengan tema, tanpa harga/fakta dunia nyata atau logo tanpa hak",
+        "pricing_status": "EXISTING_SOURCE"
+      },
+      {
+        "item_id": "COL-CAR-01",
+        "nama": "Porsche 911 GT3 RS",
+        "kategori_id": "MOBIL",
+        "kategori": "Mobil & Kendaraan Kolektor",
+        "rarity": "LANGKA",
+        "status": "EXISTING",
+        "legacy_category": "VEHICLE",
+        "legacy_rarity": "RARE",
+        "harga_awal_game_idr": "4500000000",
+        "biaya_pemeliharaan_harian_game_idr": "500000",
+        "bonus_reputasi": "15",
+        "cara_perolehan": "BUY",
+        "syarat_awal": "PRESERVE_EXISTING_RULE",
+        "dapat_dijual": "true",
+        "dapat_diagunkan": "true",
+        "valuation_policy": "LEGACY_PRESERVE",
+        "art_brief": "Ilustrasi lokal objek Porsche 911 GT3 RS; konsisten dengan tema, tanpa harga/fakta dunia nyata atau logo tanpa hak",
+        "pricing_status": "EXISTING_SOURCE"
+      },
+      {
+        "item_id": "COL-CAR-02",
+        "nama": "Ferrari 296 GTB",
+        "kategori_id": "MOBIL",
+        "kategori": "Mobil & Kendaraan Kolektor",
+        "rarity": "LEGENDARIS",
+        "status": "EXISTING",
+        "legacy_category": "VEHICLE",
+        "legacy_rarity": "LEGENDARY",
+        "harga_awal_game_idr": "8000000000",
+        "biaya_pemeliharaan_harian_game_idr": "1000000",
+        "bonus_reputasi": "25",
+        "cara_perolehan": "BUY",
+        "syarat_awal": "PRESERVE_EXISTING_RULE",
+        "dapat_dijual": "true",
+        "dapat_diagunkan": "true",
+        "valuation_policy": "LEGACY_PRESERVE",
+        "art_brief": "Ilustrasi lokal objek Ferrari 296 GTB; konsisten dengan tema, tanpa harga/fakta dunia nyata atau logo tanpa hak",
+        "pricing_status": "EXISTING_SOURCE"
+      },
+      {
+        "item_id": "COL-PROP-01",
+        "nama": "Penthouse SCBD Mega Kuningan",
+        "kategori_id": "RUMAH",
+        "kategori": "Hunian & Properti Ikonik",
+        "rarity": "LANGKA",
+        "status": "EXISTING",
+        "legacy_category": "REAL_ESTATE",
+        "legacy_rarity": "RARE",
+        "harga_awal_game_idr": "15000000000",
+        "biaya_pemeliharaan_harian_game_idr": "1500000",
+        "bonus_reputasi": "30",
+        "cara_perolehan": "BUY",
+        "syarat_awal": "PRESERVE_EXISTING_RULE",
+        "dapat_dijual": "true",
+        "dapat_diagunkan": "true",
+        "valuation_policy": "LEGACY_PRESERVE",
+        "art_brief": "Ilustrasi lokal objek Penthouse SCBD Mega Kuningan; konsisten dengan tema, tanpa harga/fakta dunia nyata atau logo tanpa hak",
+        "pricing_status": "EXISTING_SOURCE"
+      },
+      {
+        "item_id": "COL-PROP-02",
+        "nama": "Villa Tebing Uluwatu Bali",
+        "kategori_id": "RUMAH",
+        "kategori": "Hunian & Properti Ikonik",
+        "rarity": "LEGENDARIS",
+        "status": "EXISTING",
+        "legacy_category": "REAL_ESTATE",
+        "legacy_rarity": "LEGENDARY",
+        "harga_awal_game_idr": "25000000000",
+        "biaya_pemeliharaan_harian_game_idr": "2500000",
+        "bonus_reputasi": "50",
+        "cara_perolehan": "BUY",
+        "syarat_awal": "PRESERVE_EXISTING_RULE",
+        "dapat_dijual": "true",
+        "dapat_diagunkan": "true",
+        "valuation_policy": "LEGACY_PRESERVE",
+        "art_brief": "Ilustrasi lokal objek Villa Tebing Uluwatu Bali; konsisten dengan tema, tanpa harga/fakta dunia nyata atau logo tanpa hak",
+        "pricing_status": "EXISTING_SOURCE"
+      },
+      {
+        "item_id": "COL-PROP-00",
+        "nama": "Ruko Komersial BSD City",
+        "kategori_id": "KOMERSIAL",
+        "kategori": "Properti Komersial",
+        "rarity": "UMUM",
+        "status": "EXISTING",
+        "legacy_category": "REAL_ESTATE",
+        "legacy_rarity": "STANDARD",
+        "harga_awal_game_idr": "45000000",
+        "biaya_pemeliharaan_harian_game_idr": "30000",
+        "bonus_reputasi": "8",
+        "cara_perolehan": "BUY",
+        "syarat_awal": "PRESERVE_EXISTING_RULE",
+        "dapat_dijual": "true",
+        "dapat_diagunkan": "true",
+        "valuation_policy": "LEGACY_PRESERVE",
+        "art_brief": "Ilustrasi lokal objek Ruko Komersial BSD City; konsisten dengan tema, tanpa harga/fakta dunia nyata atau logo tanpa hak",
+        "pricing_status": "EXISTING_SOURCE"
+      },
+      {
+        "item_id": "COL-ART-00",
+        "nama": "Rolex Submariner Vintage 1970",
+        "kategori_id": "JAM",
+        "kategori": "Jam Tangan",
+        "rarity": "UMUM",
+        "status": "EXISTING",
+        "legacy_category": "ART_AND_WATCHES",
+        "legacy_rarity": "STANDARD",
+        "harga_awal_game_idr": "15000000",
+        "biaya_pemeliharaan_harian_game_idr": "10000",
+        "bonus_reputasi": "4",
+        "cara_perolehan": "BUY",
+        "syarat_awal": "PRESERVE_EXISTING_RULE",
+        "dapat_dijual": "true",
+        "dapat_diagunkan": "true",
+        "valuation_policy": "LEGACY_PRESERVE",
+        "art_brief": "Ilustrasi lokal objek Rolex Submariner Vintage 1970; konsisten dengan tema, tanpa harga/fakta dunia nyata atau logo tanpa hak",
+        "pricing_status": "EXISTING_SOURCE"
+      },
+      {
+        "item_id": "COL-ART-01",
+        "nama": "Patek Philippe Grandmaster Chime",
+        "kategori_id": "JAM",
+        "kategori": "Jam Tangan",
+        "rarity": "LANGKA",
+        "status": "EXISTING",
+        "legacy_category": "ART_AND_WATCHES",
+        "legacy_rarity": "RARE",
+        "harga_awal_game_idr": "5000000000",
+        "biaya_pemeliharaan_harian_game_idr": "200000",
+        "bonus_reputasi": "20",
+        "cara_perolehan": "BUY",
+        "syarat_awal": "PRESERVE_EXISTING_RULE",
+        "dapat_dijual": "true",
+        "dapat_diagunkan": "true",
+        "valuation_policy": "LEGACY_PRESERVE",
+        "art_brief": "Ilustrasi lokal objek Patek Philippe Grandmaster Chime; konsisten dengan tema, tanpa harga/fakta dunia nyata atau logo tanpa hak",
+        "pricing_status": "EXISTING_SOURCE"
+      },
+      {
+        "item_id": "COL-JEW-01",
+        "nama": "Cincin Safir Biru Ceylon",
+        "kategori_id": "PERMATA",
+        "kategori": "Perhiasan & Permata",
+        "rarity": "UMUM",
+        "status": "EXISTING",
+        "legacy_category": "JEWELRY",
+        "legacy_rarity": "STANDARD",
+        "harga_awal_game_idr": "35000000",
+        "biaya_pemeliharaan_harian_game_idr": "15000",
+        "bonus_reputasi": "6",
+        "cara_perolehan": "BUY",
+        "syarat_awal": "PRESERVE_EXISTING_RULE",
+        "dapat_dijual": "true",
+        "dapat_diagunkan": "true",
+        "valuation_policy": "LEGACY_PRESERVE",
+        "art_brief": "Ilustrasi lokal objek Cincin Safir Biru Ceylon; konsisten dengan tema, tanpa harga/fakta dunia nyata atau logo tanpa hak",
+        "pricing_status": "EXISTING_SOURCE"
+      },
+      {
+        "item_id": "COL-JEW-02",
+        "nama": "Kalung Berlian Solitaire Tiffany",
+        "kategori_id": "PERMATA",
+        "kategori": "Perhiasan & Permata",
+        "rarity": "LANGKA",
+        "status": "EXISTING",
+        "legacy_category": "JEWELRY",
+        "legacy_rarity": "RARE",
+        "harga_awal_game_idr": "2500000000",
+        "biaya_pemeliharaan_harian_game_idr": "100000",
+        "bonus_reputasi": "18",
+        "cara_perolehan": "BUY",
+        "syarat_awal": "PRESERVE_EXISTING_RULE",
+        "dapat_dijual": "true",
+        "dapat_diagunkan": "true",
+        "valuation_policy": "LEGACY_PRESERVE",
+        "art_brief": "Ilustrasi lokal objek Kalung Berlian Solitaire Tiffany; konsisten dengan tema, tanpa harga/fakta dunia nyata atau logo tanpa hak",
+        "pricing_status": "EXISTING_SOURCE"
+      },
+      {
+        "item_id": "COL-JEW-03",
+        "nama": "Tiara Berlian Kerajaan Langka",
+        "kategori_id": "PERMATA",
+        "kategori": "Perhiasan & Permata",
+        "rarity": "LEGENDARIS",
+        "status": "EXISTING",
+        "legacy_category": "JEWELRY",
+        "legacy_rarity": "LEGENDARY",
+        "harga_awal_game_idr": "18000000000",
+        "biaya_pemeliharaan_harian_game_idr": "800000",
+        "bonus_reputasi": "40",
+        "cara_perolehan": "BUY",
+        "syarat_awal": "PRESERVE_EXISTING_RULE",
+        "dapat_dijual": "true",
+        "dapat_diagunkan": "true",
+        "valuation_policy": "LEGACY_PRESERVE",
+        "art_brief": "Ilustrasi lokal objek Tiara Berlian Kerajaan Langka; konsisten dengan tema, tanpa harga/fakta dunia nyata atau logo tanpa hak",
+        "pricing_status": "EXISTING_SOURCE"
+      },
+      {
+        "item_id": "COL-ART-02",
+        "nama": "Lukisan Bersejarah Raden Saleh",
+        "kategori_id": "SENI",
+        "kategori": "Seni Rupa & Patung",
+        "rarity": "LEGENDARIS",
+        "status": "EXISTING",
+        "legacy_category": "ART_AND_WATCHES",
+        "legacy_rarity": "LEGENDARY",
+        "harga_awal_game_idr": "12000000000",
+        "biaya_pemeliharaan_harian_game_idr": "500000",
+        "bonus_reputasi": "35",
+        "cara_perolehan": "BUY",
+        "syarat_awal": "PRESERVE_EXISTING_RULE",
+        "dapat_dijual": "true",
+        "dapat_diagunkan": "true",
+        "valuation_policy": "LEGACY_PRESERVE",
+        "art_brief": "Ilustrasi lokal objek Lukisan Bersejarah Raden Saleh; konsisten dengan tema, tanpa harga/fakta dunia nyata atau logo tanpa hak",
+        "pricing_status": "EXISTING_SOURCE"
+      }
+    ],
+    "funds": [
+      {
+        "fund_id": "FUND-MM-01",
+        "nama": "Nusantara Kas Lancar"
+      },
+      {
+        "fund_id": "FUND-FI-01",
+        "nama": "Nusantara Obligasi Mantap"
+      },
+      {
+        "fund_id": "FUND-EQ-01",
+        "nama": "Nusantara Indeks Saham Unggulan"
+      }
+    ],
+    "canonical_source_sha256": {
+      "android/app/src/main/java/com/tradingglobal3d/core/collection/CollectionManager.java": "43d1d5a869eec4a3e0a0e41cb2c24896e382b9b28203a9009715d858f8396c7f",
+      "android/app/src/main/java/com/tradingglobal3d/core/funds/MutualFundManager.java": "35ef48355f4a1e72393a1549132936b9bee0c0094c96f9ba37933796cd2193e9"
+    }
+  }
+}

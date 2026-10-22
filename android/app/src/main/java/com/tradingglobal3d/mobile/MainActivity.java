@@ -57,6 +57,7 @@ public class MainActivity extends Activity {
         facade.startOrResume();
 
         // 2. Setup WebView dengan orientasi portrait dan tema navy (#0F1720)
+        setupNotificationChannel();
         webView = new WebView(this);
         webView.setBackgroundColor(Color.parseColor("#0F1720"));
         setContentView(webView);
@@ -65,6 +66,30 @@ public class MainActivity extends Activity {
                 android.graphics.Insets safe = insets.getInsets(android.view.WindowInsets.Type.systemBars()
                         | android.view.WindowInsets.Type.displayCutout() | android.view.WindowInsets.Type.ime());
                 view.setPadding(safe.left, safe.top, safe.right, safe.bottom);
+                return insets;
+            });
+        } else if (android.os.Build.VERSION.SDK_INT >= 28) {
+            webView.setOnApplyWindowInsetsListener((view, insets) -> {
+                int left = insets.getSystemWindowInsetLeft();
+                int top = insets.getSystemWindowInsetTop();
+                int right = insets.getSystemWindowInsetRight();
+                int bottom = insets.getSystemWindowInsetBottom();
+                android.view.DisplayCutout cutout = insets.getDisplayCutout();
+                if (cutout != null) {
+                    left = Math.max(left, cutout.getSafeInsetLeft());
+                    top = Math.max(top, cutout.getSafeInsetTop());
+                    right = Math.max(right, cutout.getSafeInsetRight());
+                    bottom = Math.max(bottom, cutout.getSafeInsetBottom());
+                }
+                view.setPadding(left, top, right, bottom);
+                return insets;
+            });
+        } else {
+            webView.setOnApplyWindowInsetsListener((view, insets) -> {
+                view.setPadding(insets.getSystemWindowInsetLeft(),
+                        insets.getSystemWindowInsetTop(),
+                        insets.getSystemWindowInsetRight(),
+                        insets.getSystemWindowInsetBottom());
                 return insets;
             });
         }
@@ -76,7 +101,7 @@ public class MainActivity extends Activity {
         settings.setLoadsImagesAutomatically(true);
 
         // Pasang Native Bridge ke domain ekonomi
-        TradingWebBridge bridge = new TradingWebBridge(facade);
+        TradingWebBridge bridge = new TradingWebBridge(facade, this);
         webView.addJavascriptInterface(bridge, "TradingNativeBridge");
 
         // The Java bridge is available only to packaged application content.
@@ -141,6 +166,40 @@ public class MainActivity extends Activity {
     @android.annotation.SuppressLint("GestureBackNavigation") // API 26–32 fallback; API 33+ registers native callback above.
     public void onBackPressed() {
         handleBack();
+    }
+
+    private void setupNotificationChannel() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            android.app.NotificationManager nm = getSystemService(android.app.NotificationManager.class);
+            if (nm != null) {
+                android.app.NotificationChannel channel = new android.app.NotificationChannel(
+                        "channel_ipo_alerts",
+                        "Pemberitahuan IPO & Pasar",
+                        android.app.NotificationManager.IMPORTANCE_DEFAULT
+                );
+                channel.setDescription("Notifikasi penawaran saham perdana (IPO) dan aksi korporasi");
+                nm.createNotificationChannel(channel);
+            }
+        }
+    }
+
+    public void triggerIpoNotification(String title, String message) {
+        try {
+            android.app.NotificationManager nm = (android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            if (nm != null) {
+                android.app.Notification.Builder builder;
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    builder = new android.app.Notification.Builder(this, "channel_ipo_alerts");
+                } else {
+                    builder = new android.app.Notification.Builder(this);
+                }
+                builder.setContentTitle(title)
+                        .setContentText(message)
+                        .setSmallIcon(android.R.drawable.ic_dialog_info)
+                        .setAutoCancel(true);
+                nm.notify((int) System.currentTimeMillis(), builder.build());
+            }
+        } catch (Exception ignored) {}
     }
 
     private void handleBack() {

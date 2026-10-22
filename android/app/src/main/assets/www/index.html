@@ -89,7 +89,7 @@
                 <div class="section-heading"><span id="home-mission-progress" class="metric-sub">Memuat misi</span><button id="btn-career" class="text-button">Lihat misi <span aria-hidden="true">→</span></button></div>
             </section>
             <div class="section-heading"><h2>Langkah berikutnya</h2><span class="eyebrow">HARI INI</span></div>
-            <section class="card session-card" aria-labelledby="trading-agenda-title"><span class="icon-tile" aria-hidden="true">◷</span><div><h2 id="trading-agenda-title">Atur sesi pasarmu</h2><p id="home-clock-state">Memuat waktu game…</p></div><button id="btn-briefing" class="btn-primary">Atur Waktu</button></section>
+            <section class="card session-card" aria-labelledby="trading-agenda-title"><span class="icon-tile" aria-hidden="true">◷</span><div><h2 id="trading-agenda-title">Sesi pasar otomatis</h2><p id="home-clock-state">Memuat waktu game…</p></div><button id="btn-briefing" class="btn-secondary">Jadwal Sesi</button></section>
             <div class="quick-grid">
                 <button id="btn-reports" class="shortcut"><span aria-hidden="true">▤</span><strong>Laporan harian</strong><small>Hasil & aktivitas <span aria-hidden="true">↗</span></small></button>
                 <button id="btn-achievements" class="shortcut"><span aria-hidden="true">◇</span><strong>Pencapaian</strong><small id="home-achievement-count">Progres & badge ↗</small></button>
@@ -146,8 +146,8 @@
             <!-- Search & Filter Controls -->
             <div style="margin-bottom:12px; display:flex; flex-wrap:wrap; gap:8px;">
                 <div style="flex:2 1 160px; min-width:0;">
-                    <label for="search-stock-input">Cari instrumen</label>
-                    <input id="search-stock-input" class="input-field" style="margin:0;" type="text" placeholder="Ticker / nama">
+                    <label for="search-stock-input">Cari emiten saham</label>
+                    <input id="search-stock-input" class="input-field" style="margin:0;" type="text" placeholder="Ticker / nama emiten">
                 </div>
                 <div style="flex:1 1 120px; min-width:0;">
                     <label for="filter-exchange-select">Bursa</label>
@@ -165,9 +165,9 @@
                 </div>
             </div>
 
-            <label for="filter-list-select">Daftar instrumen</label>
+            <label for="filter-list-select">Daftar emiten</label>
             <select id="filter-list-select" class="input-field">
-                <option value="all">Semua instrumen aktif</option>
+                <option value="all">Semua emiten aktif</option>
                 <option value="watchlist">Watchlist</option>
             </select>
             <p id="stock-list-status" role="status"></p>

@@ -27,6 +27,34 @@ public final class CollectionManager {
 
     private void initDefaultCatalog() {
         catalog.clear();
+        java.io.File jsonFile = new java.io.File("src/main/assets/data/katalog_koleksi_150.json");
+        if (!jsonFile.exists()) {
+            jsonFile = new java.io.File("android/app/src/main/assets/data/katalog_koleksi_150.json");
+        }
+        if (jsonFile.exists()) {
+            try {
+                byte[] bytes = java.nio.file.Files.readAllBytes(jsonFile.toPath());
+                String content = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+                JSONArray arr = new JSONArray(content);
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject obj = arr.getJSONObject(i);
+                    String id = obj.getString("id");
+                    String name = obj.getString("name");
+                    CollectibleItem.Category cat = CollectibleItem.Category.fromCode(obj.getString("category"));
+                    CollectibleItem.Rarity rar = CollectibleItem.Rarity.fromCode(obj.getString("rarity"));
+                    long basePrice = obj.getLong("basePrice");
+                    long maintenance = obj.getLong("dailyMaintenance");
+                    int rep = obj.getInt("reputationBonus");
+                    addDefault(new CollectibleItem(
+                            id, name, cat, rar,
+                            Money.of(basePrice, Currency.IDR),
+                            Money.of(maintenance, Currency.IDR),
+                            rep
+                    ));
+                }
+                if (catalog.size() >= 150) return;
+            } catch (Exception ignored) {}
+        }
         // 1. KENDARAAN (VEHICLE)
         addDefault(new CollectibleItem(
                 "COL-CAR-00", "Vespa Klasik 1965 Restorasi",

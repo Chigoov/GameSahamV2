@@ -1,0 +1,56 @@
+{
+  "verdict": "PASS_PLANNING_PACKAGE_ONLY",
+  "date": "2026-10-22",
+  "owner_answers": 15,
+  "collections": 150,
+  "collection_categories": {
+    "Motor & Kendaraan Roda Dua": 12,
+    "Mobil & Kendaraan Kolektor": 20,
+    "Hunian & Properti Ikonik": 16,
+    "Properti Komersial": 10,
+    "Jam Tangan": 15,
+    "Perhiasan & Permata": 15,
+    "Seni Rupa & Patung": 12,
+    "Barang Antik & Warisan": 10,
+    "Kapal & Yacht": 10,
+    "Pesawat & Helikopter": 8,
+    "Teknologi & Hobi Premium": 12,
+    "Trofi & Memorabilia Prestasi": 10
+  },
+  "collection_rarities": {
+    "UMUM": 25,
+    "TIDAK_UMUM": 29,
+    "LANGKA": 35,
+    "EPIK": 29,
+    "LEGENDARIS": 32
+  },
+  "preserved_legacy_collections": 12,
+  "funds": 24,
+  "fund_families": {
+    "Pasar Uang": 3,
+    "Pendapatan Tetap": 4,
+    "Campuran": 3,
+    "Saham Aktif": 3,
+    "Indeks": 3,
+    "Syariah": 3,
+    "Sektor": 3,
+    "Global": 2
+  },
+  "preserved_legacy_funds": 3,
+  "tracker_rows": 20,
+  "dependency_cycles": 0,
+  "implementation_status": "NOT_STARTED_BY_THIS_PACKAGE",
+  "product_acceptance": "NOT_EVALUATED",
+  "scope": "Counts, IDs, legacy values, allocations, decisions, dependency graph and document links only",
+  "sha256": {
+    "DECISIONS.json": "07f7307aaf114cd803d7de34a9188ee0015d470dd022a23d5a2e6fa95570a2bd",
+    "KATALOG-KOLEKSI-150.csv": "83d3c7951b8054f1e1d2ffcf2e551d25d68ecefa3b3cecb29a21558b010d9fc5",
+    "KATALOG-REKSA-DANA-24.csv": "72686d733549d156291c9290669cbc4cccc06161813df45050f865e157b3df95",
+    "LONGTASK-14-REVISI.md": "282c18feb6e046d5eac6f590fcde4b9136224ece895aa4df2d6203e854004ed2",
+    "README.md": "d716591aa90f24af7d1b60b8d2205e59dfd74edf3a7deddfeef8cfb72b07fca0",
+    "REVIEW-AND-INTAKE.md": "9806fb659da684a9d20747d881df21ccc5e5acba840ce28c2303d596ca8dd7af",
+    "TRACKER.csv": "9055d4121e398c696008451b77b6112e297e79c2653d330b5cfc2752be3c990f",
+    "validate-package.py": "370c286282c34a230d8d585f74c9114896e7d7c005edcb09c6866cff335f8e43"
+  },
+  "prompt_sha256": "e625d1b1c20170bee6be1425ce1198cc0d412fdacc03324deab094545bf93036"
+}

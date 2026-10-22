@@ -25,6 +25,70 @@ public final class CorporateActionService {
     private final Map<String, org.json.JSONObject> participations = new LinkedHashMap<>();
     private final Map<String, Map<String, Long>> recordedShareholdings = new LinkedHashMap<>();
 
+    private static final String[][] IPO_CATALOG_CANDIDATES = {
+            {"NCLD", "PT Nusantara Cloud Tech Tbk", "IDR", "550", "100", "25000000"},
+            {"SOLR", "PT Surya Mandiri Energi Tbk", "IDR", "420", "100", "30000000"},
+            {"MEDX", "PT Medika Nusantara Prima Tbk", "IDR", "850", "100", "15000000"},
+            {"LOGI", "PT Samudera Logistik Ekspres Tbk", "IDR", "380", "100", "20000000"},
+            {"AGRI", "PT Sawit Makmur Lestari Tbk", "IDR", "650", "100", "18000000"},
+            {"FOOD", "PT Rasa Boga Nusantara Tbk", "IDR", "920", "100", "12000000"},
+            {"EVIN", "PT Elektrindo Kendaraan Hijau Tbk", "IDR", "750", "100", "22000000"},
+            {"FINX", "PT Dompet Digital Prima Tbk", "IDR", "1250", "100", "16000000"},
+            {"PROP", "PT Griya Metropolitan Prima Tbk", "IDR", "310", "100", "35000000"},
+            {"MINE", "PT Mineral Tambang Abadi Tbk", "IDR", "1100", "100", "14000000"},
+            {"RETL", "PT Mega Mart Ritelindo Tbk", "IDR", "480", "100", "28000000"},
+            {"INFR", "PT Infrastruktur Nusa Raya Tbk", "IDR", "620", "100", "20000000"},
+            {"BIOT", "PT Bio Farma Sentosa Tbk", "IDR", "1450", "100", "10000000"},
+            {"AERO", "PT Dirgantara Aero Express Tbk", "IDR", "510", "100", "25000000"},
+            {"CHIP", "PT Semikonduktor Daya Cipta Tbk", "IDR", "1800", "100", "8000000"},
+            {"TELO", "PT Menara Telekomindo Tbk", "IDR", "890", "100", "15000000"},
+            {"CHEM", "PT Polimer Kimia Lestari Tbk", "IDR", "440", "100", "30000000"},
+            {"GAME", "PT Cipta Kreasi Digital Tbk", "IDR", "720", "100", "18000000"},
+            {"COFF", "PT Warisan Kopi Nusantara Tbk", "IDR", "350", "100", "40000000"},
+            {"PACK", "PT Kemasan Ramah Lingkungan Tbk", "IDR", "290", "100", "35000000"},
+            {"WATE", "PT Tirta Bening Mandiri Tbk", "IDR", "410", "100", "25000000"},
+            {"AUTO", "PT Suku Cadang Presisi Tbk", "IDR", "580", "100", "20000000"},
+            {"FASH", "PT Tekstil Gaya Nusantara Tbk", "IDR", "260", "100", "45000000"},
+            {"SECU", "PT Siber Pertahanan Unggul Tbk", "IDR", "1350", "100", "12000000"},
+            {"EDUX", "PT Cendekia Edukasi Global Tbk", "IDR", "490", "100", "20000000"},
+            {"HOSP", "PT Jaringan Rumah Sakit Kasih Tbk", "IDR", "980", "100", "14000000"},
+            {"RECY", "PT Daur Ulang Sirkular Tbk", "IDR", "390", "100", "30000000"},
+            {"PORT", "PT Pelabuhan Maritim Nusantara Tbk", "IDR", "820", "100", "16000000"},
+            {"POWR", "PT Pembangkit Surya Terang Tbk", "IDR", "670", "100", "22000000"},
+            {"AGRO", "PT Bibit Unggul Pertanian Tbk", "IDR", "530", "100", "25000000"},
+            {"ROBO", "PT Mekatronika Otomasi Tbk", "IDR", "1600", "100", "10000000"},
+            {"PHAR", "PT Generik Herbal Sejahtera Tbk", "IDR", "760", "100", "18000000"},
+            {"DAIR", "PT Peternakan Susu Murni Tbk", "IDR", "430", "100", "28000000"},
+            {"CERA", "PT Keramik Bangun Persada Tbk", "IDR", "320", "100", "35000000"},
+            {"METL", "PT Baja Presisi Konstruksi Tbk", "IDR", "610", "100", "20000000"},
+            {"CLTH", "PT Tenun Mega Indah Tbk", "IDR", "280", "100", "40000000"}
+    };
+
+    public synchronized void ensureMonthlyIpoSchedule(LocalDate currentDate) {
+        if (currentDate == null) return;
+        // Jadwalkan minimal 3 IPO per bulan (R06)
+        for (int mOffset = 0; mOffset <= 2; mOffset++) {
+            LocalDate targetMonth = currentDate.plusMonths(mOffset);
+            int year = targetMonth.getYear();
+            int month = targetMonth.getMonthValue();
+            for (int slot = 1; slot <= 3; slot++) {
+                String ipoId = String.format(Locale.ROOT, "IPO-%04d-%02d-%d", year, month, slot);
+                if (!ipoOfferings.containsKey(ipoId)) {
+                    int day = (slot == 1) ? 8 : (slot == 2) ? 18 : 28;
+                    LocalDate listingDate = LocalDate.of(year, month, Math.min(day, targetMonth.lengthOfMonth()));
+                    int candidateIdx = Math.floorMod((year - 2026) * 36 + (month - 1) * 3 + (slot - 1), IPO_CATALOG_CANDIDATES.length);
+                    String[] cand = IPO_CATALOG_CANDIDATES[candidateIdx];
+                    Currency cur = Currency.valueOf(cand[2]);
+                    Money price = Money.of(Double.parseDouble(cand[3]), cur);
+                    int lotSize = Integer.parseInt(cand[4]);
+                    long shares = Long.parseLong(cand[5]);
+                    IpoOffering ipo = new IpoOffering(ipoId, cand[0], cand[1], cur, price, lotSize, shares, listingDate);
+                    ipoOfferings.put(ipoId, ipo);
+                }
+            }
+        }
+    }
+
     public CorporateActionService() {
         initializeSampleActions();
     }
@@ -65,9 +129,7 @@ public final class CorporateActionService {
 
     public synchronized void reset(LocalDate gameBase) {
         corporateActions.clear(); ipoOfferings.clear(); ipoSubscriptions.clear(); agendas.clear(); offers.clear(); participations.clear(); recordedShareholdings.clear();
-        IpoOffering ipo = new IpoOffering("IPO-CLOUD", "NCLD", "Nusantara Cloud Tech Tbk", Currency.IDR,
-                Money.of(500, Currency.IDR), 100, 20_000_000, gameBase.plusDays(5));
-        ipoOfferings.put(ipo.getId(), ipo);
+        ensureMonthlyIpoSchedule(gameBase);
         ShareholderMeetingAgenda agenda = new ShareholderMeetingAgenda("RUPS-BBCA-01", "BBCA",
                 "Persetujuan pembagian dividen", "Dividen Rp225 per saham mengikuti hak recording date.", gameBase.plusDays(1));
         agendas.put(agenda.getId(), agenda);

@@ -199,12 +199,26 @@ public final class MarketEngine {
             InstrumentCatalog catalog,
             EconomyLedger ledger,
             Map<String, Account> allAccounts) {
+        tick(clock, gameTimestamp, catalog, ledger, allAccounts, null);
+    }
+
+    public synchronized void tick(
+            GameClock clock,
+            long gameTimestamp,
+            InstrumentCatalog catalog,
+            EconomyLedger ledger,
+            Map<String, Account> allAccounts,
+            com.tradingglobal3d.core.research.ResearchService researchService) {
 
         for (Instrument inst : catalog.getActiveUniverse()) {
             OrderBook book = getOrCreateBook(inst);
             if (book.getHaltState() != TradingHaltState.NORMAL) {
                 continue;
             }
+
+            double newsImpact = (researchService != null)
+                    ? researchService.getActiveNewsImpact(inst.getTicker(), inst.getSector(), gameTimestamp)
+                    : 0.0;
 
             for (NpcAgent npc : npcAgents) {
                 // Taker ritel hanya aktif bertransaksi saat bursa instrumen sedang buka
@@ -213,7 +227,7 @@ public final class MarketEngine {
                         continue;
                     }
                 }
-                List<Order> npcOrders = npc.generateOrders(inst, book, gameTimestamp);
+                List<Order> npcOrders = npc.generateOrders(inst, book, gameTimestamp, newsImpact);
                 for (Order o : npcOrders) {
                     matchingEngine.submitOrder(o, npc.getAccount(), inst, book, ledger, allAccounts, gameTimestamp);
                 }

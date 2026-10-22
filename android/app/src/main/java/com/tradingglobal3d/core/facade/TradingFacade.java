@@ -1,6 +1,7 @@
 package com.tradingglobal3d.core.facade;
 
 import com.tradingglobal3d.core.career.CareerManager;
+import com.tradingglobal3d.core.career.CareerMission;
 import com.tradingglobal3d.core.career.CareerRank;
 import com.tradingglobal3d.core.career.DailySessionReport;
 import com.tradingglobal3d.core.clock.GameClock;
@@ -40,6 +41,7 @@ import com.tradingglobal3d.core.league.LeagueManager;
 import com.tradingglobal3d.core.player.InvestorArchetypeService;
 import com.tradingglobal3d.core.market.HistoricalBar;
 import com.tradingglobal3d.core.market.HistoricalDatasetLoader;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import com.tradingglobal3d.core.player.PlayerProfileManager;
@@ -118,6 +120,7 @@ public final class TradingFacade {
     private final com.tradingglobal3d.core.collection.CollectionManager collectionManager = new com.tradingglobal3d.core.collection.CollectionManager();
     private final MutualFundManager mutualFundManager = new MutualFundManager();
     private final InstallmentLoanManager installmentLoanManager = new InstallmentLoanManager();
+    private final com.tradingglobal3d.core.multiasset.TimeDepositManager timeDepositManager = new com.tradingglobal3d.core.multiasset.TimeDepositManager();
     private final PeriodicMissionManager periodicMissionManager = new PeriodicMissionManager();
     private final LeagueManager leagueManager = new LeagueManager();
     private final PlayerProfileManager playerProfileManager = new PlayerProfileManager();
@@ -511,6 +514,7 @@ public final class TradingFacade {
         this.lastRealTimeAnchor = System.currentTimeMillis();
         this.mutualFundManager.reset();
         this.installmentLoanManager.reset();
+        this.timeDepositManager.reset();
         this.periodicMissionManager.reset();
         this.leagueManager.reset();
         this.playerProfileManager.reset();
@@ -949,26 +953,42 @@ public final class TradingFacade {
         return marketEngine.cancelOrder(order, acc);
     }
 
+    private int lastEvaluatedPersonalLedgerSize = 0;
+
     private void evaluateRecordedCareerProgress() {
         Account personal = getPersonalAccount();
-        if (personal != null) careerManager.evaluateRecordedTrades(personal, ledger);
         if (personal != null) {
-            Set<String> sectors = new HashSet<>();
-            for (Position position : personal.getPositions().values()) {
-                Instrument instrument = catalog.getById(position.getExchange() + ":" + position.getTicker());
-                if (position.getQuantity() > 0 && instrument != null) sectors.add(instrument.getSector());
+            CareerMission m1 = careerManager.getMission("MIS-01");
+            if (m1 != null && !m1.isCompleted()) {
+                careerManager.evaluateRecordedTrades(personal, ledger);
             }
-            if (sectors.size() >= 2) careerManager.completeMission("MIS-02");
-            if (personalNetWorth().getAmount().compareTo(BigDecimal.valueOf(75_000_000)) >= 0)
-                careerManager.completeMission("MIS-03");
+            CareerMission m2 = careerManager.getMission("MIS-02");
+            if (m2 != null && !m2.isCompleted()) {
+                Set<String> sectors = new HashSet<>();
+                for (Position position : personal.getPositions().values()) {
+                    Instrument instrument = catalog.getById(position.getExchange() + ":" + position.getTicker());
+                    if (position.getQuantity() > 0 && instrument != null) sectors.add(instrument.getSector());
+                }
+                if (sectors.size() >= 2) careerManager.completeMission("MIS-02");
+            }
+            CareerMission m3 = careerManager.getMission("MIS-03");
+            if (m3 != null && !m3.isCompleted()) {
+                if (personalNetWorth().getAmount().compareTo(BigDecimal.valueOf(75_000_000)) >= 0)
+                    careerManager.completeMission("MIS-03");
+            }
         }
         periodicMissionManager.updateCalendar(clock.getCurrentDate(), careerManager.getCurrentRank());
-        for (LedgerEntry entry : ledger.getEntriesForAccount(personalAccountId)) {
-            if (entry.getType() != LedgerEntryType.TRADE_BUY && entry.getType() != LedgerEntryType.TRADE_SELL) continue;
-            if (entry.getRequestId().startsWith("SUB-FUND-") || entry.getRequestId().startsWith("RED-FUND-")
-                    || (entry.getRequestId().startsWith("FUND-") && (entry.getRequestId().contains(":SUB:") || entry.getRequestId().contains(":RED:")))) continue;
-            LocalDate date = java.time.Instant.ofEpochMilli(entry.getTimestamp()).atOffset(java.time.ZoneOffset.ofHours(7)).toLocalDate();
-            periodicMissionManager.recordActivity("TRADE:" + entry.getId(), "TRADE", 1, date);
+        List<LedgerEntry> entries = ledger.getEntriesForAccount(personalAccountId);
+        if (entries.size() > lastEvaluatedPersonalLedgerSize) {
+            for (int i = lastEvaluatedPersonalLedgerSize; i < entries.size(); i++) {
+                LedgerEntry entry = entries.get(i);
+                if (entry.getType() != LedgerEntryType.TRADE_BUY && entry.getType() != LedgerEntryType.TRADE_SELL) continue;
+                if (entry.getRequestId().startsWith("SUB-FUND-") || entry.getRequestId().startsWith("RED-FUND-")
+                        || (entry.getRequestId().startsWith("FUND-") && (entry.getRequestId().contains(":SUB:") || entry.getRequestId().contains(":RED:")))) continue;
+                LocalDate date = java.time.Instant.ofEpochMilli(entry.getTimestamp()).atOffset(java.time.ZoneOffset.ofHours(7)).toLocalDate();
+                periodicMissionManager.recordActivity("TRADE:" + entry.getId(), "TRADE", 1, date);
+            }
+            lastEvaluatedPersonalLedgerSize = entries.size();
         }
         // All execution paths (resting orders, NPC matches and triggers) converge here.
         for (Instrument instrument : catalog.getActiveUniverse()) {
@@ -1024,8 +1044,20 @@ public final class TradingFacade {
 
     public synchronized void generateNpcLiquidity() {
         if (gameMode == GameMode.HISTORICAL_REPLAY) { refreshReplayLiquidity(); return; }
-        marketEngine.tick(clock, clock.getGameTimestamp(), catalog, ledger, accounts);
+        marketEngine.tick(clock, clock.getGameTimestamp(), catalog, ledger, accounts, researchService);
         evaluateRecordedCareerProgress();
+    }
+
+    public synchronized long getGameTimestamp() {
+        return clock != null ? clock.getGameTimestamp() : System.currentTimeMillis();
+    }
+
+    public synchronized String getNewsFeedJson() {
+        try {
+            return researchService.getNewsFeed(clock.getGameTimestamp()).toString();
+        } catch (Exception e) {
+            return "[]";
+        }
     }
 
     public synchronized List<NewsArticle> getNewsFeed() {
@@ -1403,7 +1435,16 @@ public final class TradingFacade {
         // Evaluasi pencapaian net worth
         progressManager.onNetWorthEvaluated(getPersonalNetWorth().getAmount().longValue(), now);
 
-        if (!advanceToMorning) return report;
+        if (!advanceToMorning) {
+            // Pada midnight rollover: reset instrumen IDX (sesi IDX sudah selesai di 16:00)
+            // Sesi US sedang berjalan di 00:00 WIB sehingga tidak direset di tengah malam.
+            for (Instrument inst : catalog.getAllInstruments()) {
+                if (inst.getExchange() == com.tradingglobal3d.core.market.MarketExchange.IDX) {
+                    inst.startNewTradingDay();
+                }
+            }
+            return report;
+        }
         LocalDate nextDate = clock.getCurrentDate().plusDays(1);
         this.clock = new GameClock(nextDate, java.time.LocalTime.of(8, 30, 0));
         for (Instrument inst : catalog.getAllInstruments()) {
@@ -1415,8 +1456,11 @@ public final class TradingFacade {
 
     private void processCalendarActions(LocalDate nextDate) {
         if (gameMode == GameMode.INTERNAL_MARKET) {
-            try { corporateService.processDate(nextDate, accounts, ledger, clock.getGameTimestamp()); }
-            catch (JSONException error) { throw new IllegalStateException("Penyelesaian aksi korporasi gagal", error); }
+            try {
+                corporateService.ensureMonthlyIpoSchedule(nextDate);
+                corporateService.processDate(nextDate, accounts, ledger, clock.getGameTimestamp());
+                timeDepositManager.processDailyMaturities(getPersonalAccount(), clock.getGameTimestamp(), ledger);
+            } catch (JSONException error) { throw new IllegalStateException("Penyelesaian aksi korporasi gagal", error); }
         }
         // 1. Update kalender misi dan rollover mingguan liga (D07, D09)
         periodicMissionManager.updateCalendar(nextDate, careerManager.getCurrentRank());
@@ -1502,13 +1546,28 @@ public final class TradingFacade {
     private boolean advanceWorldSeconds(long remaining) {
         // ponytail: economy runs on absolute minute boundaries; sub-minute events need an explicit event boundary here.
         LocalDate initialDate = clock.getCurrentDate();
+        boolean isFastForward = !clock.isForeground() || remaining >= 86400L;
+
         while (remaining > 0) {
             if (gameMode == GameMode.HISTORICAL_REPLAY && replayEngine.isReplayCompleted(clock.getCurrentDate(), clock.getCurrentTime())) {
                 clock.pause(); break;
             }
             long midnight = 86400 - clock.getCurrentTime().toSecondOfDay();
-            long secondsToMinute = 60 - clock.getCurrentTime().getSecond();
-            long step = Math.min(remaining, Math.min(secondsToMinute, midnight));
+            long step;
+            if (isFastForward) {
+                int currentSec = clock.getCurrentTime().toSecondOfDay();
+                long secondsToNextEvent;
+                if (currentSec < 57600) { // 16:00:00 cutoff reksa dana
+                    secondsToNextEvent = 57600 - currentSec;
+                } else { // 24:00:00 midnight settlement
+                    secondsToNextEvent = midnight;
+                }
+                step = Math.min(remaining, secondsToNextEvent);
+            } else {
+                long secondsToMinute = 60 - clock.getCurrentTime().getSecond();
+                step = Math.min(remaining, Math.min(secondsToMinute, midnight));
+            }
+
             if (step == midnight) {
                 clock.advanceGameSeconds(step - 1);
                 settleDay(false);
@@ -1549,7 +1608,7 @@ public final class TradingFacade {
                     mutualFundManager.recordRebalanceFailure(rebalErr.getMessage(), clock.getGameTimestamp());
                 }
             }
-            if (clock.getCurrentTime().getSecond() == 0) {
+            if (!isFastForward && clock.getCurrentTime().getSecond() == 0) {
                 if (gameMode == GameMode.HISTORICAL_REPLAY) {
                     refreshReplayLiquidity();
                     Instrument replayInstrument = catalog.getById(replayEngine.getActiveDatasetId());
@@ -1562,7 +1621,10 @@ public final class TradingFacade {
                 }
                 evaluateTriggers();
             }
-            if (clock.getCurrentTime().getMinute() % 15 == 0 || remaining == 0) {
+            if (isFastForward && (step == midnight || remaining == 0)) {
+                evaluateTriggers();
+                multiAssetTrading.updateValuations(catalog, fxService, accounts, clock.getGameTimestamp());
+            } else if (!isFastForward && (clock.getCurrentTime().getMinute() % 15 == 0 || remaining == 0)) {
                 multiAssetTrading.updateValuations(catalog, fxService, accounts, clock.getGameTimestamp());
             }
         }
@@ -1996,13 +2058,17 @@ public final class TradingFacade {
             JSONObject clockObj = new JSONObject();
             clockObj.put("date", clock.getFormattedDate());
             clockObj.put("time", clock.getFormattedTime());
+            clockObj.put("timestamp", clock.getGameTimestamp());
+            clockObj.put("monotonicAnchor", System.currentTimeMillis());
+            clockObj.put("rate", GameClock.FOREGROUND_GAME_SECONDS_PER_REAL_SECOND);
+            clockObj.put("isAutomatic", true);
             clockObj.put("session", clock.getCurrentMarketSession().name());
             clockObj.put("sessionLabel", clock.getCurrentMarketSession().getLabel());
             clockObj.put("isTradingOpen", clock.getCurrentMarketSession().isOpenForTrading());
             clockObj.put("isAnyTradingOpen", clock.isAnyMarketOpen());
             clockObj.put("isIdxTradingOpen", clock.isTradingOpenFor(com.tradingglobal3d.core.market.MarketExchange.IDX));
             clockObj.put("isUsTradingOpen", clock.isTradingOpenFor(com.tradingglobal3d.core.market.MarketExchange.US));
-            clockObj.put("speed", clock.getSpeedMultiplier());
+            clockObj.put("speed", 1);
             clockObj.put("isPaused", clock.isPaused());
             root.put("clock", clockObj);
         }
@@ -2333,14 +2399,62 @@ public final class TradingFacade {
         return result;
     }
 
+    private String readStreamUtf8(InputStream is) throws IOException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        byte[] data = new byte[8192];
+        int nRead;
+        while ((nRead = is.read(data, 0, data.length)) != -1) {
+            buffer.write(data, 0, nRead);
+        }
+        return buffer.toString(StandardCharsets.UTF_8.name());
+    }
+
     private JSONObject companyProfilesCache;
+
+    public synchronized com.tradingglobal3d.core.multiasset.TimeDepositManager getTimeDepositManager() {
+        return timeDepositManager;
+    }
+
+    public synchronized JSONArray getTimeDepositProducts() throws JSONException {
+        return timeDepositManager.exportProducts();
+    }
+
+    public synchronized JSONArray getActiveTimeDeposits() throws JSONException {
+        return timeDepositManager.exportActiveDeposits(clock.getGameTimestamp());
+    }
+
+    public synchronized JSONObject openTimeDeposit(String productId, BigDecimal amount) throws JSONException {
+        Account personal = getPersonalAccount();
+        if (personal == null) return new JSONObject().put("success", false).put("message", "Akun pribadi belum tersedia");
+        Money principal = new Money(amount, Currency.IDR);
+        com.tradingglobal3d.core.multiasset.TimeDeposit dep = timeDepositManager.openDeposit(personal, productId, principal, clock.getGameTimestamp(), ledger);
+        persistFinancialMutation();
+        return new JSONObject().put("success", true).put("deposit", dep.toJsonObject(clock.getGameTimestamp()));
+    }
+
+    public synchronized JSONObject withdrawTimeDeposit(String depositId) throws JSONException {
+        Account personal = getPersonalAccount();
+        if (personal == null) return new JSONObject().put("success", false).put("message", "Akun pribadi belum tersedia");
+        com.tradingglobal3d.core.multiasset.TimeDeposit dep = timeDepositManager.withdrawDeposit(depositId, personal, clock.getGameTimestamp(), ledger);
+        persistFinancialMutation();
+        return new JSONObject().put("success", true).put("deposit", dep.toJsonObject(clock.getGameTimestamp()));
+    }
+
+    public synchronized JSONObject getIssuerFundamentals(String instrumentId) throws JSONException {
+        Instrument inst = catalog.getById(instrumentId);
+        if (inst == null) return new JSONObject().put("success", false).put("message", "Emiten tidak ditemukan: " + instrumentId);
+        com.tradingglobal3d.core.market.IssuerFundamentals f = new com.tradingglobal3d.core.market.IssuerFundamentals(
+                inst.getId(), inst.getTicker(), inst.getName(), inst.getExchange(),
+                inst.getSector(), inst.getCurrency(), inst.getSharesOutstanding(), inst.getCurrentPrice().getAmount()
+        );
+        return f.toJsonObject(inst.getCurrentPrice());
+    }
 
     public synchronized JSONObject getCompanyProfile(String instrumentId) {
         if (companyProfilesCache == null) {
-            try {
-                InputStream is = HistoricalDatasetLoader.openAssetStream("data/company_profiles.json");
+            try (InputStream is = HistoricalDatasetLoader.openAssetStream("data/company_profiles.json")) {
                 if (is != null) {
-                    String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                    String json = readStreamUtf8(is);
                     companyProfilesCache = new JSONObject(json);
                 } else {
                     companyProfilesCache = new JSONObject();

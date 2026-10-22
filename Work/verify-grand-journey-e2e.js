@@ -66,6 +66,15 @@ async function run() {
     const ihsgVal = (await ihsgCard.locator('strong').textContent()).trim();
     console.log("IHSG value:", ihsgVal);
 
+    // Pastikan pasar berada pada jam perdagangan aktif (09:05 WIB)
+    await page.evaluate(() => {
+        if (window.TradingNativeBridge && window.TradingNativeBridge.tickClock) {
+            window.TradingNativeBridge.setClockState(true, 1);
+            window.TradingNativeBridge.tickClock(2100);
+        }
+    });
+    await page.waitForTimeout(500);
+
     // Cari BBCA dan buka detail
     await page.fill('#search-stock-input', 'BBCA');
     await page.waitForTimeout(500);
@@ -77,33 +86,36 @@ async function run() {
     console.log("Opened BBCA detail modal");
 
     // Buka tiket order beli
-    const buyActionBtn = page.locator('.flow-page button.btn-primary:has-text("Beli")');
-    if (await buyActionBtn.count() > 0) {
-        await buyActionBtn.first().click();
-        await page.waitForSelector('#btn-submit-order', { timeout: 5000 });
-        console.log("Opened Order Ticket");
+    const buyActionBtn = page.locator('.flow-page button.btn-detail-buy:has-text("BELI")');
+    if (await buyActionBtn.count() === 0) throw new Error("Tombol 'BELI' wajib ada di detail instrumen!");
+    await buyActionBtn.first().click();
+    await page.waitForSelector('#order-modal.active', { timeout: 5000 });
+    console.log("Opened Order Ticket Modal");
 
-        // Set quantity 100 lembar
-        await page.fill('#order-qty-input', '100');
-        // Submit order
-        await page.click('#btn-submit-order');
-        await page.waitForSelector('.flow-page[aria-label="Tanda terima order"]', { timeout: 8000 });
-        console.log("Order submitted and receipt opened!");
-        await page.click('.flow-page button.back-button');
-        await page.waitForTimeout(500);
-    }
-    // Tutup detail BBCA
-    if (await page.locator('.flow-page button.back-button').count() > 0) {
-        await page.click('.flow-page button.back-button');
-        await page.waitForTimeout(500);
-    }
+    // Set quantity 1 unit (100 lembar) dan limit price 11.000 (menjamin immediate fill)
+    await page.fill('#order-qty', '1');
+    await page.fill('#order-limit-price', '11000');
+    // Review order
+    await page.click('#btn-submit-order');
+    await page.waitForSelector('.flow-page[aria-label="Tinjau order"]', { timeout: 8000 });
+    console.log("Order Review opened!");
+
+    // Konfirmasi kirim order
+    await page.click('.flow-page button:has-text("Kirim order")');
+    await page.waitForSelector('.flow-page[aria-label="Status order"]', { timeout: 8000 });
+    console.log("Order sent and receipt status opened!");
+
+    // Tutup receipt
+    await page.click('.flow-page button.back-button');
+    await page.waitForTimeout(500);
+
     await page.fill('#search-stock-input', '');
     checks.push("STEP 3: Realtime market quote, index ribbon, & BBCA order executed");
 
     // =========================================================================
-    // STEP 4: Portofolio Layout Bersih & Posisi (A2)
+    // STEP 4: Portofolio Layout Bersih & Posisi Nyata (A2)
     // =========================================================================
-    console.log("=== STEP 4: Portofolio Layout Bersih & Posisi (A2) ===");
+    console.log("=== STEP 4: Portofolio Layout Bersih & Posisi Nyata (A2) ===");
     await page.click('button.nav-item[data-tab="aset"]');
     await page.waitForSelector('#view-aset', { timeout: 5000 });
 
@@ -111,8 +123,10 @@ async function run() {
     const oldLedger = await page.locator('#asset-summary button:has-text("Aktivitas / ledger")').count();
     if (oldStats !== 0 || oldLedger !== 0) throw new Error("Portofolio masih memuat elemen usang!");
 
-    const posCount = await page.locator('#portfolio-positions-list .position-row').count();
+    const posRows = page.locator('#portfolio-positions-list .position-row');
+    const posCount = await posRows.count();
     console.log(`Portfolio positions count: ${posCount}`);
+    if (posCount === 0) throw new Error("Posisi saham BBCA harus ada di Portofolio setelah order beli terisi!");
     checks.push("STEP 4: Clean Portfolio without clutter, positions displayed");
 
     // =========================================================================
@@ -177,16 +191,25 @@ async function run() {
     await page.click('button.nav-item[data-tab="firma"]');
     await page.waitForSelector('#firma-subtab-content', { timeout: 5000 });
 
-    const compCard = page.locator('article.company-summary-card').first();
-    if (await compCard.count() === 1) {
-        await compCard.locator('button:has-text("Kelola Usaha & Operasional")').click();
-        await page.waitForSelector('.company-local-nav', { timeout: 5000 });
-        const subtabsCount = await page.locator('.company-local-nav button.subtab-pill').count();
-        console.log(`Company detail subtabs count: ${subtabsCount}`);
-        if (subtabsCount !== 4) throw new Error("Company management must have 4 subtabs");
-        await page.click('.flow-page button.back-button');
-        await page.waitForTimeout(500);
+    let compCard = page.locator('article.company-summary-card').first();
+    if (await compCard.count() === 0) {
+        console.log("Founding company PT Grand Journey...");
+        await page.click('button:has-text("+ Dirikan Perusahaan Baru")');
+        await page.waitForSelector('.flow-page[aria-label="Dirikan Perusahaan Baru"]', { timeout: 5000 });
+        await page.fill('#company-name', 'PT Grand Journey');
+        await page.fill('#company-capital', '25000000');
+        await page.click('.flow-page button.btn-primary:has-text("Resmikan Pendirian Perusahaan")');
+        await page.waitForTimeout(1500);
+        compCard = page.locator('article.company-summary-card').first();
     }
+    if (await compCard.count() !== 1) throw new Error("Perusahaan operasional harus hadir di Usaha Saya!");
+    await compCard.locator('button:has-text("Kelola Usaha & Operasional")').click();
+    await page.waitForSelector('.company-local-nav', { timeout: 5000 });
+    const subtabsCount = await page.locator('.company-local-nav button.subtab-pill').count();
+    console.log(`Company detail subtabs count: ${subtabsCount}`);
+    if (subtabsCount !== 4) throw new Error("Company management must have 4 subtabs");
+    await page.click('.flow-page button.back-button');
+    await page.waitForTimeout(500);
     checks.push("STEP 8: Business management 4 subtabs verified");
 
     // =========================================================================
@@ -199,7 +222,22 @@ async function run() {
     const secUnowned = await page.locator('.collection-section-group:has-text("Belum Dimiliki")').count();
     const secOwned = await page.locator('.collection-section-group:has-text("Sudah Dimiliki")').count();
     if (secUnowned !== 1 || secOwned !== 1) throw new Error("Koleksi harus memiliki 2 seksi: Belum Dimiliki dan Sudah Dimiliki");
-    checks.push("STEP 9: Luxury Collections 2-section display verified");
+
+    // Lakukan pembelian koleksi dan assert perubahan count
+    const buyColBtn = page.locator('.collection-section-group:has-text("Belum Dimiliki") button.btn-primary:has-text("Beli Koleksi")').first();
+    await buyColBtn.click();
+    await page.waitForSelector('.game-toast', { timeout: 5000 });
+    await page.waitForTimeout(1000);
+
+    const ownedBadge = (await page.locator('.collection-section-group:has-text("Sudah Dimiliki") .badge').textContent()).trim();
+    if (ownedBadge === '0') throw new Error("Koleksi yang dibeli harus masuk ke Sudah Dimiliki (count > 0)!");
+
+    // Jual kembali
+    const sellColBtn = page.locator('.collection-section-group:has-text("Sudah Dimiliki") button.btn-secondary:has-text("Jual Koleksi")').first();
+    await sellColBtn.click();
+    await page.waitForSelector('.game-toast', { timeout: 5000 });
+    await page.waitForTimeout(1000);
+    checks.push("STEP 9: Luxury Collections 2-section display & buy-sell verified");
 
     // =========================================================================
     // STEP 10: Final Grand Screenshot & Summary

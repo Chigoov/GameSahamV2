@@ -43,23 +43,36 @@ public final class ResearchService {
         subscriptionExpiresAt = Long.MAX_VALUE;
         LocalDate baseDate = java.time.Instant.ofEpochMilli(baseTime).atZone(java.time.ZoneId.of("Asia/Jakarta")).toLocalDate();
 
-        // 1. Berita yang sudah terbit
+        // 1. Berita yang sudah terbit & jadwal mendatang dengan clue probabilistik (R12)
         newsList.add(new NewsArticle(
                 "NEWS-01", "Bank Indonesia Tahan Suku Bunga Acuan di 6.00%",
                 "Rapat Dewan Gubernur memutuskan mempertahankan suku bunga guna menjaga stabilitas nilai tukar rupiah dan inflasi.",
-                NewsArticle.Category.MACRO, null, 0.40, baseTime - 3600_000L
+                NewsArticle.Category.MACRO, null, "Perbankan & Moneter", "POSITIF",
+                "+1.5% s/d +3.2%", 2, "TINGGI", 0.40,
+                baseTime - 7200_000L, baseTime - 3600_000L
         ));
         newsList.add(new NewsArticle(
                 "NEWS-02", "Laba Bersih BBCA Tumbuh 12.8% Kuartal Ini",
                 "Pertumbuhan kredit korporasi dan konsumer menopang kinerja solid bank swasta terbesar nasional.",
-                NewsArticle.Category.COMPANY, "BBCA", 0.85, baseTime - 1800_000L
+                NewsArticle.Category.COMPANY, "BBCA", "Keuangan", "POSITIF",
+                "+2.5% s/d +5.5%", 2, "TINGGI", 0.65,
+                baseTime - 3600_000L, baseTime - 1800_000L
         ));
 
-        // Berita masa depan (belum terbit - Anti Future Leak Test)
+        // Berita mendatang (Scheduled Future News dengan Clue & Estimasi Rentang - Anti-Future Leak)
         newsList.add(new NewsArticle(
-                "NEWS-FUTURE-01", "Bocoran Akuisisi Rahasia Sektor Tambang",
-                "Rencana aksi korporasi besar yang baru akan diumumkan besok lusa.",
-                NewsArticle.Category.SECTOR, "ANTM", 0.90, baseTime + 86400_000L
+                "NEWS-FUTURE-01", "Rilis Kinerja Finansial Sektor Energi & Batubara",
+                "Laporan resmi laba bersih dan dividen interim emiten sektor energi.",
+                NewsArticle.Category.SECTOR, "ADRO", "Energi", "POSITIF",
+                "+3.0% s/d +7.0%", 2, "SEDANG", 0.50,
+                baseTime - 3600_000L, baseTime + 3600_000L // Terbit 1 jam game ke depan
+        ));
+        newsList.add(new NewsArticle(
+                "NEWS-FUTURE-02", "Publikasi Data Cadangan dan Ekspor Logam Tambang",
+                "Evaluasi kuota ekspor dan biaya operasional komoditas mineral.",
+                NewsArticle.Category.SECTOR, "ANTM", "Tambang & Logam", "NEGATIF",
+                "-2.0% s/d -4.8%", 1, "SEDANG", -0.45,
+                baseTime - 1800_000L, baseTime + 7200_000L // Terbit 2 jam game ke depan
         ));
         newsList.add(new NewsArticle("NEWS-GAME-04", "Simulasi: membaca likuiditas pasar",
                 "Antrean tipis dapat menyebabkan partial fill. Periksa spread dan volume transaksi sebelum mengirim order.",
@@ -116,6 +129,37 @@ public final class ResearchService {
 
     public synchronized void addCalendarEvent(CalendarEvent event) {
         calendarEvents.add(event);
+    }
+
+    /**
+     * Mengambil feed berita lengkap: berita terbit + jadwal rilis mendatang (R12).
+     * Berita mendatang mematuhi anti-future leak (hanya clue yang ditampilkan).
+     */
+    public synchronized JSONArray getNewsFeed(long currentTimestamp) throws JSONException {
+        JSONArray arr = new JSONArray();
+        for (NewsArticle a : newsList) {
+            if (a.isAnnounced(currentTimestamp) || a.isPublished(currentTimestamp)) {
+                arr.put(a.toJsonObject(currentTimestamp));
+            }
+        }
+        return arr;
+    }
+
+    /**
+     * Menghitung dampak sentimen berita aktif untuk emiten atau sektor tertentu (R12).
+     */
+    public synchronized double getActiveNewsImpact(String ticker, String sector, long currentTimestamp) {
+        double impact = 0.0;
+        for (NewsArticle a : newsList) {
+            if (a.isHorizonActive(currentTimestamp)) {
+                boolean matchTicker = ticker != null && ticker.equalsIgnoreCase(a.getRelatedTicker());
+                boolean matchSector = sector != null && sector.equalsIgnoreCase(a.getAffectedSector());
+                if (matchTicker || matchSector) {
+                    impact += a.getSentimentImpact();
+                }
+            }
+        }
+        return Math.max(-1.0, Math.min(1.0, impact));
     }
 
     /**

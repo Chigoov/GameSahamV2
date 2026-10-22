@@ -3,6 +3,7 @@ package com.tradingglobal3d.core.player;
 import com.tradingglobal3d.core.model.Account;
 import com.tradingglobal3d.core.model.Currency;
 import com.tradingglobal3d.core.model.Money;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -117,11 +118,18 @@ public final class InvestorArchetypeService {
 
         if (totalTradeFills < 5 || gameDaysElapsed < 7 || personalAccount == null || totalNetWorth == null || !totalNetWorth.isPositive()) {
             res.put("archetype", Archetype.INSUFFICIENT_DATA.name());
-            res.put("label", Archetype.INSUFFICIENT_DATA.getLabel());
-            res.put("description", Archetype.INSUFFICIENT_DATA.getDescription());
-            res.put("confidence", "Rendah (Tahap Pembelajaran)");
-            res.put("reasoning", totalNetWorth == null || !totalNetWorth.isPositive()
-                    ? "Kekayaan bersih positif diperlukan untuk menghitung eksposur." : "Sampel minimum belum terpenuhi.");
+            res.put("label", "Gaya Investasimu Sedang Terbentuk");
+            res.put("description", "Profil risiko dan gaya investasi dievaluasi secara otomatis dari perilaku transaksi pasar riil Anda tanpa kuis buatan.");
+            res.put("progressText", totalTradeFills + "/5 transaksi pasar · " + gameDaysElapsed + "/7 hari trading");
+            res.put("confidence", "Sedang Mengumpulkan Data (" + totalTradeFills + "/5 transaksi, " + gameDaysElapsed + "/7 hari)");
+            res.put("reasoning", "Belum cukup aktivitas perdagangan untuk menyimpulkan gaya investasi secara objektif.");
+            JSONArray indicators = new JSONArray();
+            indicators.put("Eksposur Saham & Portofolio Riil");
+            indicators.put("Penggunaan Fasilitas Leverage Margin");
+            indicators.put("Tingkat Konsentrasi & Diversifikasi Aset");
+            indicators.put("Durasi Rata-rata Kepemilikan Saham (FIFO)");
+            indicators.put("Perputaran Portofolio 7 Hari Game (Turnover)");
+            res.put("observedIndicators", indicators);
             return res;
         }
 

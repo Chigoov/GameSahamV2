@@ -53,31 +53,63 @@ public final class SaveManager {
         File targetFile = getSaveFile();
         File backupFile = getBackupFile();
 
-        // 1. Tulis ke file temporary
+        // 1. Tulis ke file temporary dengan disk sync
         try (FileOutputStream fos = new FileOutputStream(tempFile);
              OutputStreamWriter osw = new OutputStreamWriter(fos, StandardCharsets.UTF_8);
              BufferedWriter bw = new BufferedWriter(osw)) {
             bw.write(jsonStr);
             bw.flush();
+            fos.getFD().sync();
         }
 
-        // 2. Rotasi backup dari file lama jika ada
-        if (targetFile.exists() && targetFile.length() > 10) {
+        // 2. Rotasi backup dari file lama jika ada dan valid
+        if (targetFile.exists() && targetFile.length() > 0) {
+            boolean isTargetValid = false;
             try {
-                Files.copy(targetFile.toPath(), backupFile.toPath(),
-                        StandardCopyOption.REPLACE_EXISTING,
-                        StandardCopyOption.COPY_ATTRIBUTES);
-            } catch (Exception ignored) {}
+                String existingContent = readFileToString(targetFile);
+                SaveState.fromJsonString(existingContent);
+                isTargetValid = true;
+            } catch (Exception invalidTarget) {
+                // Primary rusak (>10 byte, truncated, atau JSON tidak valid):
+                // JANGAN timpa backup! Pertahankan last-good backup yang masih valid.
+                isTargetValid = false;
+            }
+
+            if (isTargetValid) {
+                Path tempBackup = Files.createTempFile(baseDir.toPath(), "bak-", ".tmp");
+                try {
+                    Files.copy(targetFile.toPath(), tempBackup, StandardCopyOption.REPLACE_EXISTING);
+                    try (FileOutputStream bfos = new FileOutputStream(tempBackup.toFile(), true)) {
+                        bfos.getFD().sync();
+                    }
+                    try {
+                        Files.move(tempBackup, backupFile.toPath(),
+                                StandardCopyOption.REPLACE_EXISTING,
+                                StandardCopyOption.ATOMIC_MOVE);
+                    } catch (AtomicMoveNotSupportedException e) {
+                        Files.move(tempBackup, backupFile.toPath(),
+                                StandardCopyOption.REPLACE_EXISTING);
+                    }
+                } finally {
+                    Files.deleteIfExists(tempBackup);
+                }
+            }
         }
 
-        // 3. Atomic replace temp ke target file
+        // 3. Verifikasi tempFile dan Atomic replace temp ke target file
         try {
-            Files.move(tempFile.toPath(), targetFile.toPath(),
-                    StandardCopyOption.REPLACE_EXISTING,
-                    StandardCopyOption.ATOMIC_MOVE);
-        } catch (AtomicMoveNotSupportedException e) {
-            Files.move(tempFile.toPath(), targetFile.toPath(),
-                    StandardCopyOption.REPLACE_EXISTING);
+            String tempContent = readFileToString(tempFile);
+            SaveState.fromJsonString(tempContent);
+            try {
+                Files.move(tempFile.toPath(), targetFile.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING,
+                        StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(tempFile.toPath(), targetFile.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            Files.deleteIfExists(tempFile.toPath());
         }
     }
 

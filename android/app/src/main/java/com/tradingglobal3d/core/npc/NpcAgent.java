@@ -39,6 +39,13 @@ public final class NpcAgent {
      * Menghasilkan order yang sah menurut strategi dan saldo/posisi NPC saat ini.
      */
     public List<Order> generateOrders(Instrument instrument, OrderBook book, long timestamp) {
+        return generateOrders(instrument, book, timestamp, 0.0);
+    }
+
+    /**
+     * Menghasilkan order NPC dengan mempertimbangkan sentimen berita pasar (R12).
+     */
+    public List<Order> generateOrders(Instrument instrument, OrderBook book, long timestamp, double newsSentimentImpact) {
         List<Order> orders = new ArrayList<>();
         Currency cur = instrument.getCurrency();
         BigDecimal currentPrice = instrument.getCurrentPrice().getAmount();
@@ -140,9 +147,17 @@ public final class NpcAgent {
             // Investor & Trader Ritel: mengambil likuiditas antrean (taker) untuk membentuk transaksi sah
             long timeBucket = timestamp / 900_000L; // bucket 15 menit
             int seed = Math.abs(Objects.hash(instrument.getId(), timeBucket, id));
-            // 70% peluang ada aktivitas perdagangan di setiap bucket 15 menit per instrumen
-            if (seed % 10 < 7) {
-                boolean isBuy = (seed % 2 == 0);
+            // Jika ada sentimen berita aktif, antusiasme transaksi melonjak (90%)
+            int activityThreshold = Math.abs(newsSentimentImpact) > 0.1 ? 9 : 7;
+            if (seed % 10 < activityThreshold) {
+                boolean isBuy;
+                if (newsSentimentImpact > 0.1) {
+                    isBuy = (seed % 10) < 8; // 80% Peluang Buy karena sentimen berita positif
+                } else if (newsSentimentImpact < -0.1) {
+                    isBuy = (seed % 10) >= 8; // 80% Peluang Sell karena sentimen berita negatif
+                } else {
+                    isBuy = (seed % 2 == 0); // Netral 50:50
+                }
                 long lotMultiplier = 1 + (seed % 4); // 1 - 4 lot
                 long qty = Math.max(instrument.getLotSize(), instrument.getLotSize() * lotMultiplier);
 

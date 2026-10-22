@@ -98,7 +98,7 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    padding: 0;
 }
 
 button, input, select {
@@ -854,7 +854,7 @@ strong, .metric-hero {
 
 .toast-container {
     position: fixed;
-    top: calc(env(safe-area-inset-top) + 12px);
+    top: 12px;
     left: 50%;
     transform: translateX(-50%);
     width: calc(100% - 24px);
@@ -1353,7 +1353,7 @@ label {
 
 .flow-page {
     position: fixed;
-    inset: env(safe-area-inset-top) env(safe-area-inset-right) calc(var(--nav-height) + env(safe-area-inset-bottom)) env(safe-area-inset-left);
+    inset: 0 0 var(--nav-height) 0;
     z-index: 190;
     background: var(--background);
     background-image: var(--bg-gradient);
@@ -1365,7 +1365,7 @@ label {
 }
 
 .flow-page.isolated {
-    bottom: env(safe-area-inset-bottom);
+    bottom: 0;
     z-index: 400;
 }
 

@@ -29,6 +29,26 @@ public final class MutualFundManager {
 
     private void initializeDefaultFunds() {
         funds.clear();
+        java.io.File jsonFile = new java.io.File("src/main/assets/data/katalog_reksadana_24.json");
+        if (!jsonFile.exists()) {
+            jsonFile = new java.io.File("android/app/src/main/assets/data/katalog_reksadana_24.json");
+        }
+        if (jsonFile.exists()) {
+            try {
+                byte[] bytes = java.nio.file.Files.readAllBytes(jsonFile.toPath());
+                String content = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+                JSONArray arr = new JSONArray(content);
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject obj = arr.getJSONObject(i);
+                    String id = obj.getString("id");
+                    String name = obj.getString("name");
+                    MutualFund.FundType type = MutualFund.FundType.fromPolicy(obj.getString("enginePolicy"));
+                    String manager = obj.getString("manager");
+                    funds.put(id, new MutualFund(id, name, type, manager));
+                }
+                if (funds.size() >= 24) return;
+            } catch (Exception ignored) {}
+        }
         funds.put("FUND-MM-01", new MutualFund(
                 "FUND-MM-01",
                 "Nusantara Kas Lancar",
