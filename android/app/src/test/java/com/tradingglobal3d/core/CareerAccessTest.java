@@ -37,14 +37,14 @@ public class CareerAccessTest {
             catch (IllegalStateException expected) { assertTrue(expected.getMessage().contains("jabatan")); }
         }
         assertEquals(entries, game.getLedger().getEntries().size());
-        // 2 base (personal + MM) + 3 fund pool + 2 fund debt issuer (MM/FI) + 20 NPC liga = 27
-        assertEquals(27, game.getAllAccounts().size());
+        // 3 base (personal + MM + Retail) + 3 fund pool + 2 fund debt issuer (MM/FI) + 20 NPC liga = 28
+        assertEquals(28, game.getAllAccounts().size());
         assertEquals(0, game.getProgressManager().getCurrentXp());
         assertTrue(game.getCalendar().isEmpty());
         assertTrue(game.subscribeTerminal(TerminalTier.BASIC));
     }
     @Test public void realTradingRewardsAndSalaryReachClientManagementWithoutInjectedState() throws Exception {
-        game.setClockState(true, 1); game.tick(7); game.setClockState(false, 1);
+        game.setClockState(true, 1); game.tick(20); game.setClockState(false, 1);
         String account = game.getPersonalAccount().getId();
         assertTrue(game.submitOrder(Order.createLimit("CAREER-BBCA", "IDX:BBCA", account, OrderSide.BUY, Money.of(10500, Currency.IDR), 100, 1)).order.getFilledQuantity()>0);
         assertTrue(game.submitOrder(Order.createLimit("CAREER-TLKM", "IDX:TLKM", account, OrderSide.BUY, Money.of(3150, Currency.IDR), 100, 2)).order.getFilledQuantity()>0);

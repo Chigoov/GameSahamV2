@@ -205,6 +205,8 @@ public final class CollectibleItem {
         obj.put("dailyMaintenanceCost", dailyMaintenanceCost.getAmount().toPlainString());
         obj.put("reputationBonus", reputationBonus);
         obj.put("isOwned", isOwned);
+        obj.put("owned", isOwned);
+        obj.put("isPledged", isPledged());
         obj.put("pledgedLoanId", pledgedLoanId == null ? JSONObject.NULL : pledgedLoanId);
         obj.put("purchaseTimestamp", purchaseTimestamp);
         obj.put("purchasePrice", purchasePrice != null ? purchasePrice.getAmount().toPlainString() : JSONObject.NULL);

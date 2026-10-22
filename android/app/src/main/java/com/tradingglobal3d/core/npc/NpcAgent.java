@@ -136,6 +136,52 @@ public final class NpcAgent {
                     ));
                 }
             }
+        } else if (strategy == NpcStrategyType.RETAIL_NOISE) {
+            // Investor & Trader Ritel: mengambil likuiditas antrean (taker) untuk membentuk transaksi sah
+            long timeBucket = timestamp / 900_000L; // bucket 15 menit
+            int seed = Math.abs(Objects.hash(instrument.getId(), timeBucket, id));
+            // 70% peluang ada aktivitas perdagangan di setiap bucket 15 menit per instrumen
+            if (seed % 10 < 7) {
+                boolean isBuy = (seed % 2 == 0);
+                long lotMultiplier = 1 + (seed % 4); // 1 - 4 lot
+                long qty = Math.max(instrument.getLotSize(), instrument.getLotSize() * lotMultiplier);
+
+                if (isBuy) {
+                    BigDecimal targetPrice;
+                    if (!book.getAsks().isEmpty()) {
+                        targetPrice = book.getAsks().firstKey();
+                    } else {
+                        targetPrice = currentPrice.add(tick);
+                    }
+                    Money req = new Money(targetPrice.multiply(BigDecimal.valueOf(qty)), cur);
+                    if (account.getAvailableCash(cur).isGreaterThanOrEqual(req)) {
+                        orders.add(new Order(
+                                "ORD-NPC-RET-B-" + System.nanoTime(),
+                                "REQ-RET-B-" + System.nanoTime(),
+                                account.getId(), instrument.getId(),
+                                OrderSide.BUY, OrderType.LIMIT,
+                                new Money(targetPrice, cur), null, qty, timestamp, req
+                        ));
+                    }
+                } else {
+                    Position pos = account.getPosition(instrument.getId());
+                    if (pos != null && pos.getQuantity() >= qty) {
+                        BigDecimal targetPrice;
+                        if (!book.getBids().isEmpty()) {
+                            targetPrice = book.getBids().firstKey();
+                        } else {
+                            targetPrice = currentPrice.subtract(tick);
+                        }
+                        orders.add(new Order(
+                                "ORD-NPC-RET-S-" + System.nanoTime(),
+                                "REQ-RET-S-" + System.nanoTime(),
+                                account.getId(), instrument.getId(),
+                                OrderSide.SELL, OrderType.LIMIT,
+                                new Money(targetPrice, cur), null, qty, timestamp, null
+                        ));
+                    }
+                }
+            }
         }
         return orders;
     }

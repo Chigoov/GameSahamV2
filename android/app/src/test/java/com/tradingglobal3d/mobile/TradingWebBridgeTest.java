@@ -993,7 +993,7 @@ public class TradingWebBridgeTest {
         assertEquals(Money.of(10_000_000, Currency.IDR), facade.getPersonalAccount().getReservedCash(Currency.IDR));
         assertEquals(BigDecimal.ZERO.setScale(6), facade.getMutualFundManager().getFund("FUND-MM-01").getUnits(facade.getPersonalAccount().getId()));
         facade.getClock().play();
-        facade.advanceRealMs(93750, true); // 08:30 -> 16:00, canonical cutoff settles once.
+        facade.advanceRealMs(281250, true); // 08:30 -> 16:00, canonical cutoff settles once (27,000s game / 96 = 281,250ms).
         facade.getClock().pause();
         assertEquals("SETTLED", facade.getMutualFundManager().getFund("FUND-MM-01").getOrder("FUND-BRIDGE-SUB-ONE").getString("status"));
         assertTrue(facade.reconcileAll());

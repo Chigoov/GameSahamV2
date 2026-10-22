@@ -1172,6 +1172,8 @@ strong, .metric-hero {
     cursor: pointer;
     backdrop-filter: blur(12px);
     transition: transform 150ms ease, border-color 150ms ease;
+    color: var(--text);
+    text-align: left;
 }
 
 .stock-list-item:hover {
@@ -1206,6 +1208,8 @@ strong, .metric-hero {
 .stock-ticker {
     font-size: 1rem;
     font-weight: 700;
+    color: #FFFFFF;
+    line-height: 1.25;
 }
 
 .stock-name {
@@ -1218,6 +1222,8 @@ strong, .metric-hero {
     font-size: .95rem;
     font-weight: 700;
     text-align: right;
+    color: #FFFFFF;
+    font-variant-numeric: tabular-nums;
 }
 
 .change-pill {

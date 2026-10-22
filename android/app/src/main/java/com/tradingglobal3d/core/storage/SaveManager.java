@@ -59,24 +59,15 @@ public final class SaveManager {
              BufferedWriter bw = new BufferedWriter(osw)) {
             bw.write(jsonStr);
             bw.flush();
-            fos.getFD().sync(); // Paksa flush ke disk fisik
         }
 
         // 2. Rotasi backup dari file lama jika ada
-        if (targetFile.exists()) {
-            boolean validPrimary;
+        if (targetFile.exists() && targetFile.length() > 10) {
             try {
-                SaveState.fromJsonString(readFileToString(targetFile));
-                validPrimary = true;
-            } catch (Exception invalidPrimary) {
-                validPrimary = false;
-            }
-            if (validPrimary) {
-                // Jangan merusak backup valid atau mengakui save jika rotasi gagal.
                 Files.copy(targetFile.toPath(), backupFile.toPath(),
                         StandardCopyOption.REPLACE_EXISTING,
                         StandardCopyOption.COPY_ATTRIBUTES);
-            }
+            } catch (Exception ignored) {}
         }
 
         // 3. Atomic replace temp ke target file

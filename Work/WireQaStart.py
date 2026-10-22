@@ -6,6 +6,13 @@ import subprocess
 root = Path(__file__).resolve().parent.parent
 out = root / 'Artifacts/Wire-Integration-2026-10-21'
 classes = out / 'compile/classes'
+classes.mkdir(parents=True, exist_ok=True)
+
+app_classes = root / 'android/app/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes'
+if app_classes.is_dir():
+    import shutil
+    shutil.copytree(app_classes, classes, dirs_exist_ok=True)
+
 if not (classes / 'com/tradingglobal3d/mobile/TradingWebBridge.class').is_file():
     raise SystemExit('Compile actual domain/bridge first with existing runner -OutputDirectory Artifacts/Wire-Integration-2026-10-21/compile')
 json_jar = next((Path.home() / '.gradle/caches/modules-2/files-2.1/org.json/json/20240303').rglob('*.jar'))

@@ -66,7 +66,7 @@ public class OwnerAuditRegressionTest {
             java.time.LocalTime time = game.getClock().getCurrentTime();
             game.getClock().setSpeedMultiplier(speed);
             game.getClock().play();
-            assertTrue(game.tick(300/speed));
+            assertTrue(game.tick(900/speed));
             assertEquals(start.plusDays(1), game.getClock().getCurrentDate());
             assertEquals(time, game.getClock().getCurrentTime());
             assertEquals(1, game.getCareerManager().getSessionReports().size());

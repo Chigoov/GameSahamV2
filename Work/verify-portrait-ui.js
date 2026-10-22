@@ -1,9 +1,31 @@
-const { chromium } = require('playwright');
+let chromium;
+try {
+    chromium = require('playwright').chromium;
+} catch (e) {
+    chromium = require('playwright-core').chromium;
+}
 const fs = require('fs');
 const path = require('path');
 
-const outDir = path.resolve(__dirname, '../Artifacts/UI-Refresh-2026-10-20');
+const args = process.argv.slice(2);
+let customOutDir = null;
+let targetPort = process.env.QA_PORT || '8784';
+let targetUrl = null;
+for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--output-dir' && args[i + 1]) {
+        customOutDir = path.resolve(args[i + 1]);
+        i++;
+    } else if (args[i] === '--port' && args[i + 1]) {
+        targetPort = args[i + 1];
+        i++;
+    } else if (args[i] === '--url' && args[i + 1]) {
+        targetUrl = args[i + 1];
+        i++;
+    }
+}
+const outDir = customOutDir || process.env.UI_VERIFY_OUT_DIR || path.resolve(__dirname, '../Artifacts/UI-Refresh-2026-10-20');
 fs.mkdirSync(outDir, { recursive: true });
+const baseUrl = targetUrl || `http://127.0.0.1:${targetPort}`;
 
 const checks = [];
 const samples = [];
@@ -26,7 +48,14 @@ function calculateP95(arr) {
 }
 
 (async () => {
-    const browser = await chromium.launch({ headless: true });
+    const launchOptions = { headless: true };
+    const defaultExe = path.join(process.env.LOCALAPPDATA || '', 'ms-playwright/chromium-1234/chrome-win64/chrome.exe');
+    if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH) {
+        launchOptions.executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+    } else if (fs.existsSync(defaultExe)) {
+        launchOptions.executablePath = defaultExe;
+    }
+    const browser = await chromium.launch(launchOptions);
     const page = await browser.newPage({
         viewport: { width: 390, height: 844 },
         reducedMotion: 'reduce'
@@ -34,7 +63,7 @@ function calculateP95(arr) {
     page.setDefaultTimeout(10000);
     page.on('pageerror', err => errors.push(String(err)));
 
-    await page.goto('http://127.0.0.1:8767');
+    await page.goto(baseUrl);
     await page.waitForLoadState('networkidle');
 
     const platform = await page.evaluate(() => JSON.parse(TradingNativeBridge.getPlatformInfo()));
@@ -211,10 +240,18 @@ function calculateP95(arr) {
 
     await tab('pasar');
     await page.locator('#stock-list-container .stock-list-item').first().click();
-    await page.getByRole('button', { name: 'Buat order', exact: true }).click();
+    const buyBtn = page.locator('.btn-detail-buy').or(page.getByRole('button', { name: 'Buat order', exact: true }));
+    await buyBtn.first().click();
 
     const tInert = await page.locator('.bottom-nav').evaluate(el => el.inert);
     if (!tInert) throw new Error('Bottom nav must be inert during order sheet');
+
+    await page.evaluate(() => {
+        document.querySelectorAll('.side-btn').forEach(b => {
+            b.classList.remove('active');
+            b.setAttribute('aria-pressed', 'false');
+        });
+    });
 
     await page.locator('#btn-submit-order').click();
     const orderErr = await page.locator('#order-error').innerText();

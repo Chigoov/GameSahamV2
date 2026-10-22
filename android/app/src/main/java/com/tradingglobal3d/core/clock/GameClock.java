@@ -1,5 +1,7 @@
 package com.tradingglobal3d.core.clock;
 
+import com.tradingglobal3d.core.market.MarketExchange;
+
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -10,7 +12,7 @@ import java.util.Objects;
  * Mengontrol tanggal bursa, waktu sesi (WIB / UTC+7), percepatan, dan pause.
  */
 public final class GameClock {
-    public static final long FOREGROUND_GAME_SECONDS_PER_REAL_SECOND = 288L;
+    public static final long FOREGROUND_GAME_SECONDS_PER_REAL_SECOND = 96L;
     public static final long INACTIVE_GAME_SECONDS_PER_REAL_SECOND = 24L;
     public static final long SECONDS_PER_GAME_DAY = 86400L;
     public static final long MS_PER_GAME_DAY = 86400000L;
@@ -61,10 +63,10 @@ public final class GameClock {
 
     /**
      * Konversi eksak real millisecond ke game millisecond sesuai kontrak TIME-ACCEPTANCE.
-     * Foreground 1x: 288 game ms / real ms.
-     * Foreground 2x: 576 game ms / real ms.
-     * Foreground 5x: 1440 game ms / real ms.
-     * Inactive (background / ditutup): 24 game ms / real ms (mengabaikan speedMultiplier).
+     * Foreground 1x: 96 game ms / real ms (900 detik nyata = 1 hari game / 86400 detik game).
+     * Foreground 2x: 192 game ms / real ms.
+     * Foreground 5x: 480 game ms / real ms.
+     * Inactive (background / ditutup): 24 game ms / real ms (3600 detik nyata = 1 hari game, mengabaikan speedMultiplier).
      */
     public static long convertRealMsToGameMs(long realMs, boolean foreground, int speedMultiplier) {
         if (realMs < 0) throw new IllegalArgumentException("Waktu tidak boleh negatif");
@@ -112,10 +114,33 @@ public final class GameClock {
     }
 
     public MarketSession getCurrentMarketSession() {
+        return getMarketSession(MarketExchange.IDX);
+    }
+
+    public MarketSession getMarketSession(MarketExchange exchange) {
         int hour = currentTime.getHour();
         int minute = currentTime.getMinute();
         int totalMinutes = hour * 60 + minute;
 
+        if (exchange == MarketExchange.US) {
+            // US Markets (NYSE/NASDAQ) pada waktu simulasi game WIB
+            // Sesi reguler 21:30 - 04:00 WIB (09:30 - 16:00 New York Time)
+            // 21:00 - 21:29: Pre-opening
+            if (totalMinutes >= 1260 && totalMinutes < 1290) {
+                return MarketSession.PRE_OPENING;
+            }
+            // 21:30 - 23:59 dan 00:00 - 03:59: Sesi Perdagangan US Aktif
+            if (totalMinutes >= 1290 || totalMinutes < 240) {
+                return MarketSession.SESSION_1;
+            }
+            // 04:00 - 04:30: Post-closing
+            if (totalMinutes >= 240 && totalMinutes <= 270) {
+                return MarketSession.POST_CLOSING;
+            }
+            return MarketSession.CLOSED;
+        }
+
+        // Default IDX (WIB)
         // 08:45 - 08:59: Pre-opening
         if (totalMinutes >= 525 && totalMinutes < 540) {
             return MarketSession.PRE_OPENING;
@@ -138,6 +163,14 @@ public final class GameClock {
         }
 
         return MarketSession.CLOSED;
+    }
+
+    public boolean isTradingOpenFor(MarketExchange exchange) {
+        return getMarketSession(exchange).isOpenForTrading();
+    }
+
+    public boolean isAnyMarketOpen() {
+        return isTradingOpenFor(MarketExchange.IDX) || isTradingOpenFor(MarketExchange.US);
     }
 
     public String getFormattedDate() {

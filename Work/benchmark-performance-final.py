@@ -13,12 +13,11 @@ import json
 import math
 import subprocess
 import os
+import argparse
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / 'Artifacts/Final-Verification-2026-10-21'
-OUT.mkdir(parents=True, exist_ok=True)
 
 def nearest_rank_p95(samples):
     if not samples:
@@ -29,7 +28,91 @@ def nearest_rank_p95(samples):
     idx = max(0, min(idx, n - 1))
     return sorted_samples[idx]
 
-def run_benchmark():
+def evaluate_benchmark(results):
+    failures = []
+    actions = results.get("actions", {})
+    
+    # 1. Navigation tabs: 5 tabs, each >= 30 samples, max <= 1000ms
+    tabs = ['beranda', 'pasar', 'aset', 'firma', 'riset']
+    for tab in tabs:
+        key = f"nav_{tab}"
+        if key not in actions:
+            failures.append(f"Missing navigation category: {key}")
+            continue
+        data = actions[key]
+        if data.get("count", 0) < 30:
+            failures.append(f"{key} sample count {data.get('count')} < 30")
+        if data.get("maxMs", 99999) > 1000.0:
+            failures.append(f"{key} maxMs {data.get('maxMs')} > 1000.0ms")
+            
+    # 2. Ordinary actions: each >= 30 samples, P95 <= 300ms
+    ordinary_cats = ["modal_open_close", "stock_search_filter", "company_subtab_switch", "power_save_toggle"]
+    for cat in ordinary_cats:
+        if cat not in actions:
+            failures.append(f"Missing ordinary category: {cat}")
+            continue
+        data = actions[cat]
+        if data.get("count", 0) < 30:
+            failures.append(f"{cat} sample count {data.get('count')} < 30")
+        if data.get("p95Ms", 99999) > 300.0:
+            failures.append(f"{cat} p95Ms {data.get('p95Ms')} > 300.0ms")
+            
+    # 3. Heavy work: >= 30 samples, P95 <= 300ms
+    heavy = actions.get("heavy_work_skip_day", {})
+    if heavy.get("count", 0) < 30:
+        failures.append(f"heavy_work_skip_day sample count {heavy.get('count')} < 30")
+    if heavy.get("p95Ms", 99999) > 300.0:
+        failures.append(f"heavy_work_skip_day p95Ms {heavy.get('p95Ms')} > 300.0ms")
+        
+    passed = len(failures) == 0
+    verdict = "PASS_WITHIN_HOST_SCOPE" if passed else "FAILED"
+    return verdict, failures
+
+def run_evaluator_regression_tests():
+    # Test 1: Empty actions fails
+    v, f = evaluate_benchmark({"actions": {}})
+    assert v == "FAILED" and len(f) > 0, "Empty actions must FAIL"
+    
+    # Test 2: 29 samples (under 30) fails
+    mock_29 = {
+        "actions": {
+            f"nav_{t}": {"count": 30, "maxMs": 100} for t in ['beranda', 'pasar', 'aset', 'firma', 'riset']
+        }
+    }
+    for c in ["modal_open_close", "stock_search_filter", "company_subtab_switch", "power_save_toggle"]:
+        mock_29["actions"][c] = {"count": 30, "p95Ms": 50}
+    mock_29["actions"]["heavy_work_skip_day"] = {"count": 29, "p95Ms": 50} # 29 < 30
+    v, f = evaluate_benchmark(mock_29)
+    assert v == "FAILED" and any("heavy_work_skip_day sample count 29 < 30" in err for err in f), f"Count 29 must FAIL: {f}"
+    
+    # Test 3: Heavy work P95 > 300ms fails
+    mock_slow = json.loads(json.dumps(mock_29))
+    mock_slow["actions"]["heavy_work_skip_day"] = {"count": 30, "p95Ms": 350.0}
+    v, f = evaluate_benchmark(mock_slow)
+    assert v == "FAILED" and any("p95Ms 350.0 > 300.0ms" in err for err in f), f"Slow heavy must FAIL: {f}"
+    
+    # Test 4: Nav max > 1000ms fails
+    mock_nav_slow = json.loads(json.dumps(mock_29))
+    mock_nav_slow["actions"]["heavy_work_skip_day"] = {"count": 30, "p95Ms": 50.0}
+    mock_nav_slow["actions"]["nav_beranda"] = {"count": 30, "maxMs": 1200.0}
+    v, f = evaluate_benchmark(mock_nav_slow)
+    assert v == "FAILED" and any("maxMs 1200.0 > 1000.0ms" in err for err in f), f"Slow nav must FAIL: {f}"
+    
+    # Test 5: Fully compliant data passes
+    mock_pass = json.loads(json.dumps(mock_29))
+    mock_pass["actions"]["heavy_work_skip_day"] = {"count": 30, "p95Ms": 50.0}
+    v, f = evaluate_benchmark(mock_pass)
+    assert v == "PASS_WITHIN_HOST_SCOPE" and len(f) == 0, f"Valid mock must PASS: {f}"
+    print("Evaluator regression tests: ALL 5 NEGATIVE/POSITIVE CASES PASSED.")
+
+def run_benchmark(output_dir=None):
+    run_evaluator_regression_tests()
+
+    if output_dir:
+        out = Path(output_dir)
+    else:
+        out = ROOT / 'Artifacts/Penutupan-Remediasi-2026-10-22/run-01'
+    out.mkdir(parents=True, exist_ok=True)
     results = {
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
         "environment": {
@@ -176,12 +259,12 @@ def run_benchmark():
             }
             page.locator('.back-button').click()
 
-            # 6. Heavy Work Responsiveness: Skip Day Bridge Call (5 samples)
-            print("Measuring Heavy Work Feedback Responsiveness...")
+            # 6. Heavy Work Responsiveness: Skip Day Bridge Call (32 samples >= 30)
+            print("Measuring Heavy Work Feedback Responsiveness (32 samples)...")
             heavy_samples = []
-            for i in range(5):
+            for i in range(32):
                 t0 = time.perf_counter()
-                res = page.evaluate('() => JSON.parse(TradingNativeBridge.skipDay("BENCH-SKIP-" + Date.now()))')
+                res = page.evaluate('() => JSON.parse(TradingNativeBridge.skipDay("BENCH-SKIP-" + Date.now() + "-" + ' + str(i) + '))')
                 t1 = time.perf_counter()
                 heavy_samples.append((t1 - t0) * 1000.0)
                 assert res.get('success') is True, res
@@ -204,41 +287,31 @@ def run_benchmark():
             max_ordinary = max(ordinary_all)
             p95_heavy = nearest_rank_p95(heavy_samples)
 
-            # Per-category rigorous validation
-            nav_all_passed = all(
-                results["actions"][f"nav_{tab}"]["maxMs"] <= 1000.0 and results["actions"][f"nav_{tab}"]["count"] >= 30
-                for tab in tabs
-            )
-            ordinary_categories = ["modal_open_close", "stock_search_filter", "company_subtab_switch", "power_save_toggle"]
-            ordinary_all_passed = all(
-                results["actions"][cat]["p95Ms"] <= 300.0 and results["actions"][cat]["count"] >= 30
-                for cat in ordinary_categories
-            )
-            heavy_passed = len(heavy_samples) >= 5 and p95_heavy <= 300.0
-
-            overall_verdict = "PASS_WITHIN_HOST_SCOPE" if (nav_all_passed and ordinary_all_passed and heavy_passed) else "FAILED"
+            # Evaluate against strict acceptance criteria
+            overall_verdict, eval_failures = evaluate_benchmark(results)
 
             results["summary"] = {
                 "totalNavigationSamples": len(all_nav),
                 "navigationP95Ms": round(p95_all_nav, 2),
                 "navigationMaxMs": round(max_all_nav, 2),
                 "navigationThresholdMaxMs": 1000.0,
-                "navigationPassed": nav_all_passed,
+                "navigationPassed": all(results["actions"][f"nav_{tab}"]["maxMs"] <= 1000.0 and results["actions"][f"nav_{tab}"]["count"] >= 30 for tab in tabs),
 
                 "totalOrdinarySamples": len(ordinary_all),
                 "ordinaryActionP95Ms": round(p95_ordinary, 2),
                 "ordinaryActionMaxMs": round(max_ordinary, 2),
                 "ordinaryActionThresholdP95Ms": 300.0,
-                "ordinaryActionPassed": ordinary_all_passed,
+                "ordinaryActionPassed": all(results["actions"][cat]["p95Ms"] <= 300.0 and results["actions"][cat]["count"] >= 30 for cat in ["modal_open_close", "stock_search_filter", "company_subtab_switch", "power_save_toggle"]),
 
                 "heavyWorkFeedbackP95Ms": round(p95_heavy, 2),
                 "heavyWorkCount": len(heavy_samples),
                 "heavyWorkThresholdP95Ms": 300.0,
-                "heavyWorkPassed": heavy_passed,
+                "heavyWorkPassed": len(heavy_samples) >= 30 and p95_heavy <= 300.0,
+                "evalFailures": eval_failures,
                 "verdict": overall_verdict
             }
 
-            out_file = OUT / 'performance-benchmark.json'
+            out_file = out / 'performance-benchmark.json'
             with open(out_file, 'w', encoding='utf-8') as f:
                 json.dump(results, f, indent=2)
             print(f"Benchmark results written to {out_file}")
@@ -246,10 +319,7 @@ def run_benchmark():
 
             browser.close()
 
-            assert nav_all_passed, f"Navigation failed max 1000ms threshold or sample count: {max_all_nav}ms"
-            assert ordinary_all_passed, f"Ordinary action failed P95 300ms threshold or sample count: {p95_ordinary}ms"
-            assert heavy_passed, f"Heavy work failed P95 300ms threshold: {p95_heavy}ms"
-            assert overall_verdict == "PASS_WITHIN_HOST_SCOPE", "Overall benchmark verdict was not PASS"
+            assert overall_verdict == "PASS_WITHIN_HOST_SCOPE", f"Benchmark failed: {eval_failures}"
 
     finally:
         if server:
@@ -258,4 +328,7 @@ def run_benchmark():
                 pass
 
 if __name__ == '__main__':
-    run_benchmark()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--output-dir', default=None, help='Target output directory')
+    args = parser.parse_args()
+    run_benchmark(args.output_dir)

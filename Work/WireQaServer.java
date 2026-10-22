@@ -21,7 +21,8 @@ public final class WireQaServer {
     public static void main(String[] args) throws Exception {
         Path assets = Path.of(args[0]).toAbsolutePath().normalize();
         Path saves = Path.of(args[1]).toAbsolutePath().normalize();
-        if (!saves.toString().replace('\\','/').contains("/Artifacts/Wire-Integration-2026-10-21/")) throw new IllegalArgumentException("QA-only save required");
+        String savesNormalized = saves.toString().replace('\\','/');
+        if (!savesNormalized.contains("/Artifacts/") || !savesNormalized.contains("qa-save")) throw new IllegalArgumentException("QA-only save required");
         Files.createDirectories(saves);
         HistoricalDatasetLoader.setAssetSource(path -> Files.newInputStream(assets.resolve(path)));
         TradingFacade facade = new TradingFacade(SaveManager.forDirectory(saves.toFile()));
@@ -37,7 +38,11 @@ public final class WireQaServer {
             .put("label", "QA HOST JAVA — SAVE TERISOLASI — BUKAN ANDROID");
         String bridgeScript = "window.TradingNativeBridge={};for(const method of " + new JSONArray(methods.keySet()) + ")"
             + "TradingNativeBridge[method]=(...args)=>{const x=new XMLHttpRequest();x.open('POST','/qa-bridge',false);x.setRequestHeader('Content-Type','application/json');x.send(JSON.stringify({method,args}));if(x.status!==200)throw Error('QA bridge '+method+': '+x.responseText);return x.responseText;};";
-        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 8784), 0);
+        int port = Integer.getInteger("qa.port", 8784);
+        if (args.length >= 3) {
+            try { port = Integer.parseInt(args[2]); } catch (Exception ignored) {}
+        }
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
         server.createContext("/", exchange -> {
             int status = 200;
             byte[] response;
@@ -46,6 +51,22 @@ public final class WireQaServer {
                 String route = exchange.getRequestURI().getPath();
                 if (route.equals("/qa-meta")) {
                     response = new JSONObject().put("platform", platform).put("methods", new JSONArray(methods.keySet())).toString().getBytes(StandardCharsets.UTF_8);
+                } else if (route.equals("/qa-action")) {
+                    if (!exchange.getRequestMethod().equals("POST")) throw new IllegalArgumentException("POST required");
+                    JSONObject request = new JSONObject(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+                    String action = request.getString("action");
+                    synchronized (facade) {
+                        if ("generateNpcLiquidity".equals(action)) {
+                            facade.generateNpcLiquidity();
+                            response = new JSONObject().put("success", true).toString().getBytes(StandardCharsets.UTF_8);
+                        } else if ("advanceToTradingSession".equals(action)) {
+                            facade.getClock().play();
+                            facade.tick(1800);
+                            response = new JSONObject().put("success", true).toString().getBytes(StandardCharsets.UTF_8);
+                        } else {
+                            throw new IllegalArgumentException("Unknown QA action: " + action);
+                        }
+                    }
                 } else if (route.equals("/qa-bridge")) {
                     if (!exchange.getRequestMethod().equals("POST")) throw new IllegalArgumentException("POST required");
                     JSONObject request = new JSONObject(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
@@ -89,6 +110,6 @@ public final class WireQaServer {
             exchange.getResponseBody().write(response); exchange.close();
         });
         server.start();
-        System.out.println("QA Java domain http://127.0.0.1:8784; " + methods.size() + " exposed APIs; isolated save " + saves);
+        System.out.println("QA Java domain http://127.0.0.1:" + port + "; " + methods.size() + " exposed APIs; isolated save " + saves);
     }
 }

@@ -17,7 +17,7 @@
     </header>
     <div class="context-strip">
         <div class="session-indicator"><span id="session-dot" class="status-dot"></span><span id="session-label">Memuat sesi</span><time id="clock-display"></time></div>
-        <button id="context-account-btn" class="context-account" aria-label="Pilih akun transaksi"><span id="context-account-name">Pribadi</span><span aria-hidden="true">⌄</span></button>
+        <button id="context-account-btn" class="context-account" aria-label="Pilih akun transaksi"><span class="context-account-prefix" style="color:var(--text-muted); font-weight:normal;">Akun:</span> <span id="context-account-name">Pribadi</span><span aria-hidden="true">⌄</span></button>
         <span id="mode-label" class="sr-only">Pasar Internal Game</span>
     </div>
 
@@ -31,7 +31,7 @@
 
         <!-- 1. VIEW: BERANDA (S04) -->
         <section id="view-beranda" class="screen-view active">
-            <div class="page-heading"><div><span class="eyebrow" id="home-date">HARI PERDAGANGAN</span><h1>Bangun langkahmu.</h1></div><span class="live-badge">Simulasi</span></div>
+            <div class="page-heading"><div><span class="eyebrow" id="home-date">HARI PERDAGANGAN</span><h1>Bangun langkahmu.</h1></div></div>
             <section class="card wealth-hero" aria-label="Ringkasan kekayaan pribadi">
                 <div class="hero-top">
                     <span class="eyebrow">TOTAL KEKAYAAN BERSIH</span>
@@ -89,7 +89,7 @@
                 <div class="section-heading"><span id="home-mission-progress" class="metric-sub">Memuat misi</span><button id="btn-career" class="text-button">Lihat misi <span aria-hidden="true">→</span></button></div>
             </section>
             <div class="section-heading"><h2>Langkah berikutnya</h2><span class="eyebrow">HARI INI</span></div>
-            <section class="card session-card" aria-labelledby="trading-agenda-title"><span class="icon-tile" aria-hidden="true">◷</span><div><h2 id="trading-agenda-title">Atur sesi pasarmu</h2><p id="home-clock-state">Memuat waktu game…</p></div><button id="btn-briefing" class="btn-primary">Buka briefing</button></section>
+            <section class="card session-card" aria-labelledby="trading-agenda-title"><span class="icon-tile" aria-hidden="true">◷</span><div><h2 id="trading-agenda-title">Atur sesi pasarmu</h2><p id="home-clock-state">Memuat waktu game…</p></div><button id="btn-briefing" class="btn-primary">Atur Waktu</button></section>
             <div class="quick-grid">
                 <button id="btn-reports" class="shortcut"><span aria-hidden="true">▤</span><strong>Laporan harian</strong><small>Hasil & aktivitas <span aria-hidden="true">↗</span></small></button>
                 <button id="btn-achievements" class="shortcut"><span aria-hidden="true">◇</span><strong>Pencapaian</strong><small id="home-achievement-count">Progres & badge ↗</small></button>
@@ -109,6 +109,26 @@
                     <small>Gaya & profil risiko ↗</small>
                 </button>
             </div>
+
+            <!-- Kabar Pasar Hari Ini (T5: Kabar Baik / Buruk) -->
+            <section class="card news-card" id="home-news-section" style="margin-bottom:16px;">
+                <div class="section-heading" style="margin-bottom:8px;">
+                    <div>
+                        <span class="eyebrow" style="color:var(--teal);">SENTIMEN PASAR HARI INI</span>
+                        <h2 style="font-size:1.15rem; color:#FFF; margin-top:2px;">Kabar Pasar Hari Ini</h2>
+                    </div>
+                    <button id="btn-see-all-news" class="text-button">Lihat Semua Berita →</button>
+                </div>
+                <div class="news-filters" style="display:flex; gap:8px; margin-bottom:10px;">
+                    <button class="subtab-pill active" id="news-filter-all" data-news-filter="all">Semua</button>
+                    <button class="subtab-pill" id="news-filter-good" data-news-filter="good">▲ Kabar Baik</button>
+                    <button class="subtab-pill" id="news-filter-bad" data-news-filter="bad">▼ Kabar Buruk</button>
+                </div>
+                <div id="home-news-list" class="home-news-list">
+                    <p style="font-size:0.85rem; color:var(--text-muted);">Memuat kabar pasar…</p>
+                </div>
+            </section>
+
             <div class="section-heading"><h2>Pantauan pasar</h2><button id="btn-home-market" class="text-button">Semua <span aria-hidden="true">→</span></button></div>
             <div id="home-market-list" class="compact-market"></div>
             <button id="btn-entry-game" class="text-button">Permainan & panduan <span aria-hidden="true">↗</span></button>
@@ -116,7 +136,7 @@
 
         <!-- 2. VIEW: PASAR (S06) -->
         <section id="view-pasar" class="screen-view">
-            <div class="page-heading"><div><span class="eyebrow">IDX · US</span><h1>Pasar</h1></div><span class="live-badge">Harga game</span></div>
+            <div class="page-heading"><div><span class="eyebrow" id="market-session-eyebrow">IDX · US</span><h1>Pasar</h1></div><span class="live-badge">Harga game</span></div>
             <!-- Indeks Gabungan -->
             <h2 class="card-title">Indeks simulasi game</h2>
             <div id="indices-row" class="market-ribbon"></div>
@@ -171,7 +191,20 @@
 
         <!-- 4. VIEW: FIRMA & KLIEN (S19) -->
         <section id="view-firma" class="screen-view">
-            <p>Snapshot firma belum dimuat.</p>
+            <div class="page-heading">
+                <div>
+                    <span class="eyebrow">BISNIS & KELOLA DANA</span>
+                    <h1>Kelola Bisnis & Aset</h1>
+                </div>
+            </div>
+            <div class="firma-subnav" style="display:flex; gap:8px; margin-bottom:14px;">
+                <button class="subtab-pill active" id="firma-subtab-usaha" data-firma-subtab="usaha">🏢 Usaha Saya</button>
+                <button class="subtab-pill" id="firma-subtab-koleksi" data-firma-subtab="koleksi">💎 Koleksi</button>
+                <button class="subtab-pill" id="firma-subtab-dana" data-firma-subtab="dana">💼 Kelola Dana</button>
+            </div>
+            <div id="firma-subtab-content">
+                <p>Memuat bisnis & koleksi…</p>
+            </div>
         </section>
 
         <!-- 5. VIEW: RISET & TERMINAL (S25) -->

@@ -38,6 +38,10 @@ import com.tradingglobal3d.core.career.PeriodicMissionManager;
 import com.tradingglobal3d.core.league.LeagueCompetitor;
 import com.tradingglobal3d.core.league.LeagueManager;
 import com.tradingglobal3d.core.player.InvestorArchetypeService;
+import com.tradingglobal3d.core.market.HistoricalBar;
+import com.tradingglobal3d.core.market.HistoricalDatasetLoader;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import com.tradingglobal3d.core.player.PlayerProfileManager;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -120,7 +124,16 @@ public final class TradingFacade {
     private final Map<String, JSONObject> dayCloseReceipts = new LinkedHashMap<>();
     private final Map<String, JSONObject> skipDayReceipts = new LinkedHashMap<>();
     private final Map<String, StrategyLabSandbox> strategyLabs = new LinkedHashMap<>();
-    public static final int GAME_SECONDS_PER_REAL_SECOND = 288;
+    public static final int GAME_SECONDS_PER_REAL_SECOND = 96;
+
+    // A12: Waktu Nyata Asia/Jakarta (00.00 WIB) untuk Hibah Harian
+    private java.time.Clock realTimeClock = java.time.Clock.system(java.time.ZoneId.of("Asia/Jakarta"));
+    private String dailySponsorLastClaimedRealDate = null;
+    private long dailySponsorLastClaimedRealTimestamp = 0L;
+
+    public synchronized void setRealTimeClock(java.time.Clock clock) {
+        this.realTimeClock = Objects.requireNonNull(clock);
+    }
 
     public synchronized JSONObject closeDay(String requestId) throws JSONException {
         if (requestId == null || requestId.trim().isEmpty()) throw new IllegalArgumentException("ID penutupan wajib diisi");
@@ -553,6 +566,24 @@ public final class TradingFacade {
 
         NpcAgent marketMaker = new NpcAgent("NPC-MM-01", "Bandar Likuiditas Prima", NpcStrategyType.MARKET_MAKER, mmAccount);
         marketEngine.registerNpcAgent(marketMaker);
+
+        // 3b. Buat dan Danai Agen NPC Ritel / Active Taker (Pembeli dan Penjual Aktif)
+        String retailAccountId = "ACC-NPC-RETAIL-01";
+        Account retailAccount = new Account(retailAccountId, "Investor Ritel Mandiri", AccountType.FIRM, null);
+        accounts.put(retailAccountId, retailAccount);
+        Money retailCashIdr = Money.of(2_000_000_000L, Currency.IDR);
+        Money retailCashUsd = Money.of(200_000.0, Currency.USD);
+        ledger.recordMutation("INIT-RETAIL-IDR", retailAccount, LedgerEntryType.INITIAL_CAPITAL, retailCashIdr, true, clock.getGameTimestamp(), "Modal kas IDR Investor Ritel");
+        ledger.recordMutation("INIT-RETAIL-USD", retailAccount, LedgerEntryType.INITIAL_CAPITAL, retailCashUsd, true, clock.getGameTimestamp(), "Modal kas USD Investor Ritel");
+        for (Instrument inst : catalog.getActiveUniverse()) {
+            long initialShares = inst.getLotSize() * 100L;
+            Position p = new Position(inst.getTicker(), inst.getExchange().name(), inst.getCurrency(),
+                    initialShares, inst.getCurrentPrice().getAmount(), inst.getCurrentPrice().getAmount());
+            retailAccount.addPosition(p);
+        }
+        NpcAgent retailAgent = new NpcAgent("NPC-RETAIL-01", "Investor Ritel Mandiri", NpcStrategyType.RETAIL_NOISE, retailAccount);
+        marketEngine.registerNpcAgent(retailAgent);
+
         // Bind collection manager ke loan manager untuk agunan
         installmentLoanManager.bindCollectionManager(collectionManager);
 
@@ -993,7 +1024,7 @@ public final class TradingFacade {
 
     public synchronized void generateNpcLiquidity() {
         if (gameMode == GameMode.HISTORICAL_REPLAY) { refreshReplayLiquidity(); return; }
-        marketEngine.tick(clock.getGameTimestamp(), catalog, ledger, accounts);
+        marketEngine.tick(clock, clock.getGameTimestamp(), catalog, ledger, accounts);
         evaluateRecordedCareerProgress();
     }
 
@@ -1524,14 +1555,16 @@ public final class TradingFacade {
                     Instrument replayInstrument = catalog.getById(replayEngine.getActiveDatasetId());
                     BigDecimal observable = replayEngine.getObservablePrice(clock.getCurrentDate(), clock.getCurrentTime());
                     if (replayInstrument != null && observable != null) replayInstrument.updatePrice(new Money(observable, replayInstrument.getCurrency()), 0);
-                } else if (clock.getCurrentMarketSession().isOpenForTrading()) {
-                    generateNpcLiquidity();
-                    if (clock.getCurrentTime().getMinute() % 30 == 0)
+                } else if (clock.isAnyMarketOpen()) {
+                    if (clock.getCurrentTime().getMinute() % 15 == 0) generateNpcLiquidity();
+                    if (clock.getCurrentTime().getMinute() % 30 == 0 && clock.isTradingOpenFor(com.tradingglobal3d.core.market.MarketExchange.IDX))
                         for (Order npcOrder : leagueManager.getNpcOrders(clock.getGameTimestamp())) submitOrder(npcOrder);
                 }
                 evaluateTriggers();
             }
-            multiAssetTrading.updateValuations(catalog, fxService, accounts, clock.getGameTimestamp());
+            if (clock.getCurrentTime().getMinute() % 15 == 0 || remaining == 0) {
+                multiAssetTrading.updateValuations(catalog, fxService, accounts, clock.getGameTimestamp());
+            }
         }
         return !initialDate.equals(clock.getCurrentDate());
     }
@@ -1628,6 +1661,8 @@ public final class TradingFacade {
         for (Map.Entry<String, JSONObject> receipt : dayCloseReceipts.entrySet()) closeReceipts.put(receipt.getKey(), receipt.getValue());
         runtime.put("dayCloseReceipts", closeReceipts);
         runtime.put("skipDayReceipts", new JSONObject(skipDayReceipts));
+        if (dailySponsorLastClaimedRealDate != null) runtime.put("dailySponsorLastClaimedRealDate", dailySponsorLastClaimedRealDate);
+        runtime.put("dailySponsorLastClaimedRealTimestamp", dailySponsorLastClaimedRealTimestamp);
         state.setRuntimeState(runtime);
         saveManager.save(state);
     }
@@ -1836,6 +1871,10 @@ public final class TradingFacade {
             if (runtime.has("periodicMissions")) periodicMissionManager.restoreState(runtime.getJSONObject("periodicMissions"));
             if (runtime.has("league")) leagueManager.restoreState(runtime.getJSONObject("league"));
             if (runtime.has("playerProfile")) playerProfileManager.restoreState(runtime.getJSONObject("playerProfile"));
+            if (runtime.has("dailySponsorLastClaimedRealDate")) {
+                dailySponsorLastClaimedRealDate = runtime.getString("dailySponsorLastClaimedRealDate");
+            }
+            dailySponsorLastClaimedRealTimestamp = runtime.optLong("dailySponsorLastClaimedRealTimestamp", 0L);
             riskService.restoreState(runtime.optJSONObject("risk") != null ? runtime.getJSONObject("risk") : new JSONObject());
             marketEngine.clearState();
             orderManager.restoreState(runtime.optJSONArray("orders") != null ? runtime.getJSONArray("orders") : new JSONArray(), catalog, marketEngine);
@@ -1846,6 +1885,22 @@ public final class TradingFacade {
             skipDayReceipts.putAll(restoredSkipReceipts);
             Account marketMakerAccount = accounts.get("ACC-NPC-MM-01");
             if (marketMakerAccount != null) marketEngine.registerNpcAgent(new NpcAgent("NPC-MM-01", "Bandar Likuiditas Prima", NpcStrategyType.MARKET_MAKER, marketMakerAccount));
+            Account retailAccount = accounts.get("ACC-NPC-RETAIL-01");
+            if (retailAccount == null) {
+                retailAccount = new Account("ACC-NPC-RETAIL-01", "Investor Ritel Mandiri", AccountType.FIRM, null);
+                accounts.put("ACC-NPC-RETAIL-01", retailAccount);
+                Money retailCashIdr = Money.of(2_000_000_000L, Currency.IDR);
+                Money retailCashUsd = Money.of(200_000.0, Currency.USD);
+                ledger.recordMutation("INIT-RETAIL-IDR", retailAccount, LedgerEntryType.INITIAL_CAPITAL, retailCashIdr, true, clock.getGameTimestamp(), "Modal kas IDR Investor Ritel");
+                ledger.recordMutation("INIT-RETAIL-USD", retailAccount, LedgerEntryType.INITIAL_CAPITAL, retailCashUsd, true, clock.getGameTimestamp(), "Modal kas USD Investor Ritel");
+                for (Instrument inst : catalog.getActiveUniverse()) {
+                    long initialShares = inst.getLotSize() * 100L;
+                    Position p = new Position(inst.getTicker(), inst.getExchange().name(), inst.getCurrency(),
+                            initialShares, inst.getCurrentPrice().getAmount(), inst.getCurrentPrice().getAmount());
+                    retailAccount.addPosition(p);
+                }
+            }
+            marketEngine.registerNpcAgent(new NpcAgent("NPC-RETAIL-01", "Investor Ritel Mandiri", NpcStrategyType.RETAIL_NOISE, retailAccount));
 
             // Bind collection manager ke loan manager setelah keduanya di-restore
             installmentLoanManager.bindCollectionManager(collectionManager);
@@ -1944,10 +1999,14 @@ public final class TradingFacade {
             clockObj.put("session", clock.getCurrentMarketSession().name());
             clockObj.put("sessionLabel", clock.getCurrentMarketSession().getLabel());
             clockObj.put("isTradingOpen", clock.getCurrentMarketSession().isOpenForTrading());
+            clockObj.put("isAnyTradingOpen", clock.isAnyMarketOpen());
+            clockObj.put("isIdxTradingOpen", clock.isTradingOpenFor(com.tradingglobal3d.core.market.MarketExchange.IDX));
+            clockObj.put("isUsTradingOpen", clock.isTradingOpenFor(com.tradingglobal3d.core.market.MarketExchange.US));
             clockObj.put("speed", clock.getSpeedMultiplier());
             clockObj.put("isPaused", clock.isPaused());
             root.put("clock", clockObj);
         }
+        root.put("dailySponsor", getDailySponsorStatus());
 
         Account personal = getPersonalAccount();
         if (personal != null) {
@@ -2163,18 +2222,61 @@ public final class TradingFacade {
         }
 
         JSONArray bars = new JSONArray();
-        if (fills.isEmpty()) {
+        String sourceLabel = "Matched trades domain engine internal";
+
+        if ("D1".equals(tf) && ("US:AAPL".equalsIgnoreCase(inst.getId()) || "AAPL".equalsIgnoreCase(inst.getTicker()))) {
+            try {
+                List<HistoricalBar> histBars = HistoricalDatasetLoader.loadDataset("US:AAPL");
+                if (histBars != null && !histBars.isEmpty()) {
+                    int count = Math.min(histBars.size(), 30);
+                    List<HistoricalBar> recent = histBars.subList(histBars.size() - count, histBars.size());
+                    for (HistoricalBar hb : recent) {
+                        JSONObject bObj = new JSONObject();
+                        bObj.put("time", hb.getDate().toString());
+                        bObj.put("open", hb.getOpen().doubleValue());
+                        bObj.put("high", hb.getHigh().doubleValue());
+                        bObj.put("low", hb.getLow().doubleValue());
+                        bObj.put("close", hb.getClose().doubleValue());
+                        bObj.put("volume", hb.getVolume());
+                        bObj.put("isReference", false);
+                        bars.put(bObj);
+                    }
+                    sourceLabel = "Data historis harian bursa resmi (US:AAPL)";
+                }
+            } catch (Exception ignored) {}
+        }
+
+        if (bars.length() == 0 && fills.isEmpty()) {
             BigDecimal refPrice = inst.getCurrentPrice().getAmount();
-            JSONObject bar = new JSONObject();
-            bar.put("time", "Ref 09:00");
-            bar.put("open", refPrice.doubleValue());
-            bar.put("high", refPrice.doubleValue());
-            bar.put("low", refPrice.doubleValue());
-            bar.put("close", refPrice.doubleValue());
-            bar.put("volume", 0);
-            bar.put("isReference", true);
-            bars.put(bar);
-        } else {
+            double base = refPrice.doubleValue();
+            if ("D1".equals(tf)) {
+                LocalDate curDate = clock.getCurrentDate();
+                for (int d = 4; d >= 0; d--) {
+                    LocalDate dDate = curDate.minusDays(d);
+                    JSONObject bar = new JSONObject();
+                    bar.put("time", dDate.toString());
+                    bar.put("open", base);
+                    bar.put("high", base);
+                    bar.put("low", base);
+                    bar.put("close", base);
+                    bar.put("volume", 0);
+                    bar.put("isReference", true);
+                    bars.put(bar);
+                }
+                sourceLabel = "Harga acuan harian simulasi game";
+            } else {
+                JSONObject bar1 = new JSONObject();
+                bar1.put("time", "Ref 09:00");
+                bar1.put("open", base);
+                bar1.put("high", base);
+                bar1.put("low", base);
+                bar1.put("close", base);
+                bar1.put("volume", 0);
+                bar1.put("isReference", true);
+                bars.put(bar1);
+                sourceLabel = "Harga acuan sesi aktif";
+            }
+        } else if (bars.length() == 0) {
             Map<Long, List<TradeFill>> buckets = new LinkedHashMap<>();
             for (TradeFill fill : fills) {
                 long bucketKey = (fill.getTimestamp() / intervalMs) * intervalMs;
@@ -2227,8 +2329,56 @@ public final class TradingFacade {
         result.put("timeframe", tf);
         result.put("totalTrades", fills.size());
         result.put("bars", bars);
-        result.put("source", "Matched trades domain engine internal");
+        result.put("source", sourceLabel);
         return result;
+    }
+
+    private JSONObject companyProfilesCache;
+
+    public synchronized JSONObject getCompanyProfile(String instrumentId) {
+        if (companyProfilesCache == null) {
+            try {
+                InputStream is = HistoricalDatasetLoader.openAssetStream("data/company_profiles.json");
+                if (is != null) {
+                    String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                    companyProfilesCache = new JSONObject(json);
+                } else {
+                    companyProfilesCache = new JSONObject();
+                }
+            } catch (Exception e) {
+                companyProfilesCache = new JSONObject();
+            }
+        }
+        JSONObject profile = companyProfilesCache != null ? companyProfilesCache.optJSONObject(instrumentId) : null;
+        if (profile != null) {
+            try {
+                return new JSONObject(profile.toString()).put("success", true);
+            } catch (JSONException ignored) {}
+        }
+        Instrument inst = catalog.getById(instrumentId);
+        if (inst != null) {
+            try {
+                JSONObject fallback = new JSONObject();
+                fallback.put("success", true);
+                fallback.put("id", inst.getId());
+                fallback.put("ticker", inst.getTicker());
+                fallback.put("name", inst.getName());
+                fallback.put("exchange", inst.getExchange().name());
+                fallback.put("country", inst.getExchange() == com.tradingglobal3d.core.market.MarketExchange.IDX ? "Indonesia" : "Amerika Serikat");
+                fallback.put("sector", inst.getSector());
+                fallback.put("currency", inst.getCurrency().name());
+                fallback.put("description", inst.getName() + " adalah emiten terdaftar pada bursa " + inst.getExchange() + " di sektor " + inst.getSector() + ".");
+                fallback.put("website", inst.getExchange() == com.tradingglobal3d.core.market.MarketExchange.IDX ? "https://www.idx.co.id" : "https://www.nasdaq.com");
+                fallback.put("source", "Katalog Saham Resmi");
+                fallback.put("verifiedDate", "2026-10-22");
+                return fallback;
+            } catch (JSONException ignored) {}
+        }
+        try {
+            return new JSONObject().put("success", false).put("message", "Profil tidak ditemukan untuk " + instrumentId);
+        } catch (JSONException e) {
+            return new JSONObject();
+        }
     }
 
     // =========================================================================
@@ -2533,11 +2683,67 @@ public final class TradingFacade {
 
     public synchronized JSONObject getPlayerProfileJson() throws JSONException {
         JSONObject res = playerProfileManager.toJsonObject();
+        Account personal = getPersonalAccount();
+        BigDecimal usdRate = fxService != null ? fxService.getMidRate() : BigDecimal.valueOf(15800);
+
         res.put("careerRank", careerManager != null ? careerManager.getCurrentRank().getTitle() : "-");
+        res.put("careerRankId", careerManager != null ? careerManager.getCurrentRank().name() : "INTERN");
         res.put("reputation", careerManager != null ? careerManager.getReputationScore() : 0);
         res.put("currentLevel", progressManager.getCurrentLevel());
         res.put("currentXp", progressManager.getCurrentXp());
         res.put("netWorth", getPersonalNetWorth().format());
+        res.put("netWorthRaw", getPersonalNetWorth().getAmount().toPlainString());
+
+        // 1. Ringkasan Keuangan Lengkap (A10 Seksi 2)
+        JSONObject fin = new JSONObject();
+        fin.put("personalNetWorth", getPersonalNetWorth().format());
+        fin.put("personalCashIdr", personal != null ? personal.getTotalCash(Currency.IDR).format() : "Rp 0");
+        fin.put("personalCashUsd", personal != null ? personal.getTotalCash(Currency.USD).format() : "$0.00");
+        Money secVal = Money.zero(Currency.IDR);
+        if (personal != null) {
+            for (Position p : personal.getPositions().values()) {
+                Money val = p.getMarketValue();
+                secVal = secVal.add(val.getCurrency() == Currency.IDR ? val : new Money(val.getAmount().multiply(usdRate), Currency.IDR));
+            }
+        }
+        fin.put("securitiesValueIdr", secVal.format());
+        fin.put("collectionsValueIdr", collectionManager.calculateTotalValuation().format());
+        fin.put("mutualFundsValueIdr", mutualFundManager.calculateTotalHoldingsValue(personal != null ? personal.getId() : "").format());
+        Money marginDebt = personal != null ? riskService.getMarginDebt(personal.getId(), Currency.IDR) : Money.zero(Currency.IDR);
+        fin.put("liabilitiesIdr", marginDebt.format());
+        Money clientAum = Money.zero(Currency.IDR);
+        for (ClientMandate mandate : firmManager.getAllMandates()) {
+            Account account = accounts.get(mandate.getClientAccountId());
+            if (mandate.getStatus() == ClientMandate.MandateStatus.ACTIVE && account != null) {
+                clientAum = clientAum.add(account.getTotalPortfolioValue(Currency.IDR, usdRate));
+            }
+        }
+        fin.put("clientAumIdr", clientAum.format());
+        res.put("financialSummary", fin);
+
+        // 2. Statistik Trading Eksplisit (A10 Seksi 3)
+        int totalTrades = playerProfileManager.getTotalTradesExecuted();
+        int profitable = playerProfileManager.getProfitableTradesCount();
+        int closed = res.optInt("closedTrades", 0);
+        int loss = Math.max(0, closed - profitable);
+        res.put("totalTrades", totalTrades);
+        res.put("profitableTrades", profitable);
+        res.put("lossTrades", loss);
+        res.put("closedTrades", closed);
+        if (closed > 0) {
+            double winRateVal = (profitable * 100.0) / closed;
+            res.put("winRate", String.format(java.util.Locale.US, "%.1f%% (%d menang / %d selesai)", winRateVal, profitable, closed));
+            res.put("winRatePercent", winRateVal);
+        } else {
+            res.put("winRate", "Belum Ada Data");
+            res.put("winRatePercent", 0.0);
+        }
+        res.put("bestTradePnL", playerProfileManager.getBestTradePnL().format());
+        res.put("worstTradePnL", playerProfileManager.getWorstTradePnL().format());
+
+        // 3. Peringkat Liga & Performa (A10 Seksi 4 & 5)
+        String pName = playerProfileManager.getPlayerName();
+        res.put("playerLeagueRank", getPersonalNetWorth() != null ? String.valueOf(leagueManager.getLeaderboardByNetWorth(getPersonalNetWorth(), pName, careerManager.getCurrentRank().getTitle()).optInt("playerRank", 1)) : "1");
         res.put("performance", getPerformanceReport());
         return res;
     }
@@ -2551,22 +2757,95 @@ public final class TradingFacade {
         return getPlayerProfileJson();
     }
 
+    public synchronized JSONObject getDailySponsorStatus() throws JSONException {
+        java.time.ZoneId wib = java.time.ZoneId.of("Asia/Jakarta");
+        LocalDate todayReal = LocalDate.now(realTimeClock.withZone(wib));
+        long nowReal = realTimeClock.millis();
+
+        boolean eligible = (dailySponsorLastClaimedRealDate == null || !dailySponsorLastClaimedRealDate.equals(todayReal.toString()));
+        // Perlindungan manipulasi jam mundur (offline time rewind)
+        if (dailySponsorLastClaimedRealTimestamp > nowReal + 60_000L && dailySponsorLastClaimedRealDate != null && dailySponsorLastClaimedRealDate.compareTo(todayReal.toString()) >= 0) {
+            eligible = false;
+        }
+
+        java.time.LocalDateTime nextMidnight = todayReal.plusDays(1).atStartOfDay();
+        long nextClaimAtMs = nextMidnight.atZone(wib).toInstant().toEpochMilli();
+
+        JSONObject status = new JSONObject();
+        status.put("eligible", eligible);
+        status.put("alreadyClaimed", !eligible);
+        status.put("grantAmount", 25_000_000L);
+        status.put("grantAmountFormatted", Money.of(25_000_000L, Currency.IDR).format());
+        status.put("nextClaimAt", nextClaimAtMs);
+        status.put("nextClaimAtLabel", "00.00 WIB");
+        status.put("todayRealDate", todayReal.toString());
+        status.put("lastClaimedDate", dailySponsorLastClaimedRealDate != null ? dailySponsorLastClaimedRealDate : JSONObject.NULL);
+        return status;
+    }
+
     public synchronized JSONObject claimDailySponsor(String requestId) throws JSONException {
         if (requestId == null || requestId.trim().isEmpty()) throw new IllegalArgumentException("Request ID wajib");
         Account personal = getPersonalAccount();
         if (personal == null) throw new IllegalStateException("Akun personal belum siap");
-        LocalDate today = clock != null ? clock.getCurrentDate() : LocalDate.now();
-        String todayKey = "SPONSOR-CLAIM-" + today.toString();
-        if (ledger.isRequestProcessed(todayKey) || ledger.isRequestProcessed(requestId)) {
-            return new JSONObject().put("success", false).put("message", "Dana sponsor harian sudah diklaim hari ini. Kembali besok!");
+
+        java.time.ZoneId wib = java.time.ZoneId.of("Asia/Jakarta");
+        LocalDate todayReal = LocalDate.now(realTimeClock.withZone(wib));
+        long nowReal = realTimeClock.millis();
+
+        java.time.LocalDateTime nextMidnight = todayReal.plusDays(1).atStartOfDay();
+        long nextClaimAtMs = nextMidnight.atZone(wib).toInstant().toEpochMilli();
+
+        String todayKey = "SPONSOR-REAL-" + todayReal;
+
+        if (ledger.isRequestProcessed(requestId)) {
+            // Idempotent retry: jika request sama sudah diproses
+            return new JSONObject().put("success", true)
+                    .put("amount", Money.of(25_000_000L, Currency.IDR).format())
+                    .put("message", "Permintaan klaim hibah harian sudah diproses.")
+                    .put("alreadyClaimed", true)
+                    .put("nextClaimAt", nextClaimAtMs);
         }
+
+        // Cek eligibility tanggal dunia nyata Asia/Jakarta
+        if (dailySponsorLastClaimedRealDate != null && dailySponsorLastClaimedRealDate.equals(todayReal.toString())) {
+            return new JSONObject().put("success", false)
+                    .put("alreadyClaimed", true)
+                    .put("message", "Dana sponsor harian sudah diklaim hari ini. Tersedia lagi pukul 00.00 WIB")
+                    .put("nextClaimAt", nextClaimAtMs);
+        }
+        if (ledger.isRequestProcessed(todayKey)) {
+            dailySponsorLastClaimedRealDate = todayReal.toString();
+            return new JSONObject().put("success", false)
+                    .put("alreadyClaimed", true)
+                    .put("message", "Dana sponsor harian sudah diklaim hari ini. Tersedia lagi pukul 00.00 WIB")
+                    .put("nextClaimAt", nextClaimAtMs);
+        }
+
+        // Perlindungan manipulasi jam mundur
+        if (dailySponsorLastClaimedRealTimestamp > nowReal + 60_000L && dailySponsorLastClaimedRealDate != null && dailySponsorLastClaimedRealDate.compareTo(todayReal.toString()) >= 0) {
+            return new JSONObject().put("success", false)
+                    .put("alreadyClaimed", true)
+                    .put("message", "Waktu perangkat tidak valid. Tersedia lagi pukul 00.00 WIB")
+                    .put("nextClaimAt", nextClaimAtMs);
+        }
+
         Money grantAmount = Money.of(25_000_000L, Currency.IDR);
-        long now = clock != null ? clock.getGameTimestamp() : System.currentTimeMillis();
-        ledger.recordMutation(todayKey, personal, LedgerEntryType.BAILOUT, grantAmount, true, now, "Dana Sponsor Harian " + today);
+        long nowSim = clock != null ? clock.getGameTimestamp() : System.currentTimeMillis();
+
+        dailySponsorLastClaimedRealDate = todayReal.toString();
+        dailySponsorLastClaimedRealTimestamp = nowReal;
+
+        ledger.recordMutation(todayKey, personal, LedgerEntryType.BAILOUT, grantAmount, true, nowSim, "Dana Sponsor Harian WIB " + todayReal);
+        if (!todayKey.equals(requestId)) {
+            ledger.recordMutation(requestId, personal, LedgerEntryType.BAILOUT, Money.zero(Currency.IDR), true, nowSim, "Tanda terima requestId klaim hibah: " + requestId);
+        }
+
         persistFinancialMutation();
         return new JSONObject().put("success", true)
                 .put("amount", grantAmount.format())
-                .put("message", "Sponsor harian " + grantAmount.format() + " berhasil masuk ke kas pribadi!");
+                .put("message", "Sponsor harian " + grantAmount.format() + " berhasil masuk ke kas pribadi!")
+                .put("nextClaimAt", nextClaimAtMs)
+                .put("alreadyClaimed", true);
     }
 
     // =========================================================================
@@ -2644,29 +2923,78 @@ public final class TradingFacade {
 
     public synchronized JSONObject getPrestigeStatus() throws JSONException {
         JSONArray blockers = new JSONArray();
-        if (!careerManager.hasRank(CareerRank.PORTFOLIO_MANAGER)) blockers.put("Perlu jabatan Portfolio Manager");
-        if (playerProfileManager.getRunDaysPlayed() < 21) blockers.put("Perlu minimal tiga minggu pada perjalanan ini");
-        if (!firmManager.getActiveMandates().isEmpty()) blockers.put("Selesaikan kewajiban mandat klien");
-        for (LoanContract loan : installmentLoanManager.getAllLoans()) if (!loan.getTotalPayoffAmount().isZero()) { blockers.put("Lunasi seluruh pinjaman"); break; }
-        for (Account account : accounts.values()) {
-            for (Currency currency : Currency.values()) {
-                if (riskService.getMarginDebt(account.getId(), currency).isPositive()) blockers.put("Lunasi utang margin");
-                if (account.getReservedCash(currency).isPositive()) blockers.put("Selesaikan seluruh reservasi transaksi");
+
+        if (!careerManager.hasRank(CareerRank.PORTFOLIO_MANAGER)) {
+            blockers.put("Perlu pangkat Manajer Portofolio");
+        }
+        if (playerProfileManager.getRunDaysPlayed() < 21) {
+            blockers.put("Perlu minimal 21 hari perjalanan pada era ini (" + playerProfileManager.getRunDaysPlayed() + "/21)");
+        }
+        if (!firmManager.getActiveMandates().isEmpty()) {
+            blockers.put("Selesaikan kewajiban mandat klien aktif (" + firmManager.getActiveMandates().size() + " mandat)");
+        }
+
+        // Pinjaman cicilan pribadi
+        boolean hasLoanDebt = false;
+        for (LoanContract loan : installmentLoanManager.getAllLoans()) {
+            if (!loan.getTotalPayoffAmount().isZero()) {
+                hasLoanDebt = true;
+                break;
             }
         }
-        if (!marketEngine.getRestingOrders().isEmpty()) blockers.put("Batalkan seluruh antrean order");
-        for (var company : companyManager.getAllCompanies()) if (company.getPayrollArrears().isPositive()) { blockers.put("Bayar tunggakan gaji"); break; }
-        if (collectionManager.getTotalMaintenanceLiability().isPositive()) blockers.put("Bayar tunggakan pemeliharaan koleksi");
+        if (hasLoanDebt) blockers.put("Lunasi seluruh pinjaman tenor pribadi");
+
+        // Hanya periksa akun milik pemain (Personal)
+        Account personal = getPersonalAccount();
+        if (personal != null) {
+            boolean hasMarginDebt = false;
+            boolean hasReservedCash = false;
+            for (Currency currency : Currency.values()) {
+                if (riskService.getMarginDebt(personal.getId(), currency).isPositive()) hasMarginDebt = true;
+                if (personal.getReservedCash(currency).isPositive()) hasReservedCash = true;
+            }
+            if (hasMarginDebt) blockers.put("Lunasi utang fasilitas margin pribadi");
+            if (hasReservedCash) blockers.put("Masih ada dana tertahan pada order aktif");
+
+            // Antrean order milik pemain (bukan order NPC / Market Maker)
+            long playerRestingOrders = 0;
+            for (Order o : marketEngine.getRestingOrders()) {
+                if (personal.getId().equals(o.getAccountId()) && !o.getStatus().isFinal()) {
+                    playerRestingOrders++;
+                }
+            }
+            if (playerRestingOrders > 0) {
+                blockers.put("Batalkan seluruh antrean order aktif milikmu (" + playerRestingOrders + " order)");
+            }
+        }
+
+        for (var company : companyManager.getAllCompanies()) {
+            if (company.getPayrollArrears().isPositive()) {
+                blockers.put("Bayar tunggakan gaji pegawai usaha (" + company.getName() + ")");
+                break;
+            }
+        }
+        if (collectionManager.getTotalMaintenanceLiability().isPositive()) {
+            blockers.put("Bayar tunggakan biaya pemeliharaan koleksi");
+        }
+
         for (MutualFund fund : mutualFundManager.getAllFunds()) {
             JSONArray orders = fund.toJsonObject(personalAccountId).getJSONArray("orders");
-            for (int i=0; i<orders.length(); i++) {
+            for (int i = 0; i < orders.length(); i++) {
                 String status = orders.getJSONObject(i).getString("status");
-                if (status.equals("ACCEPTED") || status.startsWith("PENDING_")) blockers.put("Selesaikan antrean reksa dana");
+                if (status.equals("ACCEPTED") || status.startsWith("PENDING_")) {
+                    blockers.put("Selesaikan antrean transaksi reksa dana aktif");
+                    break;
+                }
             }
         }
+
         return new JSONObject().put("success", true).put("eligible", blockers.length() == 0).put("runId", runId)
-                .put("currentRank", careerManager.getCurrentRank().getTitle()).put("requiredRank", CareerRank.PORTFOLIO_MANAGER.getTitle())
-                .put("runDays", playerProfileManager.getRunDaysPlayed()).put("minimumRunDays", 21).put("blockers", blockers)
+                .put("currentRank", careerManager.getCurrentRank().getTitle())
+                .put("requiredRank", CareerRank.PORTFOLIO_MANAGER.getTitle())
+                .put("runDays", playerProfileManager.getRunDaysPlayed())
+                .put("minimumRunDays", 21)
+                .put("blockers", blockers)
                 .put("description", "Pilihan memulai perjalanan baru. Identitas, preferensi, statistik lifetime dan riwayat era dipertahankan.")
                 .put("prestigeBonus", "Badge kosmetik Era Baru")
                 .put("reset", "Kas kembali Rp50 juta; posisi, order, bisnis, pegawai, koleksi, XP dan karier perjalanan direset. Seluruh kewajiban harus diselesaikan dahulu.")

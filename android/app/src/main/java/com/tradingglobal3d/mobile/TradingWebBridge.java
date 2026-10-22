@@ -219,6 +219,15 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String getCompanyProfile(String instrumentId) {
+        try {
+            return facade.getCompanyProfile(instrumentId).toString();
+        } catch (Exception e) {
+            return "{\"success\":false,\"message\":\"" + e.getMessage() + "\"}";
+        }
+    }
+
+    @JavascriptInterface
     public String getPlayerProgress() {
         try {
             return facade.getProgressManager().toSnapshotJson().toString();
@@ -939,6 +948,15 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String getDailySponsorStatus() {
+        try {
+            return facade.getDailySponsorStatus().toString();
+        } catch (Exception error) {
+            return bridgeError(error);
+        }
+    }
+
+    @JavascriptInterface
     public String claimDailySponsor(String jsonRequest) {
         try {
             JSONObject req = jsonRequest != null && !jsonRequest.isEmpty() ? new JSONObject(jsonRequest) : new JSONObject();
@@ -1485,16 +1503,6 @@ public final class TradingWebBridge {
         } catch (Exception e) {
             try { return new JSONObject().put("success", false).put("error", e.getMessage()).toString(); }
             catch (JSONException impossible) { return "{\"success\":false}"; }
-        }
-    }
-
-    @JavascriptInterface
-    public String generateNpcLiquidity() {
-        try {
-            facade.generateNpcLiquidity();
-            return "{\"success\":true}";
-        } catch (Exception e) {
-            return "{\"success\":false,\"message\":\"" + e.getMessage() + "\"}";
         }
     }
 

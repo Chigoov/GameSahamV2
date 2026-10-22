@@ -74,36 +74,42 @@ public class TimeDualRateLifecycleTest {
     @Test
     public void testTimeAcceptanceT02_Foreground1SecAt1x() {
         long gameMs = GameClock.convertRealMsToGameMs(1000, true, 1);
-        assertEquals(288000L, gameMs); // 288 detik game
+        assertEquals(96000L, gameMs); // 96 detik game
     }
 
     @Test
-    public void testTimeAcceptanceT03_Foreground5MinAt1xEqualsOneDay() {
-        long gameMs = GameClock.convertRealMsToGameMs(300000, true, 1);
-        assertEquals(86400000L, gameMs); // 1 hari game penuh
-    }
-
-    @Test
-    public void testTimeAcceptanceT04_Foreground150SecAt2xEqualsOneDay() {
-        long gameMs = GameClock.convertRealMsToGameMs(150000, true, 2);
-        assertEquals(86400000L, gameMs); // 1 hari game penuh
-    }
-
-    @Test
-    public void testTimeAcceptanceT05_Foreground60SecAt5xEqualsOneDay() {
-        long gameMs = GameClock.convertRealMsToGameMs(60000, true, 5);
-        assertEquals(86400000L, gameMs); // 1 hari game penuh
-    }
-
-    @Test
-    public void testTimeAcceptanceT06_Foreground15MinAt1xEqualsThreeDays() {
+    public void testTimeAcceptanceT03_Foreground15MinAt1xEqualsOneDay() {
         long gameMs = GameClock.convertRealMsToGameMs(900000, true, 1);
+        assertEquals(86400000L, gameMs); // 1 hari game penuh (900 detik nyata)
+    }
+
+    @Test
+    public void testTimeAcceptanceT03b_Foreground5MinAt1xEqualsEightHours() {
+        long gameMs = GameClock.convertRealMsToGameMs(300000, true, 1);
+        assertEquals(28800000L, gameMs); // 8 jam game (300 detik nyata)
+    }
+
+    @Test
+    public void testTimeAcceptanceT04_Foreground450SecAt2xEqualsOneDay() {
+        long gameMs = GameClock.convertRealMsToGameMs(450000, true, 2);
+        assertEquals(86400000L, gameMs); // 1 hari game penuh
+    }
+
+    @Test
+    public void testTimeAcceptanceT05_Foreground180SecAt5xEqualsOneDay() {
+        long gameMs = GameClock.convertRealMsToGameMs(180000, true, 5);
+        assertEquals(86400000L, gameMs); // 1 hari game penuh
+    }
+
+    @Test
+    public void testTimeAcceptanceT06_Foreground45MinAt1xEqualsThreeDays() {
+        long gameMs = GameClock.convertRealMsToGameMs(2700000, true, 1);
         assertEquals(259200000L, gameMs); // 3 hari game
     }
 
     @Test
-    public void testTimeAcceptanceT07_Foreground30MinAt1xEqualsSixDays() {
-        long gameMs = GameClock.convertRealMsToGameMs(1800000, true, 1);
+    public void testTimeAcceptanceT07_Foreground90MinAt1xEqualsSixDays() {
+        long gameMs = GameClock.convertRealMsToGameMs(5400000, true, 1);
         assertEquals(518400000L, gameMs); // 6 hari game
     }
 
@@ -163,30 +169,30 @@ public class TimeDualRateLifecycleTest {
 
     @Test
     public void testTimeAcceptanceT17_Foreground1DayPlusInactive1Day() {
-        long fg = GameClock.convertRealMsToGameMs(300000, true, 1);
+        long fg = GameClock.convertRealMsToGameMs(900000, true, 1);
         long in = GameClock.convertRealMsToGameMs(3600000, false, 1);
         assertEquals(172800000L, fg + in); // 2 hari game
     }
 
     @Test
     public void testTimeAcceptanceT18_Foreground2xOneDayPlusInactive1Day() {
-        long fg = GameClock.convertRealMsToGameMs(150000, true, 2);
+        long fg = GameClock.convertRealMsToGameMs(450000, true, 2);
         long in = GameClock.convertRealMsToGameMs(3600000, false, 2);
         assertEquals(172800000L, fg + in); // 2 hari game
     }
 
     @Test
     public void testTimeAcceptanceT19_Foreground5xFiveMinutesPlusInactive1Hour() {
-        long fg = GameClock.convertRealMsToGameMs(300000, true, 5); // 5 hari game
+        long fg = GameClock.convertRealMsToGameMs(180000, true, 5); // 1 hari game
         long in = GameClock.convertRealMsToGameMs(3600000, false, 5); // 1 hari game
-        assertEquals(518400000L, fg + in); // 6 hari game
+        assertEquals(172800000L, fg + in); // 2 hari game
     }
 
     @Test
     public void testTimeAcceptanceT20_Foreground1MinPlusInactive30Min() {
         long fg = GameClock.convertRealMsToGameMs(60000, true, 1);
         long in = GameClock.convertRealMsToGameMs(1800000, false, 1);
-        assertEquals(60480000L, fg + in);
+        assertEquals(48960000L, fg + in);
     }
 
     @Test
@@ -195,7 +201,7 @@ public class TimeDualRateLifecycleTest {
         clock.play();
         long sec = clock.advanceRealMs(1, true);
         assertEquals(0, sec);
-        assertEquals(288, clock.getGameMsRemainder());
+        assertEquals(96, clock.getGameMsRemainder());
     }
 
     @Test
@@ -211,9 +217,9 @@ public class TimeDualRateLifecycleTest {
         GameClock clock = GameClock.createDefault();
         clock.play();
         clock.advanceRealMs(1, true);
-        assertEquals(288, clock.getGameMsRemainder());
+        assertEquals(96, clock.getGameMsRemainder());
         clock.advanceRealMs(1, false);
-        assertEquals(312, clock.getGameMsRemainder());
+        assertEquals(120, clock.getGameMsRemainder());
     }
 
     @Test
@@ -229,7 +235,7 @@ public class TimeDualRateLifecycleTest {
         long totalSecB = clockB.advanceRealMs(1000, true);
 
         assertEquals(totalSecB, totalSecA);
-        assertEquals(288, totalSecA);
+        assertEquals(96, totalSecA);
         assertEquals(0, clockA.getGameMsRemainder());
         assertEquals(0, clockB.getGameMsRemainder());
     }
@@ -267,9 +273,9 @@ public class TimeDualRateLifecycleTest {
         LocalDate startDate = clock.getCurrentDate();
         LocalTime startTime = clock.getCurrentTime();
 
-        // 1. Foreground aktif selama 150 detik pada 2x (setara 86.400 detik = 1 hari)
+        // 1. Foreground aktif selama 450 detik pada 2x (setara 86.400 detik = 1 hari dengan rasio baru 96x)
         clock.setSpeedMultiplier(2);
-        facade.advanceRealMs(150000, true);
+        facade.advanceRealMs(450000, true);
         assertEquals(startDate.plusDays(1), clock.getCurrentDate());
         assertEquals(startTime, clock.getCurrentTime());
 

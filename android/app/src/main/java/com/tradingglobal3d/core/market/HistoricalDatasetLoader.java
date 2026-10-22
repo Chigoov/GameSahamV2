@@ -29,6 +29,15 @@ public final class HistoricalDatasetLoader {
     /** Android supplies AssetManager::open; desktop checks the same bundled file. */
     public static void setAssetSource(AssetSource source) { assetSource = source; }
 
+    public static InputStream openAssetStream(String path) throws IOException {
+        if (assetSource != null) return assetSource.open(path);
+        File f = new File(path);
+        if (!f.exists()) f = new File("android/app/src/main/assets/" + path);
+        if (!f.exists()) f = new File("src/main/assets/" + path);
+        if (f.exists()) return new java.io.FileInputStream(f);
+        return null;
+    }
+
     public static List<String> availableDatasetIds() { return Collections.singletonList(VERIFIED_DATASET_ID); }
 
     public static String canonicalDatasetId(String id) {

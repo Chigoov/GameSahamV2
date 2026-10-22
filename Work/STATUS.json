@@ -2,9 +2,11 @@
   "schema_version": 2,
   "project_root": "C:\\Users\\HYPE AMD\\Downloads\\VIBE CODING\\GAME SAHAM",
   "product": "Game Saham 2D Portrait",
-  "prepared_date": "2026-10-21",
-  "status": "PARTIAL",
-  "current_task": "UX_REALTIME_REMEDIATION",
+  "prepared_date": "2026-10-22",
+  "status": "READY_FOR_OWNER_PLAYTEST",
+  "current_task": "ALL_LONGTASK_8_TASKS_COMPLETED",
+  "longtask_8_tracker": "Work/TRACKER-LONGTASK-8-FULL.md",
+  "longtask_8_active_milestone": "INT-04",
   "completed_tasks": [
     "00",
     "01",
@@ -19,10 +21,11 @@
     "10",
     "11",
     "12",
-    "13"
+    "13",
+    "LONGTASK_8"
   ],
-  "hermes_session_id": "20261020_230515_5c4e96",
-  "next_action": "Eksekusi remediasi audit UX, realtime live sync (R1-R7), penataan jumlah saham, dan validasi Playwright in-place tanpa reload; menunggu aset ilustrasi Codex (ASSETS_PENDING_CODEX).",
+  "hermes_session_id": "20261022_153151_b6efc6",
+  "next_action": "Menunggu playtest dan review independen pemilik proyek (REVIEW_INDEPENDEN_PENDING). Seluruh gate host mandatory A1-A12 telah lulus verifikasi dan artefak APK kandidat siap diuji.",
   "tasks": [
     {
       "id": "00",
@@ -357,7 +360,7 @@
     "browser_scope": "Java-host browser, not native runtime",
     "native_runtime": "NOT_TESTED"
   },
-  "execution_state": "PAUSED_BY_OWNER",
+  "execution_state": "ACTIVE",
   "catalog_expansion": {
     "status": "COMPLETE_FOR_SOURCE_HOST_BROWSER_APK",
     "checkpoint": "Work/CHECKPOINT-CATALOG-100-2026-10-21.md",
@@ -375,5 +378,126 @@
     "sha256": "77faf2da9a6bb6b3297cd4cb1db3b875d7a9aceb16e4009ea67baa97c19a1024",
     "native_device": "NOT_TESTED",
     "note": "Scoped catalog update; does not re-certify all prior 14-phase browser/native gates."
+  },
+  "remediation_2026_10_22": {
+    "status": "PASS_HOST_COMPLETE_ASSETS_PENDING_CODEX",
+    "checkpoint": "Work/CHECKPOINT-PENUTUPAN-REMEDIASI-2026-10-22.md",
+    "baseline": "49bbafb",
+    "findings_closed": ["N1", "N2", "N3", "N4", "N5", "N6", "N7"],
+    "jvm_tests": "461/461 PASS (55 suites, 0 failures, 0 errors, 0 skipped)",
+    "playwright_live_sync_checks": "13/13 PASS",
+    "playwright_portrait_ui_checks": "14/14 PASS",
+    "performance_benchmark": {
+      "verdict": "PASS_WITHIN_HOST_SCOPE",
+      "evaluator_regression_tests": "5/5 PASS",
+      "total_samples": 320,
+      "navigation_p95_ms": 97.47,
+      "navigation_max_ms": 153.78,
+      "ordinary_action_p95_ms": 86.21,
+      "ordinary_action_max_ms": 295.35,
+      "heavy_work_p95_ms": 136.8,
+      "heavy_work_samples": 32
+    },
+    "apk": {
+      "path": "Artifacts/Penutupan-Remediasi-2026-10-22/run-01/apk/GameSaham-v1.0.0-candidate-remediated.apk",
+      "bytes": 955886,
+      "sha256": "1c375c621244179d44fa0588103fb96f7938323c7217e93707ed891121716ac6",
+      "assetsMatched": 9,
+      "signature": "Scheme v2 VALID",
+      "appJsSha256": "3db0676ab5e93d110058b002ba816233f0bce1e42fe78747e83e632e4acb4f0f"
+    },
+    "personal_save_sha256": "59b41e24c5a0a3b6f87d127d41c18b7f3f0ebe371f4dd2d277a31ca4b5f867ed",
+    "personal_save_status": "UNTOUCHED_AND_VERIFIED",
+    "assets_status": "ASSETS_PENDING_CODEX",
+    "native_device": "NOT_TESTED"
+  },
+  "playtest_candidate_2026_10_22": {
+    "status": "READY_FOR_OWNER_PLAYTEST",
+    "checkpoint": "Work/CHECKPOINT-KANDIDAT-UJI-BERMAIN-2026-10-22.md",
+    "playtest_guide": "Work/PANDUAN-UJI-BERMAIN-ANDROID-2026-10-22.md",
+    "baseline": "49bbafb",
+    "working_tree": "VERIFIED_LOCAL_CHANGES_PRESERVED",
+    "jvm_tests": "461/461 PASS (55 suites, 0 failures, 0 errors, 0 skipped)",
+    "playtest_journey": {
+      "result": "Artifacts/Kandidat-Layak-Uji-Bermain-2026-10-22/playtest-journey/playtest-journey-result.json",
+      "checks": "10/10 PASS",
+      "screenshots": 17
+    },
+    "sustainability_storage": {
+      "result": "Artifacts/Kandidat-Layak-Uji-Bermain-2026-10-22/sustainability-storage/sustainability-storage-result.json",
+      "seven_day_cycle": "7/7 settlements verified",
+      "time_dilation": "Active 288x (1d=5m), Offline 24x (1d=1h) verified",
+      "extreme_jvm_10x100": "10/10 seeds PASS"
+    },
+    "accessibility_viewports": {
+      "result": "Artifacts/Kandidat-Layak-Uji-Bermain-2026-10-22/viewports-accessibility/viewports-accessibility-result.json",
+      "matrix_samples": "70/70 PASS (7 viewports x 2 font scales)",
+      "touch_targets": ">= 44px verified",
+      "keyboard_focus": "verified"
+    },
+    "performance_benchmark": {
+      "result": "Artifacts/Kandidat-Layak-Uji-Bermain-2026-10-22/benchmark/performance-benchmark.json",
+      "verdict": "PASS_WITHIN_HOST_SCOPE",
+      "evaluator_regression_tests": "5/5 PASS",
+      "navigation_p95_ms": 90.3,
+      "ordinary_action_p95_ms": 95.3,
+      "heavy_work_p95_ms": 161.84,
+      "heavy_work_samples": 32
+    },
+    "apk": {
+      "path": "Artifacts/Kandidat-Layak-Uji-Bermain-2026-10-22/apk/GameSaham-v1.0.0-candidate-playtest.apk",
+      "bytes": 955886,
+      "sha256": "1c375c621244179d44fa0588103fb96f7938323c7217e93707ed891121716ac6",
+      "signature": "Scheme v2 VALID",
+      "appJsSha256": "3db0676ab5e93d110058b002ba816233f0bce1e42fe78747e83e632e4acb4f0f",
+      "assetsMatched": 9
+    },
+    "personal_save_sha256": "59b41e24c5a0a3b6f87d127d41c18b7f3f0ebe371f4dd2d277a31ca4b5f867ed",
+    "personal_save_status": "UNTOUCHED_AND_VERIFIED",
+    "assets_status": "ASSETS_PENDING_CODEX",
+    "native_device": "NOT_TESTED"
+  },
+  "master_revisions_2026_10_22": {
+    "status": "READY_FOR_OWNER_PLAYTEST",
+    "checkpoint": "Work/CHECKPOINT-MASTER-LANJUTAN-2026-10-22.md",
+    "playtest_guide": "Work/PANDUAN-UJI-BERMAIN-ANDROID-2026-10-22.md",
+    "baseline": "49bbafb",
+    "time_ratio": "96x (1s real = 96s game, 15m/game day; background 1h/game day)",
+    "fx_rate": "15800.00 fixed",
+    "jvm_tests": "462/462 PASS (55 suites, 0 failures, 0 errors, 0 skipped)",
+    "revisions_acceptance": {
+      "result": "Artifacts/Master-Lanjutan-2026-10-22/revisions-acceptance/revisions-acceptance-result.json",
+      "checks": "10/10 PASS",
+      "screenshots": 15
+    },
+    "playtest_journey": {
+      "result": "Artifacts/Master-Lanjutan-2026-10-22/playtest-journey/playtest-journey-result.json",
+      "checks": "10/10 PASS"
+    },
+    "sustainability_storage": {
+      "result": "Artifacts/Master-Lanjutan-2026-10-22/sustainability-storage/sustainability-storage-result.json",
+      "checks": "4/4 PASS",
+      "seven_day_settlements": "7/7 verified"
+    },
+    "performance_benchmark": {
+      "result": "Artifacts/Master-Lanjutan-2026-10-22/benchmark/performance-benchmark.json",
+      "verdict": "PASS_WITHIN_HOST_SCOPE",
+      "navigation_p95_ms": 100.28,
+      "ordinary_action_p95_ms": 98.76,
+      "heavy_work_p95_ms": 277.92,
+      "heavy_work_samples": 32
+    },
+    "apk": {
+      "path": "Artifacts/Master-Lanjutan-2026-10-22/apk/GameSaham-v1.0.0-candidate-playtest.apk",
+      "bytes": 961143,
+      "sha256": "c2da7881c536e1927d72bbcd4f6f648c41992bb7fe8b3b6300a69f1f0644f6bb",
+      "signature": "Scheme v2 VALID",
+      "appJsSha256": "a8faef37b4f7ae8af20bcc8d0cb7fdb35ae73cb07b7fcf80ec5de9cbf25d44dc",
+      "assetsMatched": 10
+    },
+    "personal_save_sha256": "59b41e24c5a0a3b6f87d127d41c18b7f3f0ebe371f4dd2d277a31ca4b5f867ed",
+    "personal_save_status": "UNTOUCHED_AND_VERIFIED",
+    "assets_status": "ASSETS_PENDING_CODEX",
+    "native_device": "NOT_TESTED"
   }
 }
