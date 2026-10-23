@@ -35,15 +35,14 @@ async function run() {
         categories: {}
     };
 
-    // Four primary tabs plus the research route, thirty samples each.
+    // Five classic primary tabs, thirty samples each.
     console.log("Benchmarking navigation routes (30 samples each)...");
     const tabs = ['beranda', 'pasar', 'aset', 'firma', 'riset'];
     for (const t of tabs) {
         const timings = [];
         for (let i = 0; i < 30; i++) {
             const start = performance.now();
-            await page.click(`button.nav-item[data-tab="${t === 'riset' ? 'pasar' : t}"]`);
-            if (t === 'riset') await page.click('#btn-market-research');
+            await page.click(`button.nav-item[data-tab="${t}"]`);
             await page.waitForSelector(`#view-${t}.active`);
             timings.push(performance.now() - start);
         }
@@ -59,7 +58,7 @@ async function run() {
     const profTimings = [];
     for (let i = 0; i < 30; i++) {
         const start = performance.now();
-        await page.click('#btn-profile');
+        await page.locator('#view-riset').getByRole('button', {name: 'Profil Saya', exact: true}).click();
         await page.waitForSelector('.flow-page[aria-label="Profil Saya"]');
         await page.click('.flow-page button.back-button');
         await page.waitForTimeout(20);

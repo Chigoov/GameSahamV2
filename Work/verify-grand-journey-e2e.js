@@ -27,19 +27,17 @@ async function run() {
     // =========================================================================
     console.log("=== STEP 1: Game Initialization & Navigation ===");
     for (const tab of ['beranda', 'pasar', 'aset', 'firma', 'riset']) {
-        await page.click(`button.nav-item[data-tab="${tab === 'riset' ? 'pasar' : tab}"]`);
-        if (tab === 'riset') await page.click('#btn-market-research');
+        await page.click(`button.nav-item[data-tab="${tab}"]`);
         await page.waitForSelector(`#view-${tab}.active`, { timeout: 3000 });
     }
     await page.click('button.nav-item[data-tab="beranda"]');
     await page.waitForSelector('#view-beranda.active');
-    checks.push("STEP 1: Four primary tabs and the research route verified");
+    checks.push("STEP 1: Five classic primary tabs verified");
 
     // =========================================================================
     // STEP 2: Hibah Harian 00.00 WIB (A12)
     // =========================================================================
     console.log("=== STEP 2: Hibah Harian Asia/Jakarta (A12) ===");
-    await page.locator('.home-secondary > summary').click();
     const claimBtn = page.locator('#btn-claim-sponsor');
     const claimBtnText = (await claimBtn.textContent()).trim();
     console.log("Claim button text:", claimBtnText);
@@ -147,8 +145,8 @@ async function run() {
     await page.waitForTimeout(500);
 
     // Buka Liga & Peringkat
-    await page.click('button.nav-item[data-tab="firma"]');
-    await page.click('#career-overview button:has-text("Liga & Rival")');
+    await page.click('button.nav-item[data-tab="riset"]');
+    await page.locator('#view-riset').getByRole('button', {name: 'Liga & Rival', exact: true}).click();
     await page.waitForSelector('.flow-page[aria-label="Liga & rival"]', { timeout: 5000 });
     const podiumExists = await page.locator('.leaderboard-podium').count();
     console.log("Podium exists:", podiumExists === 1);
@@ -160,7 +158,7 @@ async function run() {
     // STEP 6: Profil Saya 5-Seksi (A10)
     // =========================================================================
     console.log("=== STEP 6: Profil Saya 5-Seksi (A10) ===");
-    await page.click('#btn-profile');
+    await page.locator('#view-riset').getByRole('button', {name: 'Profil Saya', exact: true}).click();
     await page.waitForSelector('.flow-page[aria-label="Profil Saya"]', { timeout: 5000 });
 
     if (!(await page.locator('.flow-page .wealth-hero').first().innerText()).includes('Karier')) throw new Error('Identitas & karier profil hilang');
@@ -182,7 +180,7 @@ async function run() {
     // STEP 7: Era Baru Status & Checklist (A5, A6, A7)
     // =========================================================================
     console.log("=== STEP 7: Era Baru Status & Checklist (A5, A6, A7) ===");
-    const eraCard = page.locator('#career-overview section.card').filter({has: page.getByRole('heading', {name: /Era baru/i, exact: true})});
+    const eraCard = page.locator('#view-riset section.card').filter({has: page.getByRole('heading', {name: /Era baru/i, exact: true})});
     if (await eraCard.count() !== 1) throw new Error("Era Baru card missing");
     const seeReqBtn = eraCard.locator('button:has-text("Lihat Syarat")');
     await seeReqBtn.click();

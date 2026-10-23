@@ -36,9 +36,7 @@ with sync_playwright() as p:
         page.get_by_role('button', name='Kembali', exact=True).click()
 
     def tab(name):
-        page.locator('[data-tab='+('pasar' if name == 'riset' else name)+']').click()
-        if name == 'riset':
-            page.locator('#btn-market-research').click()
+        page.locator('[data-tab='+name+']').click()
 
     def flow():
         return page.locator('.flow-page')
@@ -68,7 +66,7 @@ with sync_playwright() as p:
                 mainHeight:document.querySelector('.app-scroll').clientHeight})''')
             assert m['scrollWidth'] <= width+1 and m['bodyScroll'] <= height+1, (name,m)
             assert abs(m['navBottom']-height) <= 1 and m['mainHeight'] >= 80, (name,m)
-            assert page.locator('.nav-item[aria-current=page]').get_attribute('data-tab') == ('pasar' if name == 'riset' else name)
+            assert page.locator('.nav-item[aria-current=page]').get_attribute('data-tab') == name
             assert len(page.locator('#view-'+name).inner_text()) > 60
             samples.append({'tab':name,**m})
     passed('35 root/viewport samples: content scrolls, nav stays visible, no page overflow')
@@ -128,7 +126,7 @@ with sync_playwright() as p:
     tab('riset')
     assert call('getPlayerProgress')['currentXp'] == xp
     page.get_by_role('button',name='Baca catatan',exact=True).first.click()
-    assert 'Simulasi game' in flow().inner_text()
+    assert 'simulasi game' in flow().inner_text().lower()
     first_read = call('getPlayerProgress')['currentXp']
     assert first_read >= xp
     back(); tab('riset')

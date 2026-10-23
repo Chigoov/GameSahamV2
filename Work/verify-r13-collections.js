@@ -21,7 +21,6 @@ async function run() {
     });
 
     await page.goto(`http://127.0.0.1:${port}/`);
-    await page.locator('.home-secondary > summary').click();
     await page.waitForSelector('nav.bottom-nav', { timeout: 10000 });
     const catalogue = await page.evaluate(() => JSON.parse(TradingNativeBridge.getCollections()).collections);
 

@@ -52,8 +52,7 @@ with sync_playwright() as p:
     def terminal():
         if page.locator('.flow-page').count():
             page.locator('.back-button').click()
-        page.locator('.nav-item[data-tab=pasar]').click()
-        page.locator('#btn-market-research').click()
+        page.locator('.nav-item[data-tab=riset]').click()
         btn('Terminal: analis, konsensus & perbandingan').click()
         assert page.locator('#terminal-kind').is_visible()
 
@@ -302,7 +301,7 @@ with sync_playwright() as p:
             assert result['success'], result
         status = call('getPrestigeStatus')
         assert status['eligible'], status
-        page.locator('.nav-item[data-tab=firma]').click()
+        page.locator('.nav-item[data-tab=riset]').click()
         btn('Tinjau era baru').click()
         assert 'Yang direset' in page.locator('.flow-page').inner_text()
         record('era-review', 'Eligibility earned through real days and career; reset and retained data displayed', status)

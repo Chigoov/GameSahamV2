@@ -66,9 +66,9 @@ async function run() {
     await page.waitForTimeout(500);
 
     // Verifikasi A8: Liga & Peringkat di Lainnya berupa ringkasan proporsional
-    await page.click('button.nav-item[data-tab="firma"]');
-    const seeRankBtn = page.locator('#career-overview button:has-text("Liga & Rival")');
-    if (await seeRankBtn.count() !== 1) throw new Error("Liga & Rival harus terjangkau dari ringkasan Karier");
+    await page.click('button.nav-item[data-tab="riset"]');
+    const seeRankBtn = page.locator('#view-riset').getByRole('button', {name: 'Liga & Rival', exact: true});
+    if (await seeRankBtn.count() !== 1) throw new Error("Liga & Rival harus terjangkau dari menu Lainnya");
 
     // Klik buka modal Liga lengkap
     await seeRankBtn.click();
@@ -89,7 +89,7 @@ async function run() {
     // =========================================================================
     console.log("[3] Testing A10: Halaman Profil Saya...");
     // Buka dari shortcut menu Lainnya
-    await page.locator('#btn-profile').click();
+    await page.locator('#view-riset').getByRole('button', {name: 'Profil Saya', exact: true}).click();
     await page.waitForSelector('.flow-page[aria-label="Profil Saya"]', { timeout: 5000 });
 
     const profile = await page.evaluate(() => JSON.parse(TradingNativeBridge.getPlayerProfile()));

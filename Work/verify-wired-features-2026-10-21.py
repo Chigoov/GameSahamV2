@@ -43,9 +43,7 @@ with sync_playwright() as p:
         return page.get_by_role('button', name=text, exact=False)
 
     def tab(name):
-        page.locator('[data-tab='+('pasar' if name == 'riset' else name)+']').click()
-        if name == 'riset':
-            page.locator('#btn-market-research').click()
+        page.locator('[data-tab='+name+']').click()
 
     def asset_tool(text):
         tab('aset')
@@ -209,8 +207,8 @@ with sync_playwright() as p:
             ('loans-closed',lambda:asset_tool('Utang & Pinjaman Tenor')),
             ('loan-collateral-form',loan_form),
             ('mutual-funds',lambda:asset_tool('Reksa Dana Berbasis NAB')),
-            ('profile-preferences',lambda:(tab('firma'),page.locator('#btn-profile').click())),
-            ('league-current',lambda:(tab('firma'),btn('Liga & Rival').click())),
+            ('profile-preferences',lambda:(tab('riset'),page.locator('#view-riset').get_by_role('button',name='Profil Saya',exact=True).click())),
+            ('league-current',lambda:(tab('riset'),btn('Liga & Rival').click())),
         ]
         samples=[]
         for width,height in VIEWPORTS:

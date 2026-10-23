@@ -19,7 +19,8 @@ async function run() {
     await page.waitForSelector('nav.bottom-nav', { timeout: 10000 });
 
     console.log("Opening Profil Saya modal...");
-    await page.locator('#btn-profile').click();
+    await page.locator('.nav-item[data-tab="riset"]').click();
+    await page.locator('#view-riset').getByRole('button', {name: 'Profil Saya', exact: true}).click();
     await page.waitForSelector('.flow-page[aria-label="Profil Saya"]', { timeout: 5000 });
 
     // 1. Verifikasi Ringkasan Singkat di Atas

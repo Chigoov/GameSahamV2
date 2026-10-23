@@ -4,20 +4,56 @@
     "status": "BROWSER_VERIFIED_APK_BUILT_NATIVE_NOT_TESTED",
     "branch": "codex/ui-redesign-antislop",
     "direction": "DESIGN.md",
-    "owner_approved": ["arang_ungu", "empat_tab_ringkasan_pasar_aset_karier"],
+    "owner_approved": [
+      "arang_ungu",
+      "empat_tab_ringkasan_pasar_aset_karier"
+    ],
     "scope": "PRESENTATION_NAVIGATION_AND_OWNER_APPROVED_BOUNDED_JAVA_FIXES",
-    "baseline_jvm": {"tests": 488, "pass": 471, "fail": 17},
-    "baseline_js": {"suites": 19, "pass": 13, "fail": 6},
+    "baseline_jvm": {
+      "tests": 488,
+      "pass": 471,
+      "fail": 17
+    },
+    "baseline_js": {
+      "suites": 19,
+      "pass": 13,
+      "fail": 6
+    },
     "baseline_report": "Work/REDESIGN-BASELINE-2026-10-23.md",
     "evidence_root": "Artifacts/Redesign-Antislop-2026-10-23",
     "delivery_gate": "PASS_4_BLOCKS_WITH_DECLARED_BROWSER_SCOPE",
-    "final_jvm": {"tests": 491, "pass": 491, "fail": 0},
-    "final_browser": {"js_suites": 19, "python_suites": 15, "all_have_passing_final_runs": true},
-    "final_screens": {"routes": 84, "samples": 1344, "pass": 1344, "screenshots": 3200, "unnamed_fields": 0},
-    "final_contrast": {"samples": 504, "measurements": 52007, "fail": 0, "minimum_ratio": 6.274672091350723},
+    "final_jvm": {
+      "tests": 491,
+      "pass": 491,
+      "fail": 0
+    },
+    "final_browser": {
+      "js_suites": 19,
+      "python_suites": 15,
+      "all_have_passing_final_runs": true
+    },
+    "final_screens": {
+      "routes": 84,
+      "samples": 1344,
+      "pass": 1344,
+      "screenshots": 3200,
+      "unnamed_fields": 0
+    },
+    "final_contrast": {
+      "samples": 504,
+      "measurements": 52007,
+      "fail": 0,
+      "minimum_ratio": 6.274672091350723
+    },
     "notification_supplement": "Only three toast selectors changed after full matrix; exact CSS delta proof and final 23-control/live-sync reruns PASS",
     "delivery_report": "Work/REDESIGN-DELIVERY-2026-10-23.md",
-    "apk": {"path": "Artifacts/Redesign-Antislop-2026-10-23/apk/GameSaham-ui-redesign-candidate.apk", "bytes": 977793, "sha256": "32093ac46a3941113b574692f6f913a7ea889999e3f298f3190c30f5ef50033e", "signature": "DEBUG_V2_VALID", "installed": false},
+    "apk": {
+      "path": "Artifacts/Redesign-Antislop-2026-10-23/apk/GameSaham-ui-redesign-candidate.apk",
+      "bytes": 977793,
+      "sha256": "32093ac46a3941113b574692f6f913a7ea889999e3f298f3190c30f5ef50033e",
+      "signature": "DEBUG_V2_VALID",
+      "installed": false
+    },
     "native_device": "NOT_TESTED_NO_NEW_ADB",
     "owner_domain_repair_permission": "Granted 2026-10-23: bounded Java and fixture repairs; preserve existing economic formulas/rates/rewards",
     "ui_commit": "2ace63f",
@@ -27,8 +63,8 @@
   "project_root": "C:\\Users\\HYPE AMD\\Downloads\\VIBE CODING\\GAME SAHAM",
   "product": "Game Saham 2D Portrait",
   "prepared_date": "2026-10-23",
-  "status": "UI_REDESIGN_BROWSER_VERIFIED_NATIVE_NOT_TESTED",
-  "current_task": "UI_REDESIGN_ANTISLOP",
+  "status": "CHECKPOINT_BROWSER_VERIFIED_APK_BUILT",
+  "current_task": "CLASSIC_UI_WITH_RETAINED_ASSETS_CHECKPOINT",
   "longtask_14_tracker": "Work/Owner-Revision-14-2026-10-22/TRACKER.csv",
   "longtask_14_active_milestone": "COMPLETED",
   "longtask_14_summary": {
@@ -59,7 +95,7 @@
     "OWNER_REVISION_14"
   ],
   "hermes_session_id": "20261022_153151_b6efc6",
-  "next_action": "Redesain UI terverifikasi di browser dan APK lokal dibangun; uji bermain Android belum dilakukan. Klaim historis paket Owner Revision 14 di bawah dipertahankan sebagai riwayat, bukan hasil revalidasi seluruh fase pada sesi ini.",
+  "next_action": "Berhenti pada checkpoint sesuai permintaan pemilik; tinjauan UI klasik dan Portofolio, kemudian uji APK Android bila diminta. Jangan mengembalikan arah empat tab secara otomatis.",
   "tasks": [
     {
       "id": "00",
@@ -417,7 +453,15 @@
     "status": "PASS_HOST_COMPLETE_ASSETS_PENDING_CODEX",
     "checkpoint": "Work/CHECKPOINT-PENUTUPAN-REMEDIASI-2026-10-22.md",
     "baseline": "49bbafb",
-    "findings_closed": ["N1", "N2", "N3", "N4", "N5", "N6", "N7"],
+    "findings_closed": [
+      "N1",
+      "N2",
+      "N3",
+      "N4",
+      "N5",
+      "N6",
+      "N7"
+    ],
     "jvm_tests": "461/461 PASS (55 suites, 0 failures, 0 errors, 0 skipped)",
     "playwright_live_sync_checks": "13/13 PASS",
     "playwright_portrait_ui_checks": "14/14 PASS",
@@ -533,5 +577,34 @@
     "personal_save_status": "UNTOUCHED_AND_VERIFIED",
     "assets_status": "ASSETS_PENDING_CODEX",
     "native_device": "NOT_TESTED"
+  },
+  "classic_ui_assets_2026_10_23": {
+    "status": "CHECKPOINT_BROWSER_VERIFIED_APK_BUILT",
+    "routes": 84,
+    "screenSamples": 1344,
+    "screenshots": 3005,
+    "browserJsSuites": 19,
+    "browserPythonSuites": 16,
+    "jvmTests": 491,
+    "contrastSamples": 504,
+    "contrastMeasurements": 52133,
+    "contrastFailures": 0,
+    "apk": {
+      "apk": "Artifacts\\Classic-UI-2026-10-23\\GameSaham-classic-ui-new-assets.apk",
+      "bytes": 977927,
+      "sha256": "0917ca0712355fe2cbc961ee7c778630681846f8f60053f04f8fbf8ca6d422b9",
+      "javaUnchangedFrom": "1c821af",
+      "nativeDevice": "NOT_TESTED_NO_NEW_ADB"
+    },
+    "nativeDevice": "NOT_TESTED_NO_NEW_ADB",
+    "deliveryGate": "PASS_4_BLOCKS_WITH_DECLARED_CHECKPOINT_SCOPE",
+    "remaining": [
+      "Owner visual review",
+      "Android device playtest if requested"
+    ],
+    "uiCommit": "4213465",
+    "branch": "codex/classic-ui-new-assets",
+    "fallback": "codex/ui-redesign-antislop@1c821af",
+    "report": "Work/CHECKPOINT-CLASSIC-UI-ASSETS-2026-10-23.md"
   }
 }

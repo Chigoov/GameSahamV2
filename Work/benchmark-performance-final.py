@@ -32,7 +32,7 @@ def evaluate_benchmark(results):
     failures = []
     actions = results.get("actions", {})
     
-    # Four root tabs plus market research, each >=30 samples, max <=1000ms.
+    # Five classic root tabs, each >=30 samples, max <=1000ms.
     tabs = ['beranda', 'pasar', 'aset', 'firma', 'riset']
     for tab in tabs:
         key = f"nav_{tab}"
@@ -145,16 +145,14 @@ def run_benchmark(output_dir=None):
             founded = page.evaluate('''() => JSON.parse(TradingNativeBridge.foundCompany(JSON.stringify({id:'COMP-BENCHMARK',name:'Perusahaan Uji Performa',sector:'JASA',capital:'25000000'})))''')
             assert founded.get('success'), founded
 
-            # Four root tabs plus the secondary market research route retain separate samples.
+            # Five classic root tabs retain separate samples.
             tabs = ['beranda', 'pasar', 'aset', 'firma', 'riset']
             nav_samples = {tab: [] for tab in tabs}
-            print("Measuring navigation (32 rounds across four root tabs plus research)...")
+            print("Measuring navigation (32 rounds across five root tabs)...")
             for round_idx in range(32):
                 for tab in tabs:
                     t0 = time.perf_counter()
-                    page.locator(f'[data-tab="{"pasar" if tab == "riset" else tab}"]').click()
-                    if tab == 'riset':
-                        page.locator('#btn-market-research').click()
+                    page.locator(f'[data-tab="{tab}"]').click()
                     page.wait_for_selector(f'#view-{tab}.active')
                     t1 = time.perf_counter()
                     nav_samples[tab].append((t1 - t0) * 1000.0)

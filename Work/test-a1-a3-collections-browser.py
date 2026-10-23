@@ -51,7 +51,6 @@ try:
 
         # 1. Buka Modal Galeri Koleksi
         print("Opening Collections Gallery modal...")
-        page.locator('.home-secondary > summary').click()
         page.click('#btn-home-collections')
         page.wait_for_selector('.collections-gallery-wrap', timeout=5000)
         catalog = page.evaluate('() => JSON.parse(TradingNativeBridge.getCollections()).collections')

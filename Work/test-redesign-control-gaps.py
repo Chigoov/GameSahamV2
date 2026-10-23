@@ -145,7 +145,7 @@ with sync_playwright() as p:
         assert int(re.sub(r'\D','',call('getLoans')['loans'][0]['remainingPrincipal']))==principal_before-1000000
         state('loan-installment','Actual active company loan installment submitted; outstanding principal reduced')
 
-        tab('pasar');btn('Berita & riset').click();btn('Terminal: analis, konsensus & perbandingan').click()
+        tab('riset');btn('Terminal: analis, konsensus & perbandingan').click()
         for kind in ['inbox','consensus','comparison','alternative']:
             page.locator('#terminal-kind').select_option(kind)
             if kind=='comparison':page.locator('#terminal-instruments').select_option(['IDX:BBCA','IDX:TLKM'])

@@ -87,9 +87,7 @@ def run_p4_tests(output_dir=None):
                     time.sleep(0.1)
 
                     for tab_name in TABS:
-                        page.locator(f'[data-tab="{"pasar" if tab_name == "riset" else tab_name}"]').click()
-                        if tab_name == 'riset':
-                            page.locator('#btn-market-research').click()
+                        page.locator(f'[data-tab="{tab_name}"]').click()
                         time.sleep(0.05)
 
                         # Assert zero horizontal overflow
@@ -131,7 +129,7 @@ def run_p4_tests(output_dir=None):
                     page.screenshot(path=str(screenshot_dir / f"{vp_label}_font{font_scale}_pasar.png"))
 
             page.evaluate("document.documentElement.style.fontSize = ''")
-            checks.append(f"M1: 7 viewports x 2 font scales x 5 rendered destinations (4 root tabs + research), {len(matrix_results)} samples, verified zero overflow and reachable nav")
+            checks.append(f"M1: 7 viewports x 2 font scales x 5 classic root tabs, {len(matrix_results)} samples, verified zero overflow and reachable nav")
 
             # -------------------------------------------------------------
             # Touch Target Sizes (Min 44-48px for interactive controls)

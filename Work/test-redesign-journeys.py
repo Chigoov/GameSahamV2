@@ -43,11 +43,11 @@ with sync_playwright() as p:
 
     assert call('startNewGame', '{}')['success']
     page.reload(); page.wait_for_load_state('networkidle')
-    assert page.locator('.nav-item').all_text_contents() == ['Ringkasan', 'Pasar', 'Aset', 'Karier']
-    for name in ['beranda', 'pasar', 'aset', 'firma']:
+    assert [text.strip() for text in page.locator('.nav-item').all_text_contents()] == ['Beranda', 'Pasar', 'Portofolio', 'Bisnis', 'Lainnya']
+    for name in ['beranda', 'pasar', 'aset', 'firma', 'riset']:
         tab(name)
         assert page.locator('.nav-item[aria-current="page"]').get_attribute('data-tab') == name
-    passed('Empat tab utama', 'Seluruh tujuan ada dan status aktif mengikuti tujuan')
+    passed('Lima tab utama klasik', 'Seluruh tujuan ada dan status aktif mengikuti tujuan')
 
     tab('beranda')
     call('setClockState',False,1)
@@ -64,7 +64,7 @@ with sync_playwright() as p:
     call('setClockState',False,1)
     passed('Jam pause dan berjalan', 'Label dan interpolasi mengikuti snapshot Java, tanpa mengubah rasio waktu domain')
 
-    page.locator('#btn-profile').click()
+    page.locator('.nav-item[data-tab=riset]').click(); page.locator('#view-riset').get_by_role('button',name='Profil Saya',exact=True).click()
     assert page.locator('.flow-page').get_attribute('aria-label') == 'Profil Saya'
     for name in ['Kinerja', 'Keuangan', 'Pencapaian']:
         page.locator('.profile-subtabs-nav').get_by_role('button', name=name, exact=True).click()
@@ -80,30 +80,31 @@ with sync_playwright() as p:
     page.evaluate('document.documentElement.style.fontSize="100%"')
     page.set_viewport_size({'width':390,'height':844})
     page.keyboard.press('Escape')
-    assert page.locator('#btn-profile').evaluate('(el)=>el===document.activeElement')
+    assert page.locator('#view-riset').get_by_role('button',name='Profil Saya',exact=True).evaluate('(el)=>el===document.activeElement')
     passed('Profil, tiga tab, Escape dan fokus kembali', 'Isi tab nyata tampil dan fokus kembali ke tombol Profil')
 
-    tab('firma')
-    page.locator('#career-overview').get_by_role('button', name='Misi Periodik', exact=True).click()
+    tab('riset')
+    page.locator('#view-riset').get_by_role('button', name='Misi Periodik', exact=True).click()
     assert 'harian' in page.locator('.mission-tabs-nav .active').inner_text().lower()
     for name in ['Mingguan', 'Karier', 'Harian']:
         page.locator('.mission-tabs-nav').get_by_role('button', name=re.compile(name, re.I)).click()
         assert name.lower() in page.locator('.mission-tabs-nav .active').inner_text().lower()
         assert page.locator('.mission-tabs-nav [aria-pressed="true"]').count()==1
     back()
-    page.locator('#career-overview').get_by_role('button', name='Liga & Rival', exact=True).click()
+    page.locator('#view-riset').get_by_role('button', name='Liga & Rival', exact=True).click()
     assert page.locator('#league-mode').input_value() == 'NET_WORTH'
     page.locator('#league-mode').select_option('WEEKLY_RETURN')
     assert page.locator('#league-mode').input_value() == 'WEEKLY_RETURN'
     back()
-    passed('Karier → misi dan liga', 'Enum tab/mode tetap valid ketika pembuka menerima click event')
+    passed('Lainnya → misi dan liga', 'Enum tab/mode tetap valid ketika pembuka menerima click event')
 
-    tab('pasar'); page.locator('#btn-market-research').click()
+    tab('riset')
     assert page.locator('#view-riset').is_visible()
-    assert page.locator('.nav-item[aria-current="page"]').get_attribute('data-tab') == 'pasar'
-    assert page.evaluate('window.closeActiveLayer()') is True
-    assert page.locator('#view-pasar').is_visible()
-    passed('Pasar → berita/riset → Back native', 'Riset tetap terjangkau dan kembali ke Pasar')
+    assert page.locator('.nav-item[aria-current="page"]').get_attribute('data-tab') == 'riset'
+    assert page.evaluate('window.closeActiveLayer()') is False
+    assert page.locator('#view-riset').is_visible()
+    tab('pasar')
+    passed('Lainnya → Back native', 'Lainnya merupakan tab utama dan Back tanpa lapisan tidak mengganti tab')
 
     page.locator('#search-stock-input').fill('NO-SUCH-INSTRUMENT')
     assert page.locator('#stock-list-container .stock-list-item').count() == 0
@@ -118,8 +119,8 @@ with sync_playwright() as p:
     for scale in [100,200]:
         page.set_viewport_size({'width':320,'height':568})
         page.evaluate('scale=>document.documentElement.style.fontSize=scale+"%"',scale)
-        sizes=page.locator('.modal-header').evaluate('''el=>{const title=el.querySelector('div').getBoundingClientRect(),button=el.querySelector('button').getBoundingClientRect(),box=el.getBoundingClientRect();return {title:title.width,button:button.width,available:box.width};}''')
-        assert sizes['title']>=sizes['available']*.9 and sizes['button']<sizes['available']*.6,sizes
+        sizes=page.locator('.modal-header').evaluate('''el=>{const node=el.querySelector('div'),title=node.getBoundingClientRect(),button=el.querySelector('button').getBoundingClientRect(),box=el.getBoundingClientRect();return {title:title.width,scroll:node.scrollWidth,client:node.clientWidth,buttonWidth:button.width,buttonHeight:button.height,inside:title.left>=box.left&&title.right<=box.right+1&&button.left>=box.left&&button.right<=box.right+1,separate:title.right<=button.left+1||button.right<=title.left+1||title.bottom<=button.top+1||button.bottom<=title.top+1};}''')
+        assert sizes['inside'] and sizes['separate'] and sizes['scroll']<=sizes['client']+1 and min(sizes['buttonWidth'],sizes['buttonHeight'])>=48,sizes
     page.evaluate('document.documentElement.style.fontSize="100%"')
     page.set_viewport_size({'width':390,'height':844})
     page.locator('#order-qty').fill('0'); page.locator('#btn-submit-order').click()
@@ -132,14 +133,14 @@ with sync_playwright() as p:
 
     page.set_viewport_size({'width':320,'height':568})
     page.evaluate('document.documentElement.style.fontSize="200%"')
-    page.locator('#btn-market-research').click()
+    tab('riset')
     page.get_by_role('button',name='Terminal: analis, konsensus & perbandingan',exact=True).click()
     heading=page.locator('.flow-header h1').bounding_box()
     content=page.locator('.flow-content').bounding_box()
     assert heading['width']>=content['width']*.9,(heading,content)
     back()
     widths=page.locator('.nav-item').evaluate_all('els=>els.map(el=>({width:el.clientWidth,scrollWidth:el.scrollWidth,text:el.textContent}))')
-    assert all(item['width']>=130 and item['scrollWidth']<=item['width'] for item in widths),widths
+    assert all(item['width']>=48 and item['scrollWidth']<=item['width'] for item in widths),widths
     page.evaluate('document.documentElement.style.fontSize="100%"')
     page.set_viewport_size({'width':390,'height':844})
     tab('pasar')
@@ -192,7 +193,7 @@ with sync_playwright() as p:
     page.locator('#btn-entry-game').click()
     page.get_by_role('button',name='Lanjutkan sesi aktif (Resume)',exact=True).click()
     assert not page.locator('.flow-page').count()
-    passed('Resume', 'Kembali ke Ringkasan tanpa mengganti run')
+    passed('Resume', 'Kembali ke Beranda tanpa mengganti run')
     page.locator('#btn-settings').click()
     back()
     page.screenshot(path=str(out/'journey-final.png'))

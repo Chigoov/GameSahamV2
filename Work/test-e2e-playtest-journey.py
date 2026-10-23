@@ -54,7 +54,7 @@ def run_playtest(output_dir=None):
             time.sleep(0.5)
 
             # -------------------------------------------------------------
-            # STEP 1: Game Initialization, four tabs and secondary market research
+            # STEP 1: Game initialization and five classic tabs
             # -------------------------------------------------------------
             init_snap = page.evaluate('() => JSON.parse(TradingNativeBridge.getSnapshot())')
             personal_acc = init_snap['personalAccount']
@@ -65,16 +65,14 @@ def run_playtest(output_dir=None):
             page.screenshot(path=str(screenshot_dir / '01-beranda-initial.png'))
             tabs = ['beranda', 'pasar', 'aset', 'firma', 'riset']
             for t in tabs:
-                page.locator(f'[data-tab="{"pasar" if t == "riset" else t}"]').click()
-                if t == 'riset':
-                    page.locator('#btn-market-research').click()
+                page.locator(f'[data-tab="{t}"]').click()
                 page.wait_for_selector(f'#view-{t}.active')
                 time.sleep(0.1)
             page.locator('[data-tab="beranda"]').click()
             page.wait_for_selector('#view-beranda.active')
 
             hero_net_equity = page.locator('#home-net-worth').text_content()
-            checks.append(f"Step 1: Game initialized; four root tabs plus secondary research verified; initial Net Equity: {hero_net_equity}")
+            checks.append(f"Step 1: Game initialized; five classic root tabs verified; initial Net Equity: {hero_net_equity}")
             journey_log.append({"step": 1, "action": "Init", "cash": init_idr_cash, "netEquity": hero_net_equity})
 
             # Ensure account has ample trading funds from company dividends/capital
@@ -344,15 +342,18 @@ def run_playtest(output_dir=None):
             # -------------------------------------------------------------
             # STEP 6: Career, Progression & Mission Feedback
             # -------------------------------------------------------------
-            page.locator('[data-tab="firma"]').click()
-            page.wait_for_selector('#view-firma.active')
+            page.locator('[data-tab="beranda"]').click()
+            page.wait_for_selector('#view-beranda.active')
             page.screenshot(path=str(screenshot_dir / '16-karier.png'))
 
             # Verify that mission list or career tier displays clear requirements
-            career_text = page.locator('#view-firma').text_content()
-            assert len(career_text) > 50 and 'Jabatan saat ini' in career_text, "Career view must render rank and progression content"
-            assert page.get_by_role('button', name='Misi Periodik', exact=True).is_visible()
-            checks.append("Step 6: Karier renders actual rank and reachable periodic missions")
+            career = page.evaluate('() => JSON.parse(TradingNativeBridge.getSnapshot()).career')
+            assert career['title'] in page.locator('#home-career-state').inner_text(), "Career view must render actual rank"
+            page.locator('[data-tab="riset"]').click()
+            page.get_by_role('button', name='Misi Periodik', exact=True).click()
+            assert page.locator('.flow-page[aria-label="Pusat Misi & Target"]').is_visible()
+            page.locator('.back-button').click()
+            checks.append("Step 6: Beranda renders actual rank and Lainnya opens periodic missions")
 
             # -------------------------------------------------------------
             # STEP 7: Save -> Reload -> Resume Playability

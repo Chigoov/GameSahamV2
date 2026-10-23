@@ -79,8 +79,10 @@ with sync_playwright() as p:
 
     def corporate():
         close()
-        clicked(page.locator('[data-tab="pasar"]'), 'Pasar')
-        clicked(page.locator('#btn-market-corporate'), 'Aksi korporasi & voting RUPS')
+        clicked(page.locator('[data-tab="aset"]'), 'Portofolio')
+        details=page.locator('#asset-tools')
+        if not details.evaluate('el=>el.open'): clicked(details.locator('summary'),'Alat portofolio & eksperimen')
+        clicked(details.get_by_role('button',name='Aksi korporasi & voting RUPS',exact=True), 'Aksi korporasi & voting RUPS')
 
     def offers():
         return call('corporateOfferAction', json.dumps({'action': 'list'}))['offers']

@@ -78,8 +78,7 @@ function calculateP95(arr) {
 
     const tab = async (name) => {
         const start = performance.now();
-        await page.locator(`.nav-item[data-tab="${name === 'riset' ? 'pasar' : name}"]`).click();
-        if (name === 'riset') await page.locator('#btn-market-research').click();
+        await page.locator(`.nav-item[data-tab="${name}"]`).click();
         const duration = performance.now() - start;
         rawTimings.navigation.push(duration);
     };
@@ -138,7 +137,7 @@ function calculateP95(arr) {
                 throw new Error(`Nav position or main height invalid on tab ${name}: ${JSON.stringify(m)}`);
             }
             const activeTab = await page.locator('.nav-item[aria-current="page"]').getAttribute('data-tab');
-            if (activeTab !== (name === 'riset' ? 'pasar' : name)) throw new Error(`Active tab mismatch: expected ${name}, got ${activeTab}`);
+            if (activeTab !== name) throw new Error(`Active tab mismatch: expected ${name}, got ${activeTab}`);
             const textLen = (await page.locator('#view-' + name).innerText()).length;
             if (textLen <= 60) throw new Error(`Tab ${name} has insufficient content`);
             samples.push({ tab: name, ...m });

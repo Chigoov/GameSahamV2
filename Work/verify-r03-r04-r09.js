@@ -60,7 +60,6 @@ async function run() {
     // =========================================================================
     console.log("[2] Testing R03: Profil Risiko & 5 Indikator...");
     await page.locator('[data-tab="beranda"]').click();
-    await page.locator('.home-secondary > summary').click();
     await page.click('#btn-home-archetype');
     await page.waitForSelector('.flow-page[aria-label="Gaya Investor (Archetype)"]', { timeout: 5000 });
 

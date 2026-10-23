@@ -73,7 +73,7 @@ with sync_playwright() as p:
             page.route('**/app.js', lambda route: pending.append(route))
             page.goto(args.url, wait_until='commit')
             page.locator('#home-net-worth').wait_for(state='visible')
-            page.wait_for_function('getComputedStyle(document.body).backgroundColor==="rgb(16, 19, 24)"')
+            page.wait_for_function('getComputedStyle(document.documentElement).backgroundColor==="rgb(8, 10, 18)"')
             page.evaluate('s=>document.documentElement.style.fontSize=s+"%"', scale)
             assert page.locator('#home-net-worth').inner_text() == 'Memuat…'
             assert page.evaluate('typeof window.showNativeSaveFailure') == 'undefined'
@@ -108,7 +108,7 @@ with sync_playwright() as p:
             assert 'belum tersimpan' in warning.inner_text()
             capture(page,'native-save-warning',width,height,scale,'Native callback invoked directly for presentation; duplicate calls create one alert; no persistence-failure claim')
 
-            page.locator('#btn-profile').click()
+            page.locator('.nav-item[data-tab=riset]').click(); page.locator('#view-riset').get_by_role('button',name='Profil Saya',exact=True).click()
             page.get_by_role('button',name='Pencapaian',exact=True).click()
             page.locator('#player-text-size').select_option(str(scale)+'%')
             assert page.locator('#player-text-size').evaluate('el=>el.selectedOptions[0].textContent') == str(scale)+'%'
@@ -117,7 +117,7 @@ with sync_playwright() as p:
             page.get_by_role('button',name='Simpan Profil & Preferensi',exact=True).click()
             page.get_by_text('Profil dan preferensi tersimpan.',exact=True).wait_for(state='visible')
             assert page.evaluate('document.documentElement.classList.contains("high-contrast")&&document.documentElement.classList.contains("reduced-motion")')
-            assert page.evaluate('getComputedStyle(document.body).backgroundColor') == 'rgb(5, 7, 10)'
+            assert page.evaluate('getComputedStyle(document.documentElement).backgroundColor') == 'rgb(3, 5, 8)'
             assert page.locator('.flow-page button').first.evaluate('el=>getComputedStyle(el).transitionDuration') == '0s'
             capture(page,'high-contrast-reduced-motion',width,height,scale,'Preferences saved via actual UI and bridge; high-contrast canvas and disabled transitions verified')
             context.close()

@@ -17,7 +17,6 @@ async function run() {
     page.on('console', msg => console.log('PAGE LOG:', msg.text()));
 
     await page.goto(`http://127.0.0.1:${port}/`);
-    await page.locator('.home-secondary > summary').click();
     await page.waitForSelector('#btn-home-collections', { timeout: 10000 });
     const catalogue = await page.evaluate(() => JSON.parse(TradingNativeBridge.getCollections()).collections);
     const initialOwned = catalogue.filter(item => item.owned || item.isOwned).length;

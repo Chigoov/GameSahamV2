@@ -31,8 +31,7 @@ const errors = [];
     };
 
     const tab = async (name) => {
-        await page.locator(`.nav-item[data-tab="${name === 'riset' ? 'pasar' : name}"]`).click();
-        if (name === 'riset') await page.locator('#btn-market-research').click();
+        await page.locator(`.nav-item[data-tab="${name}"]`).click();
     };
 
     const back = async () => {

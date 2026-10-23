@@ -14,9 +14,7 @@ with sync_playwright() as p:
     def call(m,*a):
         return json.loads(page.evaluate('([m,a])=>TradingNativeBridge[m](...a)',[m,list(a)]))
     def tab(name):
-        page.locator('[data-tab='+('pasar' if name == 'riset' else name)+']').click()
-        if name == 'riset':
-            page.locator('#btn-market-research').click()
+        page.locator('[data-tab='+name+']').click()
     def back(): page.get_by_role('button',name='Kembali',exact=True).click()
     def opened(name, marker):
         layer=page.locator('.flow-page')

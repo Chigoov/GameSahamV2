@@ -63,7 +63,6 @@ async function run() {
     // 3. Verifikasi R01: Countdown Hibah Harian HH:mm:ss
     // =========================================================================
     console.log("[3] Testing R01: Hibah harian countdown after claim...");
-    await page.locator('.home-secondary > summary').click();
     const claimBtn = page.locator('#btn-claim-sponsor');
     const initText = (await claimBtn.textContent()).trim();
     console.log("Initial claim button text:", initText);
