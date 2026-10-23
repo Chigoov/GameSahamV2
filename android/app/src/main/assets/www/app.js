@@ -79,9 +79,9 @@
         const main = document.querySelector('.app-scroll');
         scrollPositions[currentTab] = main.scrollTop;
         currentTab = tab;
-        headerTitle.textContent = {beranda:'Ringkasan', pasar:'Pasar', aset:'Aset', firma:'Karier', riset:'Berita & riset'}[tab];
+        headerTitle.textContent = {beranda:'Beranda', pasar:'Pasar', aset:'Portofolio', firma:'Bisnis', riset:'Lainnya'}[tab];
         document.querySelectorAll('.nav-item').forEach(b => {
-            const matches = b.dataset.tab === (tab === 'riset' ? 'pasar' : tab) || b.dataset.tabName === tab;
+            const matches = b.dataset.tab === tab || b.dataset.tabName === tab;
             b.classList.toggle('active', matches);
             if (matches) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
         });
@@ -839,7 +839,7 @@
 
             const idxContainer = document.getElementById('indices-row');
             idxContainer.innerHTML = '';
-            idxContainer.className = 'market-ribbon';
+            idxContainer.className = 'market-ribbon table-scroll';
             allIndices.forEach(idx => {
                 const item = document.createElement('div');
                 item.className = 'index-card' + (idx.available === false ? ' unavailable' : '');
@@ -2152,8 +2152,13 @@
         refreshSnapshot();
         const view = views.riset;
         view.replaceChildren();
-        flowButton(view, 'Kembali ke Pasar', () => switchTab('pasar'));
-        pageHeading(view, 'Berita & riset', 'Informasi dalam waktu game');
+        pageHeading(view, 'Lainnya & Riset', 'PROFIL, MISI, LIGA & TERMINAL');
+        const hub = node('div','quick-grid');
+        [['Profil Saya',openPlayerProfileModal],['Misi Periodik',openPeriodicMissionsModal],['Liga & Rival',openLeagueAndRivalModal],['Galeri Koleksi',openCollectionsGalleryModal],['Riwayat Transaksi',openTransactionHistoryModal]].forEach(([label,open])=>{
+            const button=flowButton(hub,label,()=>open()); button.className='shortcut';
+        });
+        view.append(hub);
+        appendPrestigeSection(view);
         flowButton(view,'Terminal: analis, konsensus & perbandingan',openResearchTerminal);
         flowButton(view,'Hasil investasi & arus kas',openPerformanceReport);
         flowButton(view, 'Lab strategi & sandbox what-if', openStrategyLabModal);
@@ -4699,7 +4704,9 @@
         collectionFilterOwnership = (typeof initialOwnership === 'string') ? initialOwnership : 'ALL';
         const panel = showFlow('Galeri Koleksi Mewah');
         flowText(panel, 'Koleksi Aset Mewah', 'Koleksi kendaraan, properti, permata, seni & jam tangan mewah memberi peningkatan reputasi dan diversifikasi aset.');
-        renderCollectionsGallery(panel, true);
+        const gallery = document.createElement('div');
+        panel.append(gallery);
+        renderCollectionsGallery(gallery, true);
     }
 
     function openRiskModal() {
@@ -4976,7 +4983,6 @@
     });
     window.closeActiveLayer = () => {
         if (orderModal.classList.contains('active')) { closeOrderTicket(); return true; }
-        if (!flowPanel && currentTab === 'riset') { switchTab('pasar'); return true; }
         return closeFlow();
     };
 
@@ -5473,9 +5479,9 @@
     if (lvlChip) lvlChip.addEventListener('click', openAchievementsModal);
     const wealthChip = document.getElementById('header-wealth-chip');
     if (wealthChip) wealthChip.addEventListener('click', () => switchTab('aset'));
-    document.getElementById('btn-profile').addEventListener('click', () => openPlayerProfileModal());
-    document.getElementById('btn-market-research').addEventListener('click', () => switchTab('riset'));
-    document.getElementById('btn-market-corporate').addEventListener('click', openCorporateActionModal);
+    document.getElementById('btn-profile')?.addEventListener('click', () => openPlayerProfileModal());
+    document.getElementById('btn-market-research')?.addEventListener('click', () => switchTab('riset'));
+    document.getElementById('btn-market-corporate')?.addEventListener('click', openCorporateActionModal);
     const accBtn = document.getElementById('context-account-btn');
     if (accBtn) accBtn.addEventListener('click', openAccountPicker);
 

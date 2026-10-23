@@ -1,5 +1,11 @@
 # Game Saham: arah UI/UX aktif
 
+## Keputusan aktif: UI klasik dengan isi Aset terbaru
+
+Pemilik pada 23 Oktober 2026 meminta kembali ke UI klasik sebelum redesain (`fc3cdd2`), kecuali isi bagian Aset yang dipertahankan. Shell, palet navy/ungu/hijau/emas, header, kartu dan lima tab Beranda/Pasar/Portofolio/Bisnis/Lainnya kembali memakai desain klasik; Portofolio memakai isi Aset versi `1c821af`: nilai bersih, komposisi aset, dompet IDR/USD, posisi, FX dan seluruh alat/investasi/kewajiban. Tidak membangun ulang domain atau membatalkan perbaikan logika/persistensi. [ASUMSI] Istilah “isi bagian aset” mencakup informasi dan jalur fitur Portofolio; seluruhnya mengikuti tema klasik di sekitarnya.
+
+Design Read aktif: game trading portrait untuk pemain yang memilih identitas visual klasik; ENERGY 3 / RHYTHM 2 / MOTION 2. Gradien, lapisan kaca dan aksen neon dipertahankan karena merupakan gaya klasik yang dipilih pemilik. Emas menandai aksi, hijau/merah menunjukkan arah nilai, ungu menandai bagian aktif dan hero. Ikon lama dipakai kembali untuk kategori fitur, panah menunjukkan perpindahan atau rincian, label kapital membedakan kelompok data, dan font Plex lokal berlisensi OFL mempertahankan angka yang mudah dibaca. Motion singkat menunjukkan respons sentuhan dan perpindahan, dengan reduced motion. Teks, fokus, target sentuh dan reflow tetap diperbaiki bila perlu. Bagian arang/empat tab di bawah merupakan riwayat keputusan yang sudah digantikan, bukan arah implementasi aktif.
+
 Mandat pemilik 22 Oktober 2026, pilihan warna dan navigasi dikonfirmasi di chat 23 Oktober 2026. Menggantikan keputusan visual/UX historis, bukan FR-01 sampai FR-20 atau aturan domain. Status dokumen: arah disetujui; implementasi dan bukti diverifikasi terpisah.
 
 Design Read: game trading dan karier untuk pemain ponsel, bahasa visual terminal arang dengan aksen ungu tenang. ENERGY 2 / RHYTHM 2 / MOTION 2. Angka utama menjadi titik fokus, baris data membentuk ritme, transisi hanya memperjelas pergantian konteks.
