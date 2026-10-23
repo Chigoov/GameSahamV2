@@ -1694,6 +1694,7 @@
 
                 flowButton(summary, 'Fund Builder & alokasi portofolio', () => openFundBuilder(), 'fundBuilder');
                 flowButton(summary, 'Laporan klien & fee mandat', () => openClientReports());
+                flowButton(summary, 'Bursa Headhunting Staf Analis Elit', () => openHeadhuntingModal());
                 flowText(summary, 'Batas', 'Tarif dan batas mengikuti aturan simulasi awal. Periksa ketentuan setiap mandat.');
                 container.append(summary);
 
@@ -2175,6 +2176,7 @@
         flowButton(view, 'Lab strategi & sandbox what-if', openStrategyLabModal);
         flowButton(view, 'Replay historis', openHistoricalReplayModal);
         flowButton(view, 'Kartu Booster Riset R&D', openResearchBoostersModal);
+        flowButton(view, 'Pohon Riset Finansial Tech Tree', openTechTreeModal);
 
         if (!bridge.getResearchFeed) {
             flowText(view, 'Riset', 'Riset belum dapat dimuat.'); return;
@@ -5899,6 +5901,105 @@
                     activeP.style.cssText = 'color:var(--teal); font-weight:600; font-size:0.8rem; margin-top:8px;';
                     activeP.textContent = '⚡ Kartu Booster sedang aktif!';
                     card.appendChild(activeP);
+                }
+
+                panel.appendChild(card);
+            });
+        } catch(e) {
+            flowText(panel, 'Galat', e.message);
+        }
+    }
+
+    function openTechTreeModal() {
+        const panel = showFlow('Pohon Riset Finansial Tech Tree');
+        flowText(panel, 'R&D Finansial Berjenjang', 'Tingkatkan kemampuan analisis, efisiensi komisi, dan kapasitas AUM firma secara permanen.');
+
+        if (!bridge.getTechTree) {
+            flowText(panel, 'Status', 'Layanan pohon riset belum tersedia.');
+            return;
+        }
+
+        try {
+            const nodes = JSON.parse(bridge.getTechTree());
+            nodes.forEach(n => {
+                const card = document.createElement('section');
+                card.className = 'card tech-node-card';
+                card.style.cssText = 'margin-bottom:12px; border:1px solid rgba(153, 69, 255, 0.35); background:linear-gradient(135deg, rgba(153, 69, 255, 0.08) 0%, rgba(18, 23, 40, 0.95) 100%);';
+
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span class="eyebrow" style="color:var(--accent-purple); font-weight:700;">JALUR: ${n.category} · TIER ${n.tierLevel}</span>
+                        <span class="badge" style="background:${n.isUnlocked ? 'rgba(20, 241, 149, 0.18)' : 'rgba(255, 255, 255, 0.08)'}; color:${n.isUnlocked ? 'var(--teal)' : 'var(--text-muted)'}; font-weight:700;">${n.statusLabel}</span>
+                    </div>
+                    <h3 style="font-size:1.1rem; color:#FFF; margin:0 0 6px;">${n.nodeName}</h3>
+                    <div class="data-row"><span>Efek Bonus</span><strong>+${n.statBonusValue}% (${n.statBonusType})</strong></div>
+                    <div class="data-row"><span>Biaya Riset</span><strong>${n.upgradeCost}</strong></div>
+                `;
+
+                if (!n.isUnlocked) {
+                    const upBtn = document.createElement('button');
+                    upBtn.className = 'btn-primary';
+                    upBtn.style.marginTop = '10px';
+                    upBtn.textContent = 'Riset ' + n.nodeName;
+                    upBtn.onclick = () => {
+                        try {
+                            const res = JSON.parse(bridge.upgradeTechNode(n.nodeId));
+                            alert(`Riset ${res.nodeName} berhasil diselesaikan!`);
+                            refreshSnapshot();
+                            openTechTreeModal();
+                        } catch(err) { alert('Gagal riset: ' + err.message); }
+                    };
+                    card.appendChild(upBtn);
+                }
+
+                panel.appendChild(card);
+            });
+        } catch(e) {
+            flowText(panel, 'Galat', e.message);
+        }
+    }
+
+    function openHeadhuntingModal() {
+        const panel = showFlow('Bursa Headhunting Staf Elit');
+        flowText(panel, 'Perang Bakat & Rekrutmen Kompetitor', 'Bajak analis kuantitatif dan manajer risiko bintang dari firma pesaing untuk mendongkrak return AUM.');
+
+        if (!bridge.getHeadhuntingCandidates) {
+            flowText(panel, 'Status', 'Layanan headhunting belum tersedia.');
+            return;
+        }
+
+        try {
+            const cands = JSON.parse(bridge.getHeadhuntingCandidates());
+            cands.forEach(c => {
+                const card = document.createElement('section');
+                card.className = 'card headhunt-card';
+                card.style.cssText = 'margin-bottom:12px; border:1px solid rgba(255, 184, 0, 0.35); background:linear-gradient(135deg, rgba(255, 184, 0, 0.08) 0%, rgba(18, 23, 40, 0.95) 100%);';
+
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span class="eyebrow" style="color:var(--gold); font-weight:700;">RATING: ${c.skillRating} / 100</span>
+                        <span class="badge" style="background:${c.isHired ? 'rgba(20, 241, 149, 0.18)' : 'rgba(255, 184, 0, 0.18)'}; color:${c.isHired ? 'var(--teal)' : 'var(--gold)'}; font-weight:700;">${c.statusLabel}</span>
+                    </div>
+                    <h3 style="font-size:1.1rem; color:#FFF; margin:0 0 4px;">${c.name}</h3>
+                    <p style="font-size:0.8rem; color:var(--text-muted); margin:0 0 8px;">${c.roleTitle} · Majikan: ${c.currentEmployer}</p>
+                    <div class="data-row"><span>Biaya Jasa Headhunter</span><strong>${c.poachCost}</strong></div>
+                    <div class="data-row"><span>Ekspektasi Gaji Bulanan</span><strong>${c.expectedSalary}</strong></div>
+                `;
+
+                if (!c.isHired) {
+                    const poachBtn = document.createElement('button');
+                    poachBtn.className = 'btn-primary';
+                    poachBtn.style.marginTop = '10px';
+                    poachBtn.textContent = 'Bajak ' + c.name;
+                    poachBtn.onclick = () => {
+                        try {
+                            const res = JSON.parse(bridge.poachStaffCandidate(c.candidateId));
+                            alert(`${res.name} berhasil dibajak ke firma Anda!`);
+                            refreshSnapshot();
+                            openHeadhuntingModal();
+                        } catch(err) { alert('Gagal membajak staf: ' + err.message); }
+                    };
+                    card.appendChild(poachBtn);
                 }
 
                 panel.appendChild(card);

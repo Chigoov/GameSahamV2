@@ -195,6 +195,28 @@ def init_database():
         VALUES (?, ?, ?, ?, ?, ?, ?)
     """, subsidiaries)
 
+    # 11. Inisialisasi Headhunting Staf & Tech Tree Riset (Fase 3 Fitur 7 & 10)
+    candidates = [
+        ('CAND-01', 'Budi Santoso, CFA', 'Analis Makro Kuantitatif', 88, 15000000.0, 12000000.0, 'Mandiri Investasi Utama', 95.0, 0),
+        ('CAND-02', 'Sarah Jenkins, MBA', 'Spesialis Portofolio Global', 92, 25000000.0, 18000000.0, 'Morgan Wall St Group', 90.0, 0),
+        ('CAND-03', 'Hendra Kusuma, M.Fin', 'Manajer Risiko Finansial', 85, 12000000.0, 10000000.0, 'Batavia Capital Trust', 85.0, 0)
+    ]
+    cursor.executemany("""
+        INSERT INTO StaffHeadhuntingMarket (CandidateId, CandidateName, RoleTitle, SkillRating, PoachCost, ExpectedSalary, CurrentFirmEmployer, LoyaltyScore, IsHiredByPlayer)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, candidates)
+
+    tech_nodes = [
+        ('TECH-ALGO-1', 'Sinyal Algoritma Sektor', 'ALGO', 1, 10000000.0, 1, 'SIGNAL_ACCURACY', 10.0),
+        ('TECH-ALGO-2', 'Prediksi Volatilitas AI', 'ALGO', 2, 25000000.0, 0, 'SIGNAL_ACCURACY', 25.0),
+        ('TECH-EFF-1', 'Automasi Eksekusi Order', 'EFFICIENCY', 1, 10000000.0, 0, 'BROKER_FEE_REDUCTION', 15.0),
+        ('TECH-SCALE-1', 'Sindikasi Mandat AUM Elit', 'SCALE', 1, 20000000.0, 0, 'AUM_CAPACITY_BOOST', 50.0)
+    ]
+    cursor.executemany("""
+        INSERT INTO ResearchTechTreeProgress (NodeId, NodeName, Category, TierLevel, UpgradeCostCash, IsUnlocked, StatBonusType, StatBonusValue)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, tech_nodes)
+
     conn.commit()
     conn.close()
     print("[+] Database initialization and initial seeding complete!")

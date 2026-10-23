@@ -127,6 +127,8 @@ public final class TradingFacade {
     private final com.tradingglobal3d.core.boss.MarketBossService marketBossService = new com.tradingglobal3d.core.boss.MarketBossService();
     private final com.tradingglobal3d.core.risk.TaxAuditService taxAuditService = new com.tradingglobal3d.core.risk.TaxAuditService();
     private final com.tradingglobal3d.core.risk.PortfolioInsuranceService portfolioInsuranceService = new com.tradingglobal3d.core.risk.PortfolioInsuranceService();
+    private final com.tradingglobal3d.core.research.ResearchTechTreeService researchTechTreeService = new com.tradingglobal3d.core.research.ResearchTechTreeService();
+    private final com.tradingglobal3d.core.firm.HeadhuntingService headhuntingService = new com.tradingglobal3d.core.firm.HeadhuntingService();
     private final List<JSONObject> customMutualFunds = new ArrayList<>();
     private final Map<String, JSONObject> dayCloseReceipts = new LinkedHashMap<>();
     private final Map<String, JSONObject> skipDayReceipts = new LinkedHashMap<>();
@@ -2603,6 +2605,38 @@ public final class TradingFacade {
             arr.put(obj);
         }
         return arr;
+    }
+
+    public synchronized com.tradingglobal3d.core.research.ResearchTechTreeService getResearchTechTreeService() {
+        return researchTechTreeService;
+    }
+
+    public synchronized com.tradingglobal3d.core.firm.HeadhuntingService getHeadhuntingService() {
+        return headhuntingService;
+    }
+
+    public synchronized JSONArray getTechTreeJson() throws JSONException {
+        return researchTechTreeService.exportTree();
+    }
+
+    public synchronized JSONObject upgradeTechNode(String nodeId) throws JSONException {
+        Account personal = getPersonalAccount();
+        if (personal == null) return new JSONObject().put("success", false).put("message", "Akun tidak ditemukan");
+        com.tradingglobal3d.core.research.ResearchTechTreeService.TechNode n = researchTechTreeService.upgradeNode(nodeId, personal, ledger, clock.getGameTimestamp());
+        persistFinancialMutation();
+        return n.toJsonObject().put("success", true);
+    }
+
+    public synchronized JSONArray getHeadhuntingCandidatesJson() throws JSONException {
+        return headhuntingService.exportCandidates();
+    }
+
+    public synchronized JSONObject poachStaffCandidate(String candidateId) throws JSONException {
+        Account personal = getPersonalAccount();
+        if (personal == null) return new JSONObject().put("success", false).put("message", "Akun tidak ditemukan");
+        com.tradingglobal3d.core.firm.HeadhuntingService.Candidate c = headhuntingService.poachCandidate(candidateId, personal, ledger, clock.getGameTimestamp());
+        persistFinancialMutation();
+        return c.toJsonObject().put("success", true);
     }
 
     private String readStreamUtf8(InputStream is) throws IOException {

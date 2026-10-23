@@ -209,3 +209,28 @@ CREATE TABLE IF NOT EXISTS HoldingSubsidiaries (
     CompanyValuation DECIMAL(18, 4) NOT NULL DEFAULT 0,
     RetainedEarnings DECIMAL(18, 4) NOT NULL DEFAULT 0
 );
+
+-- 18. Pasar Bakat Analis & Headhunting (Fase 3 Fitur 10)
+CREATE TABLE IF NOT EXISTS StaffHeadhuntingMarket (
+    CandidateId TEXT PRIMARY KEY,
+    CandidateName TEXT NOT NULL,
+    RoleTitle TEXT NOT NULL,
+    SkillRating INTEGER NOT NULL,
+    PoachCost DECIMAL(18, 4) NOT NULL,
+    ExpectedSalary DECIMAL(18, 4) NOT NULL,
+    CurrentFirmEmployer TEXT NOT NULL,
+    LoyaltyScore DECIMAL(5, 2) NOT NULL DEFAULT 100.0,
+    IsHiredByPlayer INTEGER NOT NULL DEFAULT 0
+);
+
+-- 19. Pohon Riset Teknologi Finansial Tech Tree (Fase 3 Fitur 7)
+CREATE TABLE IF NOT EXISTS ResearchTechTreeProgress (
+    NodeId TEXT PRIMARY KEY,
+    NodeName TEXT NOT NULL,
+    Category TEXT NOT NULL, -- ALGO, EFFICIENCY, SCALE
+    TierLevel INTEGER NOT NULL,
+    UpgradeCostCash DECIMAL(18, 4) NOT NULL,
+    IsUnlocked INTEGER NOT NULL DEFAULT 0,
+    StatBonusType TEXT NOT NULL,
+    StatBonusValue DECIMAL(6, 2) NOT NULL
+);

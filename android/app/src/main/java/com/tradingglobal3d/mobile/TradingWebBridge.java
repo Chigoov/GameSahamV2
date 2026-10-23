@@ -352,6 +352,42 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String getTechTree() {
+        try {
+            return facade.getTechTreeJson().toString();
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    @JavascriptInterface
+    public String upgradeTechNode(String nodeId) {
+        try {
+            return facade.upgradeTechNode(nodeId).toString();
+        } catch (Exception error) {
+            return bridgeError(error);
+        }
+    }
+
+    @JavascriptInterface
+    public String getHeadhuntingCandidates() {
+        try {
+            return facade.getHeadhuntingCandidatesJson().toString();
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    @JavascriptInterface
+    public String poachStaffCandidate(String candidateId) {
+        try {
+            return facade.poachStaffCandidate(candidateId).toString();
+        } catch (Exception error) {
+            return bridgeError(error);
+        }
+    }
+
+    @JavascriptInterface
     public String getChartData(String instrumentId, String timeframe) {
         try {
             return facade.getChartData(instrumentId, timeframe).toString();
