@@ -185,3 +185,27 @@ CREATE TABLE IF NOT EXISTS PortfolioInsurancePolicy (
     PremiumPaid DECIMAL(18, 4) NOT NULL,
     IsClaimed INTEGER NOT NULL DEFAULT 0
 );
+
+-- 16. Produk Reksa Dana Kustom Pemain (Fase 3 Fitur 11)
+CREATE TABLE IF NOT EXISTS CustomMutualFunds (
+    FundId TEXT PRIMARY KEY,
+    FundName TEXT NOT NULL,
+    EquityWeightPct DECIMAL(5, 2) NOT NULL,
+    CommodityWeightPct DECIMAL(5, 2) NOT NULL,
+    CryptoWeightPct DECIMAL(5, 2) NOT NULL,
+    CashWeightPct DECIMAL(5, 2) NOT NULL,
+    TotalAUM DECIMAL(18, 4) NOT NULL DEFAULT 0,
+    ManagementFeePct DECIMAL(5, 2) NOT NULL DEFAULT 1.5,
+    PerformanceFeePct DECIMAL(5, 2) NOT NULL DEFAULT 15.0
+);
+
+-- 17. Anak Perusahaan Induk Konglomerasi (Fase 3 Fitur 4)
+CREATE TABLE IF NOT EXISTS HoldingSubsidiaries (
+    SubsidiaryId TEXT PRIMARY KEY,
+    SectorName TEXT NOT NULL,
+    CompanyName TEXT NOT NULL,
+    CapitalInjected DECIMAL(18, 4) NOT NULL DEFAULT 0,
+    CurrentCash DECIMAL(18, 4) NOT NULL DEFAULT 0,
+    CompanyValuation DECIMAL(18, 4) NOT NULL DEFAULT 0,
+    RetainedEarnings DECIMAL(18, 4) NOT NULL DEFAULT 0
+);

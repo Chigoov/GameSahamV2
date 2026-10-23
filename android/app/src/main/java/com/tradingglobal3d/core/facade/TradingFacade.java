@@ -127,6 +127,7 @@ public final class TradingFacade {
     private final com.tradingglobal3d.core.boss.MarketBossService marketBossService = new com.tradingglobal3d.core.boss.MarketBossService();
     private final com.tradingglobal3d.core.risk.TaxAuditService taxAuditService = new com.tradingglobal3d.core.risk.TaxAuditService();
     private final com.tradingglobal3d.core.risk.PortfolioInsuranceService portfolioInsuranceService = new com.tradingglobal3d.core.risk.PortfolioInsuranceService();
+    private final List<JSONObject> customMutualFunds = new ArrayList<>();
     private final Map<String, JSONObject> dayCloseReceipts = new LinkedHashMap<>();
     private final Map<String, JSONObject> skipDayReceipts = new LinkedHashMap<>();
     private final Map<String, StrategyLabSandbox> strategyLabs = new LinkedHashMap<>();
@@ -2559,6 +2560,49 @@ public final class TradingFacade {
         return new JSONObject().put("success", true)
                 .put("bailoutRelief", bailoutRelief.format())
                 .put("message", "Restrukturisasi kebangkrutan berhasil. Dana talangan masuk ke kas.");
+    }
+
+    public synchronized JSONObject createCustomMutualFund(String fundName, double eqPct, double commPct, double cryptoPct, double cashPct, BigDecimal aum) throws JSONException {
+        if (fundName == null || fundName.trim().isEmpty()) throw new IllegalArgumentException("Nama reksa dana wajib diisi");
+        double totalPct = eqPct + commPct + cryptoPct + cashPct;
+        if (Math.abs(totalPct - 100.0) > 0.01) throw new IllegalArgumentException("Total alokasi aset harus 100%");
+
+        String fundId = "FUND-CUST-" + (customMutualFunds.size() + 1);
+        JSONObject obj = new JSONObject();
+        obj.put("fundId", fundId);
+        obj.put("fundName", fundName);
+        obj.put("equityWeightPct", eqPct);
+        obj.put("commodityWeightPct", commPct);
+        obj.put("cryptoWeightPct", cryptoPct);
+        obj.put("cashWeightPct", cashPct);
+        obj.put("totalAum", Money.of(aum != null ? aum.doubleValue() : 25_000_000L, Currency.IDR).format());
+        obj.put("managementFeePct", "1.5%");
+        obj.put("performanceFeePct", "15.0%");
+        customMutualFunds.add(obj);
+        persistFinancialMutation();
+        return obj;
+    }
+
+    public synchronized JSONArray getCustomMutualFundsJson() {
+        JSONArray arr = new JSONArray();
+        for (JSONObject f : customMutualFunds) arr.put(f);
+        return arr;
+    }
+
+    public synchronized JSONArray getHoldingSubsidiariesJson() throws JSONException {
+        JSONArray arr = new JSONArray();
+        for (com.tradingglobal3d.core.business.OperatingCompany c : companyManager.getAllCompanies()) {
+            JSONObject obj = new JSONObject();
+            obj.put("companyId", c.getId());
+            obj.put("companyName", c.getName());
+            obj.put("sector", c.getSector());
+            Account compAcc = accounts.get(c.getAccountId());
+            Money cash = compAcc != null ? compAcc.getTotalCash(Currency.IDR) : Money.zero(Currency.IDR);
+            obj.put("currentCash", cash.format());
+            obj.put("morale", c.getMorale());
+            arr.put(obj);
+        }
+        return arr;
     }
 
     private String readStreamUtf8(InputStream is) throws IOException {

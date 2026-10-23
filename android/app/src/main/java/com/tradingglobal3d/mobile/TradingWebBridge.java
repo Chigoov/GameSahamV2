@@ -322,6 +322,36 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String createCustomMutualFund(String jsonReq) {
+        try {
+            JSONObject req = new JSONObject(jsonReq);
+            String name = req.getString("fundName");
+            double eq = req.getDouble("equityWeightPct");
+            double comm = req.getDouble("commodityWeightPct");
+            double crypto = req.getDouble("cryptoWeightPct");
+            double cash = req.getDouble("cashWeightPct");
+            BigDecimal aum = req.has("aum") ? new BigDecimal(req.getString("aum")) : null;
+            return facade.createCustomMutualFund(name, eq, comm, crypto, cash, aum).toString();
+        } catch (Exception error) {
+            return bridgeError(error);
+        }
+    }
+
+    @JavascriptInterface
+    public String getCustomMutualFunds() {
+        return facade.getCustomMutualFundsJson().toString();
+    }
+
+    @JavascriptInterface
+    public String getHoldingSubsidiaries() {
+        try {
+            return facade.getHoldingSubsidiariesJson().toString();
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    @JavascriptInterface
     public String getChartData(String instrumentId, String timeframe) {
         try {
             return facade.getChartData(instrumentId, timeframe).toString();

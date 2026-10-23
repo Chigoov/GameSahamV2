@@ -175,6 +175,26 @@ def init_database():
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, time_deposits)
 
+    # 10. Inisialisasi Reksa Dana Kustom & Anak Usaha Holding (Fase 3 Fitur 4 & 11)
+    custom_funds = [
+        ('FUND-CUST-01', 'Nusantara Racikan Dinamis', 50.0, 20.0, 20.0, 10.0, 50000000.0, 1.5, 15.0),
+        ('FUND-CUST-02', 'Nusantara Aset Masa Depan', 30.0, 30.0, 30.0, 10.0, 25000000.0, 2.0, 20.0)
+    ]
+    cursor.executemany("""
+        INSERT INTO CustomMutualFunds (FundId, FundName, EquityWeightPct, CommodityWeightPct, CryptoWeightPct, CashWeightPct, TotalAUM, ManagementFeePct, PerformanceFeePct)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, custom_funds)
+
+    subsidiaries = [
+        ('SUB-FIN-01', 'Keuangan & Fintech', 'PT Nusantara Modal Ventura', 50000000.0, 25000000.0, 75000000.0, 5000000.0),
+        ('SUB-NRG-01', 'Energi & Sumber Daya', 'PT Surya Energi Hijau', 100000000.0, 40000000.0, 150000000.0, 12000000.0),
+        ('SUB-TECH-01', 'Teknologi & Digital', 'PT Cipta Solusi AI', 75000000.0, 30000000.0, 120000000.0, 8000000.0)
+    ]
+    cursor.executemany("""
+        INSERT INTO HoldingSubsidiaries (SubsidiaryId, SectorName, CompanyName, CapitalInjected, CurrentCash, CompanyValuation, RetainedEarnings)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, subsidiaries)
+
     conn.commit()
     conn.close()
     print("[+] Database initialization and initial seeding complete!")

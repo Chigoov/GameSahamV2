@@ -47,6 +47,19 @@ public final class FundBuilderService {
                 Money.of(1_450_000, Currency.IDR)
         );
         commodities.put(gold.getId(), gold);
+
+        // Aset Kripto Digital Spot 24 Jam (Fase 3 Fitur 12)
+        CommodityInstrument btc = new CommodityInstrument(
+                "COMM:BTC", "BTC", "Bitcoin Digital Spot 24 Jam", "Koin", Currency.IDR,
+                Money.of(1_050_000_000L, Currency.IDR)
+        );
+        commodities.put(btc.getId(), btc);
+
+        CommodityInstrument eth = new CommodityInstrument(
+                "COMM:ETH", "ETH", "Ethereum Digital Spot 24 Jam", "Koin", Currency.IDR,
+                Money.of(42_000_000L, Currency.IDR)
+        );
+        commodities.put(eth.getId(), eth);
     }
 
     public synchronized void reset() {

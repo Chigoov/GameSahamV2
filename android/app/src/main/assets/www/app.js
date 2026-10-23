@@ -1118,6 +1118,7 @@
             flowButton(summary, 'Audit Pajak & Kepatuhan Risiko', () => openTaxAuditModal());
             flowButton(summary, 'Asuransi Portofolio (Hedging)', () => openPortfolioInsuranceModal());
             flowButton(summary, 'Restrukturisasi Darurat (Turnaround)', () => executeBailoutAction());
+            flowButton(summary, 'Racik Reksa Dana Kustom', () => openCustomFundBuilderModal());
             flowButton(summary, 'Aksi korporasi & voting RUPS', () => openCorporateActionModal());
             flowButton(summary, 'Uji stres portofolio', () => openStressTestModal());
             flowButton(summary, 'Lab strategi & sandbox what-if', () => openStrategyLabModal());
@@ -4616,6 +4617,87 @@
                 alert('Restrukturisasi belum dapat diproses: ' + (res.message || 'Periksa kondisi keuangan Anda'));
             }
         } catch(e) { alert('Galat restrukturisasi: ' + e.message); }
+    }
+
+    function openCustomFundBuilderModal() {
+        const panel = showFlow('Meracik Reksa Dana Kustom');
+        flowText(panel, 'Rekayasa Portofolio Mandiri', 'Rancang alokasi aset campuran (Saham, Komoditas, Kripto, Kas) dan terbitkan unit reksa dana untuk menarik dana kelolaan nasabah.');
+
+        const card = node('section', 'card');
+        card.innerHTML = `
+            <h3 style="font-size:1.05rem; color:#FFF; margin-bottom:10px;">Komposisi Alokasi Aset (Total 100%)</h3>
+            <label for="fund-name-input">Nama Produk Reksa Dana</label>
+            <input id="fund-name-input" class="input-field" type="text" value="Nusantara Racikan Mandiri" style="margin-bottom:12px;">
+
+            <div class="data-row"><span>Saham Ekuitas (%)</span><input id="alloc-eq" class="input-field" type="number" value="40" style="max-width:100px;"></div>
+            <div class="data-row"><span>Komoditas Emas (%)</span><input id="alloc-comm" class="input-field" type="number" value="30" style="max-width:100px;"></div>
+            <div class="data-row"><span>Aset Kripto (%)</span><input id="alloc-crypto" class="input-field" type="number" value="20" style="max-width:100px;"></div>
+            <div class="data-row"><span>Cadangan Kas (%)</span><input id="alloc-cash" class="input-field" type="number" value="10" style="max-width:100px;"></div>
+
+            <div style="margin-top:14px; padding:12px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid rgba(255,255,255,0.08);">
+                <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:6px;">DIAGRAM ALOKASI (PIE / BAR PREVIEW)</div>
+                <div style="display:flex; height:20px; border-radius:8px; overflow:hidden;">
+                    <span style="background:var(--teal); width:40%;" title="Saham 40%"></span>
+                    <span style="background:var(--gold); width:30%;" title="Komoditas 30%"></span>
+                    <span style="background:#9945FF; width:20%;" title="Kripto 20%"></span>
+                    <span style="background:#71819A; width:10%;" title="Kas 10%"></span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.68rem; color:var(--text-muted); margin-top:4px;">
+                    <span style="color:var(--teal);">■ Saham 40%</span>
+                    <span style="color:var(--gold);">■ Komoditas 30%</span>
+                    <span style="color:#C4A1FF;">■ Kripto 20%</span>
+                    <span style="color:#A0AEC0;">■ Kas 10%</span>
+                </div>
+            </div>
+
+            <button id="btn-create-custom-fund" class="btn-primary" style="margin-top:14px;">Terbitkan Reksa Dana Kustom</button>
+        `;
+        panel.appendChild(card);
+
+        // Daftar produk yang sudah diterbitkan
+        if (bridge.getCustomMutualFunds) {
+            try {
+                const funds = JSON.parse(bridge.getCustomMutualFunds());
+                if (funds && funds.length) {
+                    const listCard = node('section', 'card');
+                    listCard.style.marginTop = '12px';
+                    listCard.append(node('h3', '', `Reksa Dana Kustom Terbit (${funds.length} Produk)`));
+                    funds.forEach(f => {
+                        const row = node('div', 'data-row');
+                        row.append(
+                            node('div', '', `${f.fundName} (Saham ${f.equityWeightPct}% · Emas ${f.commodityWeightPct}% · Kripto ${f.cryptoWeightPct}% · Kas ${f.cashWeightPct}%)`),
+                            node('strong', '', f.totalAum || 'Rp 25.000.000')
+                        );
+                        listCard.append(row);
+                    });
+                    panel.appendChild(listCard);
+                }
+            } catch(e) {}
+        }
+
+        setTimeout(() => {
+            const btn = document.getElementById('btn-create-custom-fund');
+            if (btn) {
+                btn.onclick = () => {
+                    const name = document.getElementById('fund-name-input').value.trim();
+                    const eq = Number(document.getElementById('alloc-eq').value) || 0;
+                    const comm = Number(document.getElementById('alloc-comm').value) || 0;
+                    const crypto = Number(document.getElementById('alloc-crypto').value) || 0;
+                    const cash = Number(document.getElementById('alloc-cash').value) || 0;
+                    if (Math.abs(eq + comm + crypto + cash - 100) > 0.1) {
+                        alert('Total alokasi harus persis 100%! Saat ini: ' + (eq + comm + crypto + cash) + '%');
+                        return;
+                    }
+                    try {
+                        const payload = { fundName: name, equityWeightPct: eq, commodityWeightPct: comm, cryptoWeightPct: crypto, cashWeightPct: cash, aum: "25000000" };
+                        const res = JSON.parse(bridge.createCustomMutualFund(JSON.stringify(payload)));
+                        alert(`Reksa dana kustom ${res.fundName} berhasil diterbitkan dengan dana kelolaan awal ${res.totalAum}!`);
+                        refreshSnapshot();
+                        openCustomFundBuilderModal();
+                    } catch(err) { alert('Gagal menerbitkan: ' + err.message); }
+                };
+            }
+        }, 100);
     }
 
     function openTransactionHistoryModal(selectedAccountId = null) {
