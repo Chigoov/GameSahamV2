@@ -32,7 +32,7 @@ def evaluate_benchmark(results):
     failures = []
     actions = results.get("actions", {})
     
-    # 1. Navigation tabs: 5 tabs, each >= 30 samples, max <= 1000ms
+    # Four root tabs plus market research, each >=30 samples, max <=1000ms.
     tabs = ['beranda', 'pasar', 'aset', 'firma', 'riset']
     for tab in tabs:
         key = f"nav_{tab}"
@@ -142,15 +142,19 @@ def run_benchmark(output_dir=None):
             page = browser.new_page(viewport={'width': 390, 'height': 844})
             page.goto('http://127.0.0.1:8784/')
             page.wait_for_load_state('networkidle')
+            founded = page.evaluate('''() => JSON.parse(TradingNativeBridge.foundCompany(JSON.stringify({id:'COMP-BENCHMARK',name:'Perusahaan Uji Performa',sector:'JASA',capital:'25000000'})))''')
+            assert founded.get('success'), founded
 
-            # 1. Navigation Benchmark (32 samples for each of 5 tabs)
+            # Four root tabs plus the secondary market research route retain separate samples.
             tabs = ['beranda', 'pasar', 'aset', 'firma', 'riset']
             nav_samples = {tab: [] for tab in tabs}
-            print("Measuring Navigation performance (32 rounds across 5 tabs)...")
+            print("Measuring navigation (32 rounds across four root tabs plus research)...")
             for round_idx in range(32):
                 for tab in tabs:
                     t0 = time.perf_counter()
-                    page.locator(f'[data-tab="{tab}"]').click()
+                    page.locator(f'[data-tab="{"pasar" if tab == "riset" else tab}"]').click()
+                    if tab == 'riset':
+                        page.locator('#btn-market-research').click()
                     page.wait_for_selector(f'#view-{tab}.active')
                     t1 = time.perf_counter()
                     nav_samples[tab].append((t1 - t0) * 1000.0)
@@ -212,13 +216,17 @@ def run_benchmark(output_dir=None):
             # 4. Ordinary Action 3: Company Sub-tab Switch (32 samples)
             print("Measuring Company Sub-tab switch (32 samples)...")
             page.locator('[data-tab="firma"]').click()
+            company = page.locator('[data-company-id]').first
+            assert company.count() == 1, 'Company subtab benchmark needs a real company in its isolated QA save'
+            company.get_by_role('button', name='Kelola Usaha & Operasional', exact=False).click()
             subtab_samples = []
             for i in range(32):
-                tab_target = "👥 Divisi SDM" if i % 2 == 0 else "📊 Status Utama"
+                tab_target = 'Tim & SDM' if i % 2 == 0 else 'Ringkasan'
                 t0 = time.perf_counter()
-                page.locator(f'button.subtab-pill:has-text("{tab_target}")').click()
+                page.locator('.company-local-nav').get_by_role('button', name=tab_target, exact=True).click()
                 t1 = time.perf_counter()
                 subtab_samples.append((t1 - t0) * 1000.0)
+            page.locator('.back-button').click()
 
             results["actions"]["company_subtab_switch"] = {
                 "count": len(subtab_samples),
@@ -236,7 +244,7 @@ def run_benchmark(output_dir=None):
             ps_samples = []
             for i in range(32):
                 t0 = time.perf_counter()
-                page.locator('button:has-text("Mode Grafis:")').click()
+                page.get_by_role('button', name='Hemat daya:', exact=False).click()
                 t1 = time.perf_counter()
                 ps_samples.append((t1 - t0) * 1000.0)
 

@@ -27,22 +27,24 @@ async function run() {
     // =========================================================================
     console.log("=== STEP 1: Game Initialization & Navigation ===");
     for (const tab of ['beranda', 'pasar', 'aset', 'firma', 'riset']) {
-        await page.click(`button.nav-item[data-tab="${tab}"]`);
+        await page.click(`button.nav-item[data-tab="${tab === 'riset' ? 'pasar' : tab}"]`);
+        if (tab === 'riset') await page.click('#btn-market-research');
         await page.waitForSelector(`#view-${tab}.active`, { timeout: 3000 });
     }
     await page.click('button.nav-item[data-tab="beranda"]');
     await page.waitForSelector('#view-beranda.active');
-    checks.push("STEP 1: 5-Tab Navigation verified");
+    checks.push("STEP 1: Four primary tabs and the research route verified");
 
     // =========================================================================
     // STEP 2: Hibah Harian 00.00 WIB (A12)
     // =========================================================================
     console.log("=== STEP 2: Hibah Harian Asia/Jakarta (A12) ===");
+    await page.locator('.home-secondary > summary').click();
     const claimBtn = page.locator('#btn-claim-sponsor');
     const claimBtnText = (await claimBtn.textContent()).trim();
     console.log("Claim button text:", claimBtnText);
 
-    if (claimBtnText.includes('Rp 25 Juta')) {
+    if (await claimBtn.isEnabled()) {
         await claimBtn.click();
         await page.waitForSelector('.game-toast', { timeout: 5000 });
         await page.waitForTimeout(1000);
@@ -133,11 +135,10 @@ async function run() {
     // STEP 5: Riwayat Transaksi & Liga Peringkat (A2, A8)
     // =========================================================================
     console.log("=== STEP 5: Riwayat Transaksi & Liga Peringkat (A2, A8) ===");
-    await page.click('button.nav-item[data-tab="riset"]');
-    await page.waitForSelector('#view-riset', { timeout: 5000 });
+    await page.locator('#asset-tools > summary').click();
 
     // Buka Riwayat Transaksi
-    await page.click('#view-riset button.shortcut:has-text("Riwayat Transaksi")');
+    await page.click('#asset-tools button:has-text("Riwayat Transaksi")');
     await page.waitForSelector('.flow-page[aria-label="Riwayat Transaksi"]', { timeout: 5000 });
     const recordsCount = await page.locator('.flow-page article.card').count();
     console.log(`Transaction history records count: ${recordsCount}`);
@@ -146,7 +147,8 @@ async function run() {
     await page.waitForTimeout(500);
 
     // Buka Liga & Peringkat
-    await page.click('#view-riset button:has-text("Lihat Peringkat Lengkap & Rival")');
+    await page.click('button.nav-item[data-tab="firma"]');
+    await page.click('#career-overview button:has-text("Liga & Rival")');
     await page.waitForSelector('.flow-page[aria-label="Liga & rival"]', { timeout: 5000 });
     const podiumExists = await page.locator('.leaderboard-podium').count();
     console.log("Podium exists:", podiumExists === 1);
@@ -158,22 +160,29 @@ async function run() {
     // STEP 6: Profil Saya 5-Seksi (A10)
     // =========================================================================
     console.log("=== STEP 6: Profil Saya 5-Seksi (A10) ===");
-    await page.click('#view-riset button.shortcut:has-text("Profil Saya")');
+    await page.click('#btn-profile');
     await page.waitForSelector('.flow-page[aria-label="Profil Saya"]', { timeout: 5000 });
 
-    for (const secTitle of ["1. Identitas & Karier", "2. Ringkasan Keuangan", "3. Statistik Trading", "4. Performa & Pencapaian", "5. Pengaturan Identitas & Aksesibilitas"]) {
-        const c = await page.locator(`.flow-page h2:has-text("${secTitle}")`).count();
-        if (c !== 1) throw new Error(`Seksi '${secTitle}' tidak ditemukan di Profil Saya!`);
+    if (!(await page.locator('.flow-page .wealth-hero').first().innerText()).includes('Karier')) throw new Error('Identitas & karier profil hilang');
+    for (const [tab, sections, metrics] of [
+        ['Kinerja', ['Statistik Trading & Return'], ['Total order terealisasi', 'Transaksi untung / rugi', 'Rasio menang', 'Transaksi terbaik', 'Transaksi terburuk', 'ROI mingguan']],
+        ['Keuangan', ['Portofolio & Struktur Aset/Utang'], ['Kas pribadi IDR', 'Kas pribadi USD', 'Portofolio saham', 'Koleksi aset mewah', 'Reksa dana NAB', 'Kewajiban utang margin', 'Dana kelolaan klien']],
+        ['Pencapaian', ['Pencapaian & Peringkat Liga', 'Pengaturan Identitas & Aksesibilitas'], ['Puncak kekayaan tertinggi', 'Hari perjalanan era aktif', 'Total hari bermain', 'Peringkat liga saat ini']]
+    ]) {
+        await page.locator('.profile-subtabs-nav').getByRole('button', {name: tab, exact: true}).click();
+        for (const title of sections) if (await page.locator('.flow-page').getByRole('heading', {name: title, exact: true}).count() !== 1) throw new Error(`Seksi '${title}' tidak ditemukan di Profil Saya`);
+        const text = await page.locator('.flow-page').innerText();
+        for (const metric of metrics) if (!text.includes(metric)) throw new Error(`Metric profil hilang: ${metric}`);
     }
     await page.click('.flow-page button.back-button');
     await page.waitForTimeout(500);
-    checks.push("STEP 6: Profil Saya 5 comprehensive sections verified");
+    checks.push("STEP 6: Profile identity and original financial/trading/achievement/preferences metrics verified across all three tabs");
 
     // =========================================================================
     // STEP 7: Era Baru Status & Checklist (A5, A6, A7)
     // =========================================================================
     console.log("=== STEP 7: Era Baru Status & Checklist (A5, A6, A7) ===");
-    const eraCard = page.locator('#view-riset section.card:has-text("Era Baru")');
+    const eraCard = page.locator('#career-overview section.card').filter({has: page.getByRole('heading', {name: /Era baru/i, exact: true})});
     if (await eraCard.count() !== 1) throw new Error("Era Baru card missing");
     const seeReqBtn = eraCard.locator('button:has-text("Lihat Syarat")');
     await seeReqBtn.click();
@@ -229,7 +238,7 @@ async function run() {
     await page.waitForSelector('.game-toast', { timeout: 5000 });
     await page.waitForTimeout(1000);
 
-    const ownedBadge = (await page.locator('.collection-section-group:has-text("Sudah Dimiliki") .badge').textContent()).trim();
+    const ownedBadge = (await page.locator('.collection-section-group:has-text("Sudah Dimiliki") h2 .badge-owned').textContent()).trim();
     if (ownedBadge === '0') throw new Error("Koleksi yang dibeli harus masuk ke Sudah Dimiliki (count > 0)!");
 
     // Jual kembali

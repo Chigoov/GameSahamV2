@@ -49,7 +49,7 @@ def run_tests(output_dir=None):
         page.locator('#btn-settings').click()
         page.wait_for_selector('.flow-page')
         is_toast_inert = page.evaluate('() => document.getElementById("toast-container").inert')
-        is_main_inert = page.evaluate('() => document.getElementById("main-content").inert')
+        is_main_inert = page.evaluate('() => !!document.getElementById("main-content").closest("[inert]")')
         assert is_toast_inert is False, f"Toast container must NOT be inert when modal is open (got: {is_toast_inert})"
         assert is_main_inert is True, f"Main content must be inert when modal is open (got: {is_main_inert})"
         checks.append("T1 (A11y): #toast-container remains active (inert=false) while main is inert during flow modal")
@@ -59,11 +59,17 @@ def run_tests(output_dir=None):
         # -------------------------------------------------------------
         # TEST 2: Contrast & Readability of Financial Text (N4)
         # -------------------------------------------------------------
-        home_ticker_color = page.locator('#home-market-list .stock-ticker').first.evaluate('el => getComputedStyle(el).color')
-        home_price_color = page.locator('#home-market-list .stock-price').first.evaluate('el => getComputedStyle(el).color')
-        assert home_ticker_color == 'rgb(255, 255, 255)', f"Home ticker must be rgb(255, 255, 255), got {home_ticker_color}"
-        assert home_price_color == 'rgb(255, 255, 255)', f"Home price must be rgb(255, 255, 255), got {home_price_color}"
-        checks.append(f"T2 (N4): Financial text on Beranda (.stock-ticker & .stock-price) has high-contrast color {home_ticker_color}")
+        contrast = page.locator('#home-market-list .stock-ticker, #home-market-list .stock-price').evaluate_all('''elements => {
+            const rgba = value => { const a=value.match(/[\\d.]+/g).map(Number);return [a[0],a[1],a[2],a[3]??1]; };
+            const blend = (a,b) => [...a.slice(0,3).map((v,i)=>v*a[3]+b[i]*(1-a[3])),1];
+            const luminance = c => c.slice(0,3).map(v=>v/255).map(v=>v<=.03928?v/12.92:((v+.055)/1.055)**2.4).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
+            return elements.map(el=>{let ancestors=[];for(let p=el;p;p=p.parentElement)ancestors.push(p);
+                const bg=ancestors.reverse().reduce((back,p)=>blend(rgba(getComputedStyle(p).backgroundColor),back),[0,0,0,1]);
+                const fg=blend(rgba(getComputedStyle(el).color),bg),a=luminance(fg),b=luminance(bg);
+                return {text:el.textContent,ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)};});
+        }''')
+        assert contrast and all(item['ratio'] >= 4.5 for item in contrast), contrast
+        checks.append(f"T2 (N4): Actual financial text/background WCAG contrast >= 4.5:1; minimum {min(item['ratio'] for item in contrast):.3f}:1")
 
         account_id = page.evaluate('() => JSON.parse(TradingNativeBridge.getSnapshot()).personalAccount.id')
 
@@ -84,13 +90,13 @@ def run_tests(output_dir=None):
             }
         }''')
 
-        # Convert 5.000.000 IDR to USD so account has USD funds for US trading
+        # Fund two US shares plus fees with 10.000.000 IDR.
         fx_req = 'FX-LIVE-' + str(uuid.uuid4())
         fx_preview = page.evaluate(f'''() => JSON.parse(TradingNativeBridge.previewFx(JSON.stringify({{
-            "accountId": "{account_id}", "from": "IDR", "to": "USD", "amount": "5000000"
+            "accountId": "{account_id}", "from": "IDR", "to": "USD", "amount": "10000000"
         }})))''')
         assert fx_preview.get('success') is True, fx_preview
-        fx_confirm = {"requestId": fx_req, "accountId": account_id, "quoteId": fx_preview["quoteId"], "from": "IDR", "to": "USD", "amount": "5000000"}
+        fx_confirm = {"requestId": fx_req, "accountId": account_id, "quoteId": fx_preview["quoteId"], "from": "IDR", "to": "USD", "amount": "10000000"}
         fx_res = page.evaluate('(req) => JSON.parse(TradingNativeBridge.confirmFx(JSON.stringify(req)))', fx_confirm)
         assert fx_res.get('success') is True, fx_res
 
@@ -137,6 +143,13 @@ def run_tests(output_dir=None):
         page.locator('.back-button').click()
 
         # 4b. Buy 2 shares of US:AAPL via UI (US stock lotSize = 1)
+        page.evaluate('''() => {
+            const s=JSON.parse(TradingNativeBridge.getSnapshot());const d=new Date(s.clock.timestamp+7*3600000);
+            const seconds=d.getUTCHours()*3600+d.getUTCMinutes()*60+d.getUTCSeconds();
+            const delta=(21*3600+30*60-seconds+86400)%86400;
+            TradingNativeBridge.setClockState(true,1);TradingNativeBridge.tickClock(Math.ceil(delta/s.clock.rate));TradingNativeBridge.setClockState(false,1);
+        }''')
+        assert page.evaluate('JSON.parse(TradingNativeBridge.getSnapshot()).clock.isUsTradingOpen'), 'US market must be open before the real order'
         page.locator('#filter-exchange-select').select_option('US')
         page.locator('#search-stock-input').fill('AAPL')
         page.wait_for_selector('#stock-list-container .stock-list-item')
@@ -317,7 +330,7 @@ def run_tests(output_dir=None):
         page.wait_for_selector('#view-firma.active')
         page.wait_for_selector('[data-company-id]')
 
-        init_comp_cash_dom = page.locator('[data-company-id] .data-row:has(span:text("Saldo kas perusahaan")) strong').first.text_content()
+        init_comp_cash_dom = page.locator('[data-company-id] .data-row:has(span:text("Kas operasional")) strong').first.text_content()
         target_comp_id = page.locator('[data-company-id]').first.get_attribute('data-company-id')
 
         # Transfer 1.000.000 capital from company to personal
@@ -331,14 +344,14 @@ def run_tests(output_dir=None):
 
         page.wait_for_function(
             '''([cid, expected]) => {
-                const el = Array.from(document.querySelectorAll(`[data-company-id="${cid}"] .data-row`)).find(r => r.querySelector('span')?.textContent === 'Saldo kas perusahaan');
+                const el = Array.from(document.querySelectorAll(`[data-company-id="${cid}"] .data-row`)).find(r => r.querySelector('span')?.textContent === 'Kas operasional');
                 return el && el.querySelector('strong')?.textContent === expected;
             }''',
             arg=[target_comp_id, expected_comp_cash],
             timeout=5000
         )
 
-        updated_comp_cash_dom = page.locator(f'[data-company-id="{target_comp_id}"] .data-row:has(span:text("Saldo kas perusahaan")) strong').first.text_content()
+        updated_comp_cash_dom = page.locator(f'[data-company-id="{target_comp_id}"] .data-row:has(span:text("Kas operasional")) strong').first.text_content()
         assert updated_comp_cash_dom == expected_comp_cash, f"Company cash DOM must match expected: {updated_comp_cash_dom} vs {expected_comp_cash}"
         checks.append(f"T9 (R3): Bisnis tab company cash live-synced in-place to exact domain amount: {updated_comp_cash_dom}")
 

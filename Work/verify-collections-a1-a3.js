@@ -17,7 +17,11 @@ async function run() {
     page.on('console', msg => console.log('PAGE LOG:', msg.text()));
 
     await page.goto(`http://127.0.0.1:${port}/`);
+    await page.locator('.home-secondary > summary').click();
     await page.waitForSelector('#btn-home-collections', { timeout: 10000 });
+    const catalogue = await page.evaluate(() => JSON.parse(TradingNativeBridge.getCollections()).collections);
+    const initialOwned = catalogue.filter(item => item.owned || item.isOwned).length;
+    const initialUnowned = catalogue.length - initialOwned;
 
     // 1. Buka Modal Galeri Koleksi
     console.log("Opening Collections Gallery modal...");
@@ -33,19 +37,22 @@ async function run() {
 
     console.log("Card list innerHTML:", await page.locator('#collections-card-list').innerHTML());
     const unownedBadge = (await unownedSec.locator('.badge').first().textContent()).trim();
-    const ownedBadge = (await ownedSec.locator('.badge').first().textContent()).trim();
+    const ownedBadge = (await ownedSec.locator('h2 .badge-owned').textContent()).trim();
     console.log(`Initial counts - Belum Dimiliki: ${unownedBadge}, Sudah Dimiliki: ${ownedBadge}`);
-    if (unownedBadge !== '12' || ownedBadge !== '0') {
+    if (Number(unownedBadge) !== initialUnowned || Number(ownedBadge) !== initialOwned) {
         throw new Error(`Initial count salah: Belum=${unownedBadge}, Sudah=${ownedBadge}`);
     }
 
     // 3. Verifikasi Filter Kategori (misal Kendaraan)
-    await page.locator('.category-pills button:has-text("Kendaraan")').click();
+    const category = catalogue[0].category.toUpperCase();
+    await page.locator('.category-pills button').nth(1).click();
     await page.waitForTimeout(500);
     const vehicleCards = page.locator('.collection-item-card');
     const vCount = await vehicleCards.count();
     console.log(`Vehicle category count: ${vCount}`);
-    if (vCount !== 3) throw new Error(`Kendaraan harus ada 3, aktual: ${vCount}`);
+    const expectedVehicles = catalogue.filter(item => item.category.toUpperCase() === category);
+    if (vCount !== expectedVehicles.length) throw new Error(`Kategori ${category} harus cocok domain: ${expectedVehicles.length}, aktual: ${vCount}`);
+    for (const item of expectedVehicles) if (await page.locator(`.collection-item-card[data-collection-id="${item.id}"]`).count() !== 1) throw new Error(`Aset kategori hilang: ${item.id}`);
 
     // Kembali ke Semua Kategori
     await page.locator('.category-pills button:has-text("Semua")').click();
@@ -61,17 +68,17 @@ async function run() {
     await page.waitForTimeout(1000);
 
     // Verifikasi setelah beli: card berpindah ke Sudah Dimiliki
-    const unownedAfter = (await page.locator('.collection-section-group:has-text("Belum Dimiliki") .badge').textContent()).trim();
-    const ownedAfter = (await page.locator('.collection-section-group:has-text("Sudah Dimiliki") .badge').textContent()).trim();
+    const unownedAfter = (await page.locator('.collection-section-group:has-text("Belum Dimiliki") h2 .badge').textContent()).trim();
+    const ownedAfter = (await page.locator('.collection-section-group:has-text("Sudah Dimiliki") h2 .badge-owned').textContent()).trim();
     console.log(`After buy counts - Belum Dimiliki: ${unownedAfter}, Sudah Dimiliki: ${ownedAfter}`);
-    if (unownedAfter !== '11' || ownedAfter !== '1') {
+    if (Number(unownedAfter) !== initialUnowned - 1 || Number(ownedAfter) !== initialOwned + 1) {
         throw new Error(`After buy count mismatch: Belum=${unownedAfter}, Sudah=${ownedAfter}`);
     }
 
     // Periksa kartu di Sudah Dimiliki memiliki badge ✓ Dimiliki dan tombol Jual Koleksi
     const ownedCard = page.locator('.collection-section-group:has-text("Sudah Dimiliki") .collection-item-card.owned-luxury');
     if (await ownedCard.count() !== 1) throw new Error("Harus ada 1 kartu dengan class owned-luxury di Sudah Dimiliki");
-    const badgeOwned = await ownedCard.locator('.badge-owned:has-text("✓ Dimiliki")').count();
+    const badgeOwned = await ownedCard.locator('.badge-owned:has-text("Dimiliki")').count();
     if (badgeOwned !== 1) throw new Error("Kartu harus memiliki badge ✓ Dimiliki");
 
     // Tangkap screenshot bukti A1 & A3
@@ -93,7 +100,7 @@ async function run() {
     await page.waitForTimeout(500);
     const filteredUnowned = await page.locator('.collection-item-card').count();
     console.log(`Filtered unowned count: ${filteredUnowned}`);
-    if (filteredUnowned !== 11) throw new Error(`Filter Belum Dimiliki harus tampil tepat 11 item, aktual: ${filteredUnowned}`);
+    if (filteredUnowned !== initialUnowned - 1) throw new Error(`Filter Belum Dimiliki harus cocok domain sesudah beli, aktual: ${filteredUnowned}`);
 
     // 7. Kembalikan ke Semua Status dan Jual kembali
     console.log("Selling item back...");
@@ -104,10 +111,10 @@ async function run() {
     await page.waitForSelector('.game-toast:has-text("Koleksi Berhasil Terjual")', { timeout: 5000 });
     await page.waitForTimeout(1000);
 
-    const finalUnowned = (await page.locator('.collection-section-group:has-text("Belum Dimiliki") .badge').textContent()).trim();
-    const finalOwned = (await page.locator('.collection-section-group:has-text("Sudah Dimiliki") .badge').textContent()).trim();
+    const finalUnowned = (await page.locator('.collection-section-group:has-text("Belum Dimiliki") h2 .badge').textContent()).trim();
+    const finalOwned = (await page.locator('.collection-section-group:has-text("Sudah Dimiliki") h2 .badge-owned').textContent()).trim();
     console.log(`After sell counts - Belum Dimiliki: ${finalUnowned}, Sudah Dimiliki: ${finalOwned}`);
-    if (finalUnowned !== '12' || finalOwned !== '0') {
+    if (Number(finalUnowned) !== initialUnowned || Number(finalOwned) !== initialOwned) {
         throw new Error(`After sell count mismatch: Belum=${finalUnowned}, Sudah=${finalOwned}`);
     }
 

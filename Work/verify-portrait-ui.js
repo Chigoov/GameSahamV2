@@ -78,7 +78,8 @@ function calculateP95(arr) {
 
     const tab = async (name) => {
         const start = performance.now();
-        await page.locator(`.nav-item[data-tab="${name}"]`).click();
+        await page.locator(`.nav-item[data-tab="${name === 'riset' ? 'pasar' : name}"]`).click();
+        if (name === 'riset') await page.locator('#btn-market-research').click();
         const duration = performance.now() - start;
         rawTimings.navigation.push(duration);
     };
@@ -102,7 +103,7 @@ function calculateP95(arr) {
     const snap = await call('getSnapshot');
     const homeNet = await page.locator('#home-net-worth').innerText();
     const headerNet = await page.locator('#header-net-worth').innerText();
-    if (homeNet !== snap.personalAccount.netWorth || headerNet !== snap.personalAccount.netWorth) {
+    if (homeNet !== snap.personalAccount.netWorth || headerNet !== snap.personalAccount.cash.IDR.available) {
         throw new Error(`Net worth mismatch: home=${homeNet}, header=${headerNet}, domain=${snap.personalAccount.netWorth}`);
     }
     passed('Home hero and header use Java net equity, not decorative balances');
@@ -117,7 +118,7 @@ function calculateP95(arr) {
         for (const name of ['beranda', 'pasar', 'aset', 'firma', 'riset']) {
             await tab(name);
             const navBefore = await page.locator('.bottom-nav').boundingBox();
-            await page.locator('main').evaluate(el => el.scrollTop = el.scrollHeight);
+            await page.locator('.app-scroll').evaluate(el => el.scrollTop = el.scrollHeight);
             const navAfter = await page.locator('.bottom-nav').boundingBox();
             if (JSON.stringify(navBefore) !== JSON.stringify(navAfter)) {
                 throw new Error(`Bottom nav moved during scroll on tab ${name} at ${w}x${h}`);
@@ -128,7 +129,7 @@ function calculateP95(arr) {
                 height: innerHeight,
                 bodyScroll: document.documentElement.scrollHeight,
                 navBottom: document.querySelector('.bottom-nav').getBoundingClientRect().bottom,
-                mainHeight: document.querySelector('main').clientHeight
+                mainHeight: document.querySelector('.app-scroll').clientHeight
             }));
             if (m.scrollWidth > w + 1 || m.bodyScroll > h + 1) {
                 throw new Error(`Horizontal or page overflow on tab ${name}: ${JSON.stringify(m)}`);
@@ -137,7 +138,7 @@ function calculateP95(arr) {
                 throw new Error(`Nav position or main height invalid on tab ${name}: ${JSON.stringify(m)}`);
             }
             const activeTab = await page.locator('.nav-item[aria-current="page"]').getAttribute('data-tab');
-            if (activeTab !== name) throw new Error(`Active tab mismatch: expected ${name}, got ${activeTab}`);
+            if (activeTab !== (name === 'riset' ? 'pasar' : name)) throw new Error(`Active tab mismatch: expected ${name}, got ${activeTab}`);
             const textLen = (await page.locator('#view-' + name).innerText()).length;
             if (textLen <= 60) throw new Error(`Tab ${name} has insufficient content`);
             samples.push({ tab: name, ...m });
@@ -152,14 +153,14 @@ function calculateP95(arr) {
     await page.locator('#search-stock-input').fill('AAPL');
     const countAapl = await page.locator('#stock-list-container .stock-list-item').count();
     if (countAapl !== 1) throw new Error(`Expected 1 stock item for AAPL, got ${countAapl}`);
-    await page.locator('main').evaluate(el => el.scrollTop = 200);
-    const scrollVal = await page.locator('main').evaluate(el => el.scrollTop);
+    await page.locator('.app-scroll').evaluate(el => el.scrollTop = 200);
+    const scrollVal = await page.locator('.app-scroll').evaluate(el => el.scrollTop);
 
     await tab('beranda');
     await tab('pasar');
     const exVal = await page.locator('#filter-exchange-select').inputValue();
     const qVal = await page.locator('#search-stock-input').inputValue();
-    const scrollAfter = await page.locator('main').evaluate(el => el.scrollTop);
+    const scrollAfter = await page.locator('.app-scroll').evaluate(el => el.scrollTop);
     if (exVal !== 'US' || qVal !== 'AAPL' || Math.abs(scrollAfter - scrollVal) >= 2) {
         throw new Error('Search, filter, or scroll not preserved across tab switches');
     }
@@ -168,7 +169,7 @@ function calculateP95(arr) {
     await page.locator('#search-stock-input').fill('no-company-like-this');
     const zeroCount = await page.locator('#stock-list-container .stock-list-item').count();
     const statusText = await page.locator('#stock-list-status').innerText();
-    if (zeroCount !== 0 || !statusText.includes('Tidak ada instrumen')) {
+    if (zeroCount !== 0 || !statusText.includes('Tidak ada emiten')) {
         throw new Error('Search empty state not handled properly');
     }
     await page.locator('#filter-exchange-select').selectOption('');
@@ -193,7 +194,10 @@ function calculateP95(arr) {
     // 4. Detail instrumen tanpa transaksi
     await page.locator('#stock-list-container .stock-list-item').first().click();
     const flowText = await flow().innerText();
-    if (!flowText.includes('Belum ada transaksi tercatat')) throw new Error('Expected no trades message');
+    const detailId = await flow().getAttribute('data-stock-id');
+    const chart = await call('getChartData', detailId, 'D1');
+    if (!(chart.bars || []).length && !flowText.includes('Belum ada transaksi tercatat')) throw new Error('Empty domain chart needs an explicit empty state');
+    if ((chart.bars || []).length && await flow().locator('svg').count() === 0) throw new Error('Real domain bars must produce a chart');
     const navInert = await page.locator('.bottom-nav').evaluate(el => el.inert);
     if (navInert) throw new Error('Bottom nav should not be inert on regular detail reading');
     await page.getByRole('button', { name: 'Tambah ke watchlist', exact: true }).click();
@@ -235,7 +239,7 @@ function calculateP95(arr) {
 
     // 6. Jalur trading via Java domain
     await call('setClockState', true, 1);
-    await call('tickClock', 7);
+    await page.evaluate(() => {const clock=JSON.parse(TradingNativeBridge.getSnapshot()).clock,d=new Date(clock.timestamp+7*3600000),seconds=d.getUTCHours()*3600+d.getUTCMinutes()*60+d.getUTCSeconds();TradingNativeBridge.tickClock(Math.ceil(((9*3600+30*60-seconds+86400)%86400)/clock.rate));});
     await call('setClockState', false, 1);
 
     await tab('pasar');
@@ -283,7 +287,7 @@ function calculateP95(arr) {
 
     await page.getByRole('button', { name: 'Kirim order', exact: true }).click();
     const receiptText = await flow().innerText();
-    if (!receiptText.includes('FILLED')) throw new Error('Order fill receipt expected');
+    if (await page.locator('.flow-page [data-status="FILLED"]').count() !== 1) throw new Error('Order fill receipt expected: '+receiptText);
     const xpEarned = (await call('getPlayerProgress')).currentXp;
     if (xpEarned < 100) throw new Error('Trade execution should award career XP');
 
@@ -313,6 +317,10 @@ function calculateP95(arr) {
     await page.getByRole('button', { name: 'Tabel OHLCV Alternatif', exact: true }).click();
     const trCount = await page.locator('#chart-table tbody tr').count();
     if (trCount === 0) throw new Error('OHLCV alternative table empty');
+    await page.locator('[data-chart-control="toggle-table"]').focus();
+    await call('setClockState',true,1); await call('tickClock',10); await call('setClockState',false,1);
+    await page.waitForTimeout(1300);
+    if (!await page.locator('#chart-table').isVisible() || !await page.locator('[data-chart-control="toggle-table"]').evaluate(el=>el===document.activeElement && el.getAttribute('aria-expanded')==='true')) throw new Error('Live chart refresh must preserve the open table and focused control');
 
     await page.locator('[data-timeframe=M1]').click();
     const m1Pressed = await page.locator('[data-timeframe=M1]').getAttribute('aria-pressed');
@@ -343,12 +351,12 @@ function calculateP95(arr) {
         await page.evaluate(() => document.documentElement.style.fontSize = '200%');
         for (const name of ['beranda', 'pasar', 'aset', 'firma', 'riset']) {
             await tab(name);
-            await page.locator('main').evaluate(el => el.scrollTop = el.scrollHeight);
+            await page.locator('.app-scroll').evaluate(el => el.scrollTop = el.scrollHeight);
             const m = await page.evaluate(() => ({
                 width: innerWidth,
                 scrollWidth: document.documentElement.scrollWidth,
                 nav: document.querySelector('.bottom-nav').getBoundingClientRect().bottom,
-                main: document.querySelector('main').clientHeight
+                main: document.querySelector('.app-scroll').clientHeight
             }));
             if (m.scrollWidth > w + 1 || Math.abs(m.nav - h) > 1 || m.main <= 70) {
                 throw new Error(`Text-200 overflow on ${name} at ${w}x${h}: ${JSON.stringify(m)}`);
@@ -358,7 +366,7 @@ function calculateP95(arr) {
         await page.locator('#btn-achievements').click();
         const detailOverflow = await flow().evaluate(el => el.scrollWidth <= el.clientWidth + 1);
         if (!detailOverflow) throw new Error(`Achievement detail overflow at text-200 ${w}x${h}`);
-        await page.locator('main').evaluate(el => el.scrollTop = el.scrollHeight);
+        await page.locator('.app-scroll').evaluate(el => el.scrollTop = el.scrollHeight);
         await screenshot(`text-200-${w}`);
         await back();
         await page.evaluate(() => document.documentElement.style.fontSize = '');

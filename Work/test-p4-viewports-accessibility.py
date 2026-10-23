@@ -15,7 +15,7 @@ Verifies:
 2. Persistent bottom navigation bar positioning and visibility.
 3. Touch target sizing (buttons, nav items >= 44-48px).
 4. Keyboard focusability (search input, form fields).
-5. Contrast & high-legibility styling for tickers and prices (#FFFFFF).
+5. Actual text/background contrast for financial tickers and prices (WCAG AA).
 6. Power-save mode and reduced-motion compliance.
 7. Saves visual evidence screenshots for inspection.
 """
@@ -87,7 +87,9 @@ def run_p4_tests(output_dir=None):
                     time.sleep(0.1)
 
                     for tab_name in TABS:
-                        page.locator(f'[data-tab="{tab_name}"]').click()
+                        page.locator(f'[data-tab="{"pasar" if tab_name == "riset" else tab_name}"]').click()
+                        if tab_name == 'riset':
+                            page.locator('#btn-market-research').click()
                         time.sleep(0.05)
 
                         # Assert zero horizontal overflow
@@ -95,12 +97,18 @@ def run_p4_tests(output_dir=None):
                             scrollWidth: document.documentElement.scrollWidth,
                             clientWidth: document.documentElement.clientWidth,
                             bodyScrollWidth: document.body.scrollWidth,
-                            mainScrollWidth: document.querySelector('main')?.scrollWidth || 0,
-                            mainClientWidth: document.querySelector('main')?.clientWidth || 0
+                            mainScrollWidth: document.querySelector('.app-scroll')?.scrollWidth || 0,
+                            mainClientWidth: document.querySelector('.app-scroll')?.clientWidth || 0,
+                            scrollHeight: document.documentElement.scrollHeight,
+                            navBottom: document.querySelector('.bottom-nav').getBoundingClientRect().bottom
                         })''')
 
                         # Allow max 1px rounding margin
                         assert metrics['scrollWidth'] <= width + 1, f"Overflow on {vp_label} font {font_scale}% tab {tab_name}: {metrics}"
+                        assert metrics['scrollHeight'] <= height + 1 and abs(metrics['navBottom'] - height) <= 1, metrics
+                        nav_before = page.locator('.bottom-nav').bounding_box()
+                        page.locator('.app-scroll').evaluate('el=>el.scrollTop=el.scrollHeight')
+                        assert page.locator('.bottom-nav').bounding_box() == nav_before
 
                         matrix_results.append({
                             "viewport": vp_label,
@@ -123,7 +131,7 @@ def run_p4_tests(output_dir=None):
                     page.screenshot(path=str(screenshot_dir / f"{vp_label}_font{font_scale}_pasar.png"))
 
             page.evaluate("document.documentElement.style.fontSize = ''")
-            checks.append(f"M1: 7 viewports x 2 font scales (14 configs x 5 tabs = {len(matrix_results)} samples) verified zero horizontal overflow")
+            checks.append(f"M1: 7 viewports x 2 font scales x 5 rendered destinations (4 root tabs + research), {len(matrix_results)} samples, verified zero overflow and reachable nav")
 
             # -------------------------------------------------------------
             # Touch Target Sizes (Min 44-48px for interactive controls)
@@ -136,8 +144,8 @@ def run_p4_tests(output_dir=None):
             for btn in nav_buttons:
                 box = btn.bounding_box()
                 assert box is not None
-                assert box['height'] >= 44, f"Nav button touch target height {box['height']} < 44px"
-            checks.append("M2: Bottom navigation touch targets >= 44px verified")
+                assert box['height'] >= 48 and box['width'] >= 48, f"Nav button touch target below 48px: {box}"
+            checks.append("M2: Bottom navigation touch targets >= 48px verified")
 
             # Check stock list items and CTA buttons
             page.locator('[data-tab="pasar"]').click()
@@ -152,9 +160,9 @@ def run_p4_tests(output_dir=None):
             btn_sell = page.locator('.btn-detail-sell')
             buy_box = btn_buy.bounding_box()
             sell_box = btn_sell.bounding_box()
-            assert buy_box is not None and buy_box['height'] >= 44, "Buy button touch target height < 44px"
-            assert sell_box is not None and sell_box['height'] >= 44, "Sell button touch target height < 44px"
-            checks.append("M3: Order action CTA buttons (JUAL / BELI) touch targets >= 44px verified")
+            assert buy_box is not None and buy_box['height'] >= 48, "Buy button touch target height < 48px"
+            assert sell_box is not None and sell_box['height'] >= 48, "Sell button touch target height < 48px"
+            checks.append("M3: Order action CTA buttons (JUAL / BELI) touch targets >= 48px verified")
             page.locator('.back-button').click()
 
             # -------------------------------------------------------------
@@ -176,15 +184,15 @@ def run_p4_tests(output_dir=None):
             page.wait_for_selector('.flow-page')
 
             # Toggle power save
-            ps_toggle = page.locator('#toggle-power-save')
-            if ps_toggle.count() > 0:
-                ps_toggle.click()
-                time.sleep(0.2)
-                has_ps_class = page.evaluate('document.documentElement.classList.contains("power-save")')
-                assert has_ps_class is True, "HTML element must contain 'power-save' class when toggled"
-                # Toggle back off
-                ps_toggle.click()
-                time.sleep(0.2)
+            ps_toggle = page.get_by_role('button', name='Hemat daya:', exact=False)
+            assert ps_toggle.count() == 1, 'Power-save control must exist; no conditional PASS'
+            before_ps = page.evaluate('document.documentElement.classList.contains("power-save")')
+            ps_toggle.click()
+            has_ps_class = page.evaluate('document.documentElement.classList.contains("power-save")')
+            assert has_ps_class is not before_ps, 'Power-save control must toggle the actual HTML state'
+            assert page.evaluate('localStorage.getItem("game_power_save")') == str(has_ps_class).lower()
+            ps_toggle.click()
+            assert page.evaluate('document.documentElement.classList.contains("power-save")') is before_ps
             checks.append("M5: Power-save mode toggle & styling verified")
             page.locator('.back-button').click()
 

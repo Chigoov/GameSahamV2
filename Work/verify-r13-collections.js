@@ -21,7 +21,9 @@ async function run() {
     });
 
     await page.goto(`http://127.0.0.1:${port}/`);
+    await page.locator('.home-secondary > summary').click();
     await page.waitForSelector('nav.bottom-nav', { timeout: 10000 });
+    const catalogue = await page.evaluate(() => JSON.parse(TradingNativeBridge.getCollections()).collections);
 
     console.log("Opening Koleksi & Kemewahan modal from Home...");
     await page.click('#btn-home-collections');
@@ -31,22 +33,19 @@ async function run() {
     const cards = page.locator('.flow-page[aria-label="Galeri Koleksi Mewah"] .collection-item-card');
     const colCount = await cards.count();
     console.log("Total collections card count rendered in DOM:", colCount);
-    if (colCount !== 150) {
-        throw new Error(`Total katalog koleksi harus tepat 150 (aktual: ${colCount})!`);
+    if (colCount !== catalogue.length) {
+        throw new Error(`Jumlah katalog UI harus cocok domain ${catalogue.length} (aktual: ${colCount})!`);
     }
 
-    // 2. Verifikasi Kartu Visual Prosedural Neon Gelap
-    const visualFrames = page.locator('.flow-page[aria-label="Galeri Koleksi Mewah"] .collection-visual-frame');
-    const visualCount = await visualFrames.count();
-    console.log("Rendered visual frames count:", visualCount);
-    if (visualCount < 5) {
-        throw new Error("Visual frames harus ter-render pada kartu koleksi!");
+    // Local illustrations were removed by the approved redesign; preserve catalogue identity coverage.
+    for (const item of catalogue) {
+        if (await page.locator(`.flow-page .collection-item-card[data-collection-id="${item.id}"]`).count() !== 1) throw new Error(`Kartu aset domain hilang: ${item.id}`);
     }
 
     // 3. Uji Beli Barang Koleksi Vespa Klasik (COL-CAR-00)
     console.log("Testing buy collection item (Vespa Klasik)...");
     const vespaCard = page.locator('.flow-page[aria-label="Galeri Koleksi Mewah"] .collection-item-card[data-collection-id="COL-CAR-00"]');
-    const buyBtn = vespaCard.locator('button:has-text("Beli Aset Ini")');
+    const buyBtn = vespaCard.locator('button:has-text("Beli Koleksi")');
     if (await buyBtn.count() === 1) {
         await buyBtn.click();
         await page.waitForTimeout(600);

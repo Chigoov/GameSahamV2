@@ -39,9 +39,9 @@ async function run() {
     // Pastikan deskripsi otomatis tampil
     const modeDesc = await page.locator('.flow-page .data-row:has-text("Mode waktu") strong').textContent();
     console.log("Mode waktu description:", modeDesc);
-    if (!modeDesc.includes("Berjalan Otomatis")) {
-        throw new Error("Keterangan mode waktu harus menyatakan 'Berjalan Otomatis'!");
-    }
+    const actualRate = await page.evaluate(() => JSON.parse(TradingNativeBridge.getSnapshot()).clock.rate);
+    const backgroundDesc = await page.locator('.flow-page .data-row:has-text("Keterangan waktu latar") strong').textContent();
+    if (!modeDesc.includes(`1 hari game = ${86400/actualRate/60} menit nyata`) || !backgroundDesc.includes('1 hari game = 1 jam nyata')) throw new Error('Keterangan UI harus sesuai laju Java yang aktif');
 
     // Tutup panel briefing
     await page.evaluate(() => window.closeActiveLayer());
@@ -63,11 +63,12 @@ async function run() {
     // 3. Verifikasi R01: Countdown Hibah Harian HH:mm:ss
     // =========================================================================
     console.log("[3] Testing R01: Hibah harian countdown after claim...");
+    await page.locator('.home-secondary > summary').click();
     const claimBtn = page.locator('#btn-claim-sponsor');
     const initText = (await claimBtn.textContent()).trim();
     console.log("Initial claim button text:", initText);
 
-    if (initText.includes("Rp 25 Juta")) {
+    if (await claimBtn.isEnabled()) {
         await claimBtn.click();
         await page.waitForSelector('.game-toast', { timeout: 5000 });
         await page.waitForTimeout(600);
@@ -96,6 +97,7 @@ async function run() {
     console.log("Captured screenshot:", shotPath);
 
     await browser.close();
+    if (actualRate !== 288) throw new Error(`BLOCKED_DOMAIN: mandat 5 menit per hari membutuhkan 288x, Java aktual ${actualRate}x; pemeriksaan UI countdown sudah dijalankan`);
     console.log("=== R01 & R02 TESTS PASSED (ALL PASS) ===");
 }
 

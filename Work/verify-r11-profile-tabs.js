@@ -18,17 +18,13 @@ async function run() {
     await page.goto(`http://127.0.0.1:${port}/`);
     await page.waitForSelector('nav.bottom-nav', { timeout: 10000 });
 
-    console.log("Navigating to Lainnya tab...");
-    await page.click('button.nav-item[data-tab="riset"]');
-    await page.waitForSelector('#view-riset', { timeout: 5000 });
-
     console.log("Opening Profil Saya modal...");
-    await page.locator('#view-riset button.shortcut:has-text("Profil Saya")').click();
+    await page.locator('#btn-profile').click();
     await page.waitForSelector('.flow-page[aria-label="Profil Saya"]', { timeout: 5000 });
 
     // 1. Verifikasi Ringkasan Singkat di Atas
     const heroTitle = await page.locator('.flow-page[aria-label="Profil Saya"] .wealth-hero h2').textContent();
-    const heroNetWorth = await page.locator('.flow-page[aria-label="Profil Saya"] .wealth-hero strong').textContent();
+    const heroNetWorth = await page.locator('.flow-page[aria-label="Profil Saya"] .wealth-hero .metric-hero').textContent();
     console.log(`Hero summary: name='${heroTitle}', netWorth='${heroNetWorth}'`);
     if (!heroTitle || !heroNetWorth.includes("Rp")) {
         throw new Error("Ringkasan singkat di atas harus memuat nama trader dan kekayaan bersih!");

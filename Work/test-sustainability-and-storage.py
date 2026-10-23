@@ -105,24 +105,20 @@ def run_sustainability_tests(output_dir=None):
             # -------------------------------------------------------------
             # TEST 2: Dual-Rate Time Dilation Verification
             # -------------------------------------------------------------
-            # Active 1x rate contract: 900s real time = 86400s game time (96x multiplier)
-            # Background rate contract: 3600s real time = 86400s game time (24x multiplier)
-            active_ratio = 86400.0 / 900.0  # 96.0
-            bg_ratio = 86400.0 / 3600.0    # 24.0
-            assert active_ratio == 96.0, "Active 1x multiplier must be 96x (1 day = 15 minutes)"
-            assert bg_ratio == 24.0, "Background multiplier must be 24x (1 day = 1 hour)"
-
-            # Verify clock advancement via tickClock (unpause clock first)
+            # The owner contract is 300 real seconds per game day. Measure domain output.
             page.evaluate('() => TradingNativeBridge.setClockState(true, 1)')
-            snap_tick_before = page.evaluate('() => JSON.parse(TradingNativeBridge.getSnapshot())')
+            tick = page.evaluate('''() => {
+                const before=JSON.parse(TradingNativeBridge.getSnapshot());
+                const after=JSON.parse(TradingNativeBridge.tickClock(300));
+                return {before,after};
+            }''')
+            snap_tick_before, snap_tick_after = tick['before'], tick['after']
+            elapsed_game_ms = snap_tick_after['clock']['timestamp'] - snap_tick_before['clock']['timestamp']
+            assert elapsed_game_ms == 86400000, f"Foreground 1x must advance one game day per 300 real seconds, actual {elapsed_game_ms / 1000}s game"
+            assert snap_tick_after['clock']['rate'] == 288, snap_tick_after['clock']
             time_str_before = f"{snap_tick_before['clock']['date']} {snap_tick_before['clock']['time']}"
-            page.evaluate('() => TradingNativeBridge.tickClock(3600)') # tick 1 hour game time
-            snap_tick_after = page.evaluate('() => JSON.parse(TradingNativeBridge.getSnapshot())')
             time_str_after = f"{snap_tick_after['clock']['date']} {snap_tick_after['clock']['time']}"
-            assert time_str_before != time_str_after, f"Clock must advance on tickClock: {time_str_before} -> {time_str_after}"
-
-            catchup_report = page.evaluate('() => TradingNativeBridge.getOfflineCatchupReport()')
-            checks.append(f"T2: Time dilation verified: Active 96x (1d=15m), Offline 24x (1d=1h); tickClock advance verified: {time_str_before} -> {time_str_after}")
+            checks.append(f"T2: Actual foreground domain elapsed 86400 game seconds per 300 real seconds: {time_str_before} -> {time_str_after}; inactive 24x remains covered by the JVM lifecycle suite below")
 
             # -------------------------------------------------------------
             # TEST 3: Save / Load Integrity & Continuity
