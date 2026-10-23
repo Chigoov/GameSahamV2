@@ -124,6 +124,35 @@ def init_database():
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, bosses)
 
+    # 6. Inisialisasi Buku Medali Prestasi (Fitur 5 Ekspansi)
+    achievements = [
+        ('ACH-01', 'Langkah Perdana', 'Selesaikan transaksi beli saham pasar perdana pertamamu.', 'Trading', 1.0, 0.0, 0, 0, 1000000.0, 'NONE'),
+        ('ACH-02', 'Panen Dividen', 'Kantongi dividen tunai akumulasi mencapai Rp 50.000.000.', 'Wealth', 50000000.0, 0.0, 0, 0, 15000000.0, 'DIVIDEND_TAX_DISCOUNT_5'),
+        ('ACH-03', 'Raja Pembalikan Arah', 'Raih profit harian di atas 10% dalam 1 sesi perdagangan.', 'Trading', 10.0, 0.0, 0, 0, 25000000.0, 'BROKER_FEE_DISCOUNT_1'),
+        ('ACH-04', 'Penakluk Taipan', 'Kalahkan Bos Taipan Pasar tingkat Sulit dalam duel 1-on-1.', 'Career', 1.0, 0.0, 0, 0, 50000000.0, 'PRESTIGE_BADGE_BOSS'),
+        ('ACH-05', 'Kolektor Sultan', 'Miliki minimal 10 barang koleksi mewah di galeri pribadimu.', 'Collector', 10.0, 0.0, 0, 0, 35000000.0, 'COLLATERAL_BONUS_10')
+    ]
+    cursor.executemany("""
+        INSERT INTO PlayerAchievements (AchievementId, Title, Description, Category, TargetThreshold, CurrentProgress, IsUnlocked, IsRewardClaimed, RewardCash, PerkBonus)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, achievements)
+
+    # 7. Inisialisasi Avatar & Bingkai Profil (Fitur 6 Ekspansi)
+    cosmetics = [
+        ('AVATAR-01', 'AVATAR', 'Trader Muda Ambisius', 'avatar_trader_muda.png', 'UMUM', 'Tersedia awal', 1, 1),
+        ('AVATAR-02', 'AVATAR', 'Analis Senior Wall St', 'avatar_analis_senior.png', 'TIDAK_UMUM', 'Capai Level 4', 0, 0),
+        ('AVATAR-03', 'AVATAR', 'Hedge Fund Maestro', 'avatar_fund_maestro.png', 'LANGKA', 'Capai Level 7', 0, 0),
+        ('AVATAR-04', 'AVATAR', 'Taipan Sultan Nusantara', 'avatar_taipan_sultan.png', 'LEGENDARIS', 'Kalahkan Final Boss', 0, 0),
+        ('FRAME-01', 'FRAME', 'Baja Klasik Halus', 'frame_steel.png', 'UMUM', 'Tersedia awal', 1, 1),
+        ('FRAME-02', 'FRAME', 'Perunggu Juara Liga', 'frame_bronze_champ.png', 'TIDAK_UMUM', 'Promosi Liga Perak', 0, 0),
+        ('FRAME-03', 'FRAME', 'Emas Manajer Konglomerat', 'frame_gold_tycoon.png', 'LANGKA', 'Promosi Liga Emas', 0, 0),
+        ('FRAME-04', 'FRAME', 'Naga Emas Kaisar', 'frame_emperor_dragon.png', 'LEGENDARIS', 'Raih Kekayaan 1 Miliar', 0, 0)
+    ]
+    cursor.executemany("""
+        INSERT INTO ProfileCosmetics (CosmeticId, CosmeticType, Name, ImagePath, Rarity, UnlockCondition, IsUnlocked, IsEquipped)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, cosmetics)
+
     conn.commit()
     conn.close()
     print("[+] Database initialization and initial seeding complete!")

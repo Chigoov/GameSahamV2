@@ -19,6 +19,8 @@ public final class PlayerProfileManager {
 
     private String playerName = "Trader Nusantara";
     private String avatarMonogram = "TN";
+    private String equippedAvatar = "avatar_trader_muda.png";
+    private String equippedFrame = "frame_steel.png";
     private int totalTradesExecuted = 0;
     private int profitableTradesCount = 0;
     private int closedTradesCount = 0;
@@ -98,6 +100,10 @@ public final class PlayerProfileManager {
     }
     public synchronized String getPlayerName() { return playerName; }
     public synchronized String getAvatarMonogram() { return avatarMonogram; }
+    public synchronized String getEquippedAvatar() { return equippedAvatar; }
+    public synchronized String getEquippedFrame() { return equippedFrame; }
+    public synchronized void setEquippedAvatar(String avatar) { this.equippedAvatar = avatar; }
+    public synchronized void setEquippedFrame(String frame) { this.equippedFrame = frame; }
     public synchronized int getTotalTradesExecuted() { return totalTradesExecuted; }
     public synchronized int getProfitableTradesCount() { return profitableTradesCount; }
     public synchronized Money getBestTradePnL() { return bestTradePnL; }
@@ -183,6 +189,8 @@ public final class PlayerProfileManager {
         JSONObject obj = new JSONObject();
         obj.put("playerName", playerName);
         obj.put("avatarMonogram", avatarMonogram);
+        obj.put("equippedAvatar", equippedAvatar);
+        obj.put("equippedFrame", equippedFrame);
         obj.put("totalTrades", totalTradesExecuted);
         obj.put("profitableTrades", profitableTradesCount);
         double winRate = closedTradesCount > 0 ? ((double) profitableTradesCount / closedTradesCount) * 100.0 : 0.0;

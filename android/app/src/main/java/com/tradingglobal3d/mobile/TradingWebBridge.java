@@ -268,6 +268,15 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String equipCosmetic(String type, String cosmeticId) {
+        try {
+            return facade.equipCosmetic(type, cosmeticId).toString();
+        } catch (Exception error) {
+            return bridgeError(error);
+        }
+    }
+
+    @JavascriptInterface
     public String getChartData(String instrumentId, String timeframe) {
         try {
             return facade.getChartData(instrumentId, timeframe).toString();

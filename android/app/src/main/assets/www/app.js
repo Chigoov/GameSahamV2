@@ -4718,6 +4718,7 @@
                 flowText(achCard, 'Peringkat liga saat ini', p.playerLeagueRank == null ? 'Belum tersedia' : `#${p.playerLeagueRank}`);
                 flowButton(achCard, 'Lihat Peringkat & Rival', openLeagueAndRivalModal);
                 flowButton(achCard, 'Buka Penghargaan & Medali', openAchievementsModal);
+                flowButton(achCard, 'Kustomisasi Avatar & Bingkai Profil', openAvatarCustomizerModal);
                 contentBox.append(achCard);
 
                 // Form Preferensi Aksesibilitas
@@ -5640,6 +5641,61 @@
         } catch (e) {
             flowText(panel, 'Gagal memuat progres', e.message);
         }
+    }
+
+    function openAvatarCustomizerModal() {
+        const panel = showFlow('Kustomisasi Avatar & Bingkai');
+        flowText(panel, 'Identitas & Profil Prestise', 'Pilih foto avatar investor dan bingkai unik untuk memperindah tampilan profil trader Anda.');
+
+        const avatars = [
+            { id: 'avatar_trader_muda.png', name: 'Trader Muda Ambisius', rarity: 'Umum' },
+            { id: 'avatar_analis_senior.png', name: 'Analis Senior Wall St', rarity: 'Tidak Umum' },
+            { id: 'avatar_fund_maestro.png', name: 'Hedge Fund Maestro', rarity: 'Langka' },
+            { id: 'avatar_taipan_sultan.png', name: 'Taipan Sultan Nusantara', rarity: 'Legendaris' }
+        ];
+
+        const frames = [
+            { id: 'frame_steel.png', name: 'Baja Klasik Halus', rarity: 'Umum' },
+            { id: 'frame_bronze_champ.png', name: 'Perunggu Juara Liga', rarity: 'Tidak Umum' },
+            { id: 'frame_gold_tycoon.png', name: 'Emas Manajer Konglomerat', rarity: 'Langka' },
+            { id: 'frame_emperor_dragon.png', name: 'Naga Emas Kaisar', rarity: 'Legendaris' }
+        ];
+
+        const avCard = node('section', 'card');
+        avCard.append(node('h3', '', 'Pilihan Avatar Investor'));
+        avatars.forEach(a => {
+            const row = node('div', 'data-row');
+            row.style.cursor = 'pointer';
+            row.style.padding = '8px 0';
+            row.append(node('span', '', `${a.name} (${a.rarity})`), node('strong', '', 'Pasang'));
+            row.onclick = () => {
+                if (bridge.equipCosmetic) {
+                    bridge.equipCosmetic('AVATAR', a.id);
+                    alert(`Avatar ${a.name} berhasil dipasang!`);
+                    refreshSnapshot();
+                }
+            };
+            avCard.append(row);
+        });
+        panel.append(avCard);
+
+        const frCard = node('section', 'card');
+        frCard.append(node('h3', '', 'Pilihan Bingkai Ornamen'));
+        frames.forEach(f => {
+            const row = node('div', 'data-row');
+            row.style.cursor = 'pointer';
+            row.style.padding = '8px 0';
+            row.append(node('span', '', `${f.name} (${f.rarity})`), node('strong', '', 'Pasang'));
+            row.onclick = () => {
+                if (bridge.equipCosmetic) {
+                    bridge.equipCosmetic('FRAME', f.id);
+                    alert(`Bingkai ${f.name} berhasil dipasang!`);
+                    refreshSnapshot();
+                }
+            };
+            frCard.append(row);
+        });
+        panel.append(frCard);
     }
 
     function openAccountPicker() {

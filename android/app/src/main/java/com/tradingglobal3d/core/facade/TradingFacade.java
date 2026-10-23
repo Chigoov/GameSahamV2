@@ -2858,6 +2858,18 @@ public final class TradingFacade {
         return res;
     }
 
+    public synchronized JSONObject equipCosmetic(String type, String cosmeticId) throws JSONException {
+        if ("AVATAR".equalsIgnoreCase(type)) {
+            playerProfileManager.setEquippedAvatar(cosmeticId);
+        } else if ("FRAME".equalsIgnoreCase(type)) {
+            playerProfileManager.setEquippedFrame(cosmeticId);
+        }
+        persistFinancialMutation();
+        return new JSONObject().put("success", true)
+                .put("equippedAvatar", playerProfileManager.getEquippedAvatar())
+                .put("equippedFrame", playerProfileManager.getEquippedFrame());
+    }
+
     // =========================================================================
     // 4. LIGA PERIODIK, RIVALITAS NPC, & LEADERBOARD (REF:ranks, rivals, leaderboard, D09, D13)
     // =========================================================================

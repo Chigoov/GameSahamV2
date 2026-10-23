@@ -159,6 +159,32 @@ public final class GameDatabaseHelper extends SQLiteOpenHelper {
                 + "IsDefeated INTEGER NOT NULL DEFAULT 0, "
                 + "RewardCash DECIMAL(18, 4) NOT NULL"
                 + ");");
+
+        // 11. Buku Medali Prestasi Pemain
+        db.execSQL("CREATE TABLE IF NOT EXISTS PlayerAchievements ("
+                + "AchievementId TEXT PRIMARY KEY, "
+                + "Title TEXT NOT NULL, "
+                + "Description TEXT NOT NULL, "
+                + "Category TEXT NOT NULL, "
+                + "TargetThreshold DECIMAL(18, 4) NOT NULL, "
+                + "CurrentProgress DECIMAL(18, 4) NOT NULL DEFAULT 0, "
+                + "IsUnlocked INTEGER NOT NULL DEFAULT 0, "
+                + "IsRewardClaimed INTEGER NOT NULL DEFAULT 0, "
+                + "RewardCash DECIMAL(18, 4) NOT NULL, "
+                + "PerkBonus TEXT"
+                + ");");
+
+        // 12. Koleksi Avatar & Bingkai Profil
+        db.execSQL("CREATE TABLE IF NOT EXISTS ProfileCosmetics ("
+                + "CosmeticId TEXT PRIMARY KEY, "
+                + "CosmeticType TEXT NOT NULL, "
+                + "Name TEXT NOT NULL, "
+                + "ImagePath TEXT NOT NULL, "
+                + "Rarity TEXT NOT NULL, "
+                + "UnlockCondition TEXT NOT NULL, "
+                + "IsUnlocked INTEGER NOT NULL DEFAULT 0, "
+                + "IsEquipped INTEGER NOT NULL DEFAULT 0"
+                + ");");
     }
 
     @Override
