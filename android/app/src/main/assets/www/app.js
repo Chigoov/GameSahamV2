@@ -917,6 +917,7 @@
                     <div class="stock-ticker flex-row">
                         <span>${st.ticker}</span>
                         <span class="badge">${st.exchange}</span>
+                        ${st.isSectorLocked ? `<span class="badge-locked" style="background:rgba(255,160,0,0.18); color:#FFA000; border:1px solid rgba(255,160,0,0.4); border-radius:6px; padding:2px 6px; font-size:0.65rem; font-weight:700;">🔒 Lv.${st.requiredLevel}</span>` : ''}
                     </div>
                     <div class="stock-name">${st.name}</div>
                     <div class="stock-sector">${st.sector || ''}</div>
@@ -2882,8 +2883,20 @@
 
         const btnBuy = node('button', 'btn-detail-buy', 'BELI');
         btnBuy.setAttribute('aria-label', `Beli ${stock.ticker}`);
-        btnBuy.disabled = !stock.isActiveTrading || isHalted;
-        btnBuy.onclick = () => openOrderTicket(stock, 'BUY');
+        const isLocked = Boolean(stock.isSectorLocked);
+        btnBuy.disabled = !stock.isActiveTrading || isHalted || isLocked;
+        if (isLocked) {
+            btnBuy.title = `Sektor ${stock.sector || ''} terkunci. Capai Level ${stock.requiredLevel || 4} untuk membuka transaksi emiten ini.`;
+            btnBuy.style.opacity = '0.5';
+            btnBuy.textContent = `Terkunci (Lv.${stock.requiredLevel || 4})`;
+        }
+        btnBuy.onclick = () => {
+            if (isLocked) {
+                alert(`Sektor ${stock.sector} terkunci. Capai Level ${stock.requiredLevel} untuk membuka transaksi emiten ini.`);
+                return;
+            }
+            openOrderTicket(stock, 'BUY');
+        };
 
         dock.append(btnSell, btnBuy);
         panel.appendChild(dock);

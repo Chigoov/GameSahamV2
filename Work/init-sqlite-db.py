@@ -99,6 +99,19 @@ def init_database():
         VALUES (?, ?, ?, ?, ?, ?)
     """, quests)
 
+    # 4. Inisialisasi Jadwal Dividen Saham Unggulan (Fitur 3 Ekspansi)
+    dividends = [
+        ('DIV-BBCA-2026', 'IDX:BBCA', 225.0000, 5, 6, 8, 0),
+        ('DIV-BMRI-2026', 'IDX:BMRI', 330.0000, 10, 11, 14, 0),
+        ('DIV-TLKM-2026', 'IDX:TLKM', 165.0000, 15, 16, 18, 0),
+        ('DIV-ASII-2026', 'IDX:ASII', 420.0000, 20, 21, 25, 0),
+        ('DIV-AAPL-2026', 'US:AAPL', 0.9500, 12, 13, 15, 0)
+    ]
+    cursor.executemany("""
+        INSERT INTO StockDividends (DividendId, Ticker, DividendPerShare, CumDateSession, ExDateSession, PaymentDateSession, IsDistributed)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, dividends)
+
     conn.commit()
     conn.close()
     print("[+] Database initialization and initial seeding complete!")

@@ -133,6 +133,17 @@ public final class GameDatabaseHelper extends SQLiteOpenHelper {
                 + "RewardCash DECIMAL(18, 4) NOT NULL, "
                 + "IsClaimed INTEGER NOT NULL DEFAULT 0"
                 + ");");
+
+        // 9. Jadwal & Riwayat Dividen Emiten
+        db.execSQL("CREATE TABLE IF NOT EXISTS StockDividends ("
+                + "DividendId TEXT PRIMARY KEY, "
+                + "Ticker TEXT NOT NULL, "
+                + "DividendPerShare DECIMAL(18, 4) NOT NULL, "
+                + "CumDateSession INTEGER NOT NULL, "
+                + "ExDateSession INTEGER NOT NULL, "
+                + "PaymentDateSession INTEGER NOT NULL, "
+                + "IsDistributed INTEGER NOT NULL DEFAULT 0"
+                + ");");
     }
 
     @Override

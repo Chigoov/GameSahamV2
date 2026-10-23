@@ -768,6 +768,34 @@ public final class TradingFacade {
         return preview.put("mode", gameMode.getDisplayName());
     }
 
+    public static int getRequiredLevelForSector(String sector, com.tradingglobal3d.core.market.MarketExchange exchange) {
+        if (exchange == com.tradingglobal3d.core.market.MarketExchange.US) {
+            return 7; // Saham Global Wall Street terbuka di Level 7+
+        }
+        if (sector == null) return 1;
+        String s = sector.toLowerCase(java.util.Locale.ROOT);
+        // Level 1-3 (Investor Pemula): Keuangan & Konsumer
+        if (s.contains("keuangan") || s.contains("finance") || s.contains("bank")
+                || s.contains("konsumer") || s.contains("consumer") || s.contains("retail")) {
+            return 1;
+        }
+        // Level 4-6 (Analis Madya): Energi, Pertambangan Mineral, Properti, Infrastruktur
+        if (s.contains("energi") || s.contains("tambang") || s.contains("mineral")
+                || s.contains("properti") || s.contains("infrastruktur") || s.contains("industri")) {
+            return 4;
+        }
+        // Level 7-10 (Fund Manager Elit): Teknologi, Global
+        if (s.contains("teknologi") || s.contains("tech") || s.contains("digital")) {
+            return 7;
+        }
+        return 1;
+    }
+
+    public synchronized boolean isSectorUnlocked(String sector, com.tradingglobal3d.core.market.MarketExchange exchange) {
+        int playerLevel = progressManager != null ? progressManager.getCurrentLevel() : 1;
+        return playerLevel >= getRequiredLevelForSector(sector, exchange);
+    }
+
     public synchronized MatchingEngine.OrderResult submitOrder(Order order) {
         Order existing = orderManager.getOrderByRequest(order.getRequestId());
         if (existing != null) {
@@ -793,6 +821,17 @@ public final class TradingFacade {
             if (!replayEngine.supportsInstrument(inst.getId()) || replayBar == null || !replayBar.getDate().equals(clock.getCurrentDate())
                     || clock.getCurrentTime().isBefore(LocalTime.of(9, 0)) || !clock.getCurrentTime().isBefore(LocalTime.of(16, 0)))
                 throw new IllegalStateException("Instrumen atau sesi replay tidak tersedia pada waktu ini");
+        }
+        // Validasi gembok sektor berdasarkan Level Pangkat Investor (Tahap E1 / Fitur 4)
+        if (order.isBuy() && acc.getType() == AccountType.PERSONAL && gameMode != GameMode.HISTORICAL_REPLAY) {
+            int playerLevel = progressManager != null ? progressManager.getCurrentLevel() : 1;
+            int reqLevel = getRequiredLevelForSector(inst.getSector(), inst.getExchange());
+            if (playerLevel < reqLevel) {
+                order.setStatus(OrderStatus.REJECTED);
+                orderManager.registerOrder(order);
+                return new MatchingEngine.OrderResult(order, false,
+                        "Sektor " + inst.getSector() + " terkunci. Capai Level " + reqLevel + " untuk membuka transaksi di sektor ini.", Collections.emptyList());
+            }
         }
         if (order.isSell()) {
             Position position = acc.getPosition(inst.getId());

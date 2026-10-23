@@ -92,6 +92,9 @@ public final class TradingWebBridge {
                 obj.put("dailyChangePercent", String.format(java.util.Locale.US, "%.2f", inst.getDailyChangePercent()));
                 obj.put("isActiveTrading", inst.isActiveTrading());
                 obj.put("isWatchlist", facade.getCatalog().isInWatchlist(inst.getId()));
+                int reqLevel = com.tradingglobal3d.core.facade.TradingFacade.getRequiredLevelForSector(inst.getSector(), inst.getExchange());
+                obj.put("requiredLevel", reqLevel);
+                obj.put("isSectorLocked", !facade.isSectorUnlocked(inst.getSector(), inst.getExchange()));
                 array.put(obj);
             }
             return array.toString();
