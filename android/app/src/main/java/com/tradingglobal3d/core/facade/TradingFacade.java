@@ -1244,11 +1244,13 @@ public final class TradingFacade {
         careerManager.requireRank(CareerRank.PORTFOLIO_MANAGER, "Pinjaman margin");
         Account personal = getPersonalAccount();
         riskService.takeMarginLoan(personal, amount, ledger, clock.getGameTimestamp());
+        persistFinancialMutation();
     }
 
     public synchronized void repayMarginLoan(Money amount) {
         Account personal = getPersonalAccount();
         riskService.repayMarginLoan(personal, amount, ledger, clock.getGameTimestamp());
+        persistFinancialMutation();
     }
 
     public synchronized ShortPosition openShortPosition(String ticker, long shares) {
@@ -1258,7 +1260,9 @@ public final class TradingFacade {
         if (inst == null) inst = catalog.getById("US:" + ticker);
         if (inst == null) throw new IllegalArgumentException("Saham tidak ditemukan: " + ticker);
         Account mm = accounts.get("ACC-NPC-MM-01");
-        return riskService.openShortPosition(personal, inst, shares, mm, ledger, clock.getGameTimestamp());
+        ShortPosition position = riskService.openShortPosition(personal, inst, shares, mm, ledger, clock.getGameTimestamp());
+        persistFinancialMutation();
+        return position;
     }
 
     public synchronized void closeShortPosition(String ticker, long shares) {
@@ -1268,6 +1272,7 @@ public final class TradingFacade {
         if (inst == null) throw new IllegalArgumentException("Saham tidak ditemukan: " + ticker);
         Account mm = accounts.get("ACC-NPC-MM-01");
         riskService.closeShortPosition(personal, inst, shares, mm, ledger, clock.getGameTimestamp());
+        persistFinancialMutation();
     }
 
     public synchronized RiskComplianceService.MarginHealthReport evaluateMarginHealth() {

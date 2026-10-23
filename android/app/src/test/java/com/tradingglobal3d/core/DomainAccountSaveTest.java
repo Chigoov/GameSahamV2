@@ -292,6 +292,10 @@ public class DomainAccountSaveTest {
                 new String(java.nio.file.Files.readAllBytes(new File("src/main/assets/data/market_universe.json").toPath()), java.nio.charset.StandardCharsets.UTF_8));
         facade.setCatalog(catalog);
         facade.takeMarginLoan(Money.of(1000000, Currency.IDR));
+        TradingFacade borrowed = new TradingFacade(saveManager);
+        borrowed.setCatalog(catalog);
+        assertTrue(borrowed.load());
+        assertEquals(Money.of(1000000, Currency.IDR), borrowed.getRiskService().getMarginDebt(personal.getId(), Currency.IDR));
         facade.openShortPosition("BBCA", 100);
         com.tradingglobal3d.core.trading.Order order = com.tradingglobal3d.core.trading.Order.createLimit(
                 "SAVE-OPEN", "IDX:BMRI", personal.getId(), com.tradingglobal3d.core.trading.OrderSide.BUY,
@@ -309,6 +313,11 @@ public class DomainAccountSaveTest {
         assertTrue(loaded.cancelOrder(loaded.getOrderManager().getActiveOrdersForAccount(personal.getId()).get(0)));
         assertEquals(facade.getRiskService().getShortPosition(personal.getId(), "BBCA").getCollateralLocked(),
                 loaded.getPersonalAccount().getReservedCash(Currency.IDR));
+        loaded.repayMarginLoan(Money.of(1000000, Currency.IDR));
+        TradingFacade repaid = new TradingFacade(saveManager);
+        repaid.setCatalog(catalog);
+        assertTrue(repaid.load());
+        assertEquals(Money.zero(Currency.IDR), repaid.getRiskService().getMarginDebt(personal.getId(), Currency.IDR));
         assertTrue(loaded.reconcileAll());
     }
 
@@ -551,9 +560,6 @@ public class DomainAccountSaveTest {
         assertNotNull(shortPos);
         assertEquals(initialLenderQty - 500, mmPos.getQuantity());
 
-        // Save ke disk
-        facade.save();
-
         // Muat ke facade baru
         TradingFacade restored = new TradingFacade(saveManager);
         restored.setCatalog(catalog);
@@ -575,6 +581,12 @@ public class DomainAccountSaveTest {
         restored.closeShortPosition("BBCA", 500);
         assertNull("Short harus tertutup setelah cover", restored.getRiskService().getShortPosition(restoredPersonal.getId(), "BBCA"));
         assertEquals("Inventori lender harus pulih kembali setelah cover", initialLenderQty, restoredMmPos.getQuantity());
+
+        TradingFacade covered = new TradingFacade(saveManager);
+        covered.setCatalog(catalog);
+        assertTrue(covered.load());
+        assertNull("Penutupan short harus langsung tersimpan tanpa save eksplisit", covered.getRiskService().getShortPosition(personal.getId(), "BBCA"));
+        assertEquals(initialLenderQty, covered.getAccount("ACC-NPC-MM-01").getPosition("IDX:BBCA").getQuantity());
 
         assertTrue(restored.reconcileAll());
     }
