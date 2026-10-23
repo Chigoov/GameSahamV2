@@ -1085,6 +1085,12 @@
             const allocation = node('section','card'); allocation.append(node('h2','card-title','Komposisi aset'));
             flowText(allocation,'Kas (valuasi IDR)',portfolio.cashValueIdr);
             flowText(allocation,'Posisi saham (valuasi IDR)',portfolio.positionsValueIdr);
+            if (portfolio.totalUnrealizedPnL) {
+                flowText(allocation, 'Laba/Rugi Mengambang (Unrealized)', portfolio.totalUnrealizedPnL);
+            }
+            if (portfolio.totalRealizedPnL) {
+                flowText(allocation, 'Laba Bersih Terealisasi (Realized)', portfolio.totalRealizedPnL);
+            }
             if (portfolio.positionsSharePercent != null) {
                 const bar = node('div','allocation-bar'); bar.setAttribute('role','img'); bar.setAttribute('aria-label',`${portfolio.positionsSharePercent}% aset berupa posisi saham`);
                 const fill = node('span'); fill.style.width = `${Math.max(0,Math.min(100,Number(portfolio.positionsSharePercent)))}%`; bar.append(fill); allocation.append(bar);
@@ -2530,6 +2536,7 @@
                     btn.className = 'btn-secondary';
                     btn.style.minHeight = '48px';
                     btn.style.padding = '6px 12px';
+                    btn.style.whiteSpace = 'nowrap';
                     btn.textContent = ct === 'candle' ? 'Candle' : 'Garis';
                     btn.dataset.chartControl = 'type-' + ct;
                     btn.setAttribute('aria-pressed', String(ct === currentChartType));
@@ -2671,21 +2678,33 @@
                 bookSection.innerHTML = `
                     <h3 style="margin: 12px 0 6px; font-size: 0.95rem;">Order Book (10 Tingkat)</h3>
                     <div class="table-scroll" tabindex="0" aria-label="Antrean harga beli dan jual"><table class="depth-table">
-                        <thead><tr><th>Bid Qty</th><th>Bid</th><th>Ask</th><th>Ask Qty</th></tr></thead>
+                        <thead><tr><th>Bid Qty</th><th>Bid (Klik Jual)</th><th>Ask (Klik Beli)</th><th>Ask Qty</th></tr></thead>
                         <tbody>
                             ${Array.from({ length: Math.max((book.bids || []).length, (book.asks || []).length) }).map((_, i) => {
                                 const b = (book.bids || [])[i] || { price: '-', quantity: '-' };
                                 const a = (book.asks || [])[i] || { price: '-', quantity: '-' };
                                 return `<tr>
                                     <td class="depth-bid">${b.quantity}</td>
-                                    <td class="positive">${b.price}</td>
-                                    <td class="negative">${a.price}</td>
+                                    <td class="positive clickable-price" data-side="SELL" data-price="${b.price}" style="cursor:pointer;" title="Klik untuk jual pada harga antrean bid">${b.price}</td>
+                                    <td class="negative clickable-price" data-side="BUY" data-price="${a.price}" style="cursor:pointer;" title="Klik untuk beli pada harga antrean ask">${a.price}</td>
                                     <td class="depth-ask">${a.quantity}</td>
                                 </tr>`;
                             }).join('')}
                         </tbody>
                     </table></div>
                 `;
+                bookSection.querySelectorAll('.clickable-price').forEach(cell => {
+                    cell.addEventListener('click', () => {
+                        const rawPrice = cell.dataset.price;
+                        if (rawPrice && rawPrice !== '-') {
+                            const side = cell.dataset.side || 'BUY';
+                            openOrderTicket(stock, side);
+                            const cleanP = rawPrice.replace(/[^0-9.]/g, '');
+                            if (cleanP) inputOrderLimit.value = cleanP;
+                            updateOrderEstimate();
+                        }
+                    });
+                });
                 panel.appendChild(bookSection);
 
                 // Tape (Recent Trades)
@@ -4989,12 +5008,30 @@
     btnCloseModal.addEventListener('click', closeOrderTicket);
 
     function updateOrderEstimate() {
-        estTotalDisplay.textContent = 'Biaya dan perkiraan kas akan ditampilkan sebelum order dikirim.';
-        if (selectedInstrument) {
-            const type = document.getElementById('order-type').value;
-            inputOrderLimit.disabled = type === 'MARKET';
-            document.getElementById('order-price-label').textContent =
-                `${type === 'STOP_LOSS' || type === 'TAKE_PROFIT' ? 'Harga pemicu' : 'Harga limit'} (${selectedInstrument.currency})`;
+        if (!selectedInstrument) {
+            estTotalDisplay.textContent = 'Biaya dan perkiraan kas akan ditampilkan sebelum order dikirim.';
+            return;
+        }
+        const type = document.getElementById('order-type').value;
+        inputOrderLimit.disabled = type === 'MARKET';
+        document.getElementById('order-price-label').textContent =
+            `${type === 'STOP_LOSS' || type === 'TAKE_PROFIT' ? 'Harga pemicu' : 'Harga limit'} (${selectedInstrument.currency})`;
+
+        const selectedSide = document.querySelector('.side-btn.active');
+        const side = selectedSide ? selectedSide.dataset.side : 'BUY';
+        const qtyLots = Number(inputOrderQty.value) || 0;
+        const price = type === 'MARKET' ? (Number(selectedInstrument.currentPriceRaw) || 0) : (Number(inputOrderLimit.value) || 0);
+
+        if (qtyLots > 0 && price > 0) {
+            const lotSize = selectedInstrument.lotSize || 100;
+            const gross = price * qtyLots * lotSize;
+            const feeRate = 0.0015; // 0.15% komisi broker bursa
+            const brokerFee = gross * feeRate;
+            const total = side === 'BUY' ? gross + brokerFee : Math.max(0, gross - brokerFee);
+            const cur = selectedInstrument.currency || 'IDR';
+            estTotalDisplay.innerHTML = `<strong>Total Estimasi: ${cur} ${total.toLocaleString('id-ID', {maximumFractionDigits:2})}</strong><br><small style="color:var(--text-muted);">(Nilai kotor: ${cur} ${gross.toLocaleString('id-ID')} · Komisi broker 0.15%: ${cur} ${brokerFee.toLocaleString('id-ID', {maximumFractionDigits:2})})</small>`;
+        } else {
+            estTotalDisplay.textContent = 'Biaya dan perkiraan kas akan ditampilkan sebelum order dikirim.';
         }
     }
     document.getElementById('order-type').addEventListener('change', updateOrderEstimate);
@@ -5002,11 +5039,51 @@
     inputOrderQty.addEventListener('input', updateOrderEstimate);
     inputOrderLimit.addEventListener('input', updateOrderEstimate);
 
+    // Tombol Cepat Porsi Modal (25%, 50%, 75%, MAX)
+    document.querySelectorAll('.btn-order-pct').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (!selectedInstrument) return;
+            const pct = Number(btn.dataset.pct) || 100;
+            const selectedSide = document.querySelector('.side-btn.active');
+            const side = selectedSide ? selectedSide.dataset.side : 'BUY';
+            const price = Number(inputOrderLimit.value) || Number(selectedInstrument.currentPriceRaw) || 1;
+            const lotSize = selectedInstrument.lotSize || 100;
+
+            if (side === 'BUY') {
+                let availCash = 0;
+                try {
+                    const snap = bridge.getSnapshot ? JSON.parse(bridge.getSnapshot()) : latestSnapshot;
+                    if (snap && snap.personalAccount) {
+                        availCash = Number(snap.personalAccount.cashBalanceRaw || snap.personalAccount.availableCashRaw || 50000000);
+                    }
+                } catch(e) { availCash = 50000000; }
+                const unitCost = price * lotSize * 1.0015;
+                const maxLots = Math.max(1, Math.floor(availCash / unitCost));
+                const targetLots = Math.max(1, Math.floor(maxLots * (pct / 100)));
+                inputOrderQty.value = targetLots;
+            } else {
+                let heldShares = 0;
+                try {
+                    const portRes = bridge.getPortfolio ? JSON.parse(bridge.getPortfolio(currentAccount ? currentAccount.id : '')) : null;
+                    if (portRes && portRes.positions) {
+                        const pos = portRes.positions.find(p => p.instrumentId === selectedInstrument.id || p.ticker === selectedInstrument.ticker);
+                        if (pos) heldShares = Number(pos.quantity) || 0;
+                    }
+                } catch(e) {}
+                const maxLots = Math.max(1, Math.floor(heldShares / lotSize));
+                const targetLots = Math.max(1, Math.floor(maxLots * (pct / 100)));
+                inputOrderQty.value = targetLots;
+            }
+            updateOrderEstimate();
+        });
+    });
+
     document.querySelectorAll('.side-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.side-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
             btn.classList.add('active');
             btn.setAttribute('aria-pressed','true');
+            updateOrderEstimate();
         });
     });
 

@@ -229,6 +229,15 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String getMarketEvents() {
+        try {
+            return facade.getMarketEventsJson();
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    @JavascriptInterface
     public String getChartData(String instrumentId, String timeframe) {
         try {
             return facade.getChartData(instrumentId, timeframe).toString();
@@ -1481,10 +1490,21 @@ public final class TradingWebBridge {
                     new Money(account.getTotalCash(Currency.USD).getAmount().multiply(rate), Currency.IDR));
             result.put("netWorth", equity.format()).put("grossAssets", assets.format())
                     .put("liabilities", assets.subtract(equity).format()).put("cashValueIdr", cashValue.format())
-                    .put("positionsValueIdr", assets.subtract(cashValue).format())
-                    .put("positionsSharePercent", assets.isZero() ? "0" : assets.subtract(cashValue).getAmount()
-                            .multiply(BigDecimal.valueOf(100)).divide(assets.getAmount(), 2, java.math.RoundingMode.HALF_UP).toPlainString());
-            JSONObject cash = new JSONObject();
+                    .put("positionsValueIdr", assets.subtract(cashValue).format());
+            result.put("positionsSharePercent", assets.isZero() ? "0" : assets.subtract(cashValue).getAmount()
+                                    .multiply(BigDecimal.valueOf(100)).divide(assets.getAmount(), 2, java.math.RoundingMode.HALF_UP).toPlainString());
+                    Money totalUnrealized = Money.zero(Currency.IDR);
+                    Money totalRealized = Money.zero(Currency.IDR);
+                    for (Position p : account.getPositions().values()) {
+                        BigDecimal fx = p.getCurrency() == Currency.USD ? rate : BigDecimal.ONE;
+                        totalUnrealized = totalUnrealized.add(new Money(p.getUnrealizedPnL().getAmount().multiply(fx), Currency.IDR));
+                        if (p.getRealizedPnL() != null) {
+                            totalRealized = totalRealized.add(new Money(p.getRealizedPnL().getAmount().multiply(fx), Currency.IDR));
+                        }
+                    }
+                    result.put("totalUnrealizedPnL", totalUnrealized.format());
+                    result.put("totalRealizedPnL", totalRealized.format());
+                    JSONObject cash = new JSONObject();
             for (Currency c : Currency.values()) cash.put(c.name(), new JSONObject()
                     .put("total", account.getTotalCash(c).format()).put("available", account.getAvailableCash(c).format())
                     .put("reserved", account.getReservedCash(c).format()));

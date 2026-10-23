@@ -25,6 +25,7 @@ public final class ResearchService {
     private final List<NewsArticle> newsList = new ArrayList<>();
     private final List<AnalystReport> analystReports = new ArrayList<>();
     private final List<CalendarEvent> calendarEvents = new ArrayList<>();
+    private final List<MarketEvent> marketEvents = new ArrayList<>();
 
     private TerminalTier currentTier = TerminalTier.BASIC;
     private long subscriptionExpiresAt = Long.MAX_VALUE; // Basic gratis selamanya
@@ -39,9 +40,27 @@ public final class ResearchService {
         newsList.clear();
         analystReports.clear();
         calendarEvents.clear();
+        marketEvents.clear();
         currentTier = TerminalTier.BASIC;
         subscriptionExpiresAt = Long.MAX_VALUE;
         LocalDate baseDate = java.time.Instant.ofEpochMilli(baseTime).atZone(java.time.ZoneId.of("Asia/Jakarta")).toLocalDate();
+
+        // 0. Sentimen Berita Makro & Peristiwa Pasar (Fitur 2)
+        marketEvents.add(new MarketEvent(
+                "EVT-01", "Suku Bunga Acuan BI Dipertahankan",
+                "Keputusan menahan suku bunga acuan memperkuat stabilitas margin bunga perbankan.",
+                "Keuangan", MarketEvent.EventImpact.POSITIVE, baseTime, true
+        ));
+        marketEvents.add(new MarketEvent(
+                "EVT-02", "Lonjakan Permintaan Energi Global",
+                "Ekspor komoditas energi dan mineral menguat seiring permintaan industri global.",
+                "Energi", MarketEvent.EventImpact.VERY_POSITIVE, baseTime, true
+        ));
+        marketEvents.add(new MarketEvent(
+                "EVT-03", "Akselerasi Belanja Infrastruktur Digital",
+                "Adopsi teknologi jaringan dan digitalisasi layanan mendorong pertumbuhan sektor telekomunikasi.",
+                "Teknologi", MarketEvent.EventImpact.POSITIVE, baseTime, true
+        ));
 
         // 1. Berita yang sudah terbit & jadwal mendatang dengan clue probabilistik (R12)
         newsList.add(new NewsArticle(
@@ -125,6 +144,18 @@ public final class ResearchService {
 
     public synchronized void addAnalystReport(AnalystReport report) {
         analystReports.add(report);
+    }
+
+    public synchronized List<MarketEvent> getMarketEvents() {
+        return new ArrayList<>(marketEvents);
+    }
+
+    public synchronized JSONArray getMarketEventsJson() throws JSONException {
+        JSONArray arr = new JSONArray();
+        for (MarketEvent ev : marketEvents) {
+            arr.put(ev.toJsonObject());
+        }
+        return arr;
     }
 
     public synchronized void addCalendarEvent(CalendarEvent event) {

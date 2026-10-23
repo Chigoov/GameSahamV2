@@ -263,6 +263,12 @@
             <div id="order-account-context"></div>
             <label id="order-unit-label" for="order-qty" style="font-size:0.85rem; color:var(--text-secondary);">Jumlah unit</label>
             <input id="order-qty" class="input-field" type="number" min="1" value="1">
+            <div id="order-pct-buttons" style="display:flex; gap:6px; margin:4px 0 8px;">
+                <button type="button" class="subtab-pill btn-order-pct" data-pct="25" style="flex:1; padding:6px 0; font-size:0.75rem;">25%</button>
+                <button type="button" class="subtab-pill btn-order-pct" data-pct="50" style="flex:1; padding:6px 0; font-size:0.75rem;">50%</button>
+                <button type="button" class="subtab-pill btn-order-pct" data-pct="75" style="flex:1; padding:6px 0; font-size:0.75rem;">75%</button>
+                <button type="button" class="subtab-pill btn-order-pct" data-pct="100" style="flex:1; padding:6px 0; font-size:0.75rem;">MAX</button>
+            </div>
 
             <label id="order-price-label" for="order-limit-price" style="font-size:0.85rem; color:var(--text-secondary);">Harga limit</label>
             <input id="order-limit-price" class="input-field" type="number" value="10250">

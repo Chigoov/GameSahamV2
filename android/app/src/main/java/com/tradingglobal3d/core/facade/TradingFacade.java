@@ -1052,6 +1052,14 @@ public final class TradingFacade {
         return clock != null ? clock.getGameTimestamp() : System.currentTimeMillis();
     }
 
+    public synchronized String getMarketEventsJson() {
+        try {
+            return researchService.getMarketEventsJson().toString();
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
     public synchronized String getNewsFeedJson() {
         try {
             return researchService.getNewsFeed(clock.getGameTimestamp()).toString();
@@ -2295,26 +2303,55 @@ public final class TradingFacade {
         JSONArray bars = new JSONArray();
         String sourceLabel = "Matched trades domain engine internal";
 
-        if ("D1".equals(tf) && ("US:AAPL".equalsIgnoreCase(inst.getId()) || "AAPL".equalsIgnoreCase(inst.getTicker()))) {
-            try {
-                List<HistoricalBar> histBars = HistoricalDatasetLoader.loadDataset("US:AAPL");
-                if (histBars != null && !histBars.isEmpty()) {
-                    int count = Math.min(histBars.size(), 30);
-                    List<HistoricalBar> recent = histBars.subList(histBars.size() - count, histBars.size());
-                    for (HistoricalBar hb : recent) {
-                        JSONObject bObj = new JSONObject();
-                        bObj.put("time", hb.getDate().toString());
-                        bObj.put("open", hb.getOpen().doubleValue());
-                        bObj.put("high", hb.getHigh().doubleValue());
-                        bObj.put("low", hb.getLow().doubleValue());
-                        bObj.put("close", hb.getClose().doubleValue());
-                        bObj.put("volume", hb.getVolume());
-                        bObj.put("isReference", false);
-                        bars.put(bObj);
+        if ("D1".equals(tf)) {
+            if ("US:AAPL".equalsIgnoreCase(inst.getId()) || "AAPL".equalsIgnoreCase(inst.getTicker())) {
+                try {
+                    List<HistoricalBar> histBars = HistoricalDatasetLoader.loadDataset("US:AAPL");
+                    if (histBars != null && !histBars.isEmpty()) {
+                        int count = Math.min(histBars.size(), 30);
+                        List<HistoricalBar> recent = histBars.subList(histBars.size() - count, histBars.size());
+                        for (HistoricalBar hb : recent) {
+                            JSONObject bObj = new JSONObject();
+                            bObj.put("time", hb.getDate().toString());
+                            bObj.put("open", hb.getOpen().doubleValue());
+                            bObj.put("high", hb.getHigh().doubleValue());
+                            bObj.put("low", hb.getLow().doubleValue());
+                            bObj.put("close", hb.getClose().doubleValue());
+                            bObj.put("volume", hb.getVolume());
+                            bObj.put("isReference", false);
+                            bars.put(bObj);
+                        }
+                        sourceLabel = "Data historis harian bursa resmi (US:AAPL)";
                     }
-                    sourceLabel = "Data historis harian bursa resmi (US:AAPL)";
-                }
-            } catch (Exception ignored) {}
+                } catch (Exception ignored) {}
+            } else if ("IDX:BBCA".equalsIgnoreCase(inst.getId()) || "BBCA".equalsIgnoreCase(inst.getTicker())) {
+                try {
+                    InputStream is = HistoricalDatasetLoader.openAssetStream("data/historical/idx_bbca_daily.csv");
+                    if (is != null) {
+                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                        byte[] buf = new byte[8192];
+                        int r;
+                        while ((r = is.read(buf)) != -1) baos.write(buf, 0, r);
+                        List<HistoricalBar> bbcaBars = HistoricalDatasetLoader.loadFromCsvString(new String(baos.toByteArray(), StandardCharsets.UTF_8));
+                        if (bbcaBars != null && !bbcaBars.isEmpty()) {
+                            int count = Math.min(bbcaBars.size(), 30);
+                            List<HistoricalBar> recent = bbcaBars.subList(bbcaBars.size() - count, bbcaBars.size());
+                            for (HistoricalBar hb : recent) {
+                                JSONObject bObj = new JSONObject();
+                                bObj.put("time", hb.getDate().toString());
+                                bObj.put("open", hb.getOpen().doubleValue());
+                                bObj.put("high", hb.getHigh().doubleValue());
+                                bObj.put("low", hb.getLow().doubleValue());
+                                bObj.put("close", hb.getClose().doubleValue());
+                                bObj.put("volume", hb.getVolume());
+                                bObj.put("isReference", false);
+                                bars.put(bObj);
+                            }
+                            sourceLabel = "Data historis harian bursa resmi (IDX:BBCA)";
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
         }
 
         if (bars.length() == 0 && fills.isEmpty()) {
