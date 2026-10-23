@@ -153,6 +153,17 @@ def init_database():
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, cosmetics)
 
+    # 8. Inisialisasi Kartu Booster Riset R&D (Fitur 7 Ekspansi)
+    boosters = [
+        ('BOOST-01', 'NEWS_ACCURACY', 'Bocoran Riset Analis', 'Akurasi sinyal berita makro meningkat 30% selama 3 hari bursa.', 3, 0, 1.30),
+        ('BOOST-02', 'FEE_DISCOUNT', 'Koneksi Khusus Broker', 'Bebas komisi transaksi selama 15 order berikutnya.', 15, 0, 0.00),
+        ('BOOST-03', 'MARGIN_EXPAND', 'Suntikan Likuiditas Cepat', 'Plafon pinjaman bank meningkat 50% selama 1 sesi bursa.', 1, 0, 1.50)
+    ]
+    cursor.executemany("""
+        INSERT INTO ResearchBoosters (BoosterId, BoosterType, Title, Description, RemainingSessionsOrUses, IsActive, MultiplierValue)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, boosters)
+
     conn.commit()
     conn.close()
     print("[+] Database initialization and initial seeding complete!")

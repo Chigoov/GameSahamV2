@@ -2171,6 +2171,7 @@
         flowButton(view,'Hasil investasi & arus kas',openPerformanceReport);
         flowButton(view, 'Lab strategi & sandbox what-if', openStrategyLabModal);
         flowButton(view, 'Replay historis', openHistoricalReplayModal);
+        flowButton(view, 'Kartu Booster Riset R&D', openResearchBoostersModal);
 
         if (!bridge.getResearchFeed) {
             flowText(view, 'Riset', 'Riset belum dapat dimuat.'); return;
@@ -5696,6 +5697,60 @@
             frCard.append(row);
         });
         panel.append(frCard);
+    }
+
+    function openResearchBoostersModal() {
+        const panel = showFlow('Kartu Booster Riset R&D');
+        flowText(panel, 'Booster Efisiensi Sementara', 'Aktifkan kartu booster riset untuk meningkatkan akurasi sinyal berita, diskon komisi, atau memperluas plafon likuiditas.');
+
+        if (!bridge.getResearchBoosters) {
+            flowText(panel, 'Status', 'Layanan kartu booster belum tersedia.');
+            return;
+        }
+
+        try {
+            const boosters = JSON.parse(bridge.getResearchBoosters());
+            boosters.forEach(b => {
+                const card = document.createElement('section');
+                card.className = 'card booster-card';
+                card.style.cssText = 'margin-bottom:12px; border:1px solid rgba(0, 229, 255, 0.35); background:linear-gradient(135deg, rgba(0, 229, 255, 0.08) 0%, rgba(18, 23, 40, 0.95) 100%);';
+
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span class="eyebrow" style="color:var(--teal); font-weight:700;">${b.type}</span>
+                        <span class="badge" style="background:rgba(0, 229, 255, 0.18); color:var(--teal); font-size:0.7rem; font-weight:700;">${b.statusLabel}</span>
+                    </div>
+                    <h3 style="font-size:1.1rem; color:#FFF; margin:0 0 6px;">${b.title}</h3>
+                    <p style="font-size:0.82rem; color:var(--text-secondary); margin:0 0 8px; line-height:1.4;">${b.description}</p>
+                    <div class="data-row"><span>Sisa Sesi / Pemakaian</span><strong>${b.remainingUses} kali</strong></div>
+                `;
+
+                if (!b.isActive && b.remainingUses > 0) {
+                    const actBtn = document.createElement('button');
+                    actBtn.className = 'btn-primary';
+                    actBtn.style.marginTop = '10px';
+                    actBtn.textContent = 'Aktifkan Kartu Booster';
+                    actBtn.onclick = () => {
+                        try {
+                            const res = JSON.parse(bridge.activateResearchBooster(b.boosterId));
+                            alert(`Kartu ${b.title} berhasil diaktifkan!`);
+                            refreshSnapshot();
+                            openResearchBoostersModal();
+                        } catch(err) { alert('Gagal mengaktifkan booster: ' + err.message); }
+                    };
+                    card.appendChild(actBtn);
+                } else if (b.isActive) {
+                    const activeP = document.createElement('p');
+                    activeP.style.cssText = 'color:var(--teal); font-weight:600; font-size:0.8rem; margin-top:8px;';
+                    activeP.textContent = '⚡ Kartu Booster sedang aktif!';
+                    card.appendChild(activeP);
+                }
+
+                panel.appendChild(card);
+            });
+        } catch(e) {
+            flowText(panel, 'Galat', e.message);
+        }
     }
 
     function openAccountPicker() {

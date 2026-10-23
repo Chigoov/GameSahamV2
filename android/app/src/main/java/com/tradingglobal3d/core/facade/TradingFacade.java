@@ -2507,6 +2507,16 @@ public final class TradingFacade {
         return taxAuditService.evaluateCompliance(personal, assets, liabilities).toJsonObject();
     }
 
+    public synchronized JSONArray getResearchBoostersJson() throws JSONException {
+        return researchService.getBoostersJson();
+    }
+
+    public synchronized JSONObject activateResearchBooster(String boosterId) throws JSONException {
+        JSONObject res = researchService.activateBooster(boosterId);
+        persistFinancialMutation();
+        return res;
+    }
+
     private String readStreamUtf8(InputStream is) throws IOException {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         byte[] data = new byte[8192];

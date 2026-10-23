@@ -185,6 +185,17 @@ public final class GameDatabaseHelper extends SQLiteOpenHelper {
                 + "IsUnlocked INTEGER NOT NULL DEFAULT 0, "
                 + "IsEquipped INTEGER NOT NULL DEFAULT 0"
                 + ");");
+
+        // 13. Kartu Booster Riset & Efisiensi Sementara
+        db.execSQL("CREATE TABLE IF NOT EXISTS ResearchBoosters ("
+                + "BoosterId TEXT PRIMARY KEY, "
+                + "BoosterType TEXT NOT NULL, "
+                + "Title TEXT NOT NULL, "
+                + "Description TEXT NOT NULL, "
+                + "RemainingSessionsOrUses INTEGER NOT NULL, "
+                + "IsActive INTEGER NOT NULL DEFAULT 0, "
+                + "MultiplierValue DECIMAL(6, 2) NOT NULL"
+                + ");");
     }
 
     @Override

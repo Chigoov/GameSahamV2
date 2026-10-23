@@ -26,6 +26,7 @@ public final class ResearchService {
     private final List<AnalystReport> analystReports = new ArrayList<>();
     private final List<CalendarEvent> calendarEvents = new ArrayList<>();
     private final List<MarketEvent> marketEvents = new ArrayList<>();
+    private final List<ResearchBooster> boosters = new ArrayList<>();
 
     private TerminalTier currentTier = TerminalTier.BASIC;
     private long subscriptionExpiresAt = Long.MAX_VALUE; // Basic gratis selamanya
@@ -41,9 +42,15 @@ public final class ResearchService {
         analystReports.clear();
         calendarEvents.clear();
         marketEvents.clear();
+        boosters.clear();
         currentTier = TerminalTier.BASIC;
         subscriptionExpiresAt = Long.MAX_VALUE;
         LocalDate baseDate = java.time.Instant.ofEpochMilli(baseTime).atZone(java.time.ZoneId.of("Asia/Jakarta")).toLocalDate();
+
+        // Kartu Booster Riset R&D Awal (Fitur 7 Ekspansi)
+        boosters.add(new ResearchBooster("BOOST-01", ResearchBooster.BoosterType.NEWS_ACCURACY, "Bocoran Riset Analis", "Akurasi sinyal berita makro meningkat 30% selama 3 hari bursa.", 3, 1.30));
+        boosters.add(new ResearchBooster("BOOST-02", ResearchBooster.BoosterType.FEE_DISCOUNT, "Koneksi Khusus Broker", "Bebas komisi transaksi selama 15 order berikutnya.", 15, 0.00));
+        boosters.add(new ResearchBooster("BOOST-03", ResearchBooster.BoosterType.MARGIN_EXPAND, "Suntikan Likuiditas Cepat", "Plafon pinjaman bank meningkat 50% selama 1 sesi bursa.", 1, 1.50));
 
         // 0. Sentimen Berita Makro & Peristiwa Pasar (Fitur 2)
         marketEvents.add(new MarketEvent(
@@ -156,6 +163,35 @@ public final class ResearchService {
             arr.put(ev.toJsonObject());
         }
         return arr;
+    }
+
+    public synchronized List<ResearchBooster> getBoosters() {
+        return new ArrayList<>(boosters);
+    }
+
+    public synchronized JSONArray getBoostersJson() throws JSONException {
+        JSONArray arr = new JSONArray();
+        for (ResearchBooster b : boosters) {
+            arr.put(b.toJsonObject());
+        }
+        return arr;
+    }
+
+    public synchronized JSONObject activateBooster(String boosterId) throws JSONException {
+        for (ResearchBooster b : boosters) {
+            if (b.getBoosterId().equalsIgnoreCase(boosterId)) {
+                b.activate();
+                return b.toJsonObject();
+            }
+        }
+        throw new IllegalArgumentException("Booster tidak ditemukan: " + boosterId);
+    }
+
+    public synchronized boolean hasActiveBooster(ResearchBooster.BoosterType type) {
+        for (ResearchBooster b : boosters) {
+            if (b.isActive() && b.getType() == type) return true;
+        }
+        return false;
     }
 
     public synchronized void addCalendarEvent(CalendarEvent event) {

@@ -150,3 +150,14 @@ CREATE TABLE IF NOT EXISTS ProfileCosmetics (
     IsUnlocked INTEGER NOT NULL DEFAULT 0,
     IsEquipped INTEGER NOT NULL DEFAULT 0
 );
+
+-- 13. Kartu Booster Riset & Efisiensi Sementara (Fitur 7 Ekspansi)
+CREATE TABLE IF NOT EXISTS ResearchBoosters (
+    BoosterId TEXT PRIMARY KEY,
+    BoosterType TEXT NOT NULL, -- NEWS_ACCURACY, FEE_DISCOUNT, MARGIN_EXPAND
+    Title TEXT NOT NULL,
+    Description TEXT NOT NULL,
+    RemainingSessionsOrUses INTEGER NOT NULL,
+    IsActive INTEGER NOT NULL DEFAULT 0,
+    MultiplierValue DECIMAL(6, 2) NOT NULL
+);

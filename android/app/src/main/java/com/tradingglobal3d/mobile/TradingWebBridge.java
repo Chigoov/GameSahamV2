@@ -277,6 +277,24 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String getResearchBoosters() {
+        try {
+            return facade.getResearchBoostersJson().toString();
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    @JavascriptInterface
+    public String activateResearchBooster(String boosterId) {
+        try {
+            return facade.activateResearchBooster(boosterId).toString();
+        } catch (Exception error) {
+            return bridgeError(error);
+        }
+    }
+
+    @JavascriptInterface
     public String getChartData(String instrumentId, String timeframe) {
         try {
             return facade.getChartData(instrumentId, timeframe).toString();
