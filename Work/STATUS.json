@@ -86,15 +86,14 @@
     "personalSaveStatus": "UNTOUCHED_AND_VERIFIED"
   },
   "masterplan_12_fitur_strategis_2026_10_23": {
-    "status": "TAHAP_S3_COMPLETED_AND_VERIFIED",
+    "status": "ALL_4_TAHAP_COMPLETED_AND_VERIFIED",
     "totalTahap": 4,
-    "completedTahap": 3,
-    "activeTahap": "S4",
+    "completedTahap": 4,
     "sqliteDb": "android/app/src/main/assets/data/gamesaham.db",
     "sqliteSchema": "android/app/src/main/assets/data/gamesaham_schema.sql",
     "apkPath": "android/app/build/outputs/apk/debug/app-debug.apk",
-    "apkBytes": 996935,
-    "apkSha256": "1b347462d052c7290fae06a6a85a4515f106865a23ce0e84ba357666964f2b95",
+    "apkBytes": 998918,
+    "apkSha256": "dbc0d1cc12e1c36882b802089634374cd84b08e0dc71c816ae06a71f3ceda661",
     "personalSaveSha256": "59b41e24c5a0a3b6f87d127d41c18b7f3f0ebe371f4dd2d277a31ca4b5f867ed",
     "personalSaveStatus": "UNTOUCHED_AND_VERIFIED"
   },

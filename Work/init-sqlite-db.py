@@ -217,6 +217,23 @@ def init_database():
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, tech_nodes)
 
+    # 12. Inisialisasi Streak Disiplin Harian & Dominasi Sektor (Fase 3 Fitur 8 & 9)
+    cursor.execute("""
+        INSERT INTO DailyStreakTracker (PlayerId, CurrentStreak, LongestStreak, LastLoginSession, IsStreakBroken, RewardMultiplier)
+        VALUES ('PLAYER-001', 3, 5, 14, 0, 1.50)
+    """)
+
+    sectors = [
+        ('Keuangan & Perbankan', 12.5, 0, 0, 0.0),
+        ('Energi & Sumber Daya', 28.0, 1, 1, 25.0),
+        ('Teknologi & Digital', 5.0, 0, 0, 0.0),
+        ('Konsumer & Ritel', 8.0, 0, 0, 0.0)
+    ]
+    cursor.executemany("""
+        INSERT INTO SectorDominanceStatus (SectorName, PlayerOwnershipPct, IsDominantPlayer, VetoPowerActive, FeeDiscountPct)
+        VALUES (?, ?, ?, ?, ?)
+    """, sectors)
+
     conn.commit()
     conn.close()
     print("[+] Database initialization and initial seeding complete!")

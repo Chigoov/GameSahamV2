@@ -6009,6 +6009,65 @@
         }
     }
 
+    function openDailyStreakModal() {
+        const panel = showFlow('Jalur Disiplin Harian (Streak)');
+        flowText(panel, 'Kedisiplinan & Multiplier Modal', 'Lakukan aktivitas transaksi atau login setiap sesi pasar berturut-turut untuk melipatgandakan bonus modal harian hingga 2.0x lipat.');
+
+        if (!bridge.getDailyStreak) {
+            flowText(panel, 'Status', 'Layanan streak harian belum tersedia.');
+            return;
+        }
+
+        try {
+            const streak = JSON.parse(bridge.getDailyStreak());
+            const card = node('section', 'card');
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span class="eyebrow" style="color:#FF7300; font-weight:700;">🔥 ${streak.statusLabel}</span>
+                    <span class="badge" style="background:rgba(255, 115, 0, 0.18); color:#FF7300; font-weight:700;">Bonus ${streak.rewardMultiplier}</span>
+                </div>
+                <div class="data-row"><span>Streak Saat Ini</span><strong>${streak.currentStreak} Hari Beruntun</strong></div>
+                <div class="data-row"><span>Rekor Streak Terpanjang</span><strong>${streak.longestStreak} Hari</strong></div>
+                <div class="data-row"><span>Pengali Hadiah Modal</span><strong style="color:var(--teal);">${streak.rewardMultiplier}</strong></div>
+                <p class="notice" style="margin-top:10px; font-size:0.8rem;">Pertahankan disiplin trading harian Anda. Melewatkan 1 hari pasar akan memicu Broken Streak dan mereset pengali kembali ke awal.</p>
+            `;
+            panel.append(card);
+        } catch(e) { flowText(panel, 'Galat', e.message); }
+    }
+
+    function openSectorDominanceModal() {
+        const panel = showFlow('Status Dominasi Sektor Bursa');
+        flowText(panel, 'Penguasa & Pengaruh Sektor Industri', 'Akumulasi kepemilikan saham di atas 25% kapitalisasi pasar satu sektor untuk dinobatkan sebagai Penguasa Sektor dengan hak veto dan diskon komisi 25%.');
+
+        if (!bridge.getSectorDominance) {
+            flowText(panel, 'Status', 'Layanan dominasi sektor belum tersedia.');
+            return;
+        }
+
+        try {
+            const sectors = JSON.parse(bridge.getSectorDominance());
+            sectors.forEach(s => {
+                const card = node('section', 'card');
+                card.style.marginBottom = '10px';
+                if (s.isDominant) {
+                    card.style.borderColor = 'rgba(20, 241, 149, 0.4)';
+                    card.style.background = 'linear-gradient(135deg, rgba(20, 241, 149, 0.08) 0%, rgba(18, 23, 40, 0.95) 100%)';
+                }
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span class="eyebrow" style="color:${s.isDominant ? 'var(--teal)' : 'var(--text-muted)'}; font-weight:700;">${s.title}</span>
+                        <span class="badge" style="background:${s.isDominant ? 'rgba(20, 241, 149, 0.18)' : 'rgba(255, 255, 255, 0.08)'}; color:${s.isDominant ? 'var(--teal)' : 'var(--text-muted)'};">${s.isDominant ? 'PENGUASA' : 'REGULER'}</span>
+                    </div>
+                    <h3 style="font-size:1.05rem; color:#FFF; margin:0 0 6px;">${s.sectorName}</h3>
+                    <div class="data-row"><span>Porsi Kepemilikan Pemain</span><strong>${s.playerOwnershipPct} (Ambang: 25.00%)</strong></div>
+                    <div class="data-row"><span>Hak Veto Kebijakan</span><strong>${s.vetoPowerActive ? 'AKTIF ✓' : 'Tidak Aktif'}</strong></div>
+                    <div class="data-row"><span>Diskon Komisi Transaksi</span><strong style="color:var(--teal);">${s.feeDiscountPct}</strong></div>
+                `;
+                panel.append(card);
+            });
+        } catch(e) { flowText(panel, 'Galat', e.message); }
+    }
+
     function openAccountPicker() {
         if (!latestSnapshot || !latestSnapshot.tradingAccounts) return;
         const panel = showFlow('Pilih Akun Transaksi');
@@ -6042,6 +6101,10 @@
     if (leaBtn) leaBtn.addEventListener('click', openLeagueAndRivalModal);
     const bossBtn = document.getElementById('btn-market-boss');
     if (bossBtn) bossBtn.addEventListener('click', openMarketBossModal);
+    const strkBtn = document.getElementById('btn-home-streak');
+    if (strkBtn) strkBtn.addEventListener('click', openDailyStreakModal);
+    const domBtn = document.getElementById('btn-home-dominance');
+    if (domBtn) domBtn.addEventListener('click', openSectorDominanceModal);
 
     const claimSponsorBtn = document.getElementById('btn-claim-sponsor');
     const handleClaimSponsor = () => {

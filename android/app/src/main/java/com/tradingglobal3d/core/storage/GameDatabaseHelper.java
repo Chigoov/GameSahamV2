@@ -269,6 +269,25 @@ public final class GameDatabaseHelper extends SQLiteOpenHelper {
                 + "StatBonusType TEXT NOT NULL, "
                 + "StatBonusValue DECIMAL(6, 2) NOT NULL"
                 + ");");
+
+        // 20. Pelacak Jalur Disiplin Harian Streak
+        db.execSQL("CREATE TABLE IF NOT EXISTS DailyStreakTracker ("
+                + "PlayerId TEXT PRIMARY KEY, "
+                + "CurrentStreak INTEGER NOT NULL DEFAULT 0, "
+                + "LongestStreak INTEGER NOT NULL DEFAULT 0, "
+                + "LastLoginSession INTEGER NOT NULL DEFAULT 0, "
+                + "IsStreakBroken INTEGER NOT NULL DEFAULT 0, "
+                + "RewardMultiplier DECIMAL(4, 2) NOT NULL DEFAULT 1.0"
+                + ");");
+
+        // 21. Status Dominasi & Pengaruh Sektor Bursa
+        db.execSQL("CREATE TABLE IF NOT EXISTS SectorDominanceStatus ("
+                + "SectorName TEXT PRIMARY KEY, "
+                + "PlayerOwnershipPct DECIMAL(5, 2) NOT NULL DEFAULT 0.0, "
+                + "IsDominantPlayer INTEGER NOT NULL DEFAULT 0, "
+                + "VetoPowerActive INTEGER NOT NULL DEFAULT 0, "
+                + "FeeDiscountPct DECIMAL(5, 2) NOT NULL DEFAULT 0.0"
+                + ");");
     }
 
     @Override

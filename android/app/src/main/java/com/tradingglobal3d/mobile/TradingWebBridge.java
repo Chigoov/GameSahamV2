@@ -388,6 +388,33 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String getDailyStreak() {
+        try {
+            return facade.getDailyStreakJson().toString();
+        } catch (Exception e) {
+            return "{}";
+        }
+    }
+
+    @JavascriptInterface
+    public String getSectorDominance() {
+        try {
+            return facade.getSectorDominanceJson().toString();
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    @JavascriptInterface
+    public String triggerMarketShockEvent(String eventType) {
+        try {
+            return facade.triggerMarketShockEvent(eventType).toString();
+        } catch (Exception error) {
+            return bridgeError(error);
+        }
+    }
+
+    @JavascriptInterface
     public String getChartData(String instrumentId, String timeframe) {
         try {
             return facade.getChartData(instrumentId, timeframe).toString();

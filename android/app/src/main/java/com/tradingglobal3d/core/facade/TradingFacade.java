@@ -129,6 +129,8 @@ public final class TradingFacade {
     private final com.tradingglobal3d.core.risk.PortfolioInsuranceService portfolioInsuranceService = new com.tradingglobal3d.core.risk.PortfolioInsuranceService();
     private final com.tradingglobal3d.core.research.ResearchTechTreeService researchTechTreeService = new com.tradingglobal3d.core.research.ResearchTechTreeService();
     private final com.tradingglobal3d.core.firm.HeadhuntingService headhuntingService = new com.tradingglobal3d.core.firm.HeadhuntingService();
+    private final com.tradingglobal3d.core.player.DailyStreakService dailyStreakService = new com.tradingglobal3d.core.player.DailyStreakService();
+    private final com.tradingglobal3d.core.market.SectorDominanceService sectorDominanceService = new com.tradingglobal3d.core.market.SectorDominanceService();
     private final List<JSONObject> customMutualFunds = new ArrayList<>();
     private final Map<String, JSONObject> dayCloseReceipts = new LinkedHashMap<>();
     private final Map<String, JSONObject> skipDayReceipts = new LinkedHashMap<>();
@@ -2637,6 +2639,58 @@ public final class TradingFacade {
         com.tradingglobal3d.core.firm.HeadhuntingService.Candidate c = headhuntingService.poachCandidate(candidateId, personal, ledger, clock.getGameTimestamp());
         persistFinancialMutation();
         return c.toJsonObject().put("success", true);
+    }
+
+    public synchronized com.tradingglobal3d.core.player.DailyStreakService getDailyStreakService() {
+        return dailyStreakService;
+    }
+
+    public synchronized com.tradingglobal3d.core.market.SectorDominanceService getSectorDominanceService() {
+        return sectorDominanceService;
+    }
+
+    public synchronized JSONObject getDailyStreakJson() throws JSONException {
+        dailyStreakService.recordSessionLogin(playerProfileManager.getRunDaysPlayed());
+        return dailyStreakService.toJsonObject();
+    }
+
+    public synchronized JSONArray getSectorDominanceJson() throws JSONException {
+        Account personal = getPersonalAccount();
+        BigDecimal usdRate = fxService != null ? fxService.getMidRate() : BigDecimal.valueOf(15800);
+        return sectorDominanceService.exportDominance(personal, catalog, usdRate);
+    }
+
+    public synchronized JSONObject triggerMarketShockEvent(String eventType) throws JSONException {
+        // Black Swan Shock (15% drop) or Supply Chain Crisis
+        double dropRate = "SUPPLY_CHAIN_CRISIS".equalsIgnoreCase(eventType) ? 0.08 : 0.15;
+        int affectedCount = 0;
+        for (Instrument inst : catalog.getActiveUniverse()) {
+            boolean isEnergy = inst.getSector() != null && inst.getSector().toLowerCase().contains("energi");
+            boolean isManufacturing = inst.getSector() != null && (inst.getSector().toLowerCase().contains("manufaktur") || inst.getSector().toLowerCase().contains("industri") || inst.getSector().toLowerCase().contains("konsumer"));
+
+            BigDecimal current = inst.getCurrentPrice().getAmount();
+            BigDecimal newPrice;
+            if ("SUPPLY_CHAIN_CRISIS".equalsIgnoreCase(eventType)) {
+                if (isEnergy) {
+                    newPrice = current.multiply(BigDecimal.valueOf(1.10)).setScale(0, java.math.RoundingMode.HALF_UP); // Energi naik +10%
+                } else if (isManufacturing) {
+                    newPrice = current.multiply(BigDecimal.valueOf(0.88)).setScale(0, java.math.RoundingMode.HALF_UP); // Manufaktur anjlok -12%
+                } else {
+                    newPrice = current;
+                }
+            } else {
+                newPrice = current.multiply(BigDecimal.valueOf(1.0 - dropRate)).setScale(0, java.math.RoundingMode.HALF_UP);
+            }
+            if (newPrice.compareTo(BigDecimal.ONE) >= 0 && !newPrice.equals(current)) {
+                inst.updatePrice(new Money(newPrice, inst.getCurrency()), 0);
+                affectedCount++;
+            }
+        }
+        persistFinancialMutation();
+        return new JSONObject().put("success", true)
+                .put("eventType", eventType)
+                .put("affectedInstruments", affectedCount)
+                .put("dropRatePercent", dropRate * 100);
     }
 
     private String readStreamUtf8(InputStream is) throws IOException {
