@@ -6105,6 +6105,8 @@
     if (strkBtn) strkBtn.addEventListener('click', openDailyStreakModal);
     const domBtn = document.getElementById('btn-home-dominance');
     if (domBtn) domBtn.addEventListener('click', openSectorDominanceModal);
+    const insBtn = document.getElementById('btn-home-insurance');
+    if (insBtn) insBtn.addEventListener('click', openPortfolioInsuranceModal);
 
     const claimSponsorBtn = document.getElementById('btn-claim-sponsor');
     const handleClaimSponsor = () => {
