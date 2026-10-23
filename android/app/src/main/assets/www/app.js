@@ -1116,6 +1116,8 @@
             flowButton(summary, 'Tukar IDR / USD', () => openFxForm());
             flowButton(summary, 'Fasilitas margin & risiko', () => openRiskModal());
             flowButton(summary, 'Audit Pajak & Kepatuhan Risiko', () => openTaxAuditModal());
+            flowButton(summary, 'Asuransi Portofolio (Hedging)', () => openPortfolioInsuranceModal());
+            flowButton(summary, 'Restrukturisasi Darurat (Turnaround)', () => executeBailoutAction());
             flowButton(summary, 'Aksi korporasi & voting RUPS', () => openCorporateActionModal());
             flowButton(summary, 'Uji stres portofolio', () => openStressTestModal());
             flowButton(summary, 'Lab strategi & sandbox what-if', () => openStrategyLabModal());
@@ -4543,6 +4545,77 @@
         } catch(e) {
             flowText(panel, 'Galat', e.message);
         }
+    }
+
+    function openPortfolioInsuranceModal() {
+        const panel = showFlow('Asuransi Portofolio (Hedging)');
+        flowText(panel, 'Lindung Nilai Modal Saham', 'Lindungi modal portofolio Anda dari risiko kejatuhan pasar ekstrem (> 5%) dengan proteksi penggantian 80% nilai kerugian.');
+
+        if (!bridge.getPortfolioInsuranceStatus) {
+            flowText(panel, 'Status', 'Layanan asuransi belum tersedia.');
+            return;
+        }
+
+        try {
+            const ins = JSON.parse(bridge.getPortfolioInsuranceStatus());
+            const card = document.createElement('section');
+            card.className = 'card';
+            if (ins.hasActivePolicy && ins.policy) {
+                const pol = ins.policy;
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span class="eyebrow" style="color:var(--teal); font-weight:700;">STATUS: POLIS AKTIF</span>
+                        <span class="badge" style="background:rgba(20, 241, 149, 0.18); color:var(--teal); font-size:0.75rem; font-weight:700;">Proteksi 80%</span>
+                    </div>
+                    <div class="data-row"><span>ID Polis</span><strong>${pol.policyId}</strong></div>
+                    <div class="data-row"><span>Premi Dibayar</span><strong>${pol.premiumPaid}</strong></div>
+                    <div class="data-row"><span>Sisa Masa Berlaku</span><strong>${pol.remainingSessions} Sesi Bursa</strong></div>
+                    <p class="notice" style="margin-top:10px; font-size:0.8rem;">Polis akan otomatis mencairkan klaim 80% ganti rugi jika terjadi crash pasar > 5%.</p>
+                `;
+            } else {
+                card.innerHTML = `
+                    <h3 style="font-size:1.05rem; color:#FFF; margin-bottom:8px;">Pengajuan Polis Asuransi Baru</h3>
+                    <div class="data-row"><span>Cakupan Penggantian</span><strong>80% dari Total Kerugian Crash</strong></div>
+                    <div class="data-row"><span>Biaya Premi</span><strong>1.0% dari Nilai Portofolio (Min Rp 500.000)</strong></div>
+                    <div class="data-row"><span>Masa Perlindungan</span><strong>5 Sesi Bursa Mendatang</strong></div>
+                `;
+                const buyPolBtn = document.createElement('button');
+                buyPolBtn.className = 'btn-primary';
+                buyPolBtn.style.marginTop = '12px';
+                buyPolBtn.textContent = 'Beli Polis Asuransi Portofolio (5 Sesi)';
+                buyPolBtn.onclick = () => {
+                    try {
+                        const res = JSON.parse(bridge.purchasePortfolioInsurance(5));
+                        if (res.success) {
+                            alert('Polis asuransi portofolio lindung nilai 80% berhasil dibeli!');
+                            refreshSnapshot();
+                            openPortfolioInsuranceModal();
+                        } else {
+                            alert('Gagal membeli polis: ' + res.message);
+                        }
+                    } catch(err) { alert('Galat pembelian asuransi: ' + err.message); }
+                };
+                card.appendChild(buyPolBtn);
+            }
+            panel.appendChild(card);
+        } catch(e) {
+            flowText(panel, 'Galat', e.message);
+        }
+    }
+
+    function executeBailoutAction() {
+        if (!confirm('Ajukan penyelamatan darurat & restrukturisasi utang (Turnaround Specialist)? Anda akan menerima suntikan modal darurat Rp 25.000.000 untuk memulihkan likuiditas.')) return;
+        try {
+            const reqId = 'BAILOUT-' + Date.now();
+            const res = JSON.parse(bridge.executeTurnaroundBailout ? bridge.executeTurnaroundBailout(reqId) : '{"success":false,"message":"Layanan belum tersedia"}');
+            if (res.success) {
+                alert(`Restrukturisasi berhasil! ${res.bailoutRelief} dana talangan darurat telah dikreditkan ke kas pribadi Anda.`);
+                refreshSnapshot();
+                if (currentTab === 'aset') loadAsetView();
+            } else {
+                alert('Restrukturisasi belum dapat diproses: ' + (res.message || 'Periksa kondisi keuangan Anda'));
+            }
+        } catch(e) { alert('Galat restrukturisasi: ' + e.message); }
     }
 
     function openTransactionHistoryModal(selectedAccountId = null) {

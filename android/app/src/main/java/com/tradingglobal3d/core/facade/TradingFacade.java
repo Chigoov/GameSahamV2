@@ -126,6 +126,7 @@ public final class TradingFacade {
     private final PlayerProfileManager playerProfileManager = new PlayerProfileManager();
     private final com.tradingglobal3d.core.boss.MarketBossService marketBossService = new com.tradingglobal3d.core.boss.MarketBossService();
     private final com.tradingglobal3d.core.risk.TaxAuditService taxAuditService = new com.tradingglobal3d.core.risk.TaxAuditService();
+    private final com.tradingglobal3d.core.risk.PortfolioInsuranceService portfolioInsuranceService = new com.tradingglobal3d.core.risk.PortfolioInsuranceService();
     private final Map<String, JSONObject> dayCloseReceipts = new LinkedHashMap<>();
     private final Map<String, JSONObject> skipDayReceipts = new LinkedHashMap<>();
     private final Map<String, StrategyLabSandbox> strategyLabs = new LinkedHashMap<>();
@@ -2515,6 +2516,49 @@ public final class TradingFacade {
         JSONObject res = researchService.activateBooster(boosterId);
         persistFinancialMutation();
         return res;
+    }
+
+    public synchronized com.tradingglobal3d.core.risk.PortfolioInsuranceService getPortfolioInsuranceService() {
+        return portfolioInsuranceService;
+    }
+
+    public synchronized JSONObject purchasePortfolioInsurance(int durationSessions) throws JSONException {
+        Account personal = getPersonalAccount();
+        if (personal == null) return new JSONObject().put("success", false).put("message", "Akun pribadi tidak ditemukan");
+        Money assets = getPersonalNetWorth();
+        int curSession = playerProfileManager.getRunDaysPlayed();
+        com.tradingglobal3d.core.risk.PortfolioInsuranceService.Policy pol = portfolioInsuranceService.purchasePolicy(
+                personal, assets, durationSessions, ledger, clock.getGameTimestamp(), curSession
+        );
+        persistFinancialMutation();
+        return new JSONObject().put("success", true).put("policy", pol.toJsonObject(curSession));
+    }
+
+    public synchronized JSONObject getPortfolioInsuranceStatus() throws JSONException {
+        int curSession = playerProfileManager.getRunDaysPlayed();
+        return portfolioInsuranceService.toJsonObject(curSession);
+    }
+
+    public synchronized JSONObject executeTurnaroundBailout(String requestId) throws JSONException {
+        Account personal = getPersonalAccount();
+        if (personal == null) return new JSONObject().put("success", false).put("message", "Akun pribadi tidak ditemukan");
+
+        // Bantuan suntikan darurat restrukturisasi
+        Money bailoutRelief = Money.of(25_000_000, Currency.IDR);
+        ledger.recordMutation(
+                "BAILOUT-" + requestId,
+                personal,
+                LedgerEntryType.BAILOUT,
+                bailoutRelief,
+                true,
+                clock.getGameTimestamp(),
+                "Suntikan Dana Penyelamatan Kebangkrutan & Restrukturisasi Turnaround"
+        );
+
+        persistFinancialMutation();
+        return new JSONObject().put("success", true)
+                .put("bailoutRelief", bailoutRelief.format())
+                .put("message", "Restrukturisasi kebangkrutan berhasil. Dana talangan masuk ke kas.");
     }
 
     private String readStreamUtf8(InputStream is) throws IOException {

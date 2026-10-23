@@ -164,6 +164,17 @@ def init_database():
         VALUES (?, ?, ?, ?, ?, ?, ?)
     """, boosters)
 
+    # 9. Inisialisasi Deposito Berjangka Tenor Sesi & Asuransi (Fase 3 Fitur 1 & 2)
+    time_deposits = [
+        ('DEP-TENOR-10', 10000000.0, 10, 0.0050, 1.10, 1, 11, 0, 0, 0.0),
+        ('DEP-TENOR-25', 25000000.0, 25, 0.0065, 1.25, 1, 26, 0, 0, 0.0),
+        ('DEP-TENOR-50', 50000000.0, 50, 0.0080, 1.50, 1, 51, 0, 0, 0.0)
+    ]
+    cursor.executemany("""
+        INSERT INTO TimeDeposits (DepositId, PrincipalAmount, TenorSessions, DailyInterestRate, BonusMultiplier, StartSession, MaturitySession, IsWithdrawnEarly, IsMatured, AccruedInterest)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, time_deposits)
+
     conn.commit()
     conn.close()
     print("[+] Database initialization and initial seeding complete!")

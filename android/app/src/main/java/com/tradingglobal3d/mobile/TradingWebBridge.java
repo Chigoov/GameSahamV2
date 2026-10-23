@@ -295,6 +295,33 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String purchasePortfolioInsurance(int durationSessions) {
+        try {
+            return facade.purchasePortfolioInsurance(durationSessions).toString();
+        } catch (Exception error) {
+            return bridgeError(error);
+        }
+    }
+
+    @JavascriptInterface
+    public String getPortfolioInsuranceStatus() {
+        try {
+            return facade.getPortfolioInsuranceStatus().toString();
+        } catch (Exception error) {
+            return bridgeError(error);
+        }
+    }
+
+    @JavascriptInterface
+    public String executeTurnaroundBailout(String requestId) {
+        try {
+            return facade.executeTurnaroundBailout(requestId).toString();
+        } catch (Exception error) {
+            return bridgeError(error);
+        }
+    }
+
+    @JavascriptInterface
     public String getChartData(String instrumentId, String timeframe) {
         try {
             return facade.getChartData(instrumentId, timeframe).toString();

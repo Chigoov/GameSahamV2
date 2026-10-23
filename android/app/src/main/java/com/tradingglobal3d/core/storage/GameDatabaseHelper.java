@@ -196,6 +196,30 @@ public final class GameDatabaseHelper extends SQLiteOpenHelper {
                 + "IsActive INTEGER NOT NULL DEFAULT 0, "
                 + "MultiplierValue DECIMAL(6, 2) NOT NULL"
                 + ");");
+
+        // 14. Deposito Bank Berjangka Tenor Sesi
+        db.execSQL("CREATE TABLE IF NOT EXISTS TimeDeposits ("
+                + "DepositId TEXT PRIMARY KEY, "
+                + "PrincipalAmount DECIMAL(18, 4) NOT NULL, "
+                + "TenorSessions INTEGER NOT NULL, "
+                + "DailyInterestRate DECIMAL(6, 4) NOT NULL, "
+                + "BonusMultiplier DECIMAL(4, 2) NOT NULL, "
+                + "StartSession INTEGER NOT NULL, "
+                + "MaturitySession INTEGER NOT NULL, "
+                + "IsWithdrawnEarly INTEGER NOT NULL DEFAULT 0, "
+                + "IsMatured INTEGER NOT NULL DEFAULT 0, "
+                + "AccruedInterest DECIMAL(18, 4) NOT NULL DEFAULT 0"
+                + ");");
+
+        // 15. Polis Asuransi Portofolio Lindung Nilai
+        db.execSQL("CREATE TABLE IF NOT EXISTS PortfolioInsurancePolicy ("
+                + "PolicyId TEXT PRIMARY KEY, "
+                + "PurchasedSession INTEGER NOT NULL, "
+                + "ExpirySession INTEGER NOT NULL, "
+                + "CoveragePercentage DECIMAL(5, 2) NOT NULL DEFAULT 80.0, "
+                + "PremiumPaid DECIMAL(18, 4) NOT NULL, "
+                + "IsClaimed INTEGER NOT NULL DEFAULT 0"
+                + ");");
     }
 
     @Override
