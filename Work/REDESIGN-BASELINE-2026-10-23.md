@@ -1,5 +1,7 @@
 # Baseline redesain 23 Oktober 2026
 
+Addendum penutupan: baseline17FAIL di bawah tetap historis. Setelah izin perbaikan terbatas pemilik, integrasi akhir `Artifacts/Redesign-Antislop-2026-10-23/jvm-release/junit-latest.log` **491/491PASS**,66suite,280,432detik. Perubahan aturan hanya mengembalikan mandat aktif5menit/hari; tarif/hadiah/ekonomi lain dipertahankan. Migrasi valuasi kendaraan menjaga nilai save dan menolak manipulasi rumus; short/margin kini langsung tersimpan. Tes baru/yang diperkuat menutup reload langsung dan data snapshot kewajiban; tidak menurunkan assertion agar baseline menjadi hijau.
+
 **FAIL: 66 suite, 488 tes, 471 lulus, 17 gagal dalam 9 suite; 252,094 detik; JUnit exit 1.** Baseline diambil dari HEAD `fc3cdd25c029cc229bf9a24240262930cb362de0` sebelum redesain presentasi. Source Java/domain/assertion tidak diubah. Native Android tetap NOT_TESTED. Angka gagal tidak boleh diubah menjadi PASS melalui penghapusan assertion.
 
 Bukti: [log lengkap](../Artifacts/Redesign-Antislop-2026-10-23/baseline-jvm/junit-latest.log), [ringkasan](../Artifacts/Redesign-Antislop-2026-10-23/baseline-jvm/summary.json), [hash source](../Artifacts/Redesign-Antislop-2026-10-23/baseline-jvm/source-sha256.csv), [environment](../Artifacts/Redesign-Antislop-2026-10-23/baseline-jvm/environment.json), dan [10 trace extreme](../Artifacts/Redesign-Antislop-2026-10-23/baseline-jvm/test-cwd/Artifacts/Final-Verification-2026-10-21/action-traces).
@@ -115,3 +117,13 @@ Wrapper di bawah tidak aman dijalankan unchanged terhadap mandat isolasi. Enam w
 | WireQaStart.py | WireQaServer | Tidak | classes/output/save historis, dapat copy classes build lama, default8784 |
 
 Untuk semua suite mutatif gunakan save baru per suite dan eksekusi serial. Periksa `/qa-meta`: `testFixture=true`, `nativeHost=false`. Daftar ini adalah inventaris, bukan klaim semua tes browser telah dijalankan atau lulus. Perubahan empat tab boleh memerlukan pemetaan selector UI; assertion perilaku/domain tidak boleh dihapus untuk menghasilkan PASS.
+
+## Handoff cleanup presentasi app.js
+
+Scope tambahan koordinator: hanya `android/app/src/main/assets/www/app.js`, tanpa Java, dependency, reset save, atau commit. Dead MockBridge beserta saldo/harga/chart contoh dihapus; missing bridge tetap menampilkan state terputus. Emoji dekoratif dan em dash authored dibuang. Arrow transaksi sebelum/sesudah dan arah konversi dipertahankan karena menyampaikan perubahan uang. Badge, kartu, subnav, profil, koleksi, misi, dan kepemilikan menggunakan class/token CSS bersama; tidak ada lagi gradient/rgba/glow inline.
+
+Perubahan yang memengaruhi pembuktian: progres misi default40%, hadiah fallbackRp2,5juta, free-float40%, payout35%, return0%, profil saldo0 dan provenance FY2026/Bursa yang tidak didukung data dihapus. Nilai absen diberi teks belum tersedia. Summary liga pada riset dihapus karena liga berada diKarier. Prestige tetap diKarier; parameter dan callback finansial tetap menuju bridge asli. Nama perusahaan/pemain, blocker prestige dan kartu berita menggunakan textContent; URL profil dibatasi http/https sebelum menjadi link. `flowButton` tetap `button.onclick = action`, sehingga event.currentTarget untuk submit tidak hilang.
+
+Filter koleksi mengambil distinct category dan jumlah dari response `getCollections`, memakai satu peta label Indonesia. Ini menutup filter legacy VEHICLE yang tidak cocok kategori MOTOR/MOBIL katalog150. Jumlah/kategori tidak dibuat dari angka tetap. Scroll tab memakai `.app-scroll`; fokus dan close layer dipertahankan. Polling tick dibungkus catch: error bridge/JSON menjadi peringatan terlihat, tidak menjadi pageerror; interval, elapsed clock dan domain tidak diubah.
+
+Validasi source: `node --check android/app/src/main/assets/www/app.js` PASS; `git diff --check` PASS. Scan source tidak menemukan MockBridge, emoji dekoratif, em dash authored, gradient, atau rgba. Hash saat handoff `29b307168034ebe7047acb4353cadbd2474792acb89aca99889a569fea5c8fba`. Ini belum meluluskan browser/visual: koordinator menjalankan ulang journey dan matriks pada source stabil, termasuk filter seluruh kategori dan respons offline. Baseline JVM tetap488/17 tanpa rerun tambahan setelah perbaikan runner.
