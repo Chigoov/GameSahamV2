@@ -339,13 +339,14 @@ label:has(input[type="checkbox"]), label:has(input[type="radio"]) { display: fle
 #native-save-warning { font-size: .875rem; }
 [role="alert"]:not(:empty) { padding: .75rem; background: var(--negative-bg); color: var(--negative); border: 1px solid var(--negative); border-radius: 10px; }
 .toast-container { position: fixed; top: .75rem; left: .75rem; right: .75rem; max-width: 30rem; margin-inline: auto; z-index: 2000; pointer-events: none; display: flex; flex-direction: column; gap: .5rem; }
-.game-toast { display: flex; align-items: flex-start; gap: .75rem; padding: .875rem; background: var(--raised); border: 1px solid var(--border-interactive); border-radius: 16px; box-shadow: var(--shadow-2); opacity: 0; transform: translateY(-.5rem); transition: opacity 180ms ease, transform 180ms ease; pointer-events: auto; }
+.game-toast { display: flex; align-items: flex-start; gap: .75rem; padding: .875rem; max-height: 40dvh; overflow-y: auto; background: var(--raised); border: 1px solid var(--border-interactive); border-radius: 16px; box-shadow: var(--shadow-2); opacity: 0; transform: translateY(-.5rem); transition: opacity 180ms ease, transform 180ms ease; pointer-events: auto; }
 .game-toast.visible { opacity: 1; transform: translateY(0); }
 .game-toast.success { border-color: var(--positive); }
 .game-toast.achievement { border-color: var(--action); }
 .toast-icon { flex-shrink: 0; color: var(--text); font-size: 1.125rem; }
 .game-toast.success .toast-icon { color: var(--positive); }
 .toast-body { min-width: 0; }
+.toast-dismiss { position: sticky; top: 0; flex: 0 0 48px; width: 48px; min-height: 48px; padding: 0; }
 .toast-body strong, .toast-body small { display: block; }
 .toast-body small { color: var(--text-secondary); margin-top: .25rem; }
 @keyframes context-enter { from { opacity: .7; transform: translateY(.25rem); } to { opacity: 1; transform: translateY(0); } }

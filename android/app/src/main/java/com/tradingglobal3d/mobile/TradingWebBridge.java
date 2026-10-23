@@ -480,6 +480,21 @@ public final class TradingWebBridge {
             result.put("availableCashIdr", personal.getAvailableCash(Currency.IDR).format());
             result.put("availableCashUsd", personal.getAvailableCash(Currency.USD).format());
 
+            JSONArray shorts = new JSONArray();
+            JSONArray savedShorts = facade.getRiskService().exportState().getJSONArray("shorts");
+            for (int i = 0; i < savedShorts.length(); i++) {
+                JSONObject saved = savedShorts.getJSONObject(i);
+                if (!personal.getId().equals(saved.getString("accountId"))) continue;
+                com.tradingglobal3d.core.risk.ShortPosition position = facade.getRiskService().getShortPosition(personal.getId(), saved.getString("ticker"));
+                Instrument instrument = facade.getCatalog().getById(position.getExchange() + ":" + position.getTicker());
+                shorts.put(new JSONObject().put("ticker", position.getTicker()).put("exchange", position.getExchange())
+                        .put("shares", position.getBorrowedShares()).put("collateral", position.getCollateralLocked().format())
+                        .put("liability", position.calculateLiability(instrument.getCurrentPrice().getAmount()).format())
+                        .put("unrealizedPnl", position.calculateUnrealizedPnL(instrument.getCurrentPrice().getAmount()).format())
+                        .put("dailyBorrowFee", position.calculateDailyBorrowFee(instrument.getCurrentPrice().getAmount()).format()));
+            }
+            result.put("shortPositions", shorts);
+
             JSONArray logs = new JSONArray();
             List<com.tradingglobal3d.core.risk.ComplianceAuditLog> allLogs = facade.getRiskService().getAuditLogs();
             for (int i = allLogs.size() - 1; i >= 0 && logs.length() < 20; i--) {

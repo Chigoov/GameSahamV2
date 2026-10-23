@@ -178,8 +178,9 @@
         const icon = node('div', 'toast-icon', type === 'success' || type === 'achievement' ? '✓' : 'i');
         icon.setAttribute('aria-hidden', 'true');
         const body = node('div', 'toast-body'); body.append(node('strong', '', title), node('small', '', message));
-        toast.append(icon, body);
-        container.appendChild(toast);
+        const dismiss = node('button', 'toast-dismiss', '×'); dismiss.setAttribute('aria-label', 'Tutup pemberitahuan'); dismiss.onclick = () => toast.remove();
+        toast.append(icon, body, dismiss);
+        container.replaceChildren(toast);
         requestAnimationFrame(() => toast.classList.add('visible'));
         setTimeout(() => {
             toast.classList.remove('visible');
@@ -235,7 +236,7 @@
             if (snap.clock) {
                 anchorGameTimestamp = snap.clock.timestamp || anchorGameTimestamp;
                 anchorPerfNow = performance.now();
-                anchorRate = snap.clock.isPaused ? 0 : (Number.isFinite(Number(snap.clock.rate)) ? Number(snap.clock.rate) : 0);
+                anchorRate = snap.clock.isPaused ? 0 : (Number.isFinite(Number(snap.clock.rate)) ? Number(snap.clock.rate) * (Number(snap.clock.speed) || 1) : 0);
                 if (clockDisplay) clockDisplay.textContent = snap.clock.time;
                 sessionLabel.textContent = snap.clock.sessionLabel;
                 sessionDot.className = 'status-dot ' + (snap.clock.isTradingOpen ? 'open' : 'halt');
@@ -1851,6 +1852,7 @@
         const hourLabel = document.createElement('label');
         hourLabel.textContent = 'Jam kerja per hari';
         const hourSelect = document.createElement('select');
+        hourSelect.id = 'company-work-hours'; hourLabel.htmlFor = hourSelect.id;
         hourSelect.className = 'input-field';
         hourSelect.innerHTML = `
             <option value="6" ${company.workHours === 6 ? 'selected' : ''}>6 Jam (Fleksibel & Sejahtera)</option>
@@ -1861,6 +1863,7 @@
         const benLabel = document.createElement('label');
         benLabel.textContent = 'Tingkat fasilitas karyawan';
         const benSelect = document.createElement('select');
+        benSelect.id = 'company-benefits'; benLabel.htmlFor = benSelect.id;
         benSelect.className = 'input-field';
         benSelect.innerHTML = `
             <option value="STANDARD" ${company.benefitTier === 'STANDARD' ? 'selected' : ''}>Standard (BPJS & Asuransi Dasar)</option>
@@ -1900,6 +1903,7 @@
         const dirLabel = document.createElement('label');
         dirLabel.textContent = 'Arah transfer dana';
         const dirSelect = document.createElement('select');
+        dirSelect.id = 'company-transfer-direction'; dirLabel.htmlFor = dirSelect.id;
         dirSelect.className = 'input-field';
         dirSelect.innerHTML = `
             <option value="TO_COMPANY">Suntik Modal (Pribadi -> Anak Usaha)</option>
@@ -1909,6 +1913,7 @@
         const amtLabel = document.createElement('label');
         amtLabel.textContent = 'Jumlah dana (IDR)';
         const amtInput = document.createElement('input');
+        amtInput.id = 'company-transfer-amount'; amtLabel.htmlFor = amtInput.id;
         amtInput.type = 'number';
         amtInput.className = 'input-field';
         amtInput.value = '10000000';
@@ -2382,7 +2387,7 @@
         return true;
     }
     function flowText(panel, label, value) {
-        const row = node('div','data-row'); const text = value == null ? 'Belum tersedia' : String(value);
+        const row = node('div','data-row'); const text = value == null ? 'Belum tersedia' : String(value).replaceAll('\u2014', ' · ');
         if (text.length > 100) row.classList.add('long');
         row.append(node('span','',label),node('strong','',text)); panel.append(row); return row;
     }
@@ -3103,10 +3108,10 @@
                         const form = document.createElement('div');
                         form.style.marginTop = '12px';
                         const lotLabel = document.createElement('label');
-                        lotLabel.htmlFor = 'ipo-lots-input';
+                        lotLabel.htmlFor = 'ipo-lots-' + ipo.id;
                         lotLabel.textContent = 'Jumlah lot yang dipesan';
                         const lotInput = document.createElement('input');
-                        lotInput.id = 'ipo-lots-input';
+                        lotInput.id = lotLabel.htmlFor;
                         lotInput.type = 'number';
                         lotInput.min = '1';
                         lotInput.value = '10';
@@ -3285,6 +3290,7 @@
                         amtInput.type = 'number';
                         amtInput.className = 'input-field';
                         amtInput.placeholder = 'Nominal IDR';
+                        amtInput.setAttribute('aria-label', `Nominal penempatan ${p.bankName}, ${p.tenorDays} hari, dalam IDR`);
                         amtInput.value = '10000000';
 
                         const openBtn = document.createElement('button');
@@ -3340,7 +3346,6 @@
             nameLabel.htmlFor = 'fund-plan-name';
             nameLabel.textContent = 'Nama rencana alokasi';
             const nameInput = document.createElement('input');
-            nameInput.id = 'player-name'; nameLabel.htmlFor = nameInput.id;
             nameInput.id = 'fund-plan-name';
             nameInput.type = 'text';
             nameInput.value = 'Portofolio Seimbang BBCA/BMRI';
@@ -3796,6 +3801,7 @@
         const amtLabel = document.createElement('label');
         amtLabel.textContent = 'Nominal pembelian (IDR, minimal Rp 10.000)';
         const amtInput = document.createElement('input');
+        amtInput.id = 'fund-subscribe-amount'; amtLabel.htmlFor = amtInput.id;
         amtInput.type = 'number';
         amtInput.className = 'input-field';
         amtInput.value = '1000000';
@@ -3839,6 +3845,7 @@
         const unitLabel = document.createElement('label');
         unitLabel.textContent = 'Jumlah unit yang dicairkan';
         const unitInput = document.createElement('input');
+        unitInput.id = 'fund-redeem-units'; unitLabel.htmlFor = unitInput.id;
         unitInput.type = 'number';
         unitInput.className = 'input-field';
         unitInput.value = Number(fund.myUnits) > 0 ? fund.myUnits : '100';
@@ -3977,6 +3984,7 @@
         const pSelectLabel = document.createElement('label');
         pSelectLabel.textContent = 'Jenis produk pembiayaan';
         const pSelect = document.createElement('select');
+        pSelect.id = 'loan-product'; pSelectLabel.htmlFor = pSelect.id;
         pSelect.className = 'input-field';
         pSelect.innerHTML = `
             <option value="LOAN-PERS-01" ${defaultProductId === 'LOAN-PERS-01' ? 'selected' : ''}>Pinjaman Pribadi Multiguna (Plafon Rp 1 - 50 Juta)</option>
@@ -3986,6 +3994,7 @@
         const tenorLabel = document.createElement('label');
         tenorLabel.textContent = 'Pilihan jangka waktu (tenor)';
         const tenorSelect = document.createElement('select');
+        tenorSelect.id = 'loan-tenor'; tenorLabel.htmlFor = tenorSelect.id;
         tenorSelect.className = 'input-field';
         tenorSelect.innerHTML = `
             <option value="7">7 Hari Game</option>
@@ -3996,6 +4005,7 @@
         const amtLabel = document.createElement('label');
         amtLabel.textContent = 'Plafon pinjaman (IDR, minimal Rp 1.000.000)';
         const amtInput = document.createElement('input');
+        amtInput.id = 'loan-amount'; amtLabel.htmlFor = amtInput.id;
         amtInput.type = 'number';
         amtInput.className = 'input-field';
         amtInput.value = '10000000';
@@ -4016,6 +4026,7 @@
         const collateralLabel = document.createElement('label');
         collateralLabel.textContent = 'Agunan koleksi (wajib untuk pinjaman pribadi)';
         const collateralSelect = document.createElement('select');
+        collateralSelect.id = 'loan-collateral'; collateralLabel.htmlFor = collateralSelect.id;
         collateralSelect.className = 'input-field';
         collateralSelect.innerHTML = '<option value="">Memuat koleksi...</option>';
         collateralSection.append(collateralLabel, collateralSelect);
@@ -4039,7 +4050,7 @@
                 collateralSelect.innerHTML = '';
                 if (eligible.length === 0) {
                     collateralSelect.innerHTML = '<option value="">Tidak ada koleksi yang dapat dijaminkan</option>';
-                    collateralInfo.textContent = 'Beli koleksi dari menu Bisnis → Koleksi untuk dijadikan agunan.';
+                    collateralInfo.textContent = 'Beli koleksi melalui Aset → Koleksi untuk dijadikan agunan.';
                 } else {
                     collateralSelect.innerHTML = '<option value="">Pilih agunan</option>';
                     eligible.forEach(c => {
@@ -4159,6 +4170,7 @@
         const amtLabel = document.createElement('label');
         amtLabel.textContent = 'Jumlah pembayaran cicilan (IDR)';
         const amtInput = document.createElement('input');
+        amtInput.id = 'loan-payment-amount'; amtLabel.htmlFor = amtInput.id;
         amtInput.type = 'number';
         amtInput.className = 'input-field';
         amtInput.value = '1000000';
@@ -4596,8 +4608,8 @@
                 textScaleSelect.id = 'player-text-size'; textScaleLabel.htmlFor = textScaleSelect.id;
                 textScaleSelect.className = 'input-field';
                 textScaleSelect.innerHTML = `
-                    <option value="100%" ${p.preferences && p.preferences.textSize === '100%' ? 'selected' : ''}>100% (Standar)</option>
-                    <option value="200%" ${p.preferences && p.preferences.textSize === '200%' ? 'selected' : ''}>200% (Teks Besar Aksesibel)</option>
+                    <option value="100%" ${p.preferences && p.preferences.textSize === '100%' ? 'selected' : ''}>100%</option>
+                    <option value="200%" ${p.preferences && p.preferences.textSize === '200%' ? 'selected' : ''}>200%</option>
                 `;
 
                 const highContrastLabel = node('label', 'check-row');
@@ -4692,6 +4704,21 @@
 
     function openRiskModal() {
         const panel = showFlow('Fasilitas margin & risiko');
+        const executeRisk = (method, request, section, status) => {
+            const controls = [...section.querySelectorAll('button')].map(button => [button, button.disabled]);
+            controls.forEach(([button]) => button.disabled = true);
+            const uncertain = () => { status.textContent = 'Hasil atau penyimpanan belum terkonfirmasi. Buka kembali layar risiko dan periksa utang serta kewajiban sebelum mencoba lagi.'; };
+            let result;
+            try { result = JSON.parse(bridge[method](JSON.stringify(request))); }
+            catch (error) { uncertain(); return; }
+            if (!result.success) {
+                if (/penyimpanan|serialisasi|save/i.test(result.message || '')) { uncertain(); return; }
+                controls.forEach(([button, disabled]) => button.disabled = disabled);
+                status.textContent = result.message || 'Tindakan ditolak domain.'; return;
+            }
+            refreshSnapshot(); openRiskModal();
+            showGameToast('success', 'Risiko diperbarui', result.message);
+        };
         if (!bridge.getRiskSnapshot) {
             flowText(panel, 'Risiko', 'Rincian risiko belum dapat dimuat.'); return;
         }
@@ -4733,12 +4760,7 @@
             btnBorrow.onclick = () => {
                 const val = Number(amtInput.value);
                 if (!Number.isFinite(val) || val <= 0) { errDisplay.textContent = 'Isi nominal pinjaman yang positif.'; return; }
-                try {
-                    const res = JSON.parse(bridge.takeMarginLoan(JSON.stringify({ currency: curSelect.value, amount: String(val) })));
-                    if (!res.success) throw new Error(res.message);
-                    refreshSnapshot();
-                    openRiskModal();
-                } catch (e) { errDisplay.textContent = 'Gagal meminjam: ' + e.message; }
+                executeRisk('takeMarginLoan', {currency: curSelect.value, amount: String(val)}, loanSection, errDisplay);
             };
 
             const btnRepay = document.createElement('button');
@@ -4747,16 +4769,41 @@
             btnRepay.onclick = () => {
                 const val = Number(amtInput.value);
                 if (!Number.isFinite(val) || val <= 0) { errDisplay.textContent = 'Isi nominal pelunasan yang positif.'; return; }
-                try {
-                    const res = JSON.parse(bridge.repayMarginLoan(JSON.stringify({ currency: curSelect.value, amount: String(val) })));
-                    if (!res.success) throw new Error(res.message);
-                    refreshSnapshot();
-                    openRiskModal();
-                } catch (e) { errDisplay.textContent = 'Gagal melunasi: ' + e.message; }
+                executeRisk('repayMarginLoan', {currency: curSelect.value, amount: String(val)}, loanSection, errDisplay);
             };
 
             loanSection.append(curLabel, curSelect, amtLabel, amtInput, errDisplay, btnBorrow, btnRepay);
             panel.append(loanSection);
+
+            const shortSection = node('section', 'card');
+            shortSection.append(node('h2', '', 'Pinjaman saham & short'));
+            shortSection.append(node('p', '', 'Hasil penjualan ditahan sebagai jaminan. Harga beli kembali dan biaya pinjaman dapat menambah kewajiban; ketersediaan saham diperiksa saat eksekusi.'));
+            (risk.shortPositions || []).forEach(position => {
+                const row = node('section', 'data-row');
+                row.append(node('h3', '', `${position.ticker} · ${position.exchange}`));
+                flowText(row, 'Saham wajib dikembalikan', position.shares);
+                flowText(row, 'Jaminan ditahan', position.collateral);
+                flowText(row, 'Kewajiban pada harga saat ini', position.liability);
+                flowText(row, 'Laba/rugi belum terealisasi', position.unrealizedPnl);
+                flowText(row, 'Biaya pinjaman harian', position.dailyBorrowFee);
+                shortSection.append(row);
+            });
+            if (!(risk.shortPositions || []).length) emptyState(shortSection, 'Tidak ada posisi short', 'Kewajiban dan jaminan posisi aktif akan tercatat di sini.');
+            const shortInstrument = instrumentSelect(shortSection, 'Saham untuk short / beli kembali', 'short-instrument');
+            const shortLabel = node('label', '', 'Jumlah saham'); shortLabel.htmlFor = 'short-shares';
+            const shortShares = node('input', 'input-field'); shortShares.id = 'short-shares'; shortShares.type = 'number'; shortShares.min = '1'; shortShares.step = '1';
+            const shortStatus = node('p'); shortStatus.setAttribute('role', 'status');
+            shortSection.append(shortLabel, shortShares, shortStatus);
+            [['Buka posisi short', 'openShortPosition'], ['Beli kembali saham short', 'closeShortPosition']].forEach(([label, method]) => {
+                const button = flowButton(shortSection, label, () => {
+                    const shares = Number(shortShares.value), ticker = shortInstrument.value.split(':')[1];
+                    if (!ticker || !Number.isSafeInteger(shares) || shares <= 0) { shortStatus.textContent = 'Pilih saham dan isi jumlah saham bulat yang positif.'; shortShares.focus(); return; }
+                    if (!window.confirm(`${label}: ${shares} saham ${ticker} pada harga domain saat eksekusi? Perubahan harga dan biaya memengaruhi kas serta jaminan.`)) return;
+                    executeRisk(method, {ticker, shares}, shortSection, shortStatus);
+                });
+                if (method === 'openShortPosition') applyCareerGate(button, 'short');
+            });
+            panel.append(shortSection);
 
             const logSection = document.createElement('section');
             logSection.className = 'card';
@@ -4870,6 +4917,7 @@
         if (latestSnapshot && latestSnapshot.tradingAccounts && latestSnapshot.tradingAccounts.length > 1) {
             const accSelect = document.createElement('select');
             accSelect.id = 'order-account-select';
+            accSelect.setAttribute('aria-label', 'Akun order');
             accSelect.className = 'input-field';
             accSelect.style.marginBottom = '8px';
             latestSnapshot.tradingAccounts.forEach(a => {

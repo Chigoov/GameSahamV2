@@ -53,6 +53,8 @@ Seluruh pasangan warna harus dihitung saat verifikasi runtime, termasuk surface 
 
 ## Komponen dan pola layar
 
+Formulir memakai label yang terasosiasi dengan ID unik, termasuk beberapa penawaran IPO pada satu layar. Risiko menampilkan kewajiban short, jaminan, laba/rugi serta biaya dari snapshot Java; tombol membuka/menutup menggunakan bridge existing dan konfirmasi. Hasil yang belum terkonfirmasi menahan kedua tindakan sampai pemain memeriksa state ulang. Notifikasi hanya satu, maksimum40% tinggi viewport, dapat digulir dan ditutup; hasil finansial tetap tersedia di layar/ledger agar toast tidak menjadi satu-satunya catatan.
+
 - Header: nama produk berupa teks, tombol Profil berlabel, kas akun nyata; tidak menciptakan logo/avatar baru. Konteks akun dan waktu di strip ringkas.
 - Navigasi: empat tujuan berlabel dengan mark geometris sederhana dari SVG lokal existing yang disesuaikan; tidak impor icon pack. Label tetap makna utama.
 - Ringkasan: kekayaan bersih dominan, kas/kewajiban ringkas, lalu misi berikutnya, jadwal dan berita/pantauan. Hibah adalah aksi sekunder, bukan iklan hero.
@@ -114,6 +116,8 @@ Pemilik menyetujui empat tab: **Ringkasan, Pasar, Aset, Karier**. ID internal `b
 Peta ini adalah spesifikasi jangkauan, bukan bukti gate. Denominator verifikasi di runner merinci root, flow, subtab, form, review, receipt dan state; tidak menganggap 26 konsep = seluruh layar.
 
 ## Asumsi dan batas
+
+[ASUMSI] Pada teks 200%, header detail ditumpuk dan empat tujuan navigasi memakai dua baris jika label tidak muat. Nilai hero memakai ukuran berbasis lebar kontainer dengan minimum 1rem agar angka tetap utuh; label/isi tetap mengikuti pembesaran akar 200%. Unit dapat berada di baris tersendiri. Profil tidak menumpuk kartu nilai di dalam kartu identitas karena padding ganda mempersempit angka.
 
 - [ASUMSI] Gaya font/motion referensi hanya dapat diinterpretasi dari JPG; memakai font existing dan transisi singkat beralasan, bukan mengklaim meniru animasi Pinterest.
 - [ASUMSI] Dark tetap sebagai tema dasar karena delapan referensi dan sesi trading padat grafik; high-contrast existing tetap berfungsi. Tidak menambah tema terang yang belum diminta.

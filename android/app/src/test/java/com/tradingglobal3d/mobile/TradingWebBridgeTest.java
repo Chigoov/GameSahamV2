@@ -843,6 +843,11 @@ public class TradingWebBridgeTest {
         assertTrue(shortRes.getBoolean("success"));
         assertEquals("BBCA", shortRes.getString("ticker"));
         assertEquals(500, shortRes.getLong("shares"));
+        JSONObject visibleShort = new JSONObject(bridge.getRiskSnapshot()).getJSONArray("shortPositions").getJSONObject(0);
+        assertEquals("BBCA", visibleShort.getString("ticker"));
+        assertEquals(500, visibleShort.getLong("shares"));
+        assertEquals(facade.getRiskService().getShortPosition(facade.getPersonalAccount().getId(), "BBCA").getCollateralLocked().format(), visibleShort.getString("collateral"));
+        assertTrue(visibleShort.has("liability") && visibleShort.has("dailyBorrowFee") && visibleShort.has("unrealizedPnl"));
         assertEquals("Inventori lender harus berkurang 500 lembar", initialLenderQty - 500, mmPos.getQuantity());
 
         // 2. Buy to Cover via bridge
@@ -850,6 +855,7 @@ public class TradingWebBridgeTest {
         String coverResStr = bridge.closeShortPosition(coverReq.toString());
         JSONObject coverRes = new JSONObject(coverResStr);
         assertTrue(coverRes.getBoolean("success"));
+        assertEquals(0, new JSONObject(bridge.getRiskSnapshot()).getJSONArray("shortPositions").length());
         assertEquals("Inventori lender harus pulih kembali setelah cover", initialLenderQty, mmPos.getQuantity());
 
         assertTrue(facade.reconcileAll());
