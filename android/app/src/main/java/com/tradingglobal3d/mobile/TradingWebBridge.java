@@ -241,6 +241,33 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String getMarketBosses() {
+        try {
+            return facade.getMarketBossesJson().toString();
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    @JavascriptInterface
+    public String startBossDuel(String bossId) {
+        try {
+            return facade.startBossDuel(bossId).toString();
+        } catch (Exception error) {
+            return bridgeError(error);
+        }
+    }
+
+    @JavascriptInterface
+    public String getTaxAuditStatus() {
+        try {
+            return facade.getTaxAuditStatus().toString();
+        } catch (Exception error) {
+            return bridgeError(error);
+        }
+    }
+
+    @JavascriptInterface
     public String getChartData(String instrumentId, String timeframe) {
         try {
             return facade.getChartData(instrumentId, timeframe).toString();

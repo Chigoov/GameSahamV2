@@ -112,6 +112,18 @@ def init_database():
         VALUES (?, ?, ?, ?, ?, ?, ?)
     """, dividends)
 
+    # 5. Inisialisasi 4 Bos Taipan Pasar (Fitur 1 Ekspansi)
+    bosses = [
+        ('BOSS-01', 'Taipan Lokal Pemula', 'Easy', 'kolay_patron.jpg', 5.0, 5, 0.0, 0.0, 1, 0, 10000000.0000),
+        ('BOSS-02', 'Manajer Hedge Fund Elit', 'Medium', 'orta_patron.jpg', 12.0, 7, 0.0, 0.0, 0, 0, 25000000.0000),
+        ('BOSS-03', 'Konglomerat Multi-Industri', 'Hard', 'zor_patron.png', 25.0, 10, 0.0, 0.0, 0, 0, 75000000.0000),
+        ('BOSS-04', 'Sang Penguasa Pasar Modal', 'Final', 'final_boss.png', 45.0, 12, 0.0, 0.0, 0, 0, 250000000.0000)
+    ]
+    cursor.executemany("""
+        INSERT INTO MarketBossShowdown (BossId, BossName, DifficultyTier, AvatarImage, TargetReturnPercentage, DurationSessions, BossCurrentReturn, PlayerCurrentReturn, IsActive, IsDefeated, RewardCash)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, bosses)
+
     conn.commit()
     conn.close()
     print("[+] Database initialization and initial seeding complete!")

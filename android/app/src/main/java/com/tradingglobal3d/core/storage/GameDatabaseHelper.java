@@ -144,6 +144,21 @@ public final class GameDatabaseHelper extends SQLiteOpenHelper {
                 + "PaymentDateSession INTEGER NOT NULL, "
                 + "IsDistributed INTEGER NOT NULL DEFAULT 0"
                 + ");");
+
+        // 10. Sistem Pertarungan Bos Taipan Pasar
+        db.execSQL("CREATE TABLE IF NOT EXISTS MarketBossShowdown ("
+                + "BossId TEXT PRIMARY KEY, "
+                + "BossName TEXT NOT NULL, "
+                + "DifficultyTier TEXT NOT NULL, "
+                + "AvatarImage TEXT NOT NULL, "
+                + "TargetReturnPercentage DECIMAL(6, 2) NOT NULL, "
+                + "DurationSessions INTEGER NOT NULL, "
+                + "BossCurrentReturn DECIMAL(6, 2) NOT NULL DEFAULT 0.0, "
+                + "PlayerCurrentReturn DECIMAL(6, 2) NOT NULL DEFAULT 0.0, "
+                + "IsActive INTEGER NOT NULL DEFAULT 0, "
+                + "IsDefeated INTEGER NOT NULL DEFAULT 0, "
+                + "RewardCash DECIMAL(18, 4) NOT NULL"
+                + ");");
     }
 
     @Override

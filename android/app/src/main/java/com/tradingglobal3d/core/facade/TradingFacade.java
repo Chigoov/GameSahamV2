@@ -124,6 +124,8 @@ public final class TradingFacade {
     private final PeriodicMissionManager periodicMissionManager = new PeriodicMissionManager();
     private final LeagueManager leagueManager = new LeagueManager();
     private final PlayerProfileManager playerProfileManager = new PlayerProfileManager();
+    private final com.tradingglobal3d.core.boss.MarketBossService marketBossService = new com.tradingglobal3d.core.boss.MarketBossService();
+    private final com.tradingglobal3d.core.risk.TaxAuditService taxAuditService = new com.tradingglobal3d.core.risk.TaxAuditService();
     private final Map<String, JSONObject> dayCloseReceipts = new LinkedHashMap<>();
     private final Map<String, JSONObject> skipDayReceipts = new LinkedHashMap<>();
     private final Map<String, StrategyLabSandbox> strategyLabs = new LinkedHashMap<>();
@@ -2478,6 +2480,31 @@ public final class TradingFacade {
         result.put("bars", bars);
         result.put("source", sourceLabel);
         return result;
+    }
+
+    public synchronized com.tradingglobal3d.core.boss.MarketBossService getMarketBossService() {
+        return marketBossService;
+    }
+
+    public synchronized com.tradingglobal3d.core.risk.TaxAuditService getTaxAuditService() {
+        return taxAuditService;
+    }
+
+    public synchronized JSONArray getMarketBossesJson() throws JSONException {
+        return marketBossService.exportBosses();
+    }
+
+    public synchronized JSONObject startBossDuel(String bossId) throws JSONException {
+        com.tradingglobal3d.core.boss.MarketBoss b = marketBossService.startDuel(bossId);
+        return b.toJsonObject();
+    }
+
+    public synchronized JSONObject getTaxAuditStatus() throws JSONException {
+        Account personal = getPersonalAccount();
+        Money netWorth = getPersonalNetWorth();
+        Money liabilities = personal != null ? riskService.getMarginDebt(personal.getId(), Currency.IDR) : Money.zero(Currency.IDR);
+        Money assets = netWorth.add(liabilities);
+        return taxAuditService.evaluateCompliance(personal, assets, liabilities).toJsonObject();
     }
 
     private String readStreamUtf8(InputStream is) throws IOException {

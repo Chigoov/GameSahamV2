@@ -1115,6 +1115,7 @@
             flowButton(summary, 'Riwayat Transaksi Akun', () => openTransactionHistoryModal());
             flowButton(summary, 'Tukar IDR / USD', () => openFxForm());
             flowButton(summary, 'Fasilitas margin & risiko', () => openRiskModal());
+            flowButton(summary, 'Audit Pajak & Kepatuhan Risiko', () => openTaxAuditModal());
             flowButton(summary, 'Aksi korporasi & voting RUPS', () => openCorporateActionModal());
             flowButton(summary, 'Uji stres portofolio', () => openStressTestModal());
             flowButton(summary, 'Lab strategi & sandbox what-if', () => openStrategyLabModal());
@@ -4450,6 +4451,99 @@
         }catch(error){flowText(panel,'Liga belum dapat dimuat',error.message);}
     }
 
+    function openMarketBossModal() {
+        const panel = showFlow('Duel Bos Taipan Pasar');
+        flowText(panel, 'Pertarungan 1-on-1', 'Tantang 4 Bos Taipan legendaris untuk meraih uang hadiah tunai dan gelar prestise tertinggi.');
+
+        if (!bridge.getMarketBosses) {
+            flowText(panel, 'Status', 'Layanan duel bos belum tersedia.');
+            return;
+        }
+
+        try {
+            const bosses = JSON.parse(bridge.getMarketBosses());
+            bosses.forEach(b => {
+                const card = document.createElement('section');
+                card.className = 'card boss-card';
+                card.style.cssText = 'margin-bottom:12px; border:1px solid rgba(255, 69, 58, 0.35); background:linear-gradient(135deg, rgba(255, 69, 58, 0.08) 0%, rgba(18, 23, 40, 0.95) 100%);';
+
+                const tierColors = {
+                    'EASY': '#14F195',
+                    'MEDIUM': '#00E5FF',
+                    'HARD': '#FFA000',
+                    'FINAL': '#FF453A'
+                };
+                const color = tierColors[b.tier] || '#FF453A';
+
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span class="eyebrow" style="color:${color}; font-weight:700;">TINGKAT: ${b.tierTitle || b.tier}</span>
+                        <span class="badge" style="background:${color}22; color:${color}; font-size:0.7rem; font-weight:700; border:1px solid ${color}44;">${b.statusLabel}</span>
+                    </div>
+                    <h3 style="font-size:1.15rem; color:#FFF; margin:0 0 4px;">${b.name}</h3>
+                    <div class="data-row"><span>Target Cuan Bos</span><strong>${b.targetReturn}</strong></div>
+                    <div class="data-row"><span>Durasi Tantangan</span><strong>${b.durationSessions} Sesi Bursa</strong></div>
+                    <div class="data-row"><span>Performa Bos Saat Ini</span><strong style="color:${color};">${b.bossCurrentReturn}</strong></div>
+                    <div class="data-row"><span>Cuan Kamu Saat Ini</span><strong style="color:var(--teal);">${b.playerCurrentReturn}</strong></div>
+                    <div class="data-row"><span>Hadiah Kemenangan</span><strong style="color:var(--gold);">${b.rewardCash}</strong></div>
+                `;
+
+                if (!b.isDefeated && !b.isActive) {
+                    const challengeBtn = document.createElement('button');
+                    challengeBtn.className = 'btn-primary';
+                    challengeBtn.style.cssText = 'margin-top:10px; background:linear-gradient(135deg, #FF453A 0%, #D70015 100%); color:#FFF;';
+                    challengeBtn.textContent = 'Mulai Duel Lawan ' + b.name;
+                    challengeBtn.onclick = () => {
+                        try {
+                            const res = JSON.parse(bridge.startBossDuel(b.bossId));
+                            alert(`Duel melawan ${b.name} dimulai! Kalahkan performa return ${b.targetReturn} dalam ${b.durationSessions} sesi bursa.`);
+                            refreshSnapshot();
+                            openMarketBossModal();
+                        } catch(err) { alert('Gagal memulai duel: ' + err.message); }
+                    };
+                    card.appendChild(challengeBtn);
+                } else if (b.isActive) {
+                    const activeNotice = document.createElement('p');
+                    activeNotice.style.cssText = 'color:#FFA000; font-size:0.8rem; font-weight:600; margin-top:8px;';
+                    activeNotice.textContent = `⚔️ Duel aktif berlangsung! Sisa ${b.remainingSessions} sesi bursa.`;
+                    card.appendChild(activeNotice);
+                }
+
+                panel.appendChild(card);
+            });
+        } catch(e) {
+            flowText(panel, 'Galat', e.message);
+        }
+    }
+
+    function openTaxAuditModal() {
+        const panel = showFlow('Audit Pajak & Kepatuhan Risiko');
+        flowText(panel, 'Kepatuhan & Pengawasan Bursa', 'Evaluasi kesehatan struktur modal, eksposur leverage, dan penilaian risiko perpajakan pasar modal.');
+
+        if (!bridge.getTaxAuditStatus) {
+            flowText(panel, 'Status', 'Layanan audit risiko belum tersedia.');
+            return;
+        }
+
+        try {
+            const tax = JSON.parse(bridge.getTaxAuditStatus());
+            const card = document.createElement('section');
+            card.className = 'card';
+            card.innerHTML = `
+                <h3 style="font-size:1.05rem; color:#FFF; margin-bottom:8px;">Laporan Hasil Audit Kepatuhan</h3>
+                <div class="data-row"><span>Peringkat Kepatuhan (Rating)</span><strong style="font-size:1.1rem; color:${tax.complianceRating === 'A' ? 'var(--teal)' : (tax.complianceRating === 'B' ? '#FFA000' : 'var(--negative)')}; font-weight:800;">Grade ${tax.complianceRating}</strong></div>
+                <div class="data-row"><span>Rasio Utang terhadap Aset</span><strong>${tax.debtToAssetRatio} (Batas Aman: 40.00%)</strong></div>
+                <div class="data-row"><span>Diskon Pajak Dividen</span><strong style="color:var(--teal);">${tax.dividendTaxDiscount}</strong></div>
+                <div class="data-row"><span>Status Audit Berjalan</span><strong>${tax.isAuditTriggered ? 'TERKENA AUDIT MENDADAK' : 'Patuh Standar'}</strong></div>
+                ${tax.isAuditTriggered ? `<div class="data-row"><span>Denda Penalti Pajak</span><strong style="color:var(--negative);">${tax.penaltyAmount}</strong></div>` : ''}
+                <p class="notice" style="margin-top:12px; font-size:0.8rem; line-height:1.4;">${tax.statusMessage}</p>
+            `;
+            panel.appendChild(card);
+        } catch(e) {
+            flowText(panel, 'Galat', e.message);
+        }
+    }
+
     function openTransactionHistoryModal(selectedAccountId = null) {
         const panel = showFlow('Riwayat Transaksi');
         const accId = selectedAccountId || (currentAccount ? currentAccount.id : 'ACC-PERSONAL-001');
@@ -5579,6 +5673,8 @@
     if (misBtn) misBtn.addEventListener('click', openPeriodicMissionsModal);
     const leaBtn = document.getElementById('btn-league');
     if (leaBtn) leaBtn.addEventListener('click', openLeagueAndRivalModal);
+    const bossBtn = document.getElementById('btn-market-boss');
+    if (bossBtn) bossBtn.addEventListener('click', openMarketBossModal);
 
     const claimSponsorBtn = document.getElementById('btn-claim-sponsor');
     const handleClaimSponsor = () => {
