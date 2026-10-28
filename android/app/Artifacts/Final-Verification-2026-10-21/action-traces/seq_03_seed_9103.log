@@ -1,0 +1,106 @@
+=== ACTION TRACE FOR SEQUENCE #3 SEED=9103 ===
+Total Validated Actions: 100
+Final Date: 2026-10-25 08:30
+Final Net Worth: Rp 1.051.774.397
+Ledger Reconciled: true
+--------------------------------------------------
+Seq#3 Seed=9103 Step=1 Op=8 ActionCount=0 -> Company Capital 2-Way Transfer preserved cash 1:1
+Seq#3 Seed=9103 Step=2 Op=9 ActionCount=1 -> Verified zero-share shareholder voting rejection
+Seq#3 Seed=9103 Step=3 Op=9 ActionCount=2 -> Verified zero-share shareholder voting rejection
+Seq#3 Seed=9103 Step=4 Op=0 ActionCount=3 -> Submit Buy Order IDX:BBCA status=OPEN
+Seq#3 Seed=9103 Step=5 Op=6 ActionCount=4 -> Mutual Fund Subscription FUND-EQ-01 amount=Rp 2.000.000
+Seq#3 Seed=9103 Step=6 Op=2 ActionCount=5 -> Margin Loan +5jt, Repay -2jt, final debt=Rp 3.000.000
+Seq#3 Seed=9103 Step=7 Op=9 ActionCount=6 -> Verified zero-share shareholder voting rejection
+Seq#3 Seed=9103 Step=8 Op=9 ActionCount=7 -> Verified zero-share shareholder voting rejection
+Seq#3 Seed=9103 Step=9 Op=4 ActionCount=8 -> Disbursed loan LN-1792373400000-1 collateral=COL-ART-00 + paid partial installment
+Seq#3 Seed=9103 Step=10 Op=7 ActionCount=9 -> Verified non-existent mutual fund subscription rejection
+Seq#3 Seed=9103 Step=11 Op=0 ActionCount=10 -> Submit Buy Order IDX:ASII status=OPEN
+Seq#3 Seed=9103 Step=12 Op=2 ActionCount=11 -> Margin Loan +5jt, Repay -2jt, final debt=Rp 6.000.000
+Seq#3 Seed=9103 Step=13 Op=8 ActionCount=12 -> Company Capital 2-Way Transfer preserved cash 1:1
+Seq#3 Seed=9103 Step=14 Op=7 ActionCount=13 -> Verified non-existent mutual fund subscription rejection
+Seq#3 Seed=9103 Step=15 Op=5 ActionCount=14 -> Restructured loan LN-1792373400000-1 +14 days
+Seq#3 Seed=9103 Step=16 Op=10 ActionCount=15 -> Claimed Daily Sponsor + Bought Government Bond FR0091
+Seq#3 Seed=9103 Step=17 Op=7 ActionCount=16 -> Verified non-existent mutual fund subscription rejection
+Seq#3 Seed=9103 Step=18 Op=8 ActionCount=17 -> Company Capital 2-Way Transfer preserved cash 1:1
+Seq#3 Seed=9103 Step=19 Op=11 ActionCount=18 -> Advanced 86400s from 2026-10-19 to 2026-10-20
+Seq#3 Seed=9103 Step=20 Op=2 ActionCount=19 -> Margin Loan +5jt, Repay -2jt, final debt=Rp 9.000.000
+Seq#3 Seed=9103 Step=21 Op=9 ActionCount=20 -> Verified zero-share shareholder voting rejection
+Seq#3 Seed=9103 Step=22 Op=2 ActionCount=21 -> Margin Loan +5jt, Repay -2jt, final debt=Rp 12.000.000
+Seq#3 Seed=9103 Step=23 Op=6 ActionCount=22 -> Mutual Fund Subscription FUND-MM-01 amount=Rp 2.000.000
+Seq#3 Seed=9103 Step=24 Op=0 ActionCount=23 -> Submit Buy Order IDX:ASII status=OPEN
+Seq#3 Seed=9103 Step=25 Op=10 ActionCount=24 -> Claimed Daily Sponsor + Bought Government Bond FR0091
+Seq#3 Seed=9103 Step=26 Op=2 ActionCount=25 -> Margin Loan +5jt, Repay -2jt, final debt=Rp 15.000.000
+Seq#3 Seed=9103 Step=27 Op=5 ActionCount=26 -> Restructured loan LN-1792373400000-1 +14 days
+Seq#3 Seed=9103 Step=28 Op=10 ActionCount=27 -> Claimed Daily Sponsor + Bought Government Bond FR0091
+Seq#3 Seed=9103 Step=29 Op=4 ActionCount=28 -> Tested stale quote rejection branch
+Seq#3 Seed=9103 Step=30 Op=11 ActionCount=29 -> Advanced 86400s from 2026-10-20 to 2026-10-21
+Seq#3 Seed=9103 Step=31 Op=9 ActionCount=30 -> Verified zero-share shareholder voting rejection
+Seq#3 Seed=9103 Step=32 Op=10 ActionCount=31 -> Claimed Daily Sponsor + Bought Government Bond FR0091
+Seq#3 Seed=9103 Step=33 Op=7 ActionCount=32 -> Verified non-existent mutual fund subscription rejection
+Seq#3 Seed=9103 Step=34 Op=10 ActionCount=33 -> Claimed Daily Sponsor + Bought Government Bond FR0091
+Seq#3 Seed=9103 Step=35 Op=5 ActionCount=34 -> Restructured loan LN-1792373400000-1 +14 days
+Seq#3 Seed=9103 Step=36 Op=2 ActionCount=35 -> Margin Loan +5jt, Repay -2jt, final debt=Rp 18.000.000
+Seq#3 Seed=9103 Step=37 Op=4 ActionCount=36 -> Tested stale quote rejection branch
+Seq#3 Seed=9103 Step=38 Op=3 ActionCount=37 -> Open & Close Short Position BBCA 100 shares
+Seq#3 Seed=9103 Step=39 Op=10 ActionCount=38 -> Claimed Daily Sponsor + Bought Government Bond FR0091
+Seq#3 Seed=9103 Step=40 Op=4 ActionCount=39 -> Tested stale quote rejection branch
+Seq#3 Seed=9103 Step=41 Op=8 ActionCount=40 -> Company Capital 2-Way Transfer preserved cash 1:1
+Seq#3 Seed=9103 Step=42 Op=9 ActionCount=41 -> Verified zero-share shareholder voting rejection
+Seq#3 Seed=9103 Step=43 Op=8 ActionCount=42 -> Company Capital 2-Way Transfer preserved cash 1:1
+Seq#3 Seed=9103 Step=44 Op=4 ActionCount=43 -> Tested stale quote rejection branch
+Seq#3 Seed=9103 Step=45 Op=6 ActionCount=44 -> Mutual Fund Subscription FUND-EQ-01 amount=Rp 2.000.000
+Seq#3 Seed=9103 Step=46 Op=4 ActionCount=45 -> Tested stale quote rejection branch
+Seq#3 Seed=9103 Step=47 Op=7 ActionCount=46 -> Verified non-existent mutual fund subscription rejection
+Seq#3 Seed=9103 Step=48 Op=5 ActionCount=47 -> Restructured loan LN-1792373400000-1 +14 days
+Seq#3 Seed=9103 Step=49 Op=11 ActionCount=48 -> Advanced 86400s from 2026-10-21 to 2026-10-22
+Seq#3 Seed=9103 Step=50 Op=7 ActionCount=49 -> Verified non-existent mutual fund subscription rejection
+Seq#3 Seed=9103 Step=51 Op=10 ActionCount=50 -> Claimed Daily Sponsor + Bought Government Bond FR0091
+Seq#3 Seed=9103 Step=52 Op=4 ActionCount=51 -> Disbursed loan LN-1792632600000-2 collateral=COL-CAR-00 + paid partial installment
+Seq#3 Seed=9103 Step=53 Op=3 ActionCount=52 -> Open & Close Short Position BBCA 100 shares
+Seq#3 Seed=9103 Step=54 Op=3 ActionCount=53 -> Open & Close Short Position BBCA 100 shares
+Seq#3 Seed=9103 Step=55 Op=7 ActionCount=54 -> Mutual Fund Redemption FUND-EQ-01 units=10
+Seq#3 Seed=9103 Step=56 Op=9 ActionCount=55 -> Verified zero-share shareholder voting rejection
+Seq#3 Seed=9103 Step=57 Op=1 ActionCount=56 -> Cancelled Buy Order ORD-BUY-LIMIT-9103-4 recovered cash=Rp 1.026.538
+Seq#3 Seed=9103 Step=58 Op=3 ActionCount=57 -> Open & Close Short Position BBCA 100 shares
+Seq#3 Seed=9103 Step=59 Op=6 ActionCount=58 -> Mutual Fund Subscription FUND-FI-01 amount=Rp 2.000.000
+Seq#3 Seed=9103 Step=60 Op=0 ActionCount=59 -> Submit Buy Order IDX:BBCA status=OPEN
+Seq#3 Seed=9103 Step=61 Op=5 ActionCount=60 -> Restructured loan LN-1792373400000-1 +14 days
+Seq#3 Seed=9103 Step=62 Op=6 ActionCount=61 -> Mutual Fund Subscription FUND-MM-01 amount=Rp 2.000.000
+Seq#3 Seed=9103 Step=64 Op=6 ActionCount=62 -> Mutual Fund Subscription FUND-FI-01 amount=Rp 2.000.000
+Seq#3 Seed=9103 Step=65 Op=0 ActionCount=63 -> Submit Buy Order IDX:ASII status=OPEN
+Seq#3 Seed=9103 Step=66 Op=7 ActionCount=64 -> Verified non-existent mutual fund subscription rejection
+Seq#3 Seed=9103 Step=67 Op=3 ActionCount=65 -> Open & Close Short Position BBCA 100 shares
+Seq#3 Seed=9103 Step=68 Op=1 ActionCount=66 -> Cancelled Buy Order ORD-BUY-LIMIT-9103-24 recovered cash=Rp 518.277
+Seq#3 Seed=9103 Step=69 Op=3 ActionCount=67 -> Open & Close Short Position BBCA 100 shares
+Seq#3 Seed=9103 Step=70 Op=0 ActionCount=68 -> Submit Buy Order IDX:ASII status=OPEN
+Seq#3 Seed=9103 Step=71 Op=11 ActionCount=69 -> Advanced 86400s from 2026-10-22 to 2026-10-23
+Seq#3 Seed=9103 Step=72 Op=3 ActionCount=70 -> Open & Close Short Position BBCA 100 shares
+Seq#3 Seed=9103 Step=73 Op=4 ActionCount=71 -> Tested stale quote rejection branch
+Seq#3 Seed=9103 Step=74 Op=1 ActionCount=72 -> Cancelled Buy Order ORD-BUY-LIMIT-9103-60 recovered cash=Rp 1.049.072
+Seq#3 Seed=9103 Step=75 Op=11 ActionCount=73 -> Advanced 86400s from 2026-10-23 to 2026-10-24
+Seq#3 Seed=9103 Step=76 Op=0 ActionCount=74 -> Submit Buy Order IDX:BBCA status=OPEN
+Seq#3 Seed=9103 Step=77 Op=1 ActionCount=75 -> Cancelled Buy Order ORD-BUY-LIMIT-9103-65 recovered cash=Rp 518.277
+Seq#3 Seed=9103 Step=78 Op=3 ActionCount=76 -> Open & Close Short Position BBCA 100 shares
+Seq#3 Seed=9103 Step=79 Op=1 ActionCount=77 -> Cancelled Buy Order ORD-BUY-LIMIT-9103-70 recovered cash=Rp 518.277
+Seq#3 Seed=9103 Step=80 Op=5 ActionCount=78 -> Restructured loan LN-1792373400000-1 +14 days
+Seq#3 Seed=9103 Step=81 Op=1 ActionCount=79 -> Cancelled Buy Order ORD-BUY-LIMIT-9103-76 recovered cash=Rp 1.049.072
+Seq#3 Seed=9103 Step=82 Op=6 ActionCount=80 -> Mutual Fund Subscription FUND-EQ-01 amount=Rp 2.000.000
+Seq#3 Seed=9103 Step=83 Op=2 ActionCount=81 -> Margin Loan +5jt, Repay -2jt, final debt=Rp 21.000.000
+Seq#3 Seed=9103 Step=84 Op=5 ActionCount=82 -> Restructured loan LN-1792373400000-1 +14 days
+Seq#3 Seed=9103 Step=85 Op=6 ActionCount=83 -> Mutual Fund Subscription FUND-EQ-01 amount=Rp 2.000.000
+Seq#3 Seed=9103 Step=86 Op=3 ActionCount=84 -> Open & Close Short Position BBCA 100 shares
+Seq#3 Seed=9103 Step=87 Op=8 ActionCount=85 -> Company Capital 2-Way Transfer preserved cash 1:1
+Seq#3 Seed=9103 Step=88 Op=0 ActionCount=86 -> Submit Buy Order IDX:BBCA status=OPEN
+Seq#3 Seed=9103 Step=89 Op=1 ActionCount=87 -> Cancelled Buy Order ORD-BUY-LIMIT-9103-88 recovered cash=Rp 1.049.072
+Seq#3 Seed=9103 Step=90 Op=8 ActionCount=88 -> Company Capital 2-Way Transfer preserved cash 1:1
+Seq#3 Seed=9103 Step=91 Op=4 ActionCount=89 -> Tested stale quote rejection branch
+Seq#3 Seed=9103 Step=92 Op=6 ActionCount=90 -> Mutual Fund Subscription FUND-MM-01 amount=Rp 2.000.000
+Seq#3 Seed=9103 Step=93 Op=1 ActionCount=91 -> Created Resting Buy Order for future cancel: ORD-BUY-REST-9103-93
+Seq#3 Seed=9103 Step=94 Op=1 ActionCount=92 -> Cancelled Buy Order ORD-BUY-REST-9103-93 recovered cash=Rp 1.036.553
+Seq#3 Seed=9103 Step=95 Op=2 ActionCount=93 -> Margin Loan +5jt, Repay -2jt, final debt=Rp 24.000.000
+Seq#3 Seed=9103 Step=96 Op=9 ActionCount=94 -> Verified zero-share shareholder voting rejection
+Seq#3 Seed=9103 Step=97 Op=10 ActionCount=95 -> Claimed Daily Sponsor + Bought Government Bond FR0091
+Seq#3 Seed=9103 Step=98 Op=8 ActionCount=96 -> Company Capital 2-Way Transfer preserved cash 1:1
+Seq#3 Seed=9103 Step=99 Op=5 ActionCount=97 -> Restructured loan LN-1792373400000-1 +14 days
+Seq#3 Seed=9103 Step=100 Op=10 ActionCount=98 -> Claimed Daily Sponsor + Bought Government Bond FR0091
+Seq#3 Seed=9103 Step=101 Op=11 ActionCount=99 -> Advanced 86400s from 2026-10-24 to 2026-10-25

@@ -1,0 +1,23 @@
+{
+  "width": 1254,
+  "height": 1254,
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "alpha_bbox": [
+    231,
+    375,
+    1061,
+    923
+  ],
+  "raw_alpha_bbox": [
+    31,
+    48,
+    1087,
+    1150
+  ],
+  "crop_threshold": 16,
+  "transparent_pixels": 1276537,
+  "visual_review": "PASS: native identity, complete equipment silhouette, clear margins, alpha and navy/light card-size previews individually inspected."
+}

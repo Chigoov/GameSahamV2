@@ -1,0 +1,23 @@
+{
+  "width": 1254,
+  "height": 1254,
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "alpha_bbox": [
+    264,
+    200,
+    990,
+    1064
+  ],
+  "raw_alpha_bbox": [
+    27,
+    42,
+    1232,
+    1231
+  ],
+  "crop_threshold": 16,
+  "transparent_pixels": 1179779,
+  "visual_review": "PASS: native trophy/memorabilia identity and appropriate rarity materials/craft, complete pedestal/ribbon/frame, real alpha, clear margin and sharp navy/light card views individually inspected."
+}

@@ -1,0 +1,23 @@
+{
+  "width": 1254,
+  "height": 1254,
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "alpha_bbox": [
+    143,
+    102,
+    1144,
+    1155
+  ],
+  "raw_alpha_bbox": [
+    0,
+    21,
+    1238,
+    1254
+  ],
+  "crop_threshold": 16,
+  "transparent_pixels": 1132177,
+  "visual_review": "PASS: catalog jewelry identity/rarity, complete item or coherent named set, alpha cutouts and holes, clear margins and sharp navy/light card-size views individually inspected."
+}
