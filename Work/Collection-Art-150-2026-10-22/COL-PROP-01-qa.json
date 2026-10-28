@@ -1,0 +1,23 @@
+{
+  "width": 1254,
+  "height": 1254,
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "alpha_bbox": [
+    258,
+    267,
+    1047,
+    1090
+  ],
+  "raw_alpha_bbox": [
+    0,
+    17,
+    1210,
+    1254
+  ],
+  "crop_threshold": 16,
+  "transparent_pixels": 1103048,
+  "visual_review": "PASS: native identity, full silhouette, generous padding, true alpha and navy/light card-size views inspected."
+}

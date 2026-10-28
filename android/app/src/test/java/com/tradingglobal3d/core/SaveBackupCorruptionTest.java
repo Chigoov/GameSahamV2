@@ -122,4 +122,69 @@ public class SaveBackupCorruptionTest {
         String backupContent = new String(Files.readAllBytes(backup.toPath()), StandardCharsets.UTF_8);
         assertNotNull(SaveState.fromJsonString(backupContent));
     }
+
+    /**
+     * Regresi K-022:
+     * Primary dengan struktur semantik rusak (misal accounts: 42, ledger: false, atau versi schema tidak didukung)
+     * tidak boleh dianggap valid hanya karena memiliki key accounts/ledger.
+     * Backup yang valid harus dipertahankan dan pemulihan (BACKUP_RECOVERED) harus berhasil.
+     */
+    @Test
+    public void testCorruptStructureAndSemanticsDoesNotOverwriteValidBackup() throws Exception {
+        SaveState state1 = createSampleState(50_000_000L);
+        saveManager.save(state1);
+
+        SaveState state2 = createSampleState(55_000_000L);
+        saveManager.save(state2);
+
+        File primary = saveManager.getSaveFile();
+        File backup = saveManager.getBackupFile();
+        String goodBackupContent = new String(Files.readAllBytes(backup.toPath()), StandardCharsets.UTF_8);
+        assertNotNull(SaveState.fromJsonString(goodBackupContent));
+
+        // 1. Kasus K-022: schemaVersion 2 tetapi accounts dan ledger bukan array
+        String invalidStructure = "{\"schemaVersion\":2,\"accounts\":42,\"ledger\":false}";
+        try (FileWriter fw = new FileWriter(primary, false)) {
+            fw.write(invalidStructure);
+        }
+
+        SaveState liveState = createSampleState(60_000_000L);
+        saveManager.save(liveState);
+
+        // Backup HARUS TETAP merupakan backup baik sebelumnya (tidak tertimpa invalidStructure)
+        String backupAfterInvalidSave = new String(Files.readAllBytes(backup.toPath()), StandardCharsets.UTF_8);
+        assertEquals("Backup valid lama harus dipertahankan", goodBackupContent, backupAfterInvalidSave);
+        assertNotNull("Backup harus bisa diparse oleh real parser", SaveState.fromJsonString(backupAfterInvalidSave));
+
+        // Jika primary rusak, recovery dari backup harus sukses
+        try (FileWriter fw = new FileWriter(primary, false)) {
+            fw.write("{broken_unparsable");
+        }
+        SaveManager.LoadResult loadRes = saveManager.load();
+        assertTrue("Load harus berhasil memulihkan backup", loadRes.isSuccess());
+        assertEquals(SaveManager.LoadSource.BACKUP_RECOVERED, loadRes.getSource());
+
+        // 2. Kasus schemaVersion tidak didukung (misal versi 999 atau 1 lama tanpa migrasi)
+        try (FileWriter fw = new FileWriter(primary, false)) {
+            fw.write("{\"schemaVersion\":999,\"gameMode\":\"INTERNAL_MARKET\",\"accounts\":[],\"ledger\":[]}");
+        }
+        SaveState liveState2 = createSampleState(65_000_000L);
+        saveManager.save(liveState2);
+
+        String backupAfterSchemaMismatch = new String(Files.readAllBytes(backup.toPath()), StandardCharsets.UTF_8);
+        assertNotNull("Backup harus tetap loadable", SaveState.fromJsonString(backupAfterSchemaMismatch));
+
+        // 3. Kasus tipe data akun ditolak parser (AccountType tidak valid)
+        String invalidAccountType = "{\"schemaVersion\":2,\"gameMode\":\"INTERNAL_MARKET\",\"savedTimestamp\":1000,"
+                + "\"gameDate\":\"2026-10-22\",\"gameTime\":\"10:00:00\","
+                + "\"accounts\":[{\"id\":\"ACC-1\",\"name\":\"X\",\"type\":\"TIDAK_VALID\"}],\"ledger\":[]}";
+        try (FileWriter fw = new FileWriter(primary, false)) {
+            fw.write(invalidAccountType);
+        }
+        SaveState liveState3 = createSampleState(70_000_000L);
+        saveManager.save(liveState3);
+
+        String backupAfterParserReject = new String(Files.readAllBytes(backup.toPath()), StandardCharsets.UTF_8);
+        assertNotNull("Backup harus tetap loadable", SaveState.fromJsonString(backupAfterParserReject));
+    }
 }

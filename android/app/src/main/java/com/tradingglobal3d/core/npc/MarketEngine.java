@@ -60,7 +60,9 @@ public final class MarketEngine {
                     .put("id", fill.getFillId()).put("buyOrder", fill.getBuyOrderId()).put("sellOrder", fill.getSellOrderId())
                     .put("buyer", fill.getBuyAccountId()).put("seller", fill.getSellAccountId())
                     .put("price", fill.getPrice().getAmount().toPlainString()).put("quantity", fill.getQuantity()).put("timestamp", fill.getTimestamp())
-                    .put("sellerRealizedNet", fill.getSellerRealizedNetPnL() == null ? org.json.JSONObject.NULL : fill.getSellerRealizedNetPnL().getAmount().toPlainString()));
+                    .put("sellerRealizedNet", fill.getSellerRealizedNetPnL() == null ? org.json.JSONObject.NULL : fill.getSellerRealizedNetPnL().getAmount().toPlainString())
+                    .put("buyerFee", fill.getBuyerFee() == null ? org.json.JSONObject.NULL : fill.getBuyerFee().getAmount().toPlainString())
+                    .put("sellerFee", fill.getSellerFee() == null ? org.json.JSONObject.NULL : fill.getSellerFee().getAmount().toPlainString()));
             saved.put(item.put("fills", fills));
         }
         return saved;
@@ -98,10 +100,21 @@ public final class MarketEngine {
                 com.tradingglobal3d.core.model.Money price = new com.tradingglobal3d.core.model.Money(new java.math.BigDecimal(fill.getString("price")), instrument.getCurrency());
                 if (!price.isPositive() || fill.getLong("quantity") <= 0 || !fillIds.add(fill.getString("id")))
                     throw new IllegalArgumentException("Fill save tidak valid");
-                book.recordFill(new TradeFill(fill.getString("id"), fill.getString("buyOrder"), fill.getString("sellOrder"),
+                TradeFill restored = new TradeFill(fill.getString("id"), fill.getString("buyOrder"), fill.getString("sellOrder"),
                         fill.getString("buyer"), fill.getString("seller"), instrument.getId(), price, fill.getLong("quantity"), fill.getLong("timestamp"))
                         .withSellerRealizedNetPnL(fill.isNull("sellerRealizedNet") ? null : new com.tradingglobal3d.core.model.Money(
-                                new java.math.BigDecimal(fill.getString("sellerRealizedNet")), instrument.getCurrency())));
+                                new java.math.BigDecimal(fill.getString("sellerRealizedNet")), instrument.getCurrency()));
+                boolean hasBuyerFee = fill.has("buyerFee");
+                boolean hasSellerFee = fill.has("sellerFee");
+                if (hasBuyerFee != hasSellerFee) throw new IllegalArgumentException("Fee fill save tidak lengkap");
+                if (hasBuyerFee) {
+                    if (fill.isNull("buyerFee") || fill.isNull("sellerFee"))
+                        throw new IllegalArgumentException("Fee fill save tidak valid");
+                    restored.withTransactionFees(
+                            new com.tradingglobal3d.core.model.Money(new java.math.BigDecimal(fill.getString("buyerFee")), instrument.getCurrency()),
+                            new com.tradingglobal3d.core.model.Money(new java.math.BigDecimal(fill.getString("sellerFee")), instrument.getCurrency()));
+                }
+                book.recordFill(restored);
             }
             if (fills.length() > 0 && (item.isNull("last") || !book.getLastTradedPrice().getAmount().toPlainString().equals(item.getString("last"))))
                 throw new IllegalArgumentException("Harga terakhir dan fill save tidak konsisten");
@@ -149,6 +162,11 @@ public final class MarketEngine {
         OrderBook book = books.get(order.getInstrumentId());
         if (book == null) return false;
         return matchingEngine.cancelOrder(order, account, book);
+    }
+
+    public synchronized boolean expireOrder(Order order, Account account) {
+        OrderBook book = books.get(order.getInstrumentId());
+        return matchingEngine.expireOrder(order, account, book);
     }
 
     /**

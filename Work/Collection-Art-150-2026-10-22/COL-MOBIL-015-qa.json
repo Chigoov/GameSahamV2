@@ -1,0 +1,23 @@
+{
+  "width": 1254,
+  "height": 1254,
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "alpha_bbox": [
+    122,
+    434,
+    1138,
+    878
+  ],
+  "raw_alpha_bbox": [
+    45,
+    144,
+    1226,
+    1134
+  ],
+  "crop_threshold": 16,
+  "transparent_pixels": 1250936,
+  "visual_review": "PASS after imagegen revision: native vehicle identity/colors, complete silhouette, improved approximately 10 percent margin, genuine alpha and sharp navy/light card views individually inspected. Prior original preserved in variants."
+}

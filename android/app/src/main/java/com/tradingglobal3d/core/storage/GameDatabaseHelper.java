@@ -1,0 +1,319 @@
+package com.tradingglobal3d.core.storage;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * SQLite Database Helper lokal untuk 15 Fitur Game Saham 2D Portrait.
+ * Menyediakan penyimpanan mandiri (offline-first) dengan 8 tabel utama
+ * sesuai Docs/MASTERPLAN_15_FITUR_2D_PORTRAIT.md.
+ */
+public final class GameDatabaseHelper extends SQLiteOpenHelper {
+
+    private static final String DATABASE_NAME = "gamesaham.db";
+    private static final int DATABASE_VERSION = 1;
+    private final Context context;
+
+    public GameDatabaseHelper(Context context) {
+        super(context, DATABASE_NAME, null, DATABASE_VERSION);
+        this.context = context;
+    }
+
+    @Override
+    public void onConfigure(SQLiteDatabase db) {
+        super.onConfigure(db);
+        db.setForeignKeyConstraintsEnabled(true);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        // 1. Profil Pemain & Karier
+        db.execSQL("CREATE TABLE IF NOT EXISTS PlayerProfile ("
+                + "PlayerId TEXT PRIMARY KEY, "
+                + "PlayerName TEXT NOT NULL, "
+                + "DifficultyMode TEXT NOT NULL DEFAULT 'Casual', "
+                + "CurrentLeague TEXT NOT NULL DEFAULT 'Junior', "
+                + "PrestigeLevel INTEGER NOT NULL DEFAULT 0, "
+                + "CashBalance DECIMAL(18, 4) NOT NULL, "
+                + "TotalDebt DECIMAL(18, 4) NOT NULL DEFAULT 0, "
+                + "InvestorArchetype TEXT DEFAULT 'Unknown', "
+                + "FirmReputation INTEGER NOT NULL DEFAULT 0, "
+                + "CreatedAt DATETIME NOT NULL"
+                + ");");
+
+        // 2. Buku Transaksi Saham (Immutable Ledger)
+        db.execSQL("CREATE TABLE IF NOT EXISTS StockLedger ("
+                + "TransactionId TEXT PRIMARY KEY, "
+                + "Timestamp DATETIME NOT NULL, "
+                + "Ticker TEXT NOT NULL, "
+                + "OrderSide TEXT NOT NULL, "
+                + "ExecutionPrice DECIMAL(18, 4) NOT NULL, "
+                + "LotQuantity INTEGER NOT NULL, "
+                + "BrokerFee DECIMAL(18, 4) NOT NULL, "
+                + "NetTotalAmount DECIMAL(18, 4) NOT NULL"
+                + ");");
+
+        // 3. Portofolio Saham Aktif
+        db.execSQL("CREATE TABLE IF NOT EXISTS ActivePortfolio ("
+                + "Ticker TEXT PRIMARY KEY, "
+                + "TotalLots INTEGER NOT NULL, "
+                + "AverageBuyPrice DECIMAL(18, 4) NOT NULL, "
+                + "LastKnownPrice DECIMAL(18, 4) NOT NULL"
+                + ");");
+
+        // 4. Riwayat Lilin Harga (Candlestick OHLCV)
+        db.execSQL("CREATE TABLE IF NOT EXISTS MarketCandleHistory ("
+                + "Ticker TEXT NOT NULL, "
+                + "CandleTimestamp DATETIME NOT NULL, "
+                + "OpenPrice DECIMAL(18, 4) NOT NULL, "
+                + "HighPrice DECIMAL(18, 4) NOT NULL, "
+                + "LowPrice DECIMAL(18, 4) NOT NULL, "
+                + "ClosePrice DECIMAL(18, 4) NOT NULL, "
+                + "Volume INTEGER NOT NULL, "
+                + "PRIMARY KEY (Ticker, CandleTimestamp)"
+                + ");");
+
+        // 5. Pinjaman Bank & Fasilitas Margin
+        db.execSQL("CREATE TABLE IF NOT EXISTS BankLoan ("
+                + "LoanId TEXT PRIMARY KEY, "
+                + "PrincipalAmount DECIMAL(18, 4) NOT NULL, "
+                + "InterestRatePerSession DECIMAL(6, 4) NOT NULL, "
+                + "AccruedInterest DECIMAL(18, 4) NOT NULL DEFAULT 0, "
+                + "BorrowedAtSession INTEGER NOT NULL, "
+                + "IsSettled INTEGER NOT NULL DEFAULT 0"
+                + ");");
+
+        // 6. Firma Pengelola Dana & Karyawan
+        db.execSQL("CREATE TABLE IF NOT EXISTS InvestmentFirm ("
+                + "FirmLevel INTEGER PRIMARY KEY, "
+                + "FirmName TEXT NOT NULL, "
+                + "TotalAUM DECIMAL(18, 4) NOT NULL DEFAULT 0, "
+                + "TotalStaffHired INTEGER NOT NULL DEFAULT 0, "
+                + "HappinessScore DECIMAL(5, 2) NOT NULL DEFAULT 100.0, "
+                + "DailyManagementFee DECIMAL(18, 4) NOT NULL DEFAULT 0"
+                + ");");
+
+        // 7. Katalog & Kepemilikan 150 Galeri Aset Mewah
+        db.execSQL("CREATE TABLE IF NOT EXISTS GalleryCatalog ("
+                + "ItemId TEXT PRIMARY KEY, "
+                + "ItemName TEXT NOT NULL, "
+                + "Category TEXT NOT NULL, "
+                + "Rarity TEXT NOT NULL, "
+                + "BasePrice DECIMAL(18, 4) NOT NULL, "
+                + "ImagePath TEXT NOT NULL, "
+                + "ReputationBonus INTEGER NOT NULL DEFAULT 10"
+                + ");");
+
+        db.execSQL("CREATE TABLE IF NOT EXISTS PlayerGalleryOwnership ("
+                + "OwnershipId TEXT PRIMARY KEY, "
+                + "ItemId TEXT NOT NULL, "
+                + "AcquiredAt DATETIME NOT NULL, "
+                + "PurchasePrice DECIMAL(18, 4) NOT NULL, "
+                + "IsEquippedOrDisplayed INTEGER NOT NULL DEFAULT 0, "
+                + "FOREIGN KEY(ItemId) REFERENCES GalleryCatalog(ItemId)"
+                + ");");
+
+        // 8. Misi Harian & Checklist
+        db.execSQL("CREATE TABLE IF NOT EXISTS DailyQuests ("
+                + "QuestId TEXT PRIMARY KEY, "
+                + "Title TEXT NOT NULL, "
+                + "TargetGoal INTEGER NOT NULL, "
+                + "CurrentProgress INTEGER NOT NULL DEFAULT 0, "
+                + "RewardCash DECIMAL(18, 4) NOT NULL, "
+                + "IsClaimed INTEGER NOT NULL DEFAULT 0"
+                + ");");
+
+        // 9. Jadwal & Riwayat Dividen Emiten
+        db.execSQL("CREATE TABLE IF NOT EXISTS StockDividends ("
+                + "DividendId TEXT PRIMARY KEY, "
+                + "Ticker TEXT NOT NULL, "
+                + "DividendPerShare DECIMAL(18, 4) NOT NULL, "
+                + "CumDateSession INTEGER NOT NULL, "
+                + "ExDateSession INTEGER NOT NULL, "
+                + "PaymentDateSession INTEGER NOT NULL, "
+                + "IsDistributed INTEGER NOT NULL DEFAULT 0"
+                + ");");
+
+        // 10. Sistem Pertarungan Bos Taipan Pasar
+        db.execSQL("CREATE TABLE IF NOT EXISTS MarketBossShowdown ("
+                + "BossId TEXT PRIMARY KEY, "
+                + "BossName TEXT NOT NULL, "
+                + "DifficultyTier TEXT NOT NULL, "
+                + "AvatarImage TEXT NOT NULL, "
+                + "TargetReturnPercentage DECIMAL(6, 2) NOT NULL, "
+                + "DurationSessions INTEGER NOT NULL, "
+                + "BossCurrentReturn DECIMAL(6, 2) NOT NULL DEFAULT 0.0, "
+                + "PlayerCurrentReturn DECIMAL(6, 2) NOT NULL DEFAULT 0.0, "
+                + "IsActive INTEGER NOT NULL DEFAULT 0, "
+                + "IsDefeated INTEGER NOT NULL DEFAULT 0, "
+                + "RewardCash DECIMAL(18, 4) NOT NULL"
+                + ");");
+
+        // 11. Buku Medali Prestasi Pemain
+        db.execSQL("CREATE TABLE IF NOT EXISTS PlayerAchievements ("
+                + "AchievementId TEXT PRIMARY KEY, "
+                + "Title TEXT NOT NULL, "
+                + "Description TEXT NOT NULL, "
+                + "Category TEXT NOT NULL, "
+                + "TargetThreshold DECIMAL(18, 4) NOT NULL, "
+                + "CurrentProgress DECIMAL(18, 4) NOT NULL DEFAULT 0, "
+                + "IsUnlocked INTEGER NOT NULL DEFAULT 0, "
+                + "IsRewardClaimed INTEGER NOT NULL DEFAULT 0, "
+                + "RewardCash DECIMAL(18, 4) NOT NULL, "
+                + "PerkBonus TEXT"
+                + ");");
+
+        // 12. Koleksi Avatar & Bingkai Profil
+        db.execSQL("CREATE TABLE IF NOT EXISTS ProfileCosmetics ("
+                + "CosmeticId TEXT PRIMARY KEY, "
+                + "CosmeticType TEXT NOT NULL, "
+                + "Name TEXT NOT NULL, "
+                + "ImagePath TEXT NOT NULL, "
+                + "Rarity TEXT NOT NULL, "
+                + "UnlockCondition TEXT NOT NULL, "
+                + "IsUnlocked INTEGER NOT NULL DEFAULT 0, "
+                + "IsEquipped INTEGER NOT NULL DEFAULT 0"
+                + ");");
+
+        // 13. Kartu Booster Riset & Efisiensi Sementara
+        db.execSQL("CREATE TABLE IF NOT EXISTS ResearchBoosters ("
+                + "BoosterId TEXT PRIMARY KEY, "
+                + "BoosterType TEXT NOT NULL, "
+                + "Title TEXT NOT NULL, "
+                + "Description TEXT NOT NULL, "
+                + "RemainingSessionsOrUses INTEGER NOT NULL, "
+                + "IsActive INTEGER NOT NULL DEFAULT 0, "
+                + "MultiplierValue DECIMAL(6, 2) NOT NULL"
+                + ");");
+
+        // 14. Deposito Bank Berjangka Tenor Sesi
+        db.execSQL("CREATE TABLE IF NOT EXISTS TimeDeposits ("
+                + "DepositId TEXT PRIMARY KEY, "
+                + "PrincipalAmount DECIMAL(18, 4) NOT NULL, "
+                + "TenorSessions INTEGER NOT NULL, "
+                + "DailyInterestRate DECIMAL(6, 4) NOT NULL, "
+                + "BonusMultiplier DECIMAL(4, 2) NOT NULL, "
+                + "StartSession INTEGER NOT NULL, "
+                + "MaturitySession INTEGER NOT NULL, "
+                + "IsWithdrawnEarly INTEGER NOT NULL DEFAULT 0, "
+                + "IsMatured INTEGER NOT NULL DEFAULT 0, "
+                + "AccruedInterest DECIMAL(18, 4) NOT NULL DEFAULT 0"
+                + ");");
+
+        // 15. Polis Asuransi Portofolio Lindung Nilai
+        db.execSQL("CREATE TABLE IF NOT EXISTS PortfolioInsurancePolicy ("
+                + "PolicyId TEXT PRIMARY KEY, "
+                + "PurchasedSession INTEGER NOT NULL, "
+                + "ExpirySession INTEGER NOT NULL, "
+                + "CoveragePercentage DECIMAL(5, 2) NOT NULL DEFAULT 80.0, "
+                + "PremiumPaid DECIMAL(18, 4) NOT NULL, "
+                + "IsClaimed INTEGER NOT NULL DEFAULT 0"
+                + ");");
+
+        // 16. Produk Reksa Dana Kustom Pemain
+        db.execSQL("CREATE TABLE IF NOT EXISTS CustomMutualFunds ("
+                + "FundId TEXT PRIMARY KEY, "
+                + "FundName TEXT NOT NULL, "
+                + "EquityWeightPct DECIMAL(5, 2) NOT NULL, "
+                + "CommodityWeightPct DECIMAL(5, 2) NOT NULL, "
+                + "CryptoWeightPct DECIMAL(5, 2) NOT NULL, "
+                + "CashWeightPct DECIMAL(5, 2) NOT NULL, "
+                + "TotalAUM DECIMAL(18, 4) NOT NULL DEFAULT 0, "
+                + "ManagementFeePct DECIMAL(5, 2) NOT NULL DEFAULT 1.5, "
+                + "PerformanceFeePct DECIMAL(5, 2) NOT NULL DEFAULT 15.0"
+                + ");");
+
+        // 17. Anak Perusahaan Induk Konglomerasi
+        db.execSQL("CREATE TABLE IF NOT EXISTS HoldingSubsidiaries ("
+                + "SubsidiaryId TEXT PRIMARY KEY, "
+                + "SectorName TEXT NOT NULL, "
+                + "CompanyName TEXT NOT NULL, "
+                + "CapitalInjected DECIMAL(18, 4) NOT NULL DEFAULT 0, "
+                + "CurrentCash DECIMAL(18, 4) NOT NULL DEFAULT 0, "
+                + "CompanyValuation DECIMAL(18, 4) NOT NULL DEFAULT 0, "
+                + "RetainedEarnings DECIMAL(18, 4) NOT NULL DEFAULT 0"
+                + ");");
+
+        // 18. Pasar Bakat Analis & Headhunting
+        db.execSQL("CREATE TABLE IF NOT EXISTS StaffHeadhuntingMarket ("
+                + "CandidateId TEXT PRIMARY KEY, "
+                + "CandidateName TEXT NOT NULL, "
+                + "RoleTitle TEXT NOT NULL, "
+                + "SkillRating INTEGER NOT NULL, "
+                + "PoachCost DECIMAL(18, 4) NOT NULL, "
+                + "ExpectedSalary DECIMAL(18, 4) NOT NULL, "
+                + "CurrentFirmEmployer TEXT NOT NULL, "
+                + "LoyaltyScore DECIMAL(5, 2) NOT NULL DEFAULT 100.0, "
+                + "IsHiredByPlayer INTEGER NOT NULL DEFAULT 0"
+                + ");");
+
+        // 19. Pohon Riset Teknologi Finansial Tech Tree
+        db.execSQL("CREATE TABLE IF NOT EXISTS ResearchTechTreeProgress ("
+                + "NodeId TEXT PRIMARY KEY, "
+                + "NodeName TEXT NOT NULL, "
+                + "Category TEXT NOT NULL, "
+                + "TierLevel INTEGER NOT NULL, "
+                + "UpgradeCostCash DECIMAL(18, 4) NOT NULL, "
+                + "IsUnlocked INTEGER NOT NULL DEFAULT 0, "
+                + "StatBonusType TEXT NOT NULL, "
+                + "StatBonusValue DECIMAL(6, 2) NOT NULL"
+                + ");");
+
+        // 20. Pelacak Jalur Disiplin Harian Streak
+        db.execSQL("CREATE TABLE IF NOT EXISTS DailyStreakTracker ("
+                + "PlayerId TEXT PRIMARY KEY, "
+                + "CurrentStreak INTEGER NOT NULL DEFAULT 0, "
+                + "LongestStreak INTEGER NOT NULL DEFAULT 0, "
+                + "LastLoginSession INTEGER NOT NULL DEFAULT 0, "
+                + "IsStreakBroken INTEGER NOT NULL DEFAULT 0, "
+                + "RewardMultiplier DECIMAL(4, 2) NOT NULL DEFAULT 1.0"
+                + ");");
+
+        // 21. Status Dominasi & Pengaruh Sektor Bursa
+        db.execSQL("CREATE TABLE IF NOT EXISTS SectorDominanceStatus ("
+                + "SectorName TEXT PRIMARY KEY, "
+                + "PlayerOwnershipPct DECIMAL(5, 2) NOT NULL DEFAULT 0.0, "
+                + "IsDominantPlayer INTEGER NOT NULL DEFAULT 0, "
+                + "VetoPowerActive INTEGER NOT NULL DEFAULT 0, "
+                + "FeeDiscountPct DECIMAL(5, 2) NOT NULL DEFAULT 0.0"
+                + ");");
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        // Upgrade strategy: migrasi berjenjang tanpa kehilangan data pemain
+    }
+
+    /**
+     * Memastikan database telah tersalin/terinisialisasi dari file aset jika belum ada.
+     */
+    public void ensureDatabaseInitialized() {
+        File dbFile = context.getDatabasePath(DATABASE_NAME);
+        if (!dbFile.exists()) {
+            dbFile.getParentFile().mkdirs();
+            try (InputStream is = context.getAssets().open("data/" + DATABASE_NAME);
+                 OutputStream os = new FileOutputStream(dbFile)) {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = is.read(buffer)) != -1) {
+                    os.write(buffer, 0, read);
+                }
+                os.flush();
+            } catch (Exception e) {
+                // Fallback ke pembuatan tabel runtime jika file aset tidak ada
+                getWritableDatabase();
+            }
+        }
+    }
+}

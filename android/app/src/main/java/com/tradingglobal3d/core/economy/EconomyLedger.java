@@ -13,6 +13,7 @@ import java.util.*;
  */
 public final class EconomyLedger {
     private final List<LedgerEntry> entries = new ArrayList<>();
+    private final Map<String, List<LedgerEntry>> entriesByAccount = new HashMap<>();
     private final Map<String, LedgerEntry> processedRequests = new HashMap<>();
 
     public synchronized boolean isRequestProcessed(String requestId) {
@@ -69,6 +70,7 @@ public final class EconomyLedger {
         );
 
         entries.add(entry);
+        entriesByAccount.computeIfAbsent(entry.getAccountId(), key -> new ArrayList<>()).add(entry);
         if (requestId != null && !requestId.isEmpty()) {
             processedRequests.put(requestId, entry);
         }
@@ -81,26 +83,23 @@ public final class EconomyLedger {
     }
 
     public synchronized List<LedgerEntry> getEntriesForAccount(String accountId) {
-        List<LedgerEntry> result = new ArrayList<>();
-        for (LedgerEntry e : entries) {
-            if (e.getAccountId().equals(accountId)) {
-                result.add(e);
-            }
-        }
-        return result;
+        return new ArrayList<>(entriesByAccount.getOrDefault(accountId, Collections.emptyList()));
     }
 
     public synchronized void clear() {
         this.entries.clear();
+        this.entriesByAccount.clear();
         this.processedRequests.clear();
     }
 
     public synchronized void restoreEntries(List<LedgerEntry> savedEntries) {
         this.entries.clear();
+        this.entriesByAccount.clear();
         this.processedRequests.clear();
         if (savedEntries != null) {
             for (LedgerEntry e : savedEntries) {
                 this.entries.add(e);
+                this.entriesByAccount.computeIfAbsent(e.getAccountId(), key -> new ArrayList<>()).add(e);
                 if (e.getRequestId() != null && !e.getRequestId().isEmpty()) {
                     this.processedRequests.put(e.getRequestId(), e);
                 }

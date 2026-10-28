@@ -145,6 +145,9 @@ public final class CollectibleItem {
             throw new IllegalStateException("Agunan hanya dilepas setelah seluruh kewajiban lunas");
         pledgedLoanId = null;
     }
+    public void releasePledgeMigration() {
+        pledgedLoanId = null;
+    }
     public String getOwnerAccountId() { return ownerAccountId; }
     public Money getMaintenanceArrears() { return maintenanceArrears; }
     public long getLastMaintenanceDay() { return lastMaintenanceDay; }
@@ -182,20 +185,24 @@ public final class CollectibleItem {
         if (day < valuationAsOfDay) throw new IllegalArgumentException("Waktu valuasi tidak boleh mundur");
         long elapsed = day - valuationAnchorDay;
         BigDecimal factor;
-        if (category == Category.VEHICLE) {
+        if (category == Category.VEHICLE || category == Category.MOTOR || category == Category.MOBIL) {
             factor = BigDecimal.ONE.subtract(BigDecimal.valueOf(Math.min(elapsed, 1000), 4)).max(new BigDecimal("0.90"));
         } else {
-            int period = category == Category.REAL_ESTATE ? 30 : category == Category.JEWELRY ? 45 : 60;
-            int amplitudeBps = category == Category.REAL_ESTATE ? 300 : category == Category.JEWELRY ? 500 : 600;
-            // ponytail: an anchored category cycle is deterministic across offline partitions without random price state.
-            long phase = Math.floorMod(elapsed, period * 2L);
-            long triangle = phase <= period ? phase : period * 2L - phase;
-            int direction = Math.floorMod(id.hashCode(), 2) == 0 ? 1 : -1;
-            factor = BigDecimal.ONE.add(BigDecimal.valueOf(direction * amplitudeBps)
-                    .multiply(BigDecimal.valueOf(triangle)).divide(BigDecimal.valueOf(period * 10_000L), 12, java.math.RoundingMode.HALF_UP));
+            factor = categoryCycleFactor(elapsed);
         }
         currentValuation = valuationAnchorPrice.multiply(factor);
         valuationAsOfDay = day;
+    }
+
+    private BigDecimal categoryCycleFactor(long elapsed) {
+        int period = category == Category.REAL_ESTATE ? 30 : category == Category.JEWELRY ? 45 : 60;
+        int amplitudeBps = category == Category.REAL_ESTATE ? 300 : category == Category.JEWELRY ? 500 : 600;
+        // ponytail: an anchored category cycle is deterministic across offline partitions without random price state.
+        long phase = Math.floorMod(elapsed, period * 2L);
+        long triangle = phase <= period ? phase : period * 2L - phase;
+        int direction = Math.floorMod(id.hashCode(), 2) == 0 ? 1 : -1;
+        return BigDecimal.ONE.add(BigDecimal.valueOf(direction * amplitudeBps)
+                .multiply(BigDecimal.valueOf(triangle)).divide(BigDecimal.valueOf(period * 10_000L), 12, java.math.RoundingMode.HALF_UP));
     }
 
     public void markPurchased(Money price, long timestamp) {
@@ -242,7 +249,8 @@ public final class CollectibleItem {
         obj.put("ownerAccountId", ownerAccountId == null ? JSONObject.NULL : ownerAccountId);
         obj.put("maintenanceArrears", maintenanceArrears.getAmount().toPlainString());
         obj.put("lastMaintenanceDay", lastMaintenanceDay);
-        obj.put("valuationRule", valuationAnchorDay == Long.MIN_VALUE ? "LEGACY_FIXED_UNTIL_CALENDAR_SYNC" : "CATEGORY_CALENDAR_V1");
+        obj.put("valuationRule", valuationAnchorDay == Long.MIN_VALUE ? "LEGACY_FIXED_UNTIL_CALENDAR_SYNC"
+                : category == Category.MOTOR || category == Category.MOBIL ? "CATEGORY_CALENDAR_V2" : "CATEGORY_CALENDAR_V1");
         obj.put("valuationAnchorDay", valuationAnchorDay);
         obj.put("valuationAsOfDay", valuationAsOfDay);
         obj.put("valuationAnchorPrice", valuationAnchorPrice == null ? JSONObject.NULL : valuationAnchorPrice.getAmount().toPlainString());
@@ -301,8 +309,17 @@ public final class CollectibleItem {
             validatePrice(item.valuationAnchorPrice);
             if (item.valuationAsOfDay < item.valuationAnchorDay) throw new IllegalArgumentException("Anchor valuasi tidak valid");
             Money expected = item.currentValuation;
-            item.updateCalendarValuation(item.valuationAsOfDay);
-            if (!expected.equals(item.currentValuation)) throw new IllegalArgumentException("Valuasi berbeda dari aturan tersimpan");
+            if ((item.category == Category.MOTOR || item.category == Category.MOBIL)
+                    && "CATEGORY_CALENDAR_V1".equals(obj.optString("valuationRule"))) {
+                if (!expected.equals(item.valuationAnchorPrice.multiply(item.categoryCycleFactor(item.valuationAsOfDay - item.valuationAnchorDay))))
+                    throw new IllegalArgumentException("Valuasi berbeda dari aturan tersimpan");
+                // Preserve the exact verified old value; corrected vehicle depreciation starts at this saved day.
+                item.valuationAnchorPrice = expected;
+                item.valuationAnchorDay = item.valuationAsOfDay;
+            } else {
+                item.updateCalendarValuation(item.valuationAsOfDay);
+                if (!expected.equals(item.currentValuation)) throw new IllegalArgumentException("Valuasi berbeda dari aturan tersimpan");
+            }
         } else if (item.valuationAsOfDay != Long.MIN_VALUE || !obj.isNull("valuationAnchorPrice"))
             throw new IllegalArgumentException("Anchor valuasi tidak lengkap");
         return item;

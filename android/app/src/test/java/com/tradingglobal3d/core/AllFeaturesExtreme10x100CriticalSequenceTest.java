@@ -140,6 +140,7 @@ public class AllFeaturesExtreme10x100CriticalSequenceTest {
         if (catalog != null) facade.setCatalog(catalog);
         facade.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(1_000_000_000L)); // 1 Miliar IDR modal awal uji
         GameTestSupport.unlockManager(facade);
+        GameTestSupport.unlockIdxLevelFourForStressFixture(facade);
         facade.getClock().play();
 
         Instrument bbca = facade.getCatalog().getById("IDX:BBCA");

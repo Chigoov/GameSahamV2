@@ -114,7 +114,10 @@ public class CorporateActionIpoVotingCriticalSequenceTest {
                     break;
                 }
                 case 1: { // Pesan IPO jika ada penawaran aktif
-                    var ipos = facade.getCorporateService().getIpoOfferings();
+                    LocalDate now = facade.getClock().getCurrentDate();
+                    var ipos = facade.getCorporateService().getIpoOfferings().stream()
+                            .filter(i -> !i.isAllotted() && !i.getListingDate().isBefore(now))
+                            .collect(java.util.stream.Collectors.toList());
                     if (!ipos.isEmpty()) {
                         IpoOffering ipo = ipos.get(0);
                         long avail = personal.getAvailableCash(Currency.IDR).getAmount().longValue();
@@ -128,7 +131,10 @@ public class CorporateActionIpoVotingCriticalSequenceTest {
                     break;
                 }
                 case 2: { // Penjatahan IPO jika ada penawaran yang sudah dipesan
-                    var ipos = facade.getCorporateService().getIpoOfferings();
+                    LocalDate now = facade.getClock().getCurrentDate();
+                    var ipos = facade.getCorporateService().getIpoOfferings().stream()
+                            .filter(i -> !i.isAllotted() && !i.getListingDate().isBefore(now))
+                            .collect(java.util.stream.Collectors.toList());
                     if (!ipos.isEmpty()) {
                         IpoOffering ipo = ipos.get(0);
                         if (!ipo.isAllotted()) {
@@ -192,7 +198,10 @@ public class CorporateActionIpoVotingCriticalSequenceTest {
                     break;
                 }
                 case 7: { // Boundary: Tolak pemesanan IPO melebihi saldo kas tersedia
-                    var ipos = facade.getCorporateService().getIpoOfferings();
+                    LocalDate now = facade.getClock().getCurrentDate();
+                    var ipos = facade.getCorporateService().getIpoOfferings().stream()
+                            .filter(i -> !i.isAllotted() && !i.getListingDate().isBefore(now))
+                            .collect(java.util.stream.Collectors.toList());
                     if (!ipos.isEmpty()) {
                         IpoOffering ipo = ipos.get(0);
                         if (!ipo.isAllotted()) {
@@ -200,6 +209,8 @@ public class CorporateActionIpoVotingCriticalSequenceTest {
                                 facade.orderIpo(ipo.getId(), 1_000_000);
                                 fail("Pemesanan IPO melebihi saldo kas harus ditolak: " + ctx);
                             } catch (IllegalStateException expected) {
+                                assertTrue("Harus ditolak karena kas, bukan jadwal: " + ctx,
+                                        expected.getMessage().contains("Saldo kas"));
                                 actionsCount++;
                             }
                         }

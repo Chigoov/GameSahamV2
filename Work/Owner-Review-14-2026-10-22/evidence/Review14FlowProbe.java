@@ -1,0 +1,11 @@
+import java.nio.file.*;import java.math.*;import org.json.*;import com.tradingglobal3d.core.facade.*;import com.tradingglobal3d.core.storage.*;import com.tradingglobal3d.core.market.*;import com.tradingglobal3d.core.model.*;import com.tradingglobal3d.core.funds.*;
+public class Review14FlowProbe {
+ static TradingFacade fresh(Path assets) throws Exception {TradingFacade f=new TradingFacade(SaveManager.forDirectory(Files.createTempDirectory("review14-flow-").toFile()));f.setCatalog(InstrumentCatalog.fromJsonString(Files.readString(assets.resolve("data/market_universe.json"))));f.initializeNewGame(GameMode.INTERNAL_MARKET,new BigDecimal("50000000"));f.getClock().play();return f;}
+ public static void main(String[] args) throws Exception {Path assets=Path.of(args[0]);HistoricalDatasetLoader.setAssetSource(x->Files.newInputStream(assets.resolve(x)));
+  TradingFacade fast=fresh(assets);TradingFacade chunks=fresh(assets);long begin=System.nanoTime();fast.advanceRealMs(900000,true);for(int i=0;i<900;i++)chunks.advanceRealMs(1000,true);
+  Instrument a=fast.getCatalog().getById("IDX:BBCA"),b=chunks.getCatalog().getById("IDX:BBCA");
+  System.out.println("equivalent_time_fast="+fast.getClock().getCurrentDate()+"T"+fast.getClock().getCurrentTime()+"_chunked="+chunks.getClock().getCurrentDate()+"T"+chunks.getClock().getCurrentTime());
+  System.out.println("fastforward_bbca_fills="+fast.getMarketEngine().getOrCreateBook(a).getTradeHistory().size()+"_chunked_bbca_fills="+chunks.getMarketEngine().getOrCreateBook(b).getTradeHistory().size());System.out.println("comparison_seconds="+(System.nanoTime()-begin)/1e9);
+  TradingFacade f=fresh(assets);JSONObject req=f.subscribeMutualFund("review-fund-sub","FUND-SE-01",Money.of(10000000,Currency.IDR));System.out.println("sector_subscription="+req.getBoolean("success"));f.advanceRealMs(300000,true);MutualFund fund=f.getMutualFundManager().getFund("FUND-SE-01");JSONObject detail=fund.toJsonObject(f.getPersonalAccount().getId());System.out.println("sector_fund_after_cutoff="+detail);System.out.println("sector_pool_actual_stock_positions="+f.getAccount(fund.getPoolAccountId()).getPositions().size());
+ }
+}

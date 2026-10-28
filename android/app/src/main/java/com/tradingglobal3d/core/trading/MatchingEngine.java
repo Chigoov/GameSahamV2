@@ -58,7 +58,7 @@ public final class MatchingEngine {
     private Money requiredLimitBuyReservation(Order order, Instrument instrument) {
         Currency currency = instrument.getCurrency();
         BigDecimal lotValue = order.getLimitPrice().getAmount().multiply(BigDecimal.valueOf(instrument.getLotSize()));
-        BigDecimal feePerLot = lotValue.multiply(BUY_FEE_RATE).setScale(currency.getDecimalPlaces(), RoundingMode.CEILING);
+        BigDecimal feePerLot = lotValue.multiply(order.getEffectiveFeeRate(BUY_FEE_RATE)).setScale(currency.getDecimalPlaces(), RoundingMode.CEILING);
         BigDecimal lots = BigDecimal.valueOf(order.getTotalQuantity() / instrument.getLotSize());
         return new Money(lotValue.add(feePerLot).multiply(lots), currency);
     }
@@ -85,7 +85,7 @@ public final class MatchingEngine {
                     long units = Math.min(remaining, maker.getRemainingQuantity());
                     Money value = new Money(level.getKey().multiply(BigDecimal.valueOf(units)), currency);
                     nominal = nominal.add(value.getAmount());
-                    fee = fee.add(new Money(value.getAmount().multiply(order.isBuy() ? BUY_FEE_RATE : SELL_FEE_RATE), currency));
+                    fee = fee.add(new Money(value.getAmount().multiply(order.getEffectiveFeeRate(order.isBuy() ? BUY_FEE_RATE : SELL_FEE_RATE)), currency));
                     remaining -= units;
                     if (remaining == 0) break;
                 }
@@ -107,6 +107,8 @@ public final class MatchingEngine {
                 .put("type", order.getType().name()).put("quantity", order.getTotalQuantity())
                 .put("estimatedFillQuantity", filled).put("remainingQuantity", remaining)
                 .put("estimatedFee", fee.format()).put("estimatedCashImpact", cashImpact.format())
+                .put("estimatedFeeRaw", fee.getAmount().toPlainString()).put("estimatedCashImpactRaw", cashImpact.getAmount().toPlainString())
+                .put("requiredCashRaw", reserved.getAmount().toPlainString()).put("availableCashRaw", account.getAvailableCash(currency).getAmount().toPlainString())
                 .put("requiredCash", reserved.format()).put("availableCash", account.getAvailableCash(currency).format())
                 .put("estimatedVwap", vwap == null ? org.json.JSONObject.NULL : vwap.toPlainString())
                 .put("slippagePercent", vwap == null || reference.signum() == 0 ? org.json.JSONObject.NULL
@@ -153,7 +155,7 @@ public final class MatchingEngine {
         if (order.isBuy()) {
             BigDecimal estPrice = order.getLimitPrice() != null ? order.getLimitPrice().getAmount() : instrument.getCurrentPrice().getAmount();
             BigDecimal nominal = estPrice.multiply(BigDecimal.valueOf(order.getTotalQuantity()));
-            BigDecimal fee = nominal.multiply(BUY_FEE_RATE);
+            BigDecimal fee = nominal.multiply(order.getEffectiveFeeRate(BUY_FEE_RATE));
             Money totalRequired = order.getType() == OrderType.LIMIT
                     ? requiredLimitBuyReservation(order, instrument) : new Money(nominal.add(fee), currency);
             if (order.getType() != OrderType.LIMIT) {
@@ -165,7 +167,7 @@ public final class MatchingEngine {
                         long units = Math.min(remaining, maker.getRemainingQuantity());
                         Money value = new Money(level.getKey().multiply(BigDecimal.valueOf(units)), currency);
                         totalRequired = totalRequired.add(value)
-                                .add(new Money(value.getAmount().multiply(BUY_FEE_RATE), currency));
+                                .add(new Money(value.getAmount().multiply(order.getEffectiveFeeRate(BUY_FEE_RATE)), currency));
                         remaining -= units;
                         if (remaining == 0) break;
                     }
@@ -268,7 +270,7 @@ public final class MatchingEngine {
                         Math.addExact(buyerPosition.getQuantity(), incoming.isBuy() ? incoming.getTotalQuantity() - remaining + quantity : quantity);
                     }
                     Money value = new Money(level.getKey().multiply(BigDecimal.valueOf(quantity)), instrument.getCurrency());
-                    Money needed = value.add(new Money(value.getAmount().multiply(BUY_FEE_RATE), instrument.getCurrency()));
+                    Money needed = value.add(new Money(value.getAmount().multiply(maker.getEffectiveFeeRate(BUY_FEE_RATE)), instrument.getCurrency()));
                     if (!incoming.isBuy()) {
                         if (maker.getReservedMoney() == null || maker.getReservedMoney().isLessThan(needed))
                             return "Reservasi order pihak pembeli tidak cukup; order belum diterapkan";
@@ -317,8 +319,8 @@ public final class MatchingEngine {
                 long matchQty = Math.min(buyOrder.getRemainingQuantity(), makerSell.getRemainingQuantity());
                 Money execPrice = new Money(askPrice, cur);
                 Money tradeValue = execPrice.multiply((double) matchQty);
-                Money buyFee = new Money(tradeValue.getAmount().multiply(BUY_FEE_RATE), cur);
-                Money sellFee = new Money(tradeValue.getAmount().multiply(SELL_FEE_RATE), cur);
+                Money buyFee = new Money(tradeValue.getAmount().multiply(buyOrder.getEffectiveFeeRate(BUY_FEE_RATE)), cur);
+                Money sellFee = new Money(tradeValue.getAmount().multiply(makerSell.getEffectiveFeeRate(SELL_FEE_RATE)), cur);
 
                 Account seller = allAccounts.get(makerSell.getAccountId());
                 if (seller == null) {
@@ -363,7 +365,7 @@ public final class MatchingEngine {
                         buyOrder.getId(), makerSell.getId(),
                         buyer.getId(), seller.getId(),
                         instrument.getId(), execPrice, matchQty, timestamp
-                ).withSellerRealizedNetPnL(realizedNet);
+                ).withSellerRealizedNetPnL(realizedNet).withTransactionFees(buyFee, sellFee);
                 fills.add(fill);
                 book.recordFill(fill);
                 recordMarketPrice(instrument, execPrice, matchQty, allAccounts.values());
@@ -409,8 +411,8 @@ public final class MatchingEngine {
                 long matchQty = Math.min(sellOrder.getRemainingQuantity(), makerBuy.getRemainingQuantity());
                 Money execPrice = new Money(bidPrice, cur);
                 Money tradeValue = execPrice.multiply((double) matchQty);
-                Money buyFee = new Money(tradeValue.getAmount().multiply(BUY_FEE_RATE), cur);
-                Money sellFee = new Money(tradeValue.getAmount().multiply(SELL_FEE_RATE), cur);
+                Money buyFee = new Money(tradeValue.getAmount().multiply(makerBuy.getEffectiveFeeRate(BUY_FEE_RATE)), cur);
+                Money sellFee = new Money(tradeValue.getAmount().multiply(sellOrder.getEffectiveFeeRate(SELL_FEE_RATE)), cur);
 
                 Account buyer = allAccounts.get(makerBuy.getAccountId());
                 if (buyer == null) {
@@ -452,7 +454,7 @@ public final class MatchingEngine {
                         makerBuy.getId(), sellOrder.getId(),
                         buyer.getId(), seller.getId(),
                         instrument.getId(), execPrice, matchQty, timestamp
-                ).withSellerRealizedNetPnL(realizedNet);
+                ).withSellerRealizedNetPnL(realizedNet).withTransactionFees(buyFee, sellFee);
                 fills.add(fill);
                 book.recordFill(fill);
                 recordMarketPrice(instrument, execPrice, matchQty, allAccounts.values());
@@ -510,6 +512,20 @@ public final class MatchingEngine {
         return removed;
     }
 
+    public synchronized boolean expireOrder(Order order, Account account, OrderBook book) {
+        if (order.getStatus().isFinal()) return false;
+        if (book != null) book.cancelOrder(order.getId());
+        order.setStatus(OrderStatus.EXPIRED);
+        if (order.isBuy()) {
+            Money remainingReserved = order.getReservedMoney();
+            if (remainingReserved != null && remainingReserved.isPositive()) {
+                account.releaseReservedCash(remainingReserved);
+                order.setReservedMoney(Money.zero(order.getLimitPrice() != null ? order.getLimitPrice().getCurrency() : Currency.IDR));
+            }
+        }
+        return true;
+    }
+
     private boolean validateAuctionSettlement(Instrument instrument, Money price, Queue<Order> bids,
                                               Queue<Order> asks, Map<String, Account> accounts) {
         Iterator<Order> buyers = bids.iterator();
@@ -552,7 +568,7 @@ public final class MatchingEngine {
                 Math.addExact(buyerPosition == null ? 0 : buyerPosition.getQuantity(), totalBought);
                 bought.put(buyer.getId(), totalBought);
                 Money value = new Money(price.getAmount().multiply(BigDecimal.valueOf(quantity)), currency);
-                Money cost = value.add(new Money(value.getAmount().multiply(BUY_FEE_RATE), currency));
+                Money cost = value.add(new Money(value.getAmount().multiply(buy.getEffectiveFeeRate(BUY_FEE_RATE)), currency));
                 Money orderCost = orderCosts.getOrDefault(buy, Money.zero(currency)).add(cost);
                 Money accountCost = accountCosts.getOrDefault(buyer.getId(), Money.zero(currency)).add(cost);
                 if (buy.getReservedMoney() == null || buy.getReservedMoney().getCurrency() != currency
@@ -614,8 +630,8 @@ public final class MatchingEngine {
 
             if (buyer != null && seller != null) {
                 Money tradeValue = clearingMoney.multiply((double) matchQty);
-                Money buyFee = new Money(tradeValue.getAmount().multiply(BUY_FEE_RATE), instrument.getCurrency());
-                Money sellFee = new Money(tradeValue.getAmount().multiply(SELL_FEE_RATE), instrument.getCurrency());
+                Money buyFee = new Money(tradeValue.getAmount().multiply(buyerOrder.getEffectiveFeeRate(BUY_FEE_RATE)), instrument.getCurrency());
+                Money sellFee = new Money(tradeValue.getAmount().multiply(sellerOrder.getEffectiveFeeRate(SELL_FEE_RATE)), instrument.getCurrency());
 
                 Money consumedReservation = tradeValue.add(buyFee);
                 buyer.releaseReservedCash(consumedReservation);
@@ -647,7 +663,7 @@ public final class MatchingEngine {
                         buyerOrder.getId(), sellerOrder.getId(),
                         buyer.getId(), seller.getId(),
                         instrument.getId(), clearingMoney, matchQty, gameTimestamp
-                ).withSellerRealizedNetPnL(realizedNet);
+                ).withSellerRealizedNetPnL(realizedNet).withTransactionFees(buyFee, sellFee);
                 book.recordFill(fill);
                 recordMarketPrice(instrument, clearingMoney, matchQty, allAccounts.values());
                 matchesCount++;

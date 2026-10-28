@@ -18,6 +18,8 @@ public final class TradeFill {
     private final long quantity; // Lembar saham
     private final long timestamp;
     private Money sellerRealizedNetPnL;
+    private Money buyerFee;
+    private Money sellerFee;
 
     public TradeFill(String fillId, String buyOrderId, String sellOrderId,
                      String buyAccountId, String sellAccountId,
@@ -43,12 +45,25 @@ public final class TradeFill {
     public long getQuantity() { return quantity; }
     public long getTimestamp() { return timestamp; }
     public Money getSellerRealizedNetPnL() { return sellerRealizedNetPnL; }
+    public Money getBuyerFee() { return buyerFee; }
+    public Money getSellerFee() { return sellerFee; }
     public TradeFill withSellerRealizedNetPnL(Money value) {
         sellerRealizedNetPnL = value;
         return this;
     }
 
+    public TradeFill withTransactionFees(Money buyerFee, Money sellerFee) {
+        Objects.requireNonNull(buyerFee, "buyerFee");
+        Objects.requireNonNull(sellerFee, "sellerFee");
+        if (buyerFee.getCurrency() != price.getCurrency() || sellerFee.getCurrency() != price.getCurrency()
+                || buyerFee.isNegative() || sellerFee.isNegative())
+            throw new IllegalArgumentException("Biaya fill tidak cocok dengan mata uang atau bernilai negatif");
+        this.buyerFee = buyerFee;
+        this.sellerFee = sellerFee;
+        return this;
+    }
+
     public Money getTotalAmount() {
-        return price.multiply((double) quantity);
+        return price.multiply(java.math.BigDecimal.valueOf(quantity));
     }
 }

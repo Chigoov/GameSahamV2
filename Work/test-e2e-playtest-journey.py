@@ -54,7 +54,7 @@ def run_playtest(output_dir=None):
             time.sleep(0.5)
 
             # -------------------------------------------------------------
-            # STEP 1: Game Initialization & 5-Tab Navigation
+            # STEP 1: Game initialization and five classic tabs
             # -------------------------------------------------------------
             init_snap = page.evaluate('() => JSON.parse(TradingNativeBridge.getSnapshot())')
             personal_acc = init_snap['personalAccount']
@@ -72,7 +72,7 @@ def run_playtest(output_dir=None):
             page.wait_for_selector('#view-beranda.active')
 
             hero_net_equity = page.locator('#home-net-worth').text_content()
-            checks.append(f"Step 1: Game initialized successfully; 5 tabs verified; initial Net Equity: {hero_net_equity}")
+            checks.append(f"Step 1: Game initialized; five classic root tabs verified; initial Net Equity: {hero_net_equity}")
             journey_log.append({"step": 1, "action": "Init", "cash": init_idr_cash, "netEquity": hero_net_equity})
 
             # Ensure account has ample trading funds from company dividends/capital
@@ -204,17 +204,17 @@ def run_playtest(output_dir=None):
             # -------------------------------------------------------------
             # STEP 4: FX Conversion & US Stock Trading (US:AAPL)
             # -------------------------------------------------------------
-            # 4a. FX Convert 5.000.000 IDR to USD
+            # 4a. Fund two US shares plus fees with 10.000.000 IDR.
             page.locator('#asset-summary details summary').click()
             time.sleep(0.3)
             init_usd_avail = page.locator('#asset-summary .data-row:has(span:text("USD tersedia")) strong').text_content()
 
             fx_req = 'FX-PLAY-' + str(uuid.uuid4())
             fx_preview = page.evaluate(f'''() => JSON.parse(TradingNativeBridge.previewFx(JSON.stringify({{
-                "accountId": "{account_id}", "from": "IDR", "to": "USD", "amount": "5000000"
+                "accountId": "{account_id}", "from": "IDR", "to": "USD", "amount": "10000000"
             }})))''')
             assert fx_preview.get('success') is True, fx_preview
-            fx_confirm = {"requestId": fx_req, "accountId": account_id, "quoteId": fx_preview["quoteId"], "from": "IDR", "to": "USD", "amount": "5000000"}
+            fx_confirm = {"requestId": fx_req, "accountId": account_id, "quoteId": fx_preview["quoteId"], "from": "IDR", "to": "USD", "amount": "10000000"}
             fx_res = page.evaluate('(req) => JSON.parse(TradingNativeBridge.confirmFx(JSON.stringify(req)))', fx_confirm)
             assert fx_res.get('success') is True, fx_res
 
@@ -233,6 +233,13 @@ def run_playtest(output_dir=None):
             checks.append(f"Step 4a: FX conversion completed: USD available synced to {expected_usd}")
 
             # 4b. Buy 2 shares of US:AAPL (lotSize = 1)
+            page.evaluate('''() => {
+                const s=JSON.parse(TradingNativeBridge.getSnapshot());const d=new Date(s.clock.timestamp+7*3600000);
+                const seconds=d.getUTCHours()*3600+d.getUTCMinutes()*60+d.getUTCSeconds();
+                const delta=(21*3600+30*60-seconds+86400)%86400;
+                TradingNativeBridge.setClockState(true,1);TradingNativeBridge.tickClock(Math.ceil(delta/s.clock.rate));TradingNativeBridge.setClockState(false,1);
+            }''')
+            assert page.evaluate('JSON.parse(TradingNativeBridge.getSnapshot()).clock.isUsTradingOpen'), 'US market must be open before the real order'
             page.locator('[data-tab="pasar"]').click()
             page.wait_for_selector('#view-pasar.active')
             page.locator('#filter-exchange-select').select_option('US')
@@ -335,14 +342,18 @@ def run_playtest(output_dir=None):
             # -------------------------------------------------------------
             # STEP 6: Career, Progression & Mission Feedback
             # -------------------------------------------------------------
-            page.locator('[data-tab="riset"]').click()
-            page.wait_for_selector('#view-riset.active')
-            page.screenshot(path=str(screenshot_dir / '16-riset-karier.png'))
+            page.locator('[data-tab="beranda"]').click()
+            page.wait_for_selector('#view-beranda.active')
+            page.screenshot(path=str(screenshot_dir / '16-karier.png'))
 
             # Verify that mission list or career tier displays clear requirements
-            riset_text = page.locator('#view-riset').text_content()
-            assert len(riset_text) > 50, "Riset view must render substantial career/research content"
-            checks.append("Step 6: Riset and Career progression screen verified with actionable criteria")
+            career = page.evaluate('() => JSON.parse(TradingNativeBridge.getSnapshot()).career')
+            assert career['title'] in page.locator('#home-career-state').inner_text(), "Career view must render actual rank"
+            page.locator('[data-tab="riset"]').click()
+            page.get_by_role('button', name='Misi Periodik', exact=True).click()
+            assert page.locator('.flow-page[aria-label="Pusat Misi & Target"]').is_visible()
+            page.locator('.back-button').click()
+            checks.append("Step 6: Beranda renders actual rank and Lainnya opens periodic missions")
 
             # -------------------------------------------------------------
             # STEP 7: Save -> Reload -> Resume Playability

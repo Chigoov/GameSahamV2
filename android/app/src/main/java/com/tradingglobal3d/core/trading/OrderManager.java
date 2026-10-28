@@ -37,7 +37,7 @@ public final class OrderManager {
                     .put("limit", o.getLimitPrice() == null ? org.json.JSONObject.NULL : o.getLimitPrice().getAmount().toPlainString())
                     .put("trigger", o.getTriggerPrice() == null ? org.json.JSONObject.NULL : o.getTriggerPrice().getAmount().toPlainString())
                     .put("quantity", o.getTotalQuantity()).put("filled", o.getFilledQuantity()).put("createdAt", o.getCreatedAt())
-                    .put("status", o.getStatus().name())
+                    .put("status", o.getStatus().name()).put("feeDiscountPercent", o.getFeeDiscountPercent())
                     .put("reserved", o.getReservedMoney() == null ? org.json.JSONObject.NULL : o.getReservedMoney().getAmount().toPlainString()));
         }
         return result;
@@ -56,6 +56,7 @@ public final class OrderManager {
                     p.isNull("trigger") ? null : new Money(new java.math.BigDecimal(p.getString("trigger")), c),
                     p.getLong("quantity"), p.getLong("createdAt"),
                     p.isNull("reserved") ? null : new Money(new java.math.BigDecimal(p.getString("reserved")), c));
+            order.setFeeDiscountPercent(p.optDouble("feeDiscountPercent", 0.0));
             order.applyFill(p.getLong("filled"));
             order.setStatus(OrderStatus.valueOf(p.getString("status")));
             registerOrder(order);
@@ -83,6 +84,12 @@ public final class OrderManager {
 
     public synchronized List<Order> getOrdersForAccount(String accountId) {
         return Collections.unmodifiableList(ordersByAccount.getOrDefault(accountId, Collections.emptyList()));
+    }
+
+    public synchronized List<Order> getAllOrders() {
+        List<Order> all = new ArrayList<>();
+        for (List<Order> list : ordersByAccount.values()) all.addAll(list);
+        return Collections.unmodifiableList(all);
     }
 
     public synchronized List<Order> getActiveOrdersForAccount(String accountId) {

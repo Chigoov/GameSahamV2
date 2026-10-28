@@ -143,24 +143,28 @@ public class TradingWebBridgeTest {
         java.lang.reflect.Method getIpo = TradingWebBridge.class.getMethod("getIpoOfferings");
         JSONArray ipos = new JSONArray((String) getIpo.invoke(bridge));
         assertTrue(ipos.length() >= 1);
-        JSONObject ipo = ipos.getJSONObject(0);
-        assertEquals("IPO-CLOUD", ipo.getString("id"));
-        assertEquals("NCLD", ipo.getString("ticker"));
+        com.tradingglobal3d.core.corporate.IpoOffering offering = facade.getCorporateService().getIpoOfferings().stream()
+                .filter(item -> !item.isAllotted() && !item.getListingDate().isBefore(facade.getClock().getCurrentDate()))
+                .findFirst().orElseThrow();
+        JSONObject ipo = null;
+        for (int i = 0; i < ipos.length(); i++) if (ipos.getJSONObject(i).getString("id").equals(offering.getId())) ipo = ipos.getJSONObject(i);
+        assertNotNull("Open offering must be exposed by bridge", ipo);
+        assertEquals(offering.getTicker(), ipo.getString("ticker"));
         assertEquals("IDR", ipo.getString("currency"));
 
         java.lang.reflect.Method orderIpo = TradingWebBridge.class.getMethod("orderIpo", String.class);
         Money initialAvail = facade.getPersonalAccount().getAvailableCash(Currency.IDR);
 
-        // Pesan 10 lot (@ Rp 500 x 100 lembar = Rp 50.000 / lot -> 10 lot = Rp 500.000)
-        JSONObject orderReq = new JSONObject().put("ipoId", "IPO-CLOUD").put("lots", 10).put("requestId", "IPO-BRIDGE-TEST-01");
+        Money reservation = offering.getOfferingPrice().multiply(BigDecimal.valueOf(10L * offering.getLotSize()));
+        JSONObject orderReq = new JSONObject().put("ipoId", offering.getId()).put("lots", 10).put("requestId", "IPO-BRIDGE-TEST-01");
         JSONObject orderRes = new JSONObject((String) orderIpo.invoke(bridge, orderReq.toString()));
         assertTrue(orderRes.getBoolean("success"));
         assertEquals("PENDING", orderRes.getString("status"));
-        assertEquals(Money.of(500_000, Currency.IDR), facade.getPersonalAccount().getReservedCash(Currency.IDR));
-        assertEquals(initialAvail.subtract(Money.of(500_000, Currency.IDR)), facade.getPersonalAccount().getAvailableCash(Currency.IDR));
+        assertEquals(reservation, facade.getPersonalAccount().getReservedCash(Currency.IDR));
+        assertEquals(initialAvail.subtract(reservation), facade.getPersonalAccount().getAvailableCash(Currency.IDR));
 
         // Pesan dengan lot 0 atau IPO tidak dikenal harus ditolak
-        JSONObject invalidLots = new JSONObject().put("ipoId", "IPO-CLOUD").put("lots", 0);
+        JSONObject invalidLots = new JSONObject().put("ipoId", offering.getId()).put("lots", 0);
         assertFalse(new JSONObject((String) orderIpo.invoke(bridge, invalidLots.toString())).getBoolean("success"));
         JSONObject invalidIpo = new JSONObject().put("ipoId", "IPO-UNKNOWN").put("lots", 5);
         assertFalse(new JSONObject((String) orderIpo.invoke(bridge, invalidIpo.toString())).getBoolean("success"));
@@ -509,32 +513,40 @@ public class TradingWebBridgeTest {
         java.lang.reflect.Method controls = TradingWebBridge.class.getMethod("setClockState", boolean.class, int.class);
         JSONObject running = new JSONObject((String) controls.invoke(bridge, true, 2));
         assertFalse(running.getJSONObject("clock").getBoolean("isPaused"));
-        assertEquals(2, running.getJSONObject("clock").getInt("speed"));
+        assertEquals(1, running.getJSONObject("clock").getInt("speed"));
+        assertEquals(24, running.getJSONObject("clock").getInt("rate"));
         JSONObject paused = new JSONObject((String) controls.invoke(bridge, false, 1));
-        assertTrue(paused.getJSONObject("clock").getBoolean("isPaused"));
+        assertFalse("Legacy pause requests must keep the world running", paused.getJSONObject("clock").getBoolean("isPaused"));
     }
 
     @Test
     public void testDayCloseRetryDoesNotAdvanceTwice() throws Exception {
-        java.lang.reflect.Method close = TradingWebBridge.class.getMethod("closeDay", String.class);
-        facade.getClock().play();
-        facade.getClock().tick(27060); // 08:30 -> 16:01, current provisional closing boundary
-        facade.getClock().pause();
-        JSONObject first = new JSONObject((String) close.invoke(bridge, "DAY-CLOSE-ONE"));
+        long start = 1792756800000L;
+        facade.setRealTimeClock(java.time.Clock.fixed(java.time.Instant.ofEpochMilli(start), java.time.ZoneOffset.UTC));
+        facade.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(50_000_000));
+        int initialDays = facade.getCareerManager().getDaysTraded();
+        facade.setRealTimeClock(java.time.Clock.fixed(java.time.Instant.ofEpochMilli(start + 3600000L), java.time.ZoneOffset.UTC));
+        bridge.syncClock(); // Automatic one-day rollover at 24x, not a player close-day command.
         java.time.LocalDate date = facade.getClock().getCurrentDate();
         int days = facade.getCareerManager().getDaysTraded();
-        JSONObject retry = new JSONObject((String) close.invoke(bridge, "DAY-CLOSE-ONE"));
-        assertTrue(first.getBoolean("success"));
-        assertEquals(first.getString("date"), retry.getString("date"));
+        assertEquals(initialDays + 1, days);
+        assertEquals(1, facade.getCareerManager().getSessionReports().size());
+        Money cash = facade.getPersonalAccount().getTotalCash(Currency.IDR);
+        assertFalse(new JSONObject(bridge.closeDay("DAY-CLOSE-ONE")).getBoolean("success"));
+        assertFalse(new JSONObject(bridge.closeDay("DAY-CLOSE-ONE")).getBoolean("success"));
+        bridge.syncClock();
         assertEquals(date, facade.getClock().getCurrentDate());
         assertEquals(days, facade.getCareerManager().getDaysTraded());
+        assertEquals(cash, facade.getPersonalAccount().getTotalCash(Currency.IDR));
         facade.save();
         TradingFacade loaded = new TradingFacade(SaveManager.forDirectory(testDir));
         loaded.setCatalog(facade.getCatalog());
         assertTrue(loaded.load());
-        JSONObject afterLoad = new JSONObject(new TradingWebBridge(loaded).closeDay("DAY-CLOSE-ONE"));
-        assertEquals(first.getString("date"), afterLoad.getString("date"));
+        assertFalse(new JSONObject(new TradingWebBridge(loaded).closeDay("DAY-CLOSE-ONE")).getBoolean("success"));
         assertEquals(date, loaded.getClock().getCurrentDate());
+        assertEquals(days, loaded.getCareerManager().getDaysTraded());
+        assertEquals(cash, loaded.getPersonalAccount().getTotalCash(Currency.IDR));
+        assertTrue(loaded.reconcileAll());
     }
 
     @Test
@@ -550,6 +562,19 @@ public class TradingWebBridgeTest {
         JSONArray ledger = new JSONArray((String) ledgerMethod.invoke(bridge, personalId));
         assertTrue(ledger.length() > 0);
         for (int i = 0; i < ledger.length(); i++) assertEquals(personalId, ledger.getJSONObject(i).getString("accountId"));
+        Account client = facade.getAllAccounts().stream().filter(account -> account.getType() == com.tradingglobal3d.core.model.AccountType.CLIENT).findFirst().get();
+        facade.getPersonalAccount().addPosition(new Position("BBCA", "IDX", Currency.IDR, 100, new BigDecimal("9000"), new BigDecimal("10000")));
+        client.addPosition(new Position("BBCA", "IDX", Currency.IDR, 300, new BigDecimal("8000"), new BigDecimal("10000")));
+        JSONObject clientPortfolio = new JSONObject(bridge.getPortfolio(client.getId()));
+        assertTrue(clientPortfolio.toString(), clientPortfolio.getBoolean("success"));
+        assertEquals("CLIENT", clientPortfolio.getString("accountType"));
+        assertEquals(client.getId(), clientPortfolio.getString("accountId"));
+        assertEquals(300, clientPortfolio.getJSONArray("positions").getJSONObject(0).getLong("quantity"));
+        assertEquals(100, new JSONObject(bridge.getPortfolio(personalId)).getJSONArray("positions").getJSONObject(0).getLong("quantity"));
+        JSONArray clientLedger = new JSONArray(bridge.getLedger(client.getId()));
+        assertTrue(clientLedger.length() > 0);
+        for (int i = 0; i < clientLedger.length(); i++) assertEquals(client.getId(), clientLedger.getJSONObject(i).getString("accountId"));
+        assertTrue(facade.reconcileAll());
     }
 
     @Test
@@ -717,8 +742,8 @@ public class TradingWebBridgeTest {
         java.lang.reflect.Method reports = TradingWebBridge.class.getMethod("getSessionReports");
         assertEquals(0, new JSONArray((String) reports.invoke(bridge)).length());
         facade.deposit("REPORT-EXTERNAL", facade.getPersonalAccount().getId(), Money.of(1000000, Currency.IDR), "test inflow");
-        facade.getClock().play(); facade.getClock().tick(27060); facade.getClock().pause();
-        assertTrue(new JSONObject(bridge.closeDay("REPORT-LIST")).getBoolean("success"));
+        facade.advanceRealMs(3600000L, true); // One real hour settles exactly one calendar day at 24x.
+        assertFalse(new JSONObject(bridge.closeDay("REPORT-LIST")).getBoolean("success"));
         Money cash = facade.getPersonalAccount().getTotalCash(Currency.IDR);
         java.time.LocalDate date = facade.getClock().getCurrentDate();
         JSONArray first = new JSONArray((String) reports.invoke(bridge));
@@ -839,13 +864,21 @@ public class TradingWebBridgeTest {
         assertTrue(shortRes.getBoolean("success"));
         assertEquals("BBCA", shortRes.getString("ticker"));
         assertEquals(500, shortRes.getLong("shares"));
+        JSONObject visibleShort = new JSONObject(bridge.getRiskSnapshot()).getJSONArray("shortPositions").getJSONObject(0);
+        assertEquals("BBCA", visibleShort.getString("ticker"));
+        assertEquals(500, visibleShort.getLong("shares"));
+        assertEquals(facade.getRiskService().getShortPosition(facade.getPersonalAccount().getId(), "BBCA").getCollateralLocked().format(), visibleShort.getString("collateral"));
+        assertTrue(visibleShort.has("liability") && visibleShort.has("dailyBorrowFee") && visibleShort.has("unrealizedPnl"));
         assertEquals("Inventori lender harus berkurang 500 lembar", initialLenderQty - 500, mmPos.getQuantity());
+        assertEquals("Short obligations must not appear as positive long holdings", 0,
+                new JSONObject(bridge.getPortfolio(facade.getPersonalAccount().getId())).getJSONArray("positions").length());
 
         // 2. Buy to Cover via bridge
         JSONObject coverReq = new JSONObject().put("ticker", "BBCA").put("shares", 500);
         String coverResStr = bridge.closeShortPosition(coverReq.toString());
         JSONObject coverRes = new JSONObject(coverResStr);
         assertTrue(coverRes.getBoolean("success"));
+        assertEquals(0, new JSONObject(bridge.getRiskSnapshot()).getJSONArray("shortPositions").length());
         assertEquals("Inventori lender harus pulih kembali setelah cover", initialLenderQty, mmPos.getQuantity());
 
         assertTrue(facade.reconcileAll());
@@ -979,7 +1012,7 @@ public class TradingWebBridgeTest {
         JSONObject fundsRes = new JSONObject(bridge.getMutualFunds());
         assertTrue(fundsRes.getBoolean("success"));
         JSONArray funds = fundsRes.getJSONArray("funds");
-        assertEquals(3, funds.length()); // 3 Fund types (D06)
+        assertEquals(facade.getMutualFundManager().getAllFunds().size(), funds.length());
 
         // 2. Subscribe to Money Market Fund Rp 10.000.000
         JSONObject subReq = new JSONObject()
@@ -993,7 +1026,7 @@ public class TradingWebBridgeTest {
         assertEquals(Money.of(10_000_000, Currency.IDR), facade.getPersonalAccount().getReservedCash(Currency.IDR));
         assertEquals(BigDecimal.ZERO.setScale(6), facade.getMutualFundManager().getFund("FUND-MM-01").getUnits(facade.getPersonalAccount().getId()));
         facade.getClock().play();
-        facade.advanceRealMs(281250, true); // 08:30 -> 16:00, canonical cutoff settles once (27,000s game / 96 = 281,250ms).
+        facade.advanceRealMs(1125000L, true); // 08:30 -> 16:00: 27,000s game / 24.
         facade.getClock().pause();
         assertEquals("SETTLED", facade.getMutualFundManager().getFund("FUND-MM-01").getOrder("FUND-BRIDGE-SUB-ONE").getString("status"));
         assertTrue(facade.reconcileAll());
@@ -1100,5 +1133,158 @@ public class TradingWebBridgeTest {
         assertTrue(wealthRes.getBoolean("isReconciled"));
         assertNotNull(wealthRes.getJSONObject("components"));
         assertNotNull(wealthRes.getJSONObject("liabilities"));
+    }
+
+    @Test
+    public void portfolioValuationMatchesFillReceiptCashDeltaAndLedgerEntries() throws Exception {
+        Account personal = facade.getPersonalAccount();
+        facade.generateNpcLiquidity();
+        JSONArray asks = new JSONObject(bridge.getOrderBook("IDX:BBCA")).getJSONArray("asks");
+        assertTrue("QA liquidity must provide an actual ask", asks.length() > 0);
+        BigDecimal askPrice = new BigDecimal(asks.getJSONObject(0).getString("price"));
+        BigDecimal cashBefore = personal.getTotalCash(Currency.IDR).getAmount();
+        int ledgerBefore = facade.getLedger().getEntriesForAccount(personal.getId()).size();
+        JSONObject order = new JSONObject().put("accountId", personal.getId()).put("instrumentId", "IDX:BBCA")
+                .put("side", "BUY").put("type", "LIMIT").put("quantity", 100)
+                .put("limitPrice", askPrice.toPlainString()).put("requestId", "N10-RECONCILE-FILL");
+        JSONObject submitted = new JSONObject(bridge.submitOrder(order.toString()));
+        assertTrue(submitted.toString(), submitted.getBoolean("success"));
+        assertEquals("FILLED", submitted.getString("status"));
+        JSONObject receipt = new JSONObject(bridge.getOrderStatus("N10-RECONCILE-FILL"));
+        assertEquals(100, receipt.getLong("filledQuantity"));
+        assertTrue(receipt.getBoolean("feeDataAvailable"));
+        assertEquals(0, askPrice.compareTo(new BigDecimal(receipt.getString("averageFillPriceRaw"))));
+        BigDecimal filledValue = askPrice.multiply(BigDecimal.valueOf(100));
+        assertEquals(filledValue, new BigDecimal(receipt.getString("filledValueRaw")));
+
+        Position position = personal.getPosition("IDX:BBCA");
+        assertNotNull(position);
+        JSONObject portfolio = new JSONObject(bridge.getPortfolio(personal.getId()));
+        JSONObject dto = portfolio.getJSONArray("positions").getJSONObject(0);
+        assertEquals(personal.getId(), portfolio.getString("accountId"));
+        assertEquals(position.getQuantity(), dto.getLong("quantity"));
+        assertEquals(position.getAverageCost().compareTo(new BigDecimal(receipt.getString("averageFillPriceRaw"))), 0);
+        assertEquals(position.getCurrentPrice().toPlainString(), dto.getString("currentPrice"));
+        assertEquals(position.getMarketValue().format(), dto.getString("marketValue"));
+        assertEquals(position.getUnrealizedPnL().format(), dto.getString("unrealizedPnL"));
+        assertEquals(position.getUnrealizedPnL().getAmount().toPlainString(), dto.getString("unrealizedPnLRaw"));
+        assertEquals(100, dto.getLong("availableShares"));
+        assertEquals(0, dto.getLong("reservedShares"));
+
+        BigDecimal tradeDebits = BigDecimal.ZERO;
+        BigDecimal feeDebits = BigDecimal.ZERO;
+        java.util.List<com.tradingglobal3d.core.economy.LedgerEntry> entries = facade.getLedger().getEntriesForAccount(personal.getId());
+        for (int i = ledgerBefore; i < entries.size(); i++) {
+            com.tradingglobal3d.core.economy.LedgerEntry entry = entries.get(i);
+            if (entry.getType() == com.tradingglobal3d.core.economy.LedgerEntryType.TRADE_BUY && !entry.isCredit())
+                tradeDebits = tradeDebits.add(entry.getAmount().getAmount());
+            if (entry.getType() == com.tradingglobal3d.core.economy.LedgerEntryType.TRANSACTION_FEE && !entry.isCredit())
+                feeDebits = feeDebits.add(entry.getAmount().getAmount());
+        }
+        BigDecimal receiptFee = new BigDecimal(receipt.getString("actualFeeRaw"));
+        BigDecimal cashImpact = new BigDecimal(receipt.getString("cashImpactRaw"));
+        assertEquals(filledValue, tradeDebits);
+        assertEquals(receiptFee, feeDebits);
+        assertEquals(filledValue.add(receiptFee), cashImpact);
+        assertEquals(cashImpact, cashBefore.subtract(personal.getTotalCash(Currency.IDR).getAmount()));
+        assertTrue(facade.reconcileAll());
+    }
+
+    @Test
+    public void portfolioAvailabilityIncludesAndReleasesOpenSellReservations() throws Exception {
+        Account personal = facade.getPersonalAccount();
+        personal.addPosition(new Position("BBCA", "IDX", Currency.IDR, 200,
+                new BigDecimal("10000"), new BigDecimal("10250")));
+        JSONObject initial = new JSONObject(bridge.getPortfolio(personal.getId()));
+        JSONObject before = initial.getJSONArray("positions").getJSONObject(0);
+        assertEquals(200, before.getLong("availableShares"));
+        assertEquals(0, before.getLong("reservedShares"));
+
+        JSONObject book = new JSONObject(bridge.getOrderBook("IDX:BBCA"));
+        JSONArray bids = book.getJSONArray("bids");
+        BigDecimal highestBid = bids.length() == 0 ? new BigDecimal("9000") : new BigDecimal(bids.getJSONObject(0).getString("price"));
+        BigDecimal restingAsk = highestBid.add(new BigDecimal("5000"));
+        JSONObject request = new JSONObject().put("accountId", personal.getId())
+                .put("instrumentId", "IDX:BBCA").put("side", "SELL").put("type", "LIMIT")
+                .put("quantity", 100).put("limitPrice", restingAsk.toPlainString()).put("requestId", "N10-SELL-RESERVE");
+        JSONObject submitted = new JSONObject(bridge.submitOrder(request.toString()));
+        assertTrue(submitted.toString(), submitted.getBoolean("success"));
+        assertEquals("OPEN", submitted.getString("status"));
+        JSONObject reserved = new JSONObject(bridge.getPortfolio(personal.getId())).getJSONArray("positions").getJSONObject(0);
+        assertEquals(100, reserved.getLong("availableShares"));
+        assertEquals(100, reserved.getLong("reservedShares"));
+        JSONObject overbooked = new JSONObject().put("accountId", personal.getId())
+                .put("instrumentId", "IDX:BBCA").put("side", "SELL").put("type", "LIMIT")
+                .put("quantity", 200).put("limitPrice", restingAsk.add(new BigDecimal("1000")).toPlainString())
+                .put("requestId", "N10-SELL-OVERBOOK");
+        assertFalse(new JSONObject(bridge.submitOrder(overbooked.toString())).getBoolean("success"));
+
+        JSONObject cancelled = new JSONObject(bridge.cancelOrder("N10-SELL-RESERVE"));
+        assertEquals("CANCELLED", cancelled.getString("status"));
+        JSONObject released = new JSONObject(bridge.getPortfolio(personal.getId())).getJSONArray("positions").getJSONObject(0);
+        assertEquals(200, released.getLong("availableShares"));
+        assertEquals(0, released.getLong("reservedShares"));
+
+        JSONObject trigger = new JSONObject().put("accountId", personal.getId())
+                .put("instrumentId", "IDX:BBCA").put("side", "SELL").put("type", "TAKE_PROFIT")
+                .put("quantity", 100).put("triggerPrice", "50000").put("requestId", "N10-SELL-TRIGGER");
+        JSONObject triggered = new JSONObject(bridge.submitOrder(trigger.toString()));
+        assertTrue(triggered.toString(), triggered.getBoolean("success"));
+        assertEquals("PENDING_TRIGGER", triggered.getString("status"));
+        JSONObject triggerReserved = new JSONObject(bridge.getPortfolio(personal.getId())).getJSONArray("positions").getJSONObject(0);
+        assertEquals(100, triggerReserved.getLong("availableShares"));
+        assertEquals(100, triggerReserved.getLong("reservedShares"));
+        assertEquals("CANCELLED", new JSONObject(bridge.cancelOrder("N10-SELL-TRIGGER")).getString("status"));
+        assertTrue(facade.reconcileAll());
+    }
+
+    @Test
+    public void portfolioPositionsExposeCatalogUnitsAndCurrencyMatchedValuation() throws Exception {
+        Account personal = facade.getPersonalAccount();
+        personal.addPosition(new Position("BBCA", "IDX", Currency.IDR, 100,
+                new BigDecimal("9000"), new BigDecimal("10000"), new BigDecimal("12345")));
+        personal.addPosition(new Position("AAPL", "US", Currency.USD, 5,
+                new BigDecimal("100"), new BigDecimal("110"), new BigDecimal("12.50")));
+
+        JSONObject portfolio = new JSONObject(bridge.getPortfolio(personal.getId()));
+        JSONArray positions = portfolio.getJSONArray("positions");
+        assertEquals(2, positions.length());
+        JSONObject idx = null;
+        JSONObject us = null;
+        for (int i = 0; i < positions.length(); i++) {
+            JSONObject position = positions.getJSONObject(i);
+            if ("IDX:BBCA".equals(position.getString("instrumentId"))) idx = position;
+            if ("US:AAPL".equals(position.getString("instrumentId"))) us = position;
+        }
+
+        assertNotNull(idx);
+        assertEquals("Bank Central Asia Tbk", idx.getString("name"));
+        assertEquals("IDX", idx.getString("exchange"));
+        assertEquals(100, idx.getLong("lotSize"));
+        assertEquals(1, idx.getLong("lots"));
+        assertEquals(100, idx.getLong("quantity"));
+        assertEquals("IDR", idx.getString("currency"));
+        assertEquals("9000", idx.getString("averageCost"));
+        assertEquals("10000", idx.getString("currentPrice"));
+        assertEquals("Rp 1.000.000", idx.getString("marketValue"));
+        assertEquals("Rp 100.000", idx.getString("unrealizedPnL"));
+        assertEquals("100000", idx.getString("unrealizedPnLRaw"));
+        assertEquals("11.11", idx.getString("unrealizedPnLPercent"));
+        assertEquals("Rp 12.345", idx.getString("realizedPnLGross"));
+
+        assertNotNull(us);
+        assertEquals("Apple Inc.", us.getString("name"));
+        assertEquals("US", us.getString("exchange"));
+        assertEquals(1, us.getLong("lotSize"));
+        assertEquals(5, us.getLong("lots"));
+        assertEquals(5, us.getLong("quantity"));
+        assertEquals("USD", us.getString("currency"));
+        assertEquals("100", us.getString("averageCost"));
+        assertEquals("110", us.getString("currentPrice"));
+        assertEquals("$550.00", us.getString("marketValue"));
+        assertEquals("$50.00", us.getString("unrealizedPnL"));
+        assertEquals("50.00", us.getString("unrealizedPnLRaw"));
+        assertEquals("10.00", us.getString("unrealizedPnLPercent"));
+        assertEquals("$12.50", us.getString("realizedPnLGross"));
     }
 }

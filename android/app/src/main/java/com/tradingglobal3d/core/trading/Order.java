@@ -21,6 +21,7 @@ public final class Order {
     private final long totalQuantity;        // Lembar saham yang dipesan
     private final long createdAt;
     private Money reservedMoney;             // Kas tertahan (untuk BUY)
+    private double feeDiscountPercent;
 
     private long filledQuantity;
     private OrderStatus status;
@@ -89,6 +90,19 @@ public final class Order {
 
     public void setReservedMoney(Money reserved) {
         this.reservedMoney = reserved;
+    }
+
+    public double getFeeDiscountPercent() { return feeDiscountPercent; }
+
+    public void setFeeDiscountPercent(double discountPercent) {
+        if (!Double.isFinite(discountPercent) || discountPercent < 0.0 || discountPercent > 100.0)
+            throw new IllegalArgumentException("Diskon komisi order tidak valid");
+        feeDiscountPercent = discountPercent;
+    }
+
+    public java.math.BigDecimal getEffectiveFeeRate(java.math.BigDecimal baseRate) {
+        return baseRate.multiply(java.math.BigDecimal.ONE.subtract(java.math.BigDecimal.valueOf(feeDiscountPercent)
+                .movePointLeft(2)));
     }
 
     public static Order createLimit(String id, String instrumentId, String accountId, OrderSide side, Money price, long quantity, long timestamp) {

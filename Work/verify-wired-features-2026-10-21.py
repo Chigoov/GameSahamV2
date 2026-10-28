@@ -40,7 +40,7 @@ with sync_playwright() as p:
         return json.loads(page.evaluate('([method,values])=>TradingNativeBridge[method](...values)', [method,list(values)]))
 
     def btn(text):
-        return page.get_by_role('button', name=re.compile(re.escape(text)))
+        return page.get_by_role('button', name=text, exact=False)
 
     def tab(name):
         page.locator('[data-tab='+name+']').click()
@@ -49,6 +49,25 @@ with sync_playwright() as p:
         tab('aset')
         page.locator('#asset-tools > summary').click()
         btn(text).click()
+
+    def company_control(text):
+        tab('firma');page.locator('#firma-subtab-usaha').click()
+        btn('Kelola usaha & operasional').first.click()
+        if text == 'Tingkatkan perusahaan':
+            btn('Tingkatkan skala ke level').click()
+        elif text == 'Kebijakan & Fasilitas':
+            page.locator('.company-local-nav').get_by_role('button',name='Fasilitas & moral',exact=True).click()
+            btn('Ubah kebijakan & fasilitas kerja').click()
+        elif text == 'Transfer Modal':
+            page.locator('.company-local-nav').get_by_role('button',name='Keuangan',exact=True).click()
+            btn('Suntik modal / tarik dividen').click()
+        elif text == 'Pegawai & Organisasi':
+            page.locator('.company-local-nav').get_by_role('button',name='Tim & SDM',exact=True).click()
+            btn('Rekrut pegawai & eksekutif').click()
+        elif text == 'Laporan operasional':
+            page.locator('.company-local-nav').get_by_role('button',name='Keuangan',exact=True).click()
+        else:
+            raise AssertionError('Unmapped existing company control: '+text)
 
     journeys = []
     def state(name, marker=''):
@@ -73,13 +92,13 @@ with sync_playwright() as p:
                 btn('Resmikan Pendirian Perusahaan').click()
                 page.wait_for_timeout(750)
                 assert len(call('getCompanies')['companies'])==1
-                btn('Tingkatkan perusahaan').click();state('company-expansion-review')
+                company_control('Tingkatkan perusahaan');state('company-expansion-review')
                 btn('Konfirmasi').click();state('company-expansion-receipt')
                 btn('Selesai').click()
-                btn('Laporan operasional').click();state('company-operating-report')
-                tab('firma');btn('Kebijakan').first.click();state('company-policy-form')
-                tab('firma');btn('Transfer Modal').first.click();state('company-capital-form')
-            tab('firma');page.get_by_role('button',name='Beli Koleksi (Rp 25.000.000)',exact=True).click()
+                company_control('Laporan operasional');state('company-operating-report')
+                company_control('Kebijakan & Fasilitas');state('company-policy-form')
+                company_control('Transfer Modal');state('company-capital-form')
+            tab('firma');page.locator('#firma-subtab-koleksi').click();page.get_by_role('button',name='Beli Koleksi (Rp 25.000.000)',exact=True).click()
             owned=[item for item in call('getCollections')['collections'] if item.get('isOwned')]
             assert len(owned)==1
             collateral_id=owned[0]['id']
@@ -126,7 +145,7 @@ with sync_playwright() as p:
             # Starting replay cannot overwrite the internal-mode save slot.
             asset_tool('Replay historis');state('replay-catalog','US:AAPL')
             btn('Mulai replay baru').click();state('replay-consent-required','Centang persetujuan')
-            slot=OUT/'qa-save/save_game_v2.json'
+            slot=ROOT/'qa-save/save_game_v2.json'
             original_hash=hashlib.sha256(slot.read_bytes()).hexdigest()
             original_save=json.loads(slot.read_text(encoding='utf-8'))
             page.locator('#replay-new-confirm').check()
@@ -136,7 +155,7 @@ with sync_playwright() as p:
             # Opening replay first saves current internal state; metadata timestamp may change.
             for key in ['accounts','ledger','gameTime','gameDate','gameMode','runtimeState']:
                 assert saved_internal[key]==original_save[key], ('internal slot changed',key)
-            assert (OUT/'qa-save/save_replay_v2.json').is_file()
+            assert (ROOT/'qa-save/save_replay_v2.json').is_file()
             page.reload();page.wait_for_load_state('networkidle')
             asset_tool('Replay historis');btn('Kembali ke permainan utama').click()
             assert call('getSnapshot')['gameMode']=='INTERNAL_MARKET'
@@ -151,14 +170,14 @@ with sync_playwright() as p:
 
     inventory = []
     for root_tab in ['beranda','pasar','aset','firma','riset']:
-        page.locator('[data-tab='+root_tab+']').click()
+        tab(root_tab)
         inventory.append({'tab':root_tab,'text':page.locator('#view-'+root_tab).inner_text(),
             'buttons':page.locator('#view-'+root_tab+' button').evaluate_all('(els)=>els.map(el=>({text:el.innerText,id:el.id,disabled:el.disabled}))')})
     (OUT/'dom-inventory.json').write_text(json.dumps({'platform':meta,'roots':inventory,'errors':errors}, indent=2,ensure_ascii=False),encoding='utf-8')
     page.screenshot(path=str(OUT/'initial-lainnya.png'), full_page=True)
     if args.flow_matrix:
         def business(text):
-            tab('firma');btn(text).first.click()
+            company_control(text)
         def research(text):
             tab('riset');btn(text).first.click()
         def terminal(kind):
@@ -188,8 +207,8 @@ with sync_playwright() as p:
             ('loans-closed',lambda:asset_tool('Utang & Pinjaman Tenor')),
             ('loan-collateral-form',loan_form),
             ('mutual-funds',lambda:asset_tool('Reksa Dana Berbasis NAB')),
-            ('profile-preferences',lambda:research('Profil & Gaya')),
-            ('league-current',lambda:research('Liga & Rival')),
+            ('profile-preferences',lambda:(tab('riset'),page.locator('#view-riset').get_by_role('button',name='Profil Saya',exact=True).click())),
+            ('league-current',lambda:(tab('riset'),btn('Liga & Rival').click())),
         ]
         samples=[]
         for width,height in VIEWPORTS:
@@ -226,13 +245,13 @@ with sync_playwright() as p:
             for scale in [100,200]:
                 page.evaluate('(scale)=>document.documentElement.style.fontSize=scale+"%"',scale)
                 for root_tab in ['beranda','pasar','aset','firma','riset']:
-                    page.locator('[data-tab='+root_tab+']').click()
+                    tab(root_tab)
                     page.wait_for_timeout(50)
                     geometry = page.evaluate('''()=>({width:innerWidth,height:innerHeight,
                         scrollWidth:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight,
                         rootFont:getComputedStyle(document.documentElement).fontSize,
                         navBottom:document.querySelector('.bottom-nav').getBoundingClientRect().bottom,
-                        mainHeight:document.querySelector('main').clientHeight,
+                        mainHeight:document.querySelector('.app-scroll').clientHeight,
                         text:document.querySelector('.screen-view.active').innerText.length})''')
                     failures = []
                     if geometry['scrollWidth']>width+1: failures.append('document horizontal overflow')
@@ -241,7 +260,7 @@ with sync_playwright() as p:
                     if geometry['mainHeight']<60: failures.append('content unavailable')
                     if geometry['text']<20: failures.append('root content empty')
                     nav_before = page.locator('.bottom-nav').bounding_box()
-                    page.locator('main').evaluate('(el)=>el.scrollTop=el.scrollHeight')
+                    page.locator('.app-scroll').evaluate('(el)=>el.scrollTop=el.scrollHeight')
                     if page.locator('.bottom-nav').bounding_box()!=nav_before: failures.append('bottom nav moves on scroll')
                     name=f'root-{root_tab}-{width}x{height}-text{scale}'
                     page.screenshot(path=str(OUT/(name+'.png')))

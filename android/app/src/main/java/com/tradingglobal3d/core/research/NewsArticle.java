@@ -33,6 +33,15 @@ public final class NewsArticle {
     private final double sentimentImpact; // -1.0 s/d +1.0
     private final long announcedAt;       // Waktu pengumuman jadwal awal
     private final long publishedAt;       // Timestamp rilis resmi dalam waktu game
+    private long effectStartsRealAt = -1L;
+    private int effectDurationMinutes = 60;
+
+    public NewsArticle(String id, String headline, String content, Category category,
+                       String relatedTicker, double sentimentImpact, long publishedAt, int durationMinutes) {
+        this(id, headline, content, category, relatedTicker, sentimentImpact, publishedAt);
+        if (durationMinutes != 60 && durationMinutes != 120) throw new IllegalArgumentException("Durasi berita harus 60 atau 120 menit nyata");
+        this.effectDurationMinutes = durationMinutes;
+    }
 
     public NewsArticle(String id, String headline, String content, Category category,
                        String relatedTicker, double sentimentImpact, long publishedAt) {
@@ -87,6 +96,42 @@ public final class NewsArticle {
     public boolean isHorizonActive(long currentTimestamp) {
         long expiresAt = publishedAt + ((long) horizonDays * 86_400_000L);
         return currentTimestamp >= publishedAt && currentTimestamp <= expiresAt;
+    }
+
+    public void startRealEffect(long realAt) {
+        if (realAt < 0) throw new IllegalArgumentException("Waktu rilis nyata tidak valid");
+        if (effectStartsRealAt < 0) effectStartsRealAt = realAt;
+    }
+
+    public boolean isRealEffectActive(long realNow) {
+        return effectStartsRealAt >= 0 && realNow >= effectStartsRealAt
+                && realNow < Math.addExact(effectStartsRealAt, effectDurationMinutes * 60000L);
+    }
+
+    public JSONObject exportEffect() throws JSONException {
+        return new JSONObject().put("id", id).put("startsRealAt", effectStartsRealAt)
+                .put("durationMinutes", effectDurationMinutes);
+    }
+
+    public void restoreEffect(JSONObject state) throws JSONException {
+        long start = state.getLong("startsRealAt");
+        int duration = state.getInt("durationMinutes");
+        if (!id.equals(state.getString("id")) || start < -1 || (duration != 60 && duration != 120))
+            throw new IllegalArgumentException("Deadline berita tidak valid");
+        effectStartsRealAt = start;
+        effectDurationMinutes = duration;
+    }
+
+    public JSONObject toJsonObject(long gameNow, long realNow, boolean replay) throws JSONException {
+        JSONObject obj = toJsonObject(gameNow);
+        long ends = effectStartsRealAt < 0 ? -1 : Math.addExact(effectStartsRealAt, effectDurationMinutes * 60000L);
+        long remaining = ends < 0 ? 0 : Math.max(0, ends - realNow);
+        boolean active = !replay && isPublished(gameNow) && isRealEffectActive(realNow);
+        return obj.put("effectStartsRealAt", effectStartsRealAt).put("effectEndsRealAt", ends)
+                .put("effectDurationRealMs", effectDurationMinutes * 60000L)
+                .put("effectRemainingRealMs", remaining).put("effectAsOfRealAt", realNow)
+                .put("effectActive", active).put("effectStatus", replay ? "NOT_APPLICABLE_REPLAY"
+                        : !isPublished(gameNow) ? "SCHEDULED" : active ? "ACTIVE" : "ENDED");
     }
 
     public String getCountdownLabel(long currentTimestamp) {

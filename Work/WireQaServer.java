@@ -5,6 +5,7 @@ import com.sun.net.httpserver.HttpServer;
 import com.tradingglobal3d.core.facade.TradingFacade;
 import com.tradingglobal3d.core.market.HistoricalDatasetLoader;
 import com.tradingglobal3d.core.market.InstrumentCatalog;
+import com.tradingglobal3d.core.model.GameMode;
 import com.tradingglobal3d.core.storage.SaveManager;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -25,9 +26,24 @@ public final class WireQaServer {
         if (!savesNormalized.contains("/Artifacts/") || !savesNormalized.contains("qa-save")) throw new IllegalArgumentException("QA-only save required");
         Files.createDirectories(saves);
         HistoricalDatasetLoader.setAssetSource(path -> Files.newInputStream(assets.resolve(path)));
-        TradingFacade facade = new TradingFacade(SaveManager.forDirectory(saves.toFile()));
+        SaveManager saveManager = SaveManager.forDirectory(saves.toFile());
+        TradingFacade facade = new TradingFacade(saveManager);
+        java.util.concurrent.atomic.AtomicLong clockOffset = new java.util.concurrent.atomic.AtomicLong();
+        Long fixedEpochMs = Long.getLong("qa.fixedEpochMs");
+        facade.setRealTimeClock(new java.time.Clock() {
+            public java.time.ZoneId getZone() { return java.time.ZoneOffset.UTC; }
+            public java.time.Clock withZone(java.time.ZoneId zone) { return this; }
+            public java.time.Instant instant() { return java.time.Instant.ofEpochMilli(millis()); }
+            public long millis() { return (fixedEpochMs == null ? System.currentTimeMillis() : fixedEpochMs) + clockOffset.get(); }
+        });
         facade.setCatalog(InstrumentCatalog.fromJsonString(Files.readString(assets.resolve("data/market_universe.json"))));
-        if (!facade.startOrResume()) throw new IllegalStateException("QA save needs recovery; refusing reset");
+        String initialCapital = System.getProperty("qa.initialCapital");
+        if (initialCapital != null && !saveManager.getSaveFile().exists() && !saveManager.getBackupFile().exists()) {
+            facade.initializeNewGame(GameMode.INTERNAL_MARKET, new java.math.BigDecimal(initialCapital));
+            facade.save();
+        } else if (!facade.startOrResume()) {
+            throw new IllegalStateException("QA save needs recovery; refusing reset");
+        }
         facade.generateNpcLiquidity();
         TradingWebBridge bridge = new TradingWebBridge(facade);
         Map<String, Method> methods = new LinkedHashMap<>();
@@ -37,7 +53,9 @@ public final class WireQaServer {
         JSONObject platform = new JSONObject().put("platform", "QA Java host").put("nativeHost", false).put("testFixture", true)
             .put("label", "QA HOST JAVA — SAVE TERISOLASI — BUKAN ANDROID");
         String bridgeScript = "window.TradingNativeBridge={};for(const method of " + new JSONArray(methods.keySet()) + ")"
-            + "TradingNativeBridge[method]=(...args)=>{const x=new XMLHttpRequest();x.open('POST','/qa-bridge',false);x.setRequestHeader('Content-Type','application/json');x.send(JSON.stringify({method,args}));if(x.status!==200)throw Error('QA bridge '+method+': '+x.responseText);return x.responseText;};";
+            + "TradingNativeBridge[method]=(...args)=>{const x=new XMLHttpRequest();x.open('POST','/qa-bridge',false);x.setRequestHeader('Content-Type','application/json');x.send(JSON.stringify({method,args}));if(x.status!==200)throw Error('QA bridge '+method+': '+x.responseText);return x.responseText;};"
+            // ponytail: browsers block synchronous HTTP on page exit; native Android calls Java directly.
+            + "window.addEventListener('pagehide',()=>navigator.sendBeacon('/qa-bridge',JSON.stringify({method:'onAppLifecycleChanged',args:[false]})));";
         int port = Integer.getInteger("qa.port", 8784);
         if (args.length >= 3) {
             try { port = Integer.parseInt(args[2]); } catch (Exception ignored) {}
@@ -56,7 +74,12 @@ public final class WireQaServer {
                     JSONObject request = new JSONObject(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
                     String action = request.getString("action");
                     synchronized (facade) {
-                        if ("generateNpcLiquidity".equals(action)) {
+                        if ("offsetRealClock".equals(action)) {
+                            long elapsed = request.getLong("elapsedMs");
+                            if (elapsed < 0 || elapsed > 2592000000L) throw new IllegalArgumentException("QA elapsed out of range");
+                            clockOffset.addAndGet(elapsed);
+                            response = new JSONObject().put("success", true).put("offsetMs", clockOffset.get()).toString().getBytes(StandardCharsets.UTF_8);
+                        } else if ("generateNpcLiquidity".equals(action)) {
                             facade.generateNpcLiquidity();
                             response = new JSONObject().put("success", true).toString().getBytes(StandardCharsets.UTF_8);
                         } else if ("advanceToTradingSession".equals(action)) {
@@ -84,7 +107,10 @@ public final class WireQaServer {
                         else if (types[i] == long.class) converted[i] = supplied.getLong(i);
                         else throw new IllegalArgumentException("Unsupported bridge parameter");
                     }
-                    synchronized (facade) {
+                    // Clock status/ack must not wait behind the domain worker's catchup lock.
+                    if (name.equals("beginClockSync") || name.equals("getClockSyncStatus")) {
+                        response = ((String) method.invoke(bridge, converted)).getBytes(StandardCharsets.UTF_8);
+                    } else synchronized (facade) {
                         String result = name.equals("getPlatformInfo") ? platform.toString() : (String)method.invoke(bridge, converted);
                         response = result.getBytes(StandardCharsets.UTF_8);
                     }

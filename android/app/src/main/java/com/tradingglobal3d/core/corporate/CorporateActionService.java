@@ -24,6 +24,62 @@ public final class CorporateActionService {
     private final Map<String, org.json.JSONObject> offers = new LinkedHashMap<>();
     private final Map<String, org.json.JSONObject> participations = new LinkedHashMap<>();
     private final Map<String, Map<String, Long>> recordedShareholdings = new LinkedHashMap<>();
+    private com.tradingglobal3d.core.market.InstrumentCatalog shareSupplyCatalog;
+
+    public synchronized void bindShareSupplyCatalog(com.tradingglobal3d.core.market.InstrumentCatalog catalog) {
+        shareSupplyCatalog = Objects.requireNonNull(catalog);
+    }
+
+    public synchronized void reconcileShareSupply() {
+        if (shareSupplyCatalog == null) return;
+        // Persisted event IDs make legacy replay and ordinary reads idempotent.
+        final class SupplyEvent {
+            long timestamp;
+            String id;
+            Runnable apply;
+            SupplyEvent(long timestamp, String id, Runnable apply) { this.timestamp = timestamp; this.id = id; this.apply = apply; }
+        }
+        List<SupplyEvent> events = new ArrayList<>();
+        for (CorporateAction action : corporateActions) {
+            if (!action.isExecuted() || action.isCancelled()
+                    || (action.getType() != CorporateActionType.STOCK_SPLIT && action.getType() != CorporateActionType.REVERSE_SPLIT)) continue;
+            String instrumentId = action.getTicker().contains(":") ? action.getTicker()
+                    : (action.getCurrency() == Currency.USD ? "US:" : "IDX:") + action.getTicker();
+            Instrument instrument = shareSupplyCatalog.getById(instrumentId);
+            if (instrument == null) throw new IllegalStateException("Instrumen supply split tidak ditemukan");
+            String eventId = "SPLIT:" + action.getId();
+            events.add(new SupplyEvent(action.getExecutionDate().atStartOfDay().toInstant(java.time.ZoneOffset.ofHours(7)).toEpochMilli(), eventId,
+                    () -> instrument.applyShareSupplyEvent(eventId, action.getValueOrRatio(), 0, 0)));
+        }
+        for (org.json.JSONObject request : participations.values()) {
+            if (!"SETTLED".equals(request.optString("status"))) continue;
+            org.json.JSONObject offer = offers.get(request.optString("offerId"));
+            if (offer == null) throw new IllegalStateException("Penawaran supply tidak ditemukan");
+            String kind = offer.optString("kind"), eventId = "CORP:" + request.optString("requestId");
+            long shares = request.optLong("shares");
+            if (shares <= 0) throw new IllegalStateException("Jumlah supply aksi tidak valid");
+            String instrumentId = "MERGER_TENDER".equals(kind) ? offer.optString("targetInstrumentId") : offer.optString("instrumentId");
+            Instrument instrument = shareSupplyCatalog.getById(instrumentId);
+            if (instrument == null) throw new IllegalStateException("Instrumen supply tender tidak ditemukan");
+            long delta = "MERGER_TENDER".equals(kind) ? BigDecimal.valueOf(shares).multiply(new BigDecimal(offer.optString("exchangeRatio"))).longValueExact() : shares;
+            long time = request.optLong("settledTimestamp", 0);
+            events.add(new SupplyEvent(time, eventId, () -> {
+                if ("RIGHTS_ISSUE".equals(kind) || "MERGER_TENDER".equals(kind)) instrument.applyShareSupplyEvent(eventId, BigDecimal.ONE, delta, 0);
+                else if ("BUYBACK_TENDER".equals(kind)) instrument.applyShareSupplyEvent(eventId, BigDecimal.ONE, 0, delta);
+            }));
+            if ("MERGER_TENDER".equals(kind)) {
+                Instrument source = shareSupplyCatalog.getById(offer.optString("instrumentId"));
+                if (source == null) throw new IllegalStateException("Instrumen sumber merger tidak ditemukan");
+                String sourceEventId = eventId + ":SOURCE";
+                events.add(new SupplyEvent(time, sourceEventId, () -> {
+                    source.applyShareSupplyEvent(sourceEventId, BigDecimal.ONE, 0, shares);
+                }));
+            }
+        }
+        events.sort(Comparator.comparingLong((SupplyEvent event) -> event.timestamp).thenComparing(event -> event.id));
+        for (SupplyEvent event : events) event.apply.run();
+        shareSupplyCatalog.recalculateAllIndices();
+    }
 
     private static final String[][] IPO_CATALOG_CANDIDATES = {
             {"NCLD", "PT Nusantara Cloud Tech Tbk", "IDR", "550", "100", "25000000"},
@@ -151,6 +207,14 @@ public final class CorporateActionService {
                 .put("recorded", false).put("entitlements", new org.json.JSONObject()));
     }
 
+    public synchronized boolean isTreasuryHolder(String accountId, String instrumentId) {
+        for (org.json.JSONObject offer : offers.values())
+            if (("BUYBACK_TENDER".equals(offer.optString("kind")) || "MERGER_TENDER".equals(offer.optString("kind")))
+                    && instrumentId.equals(offer.optString("instrumentId"))
+                    && accountId.equals("ACC-CORP-" + offer.optString("id"))) return true;
+        return false;
+    }
+
     public synchronized long reservedCorporateShares(String accountId, String instrumentId) {
         long reserved = 0;
         for (org.json.JSONObject request : participations.values()) {
@@ -262,6 +326,15 @@ public final class CorporateActionService {
         if (account == null) throw new IllegalStateException("Akun partisipasi hilang; settlement ditunda");
         String sourceId = offer.getString("instrumentId"), kind = offer.getString("kind"), id = request.getString("requestId");
         long shares = request.getLong("shares");
+        if (shareSupplyCatalog != null) {
+            String eventId = "CORP:" + id;
+            if ("MERGER_TENDER".equals(kind)) {
+                long targetShares = BigDecimal.valueOf(shares).multiply(new BigDecimal(offer.getString("exchangeRatio"))).longValueExact();
+                shareSupplyCatalog.getById(offer.getString("targetInstrumentId")).validateShareSupplyEvent(eventId, BigDecimal.ONE, targetShares, 0);
+                shareSupplyCatalog.getById(sourceId).validateShareSupplyEvent(eventId + ":SOURCE", BigDecimal.ONE, 0, shares);
+            } else shareSupplyCatalog.getById(sourceId).validateShareSupplyEvent(eventId, BigDecimal.ONE,
+                    "RIGHTS_ISSUE".equals(kind) ? shares : 0, "BUYBACK_TENDER".equals(kind) ? shares : 0);
+        }
         Money payment = new Money(new BigDecimal(offer.getString("cashPrice")).multiply(BigDecimal.valueOf(shares)), Currency.IDR);
         Position source = account.getPosition(sourceId);
         if ("RIGHTS_ISSUE".equals(kind)) {
@@ -314,6 +387,7 @@ public final class CorporateActionService {
             treasury.addBuy(shares, totalConsideration.divide(BigDecimal.valueOf(shares), 8, RoundingMode.HALF_UP));
         }
         request.put("status", "SETTLED").put("settledTimestamp", timestamp).put("cashSettled", payment.getAmount().toPlainString());
+        reconcileShareSupply();
     }
 
     public List<CorporateAction> getCorporateActions() { return Collections.unmodifiableList(corporateActions); }
@@ -571,6 +645,7 @@ public final class CorporateActionService {
         BigDecimal ratio = action.getValueOrRatio(); // e.g. 5.0 untuk 1:5 split
         if (action.isExecuted() || action.isCancelled()) return;
         if (ratio.signum() <= 0) throw new IllegalArgumentException("Rasio split wajib positif");
+        instrument.validateShareSupplyEvent("SPLIT:" + action.getId(), ratio, 0, 0);
         for (Account account : accounts) {
             Position position = account.getPosition(instrument.getId());
             if (position != null) {
@@ -594,6 +669,8 @@ public final class CorporateActionService {
             }
         }
 
+        instrument.applyShareSupplyEvent("SPLIT:" + action.getId(), ratio, 0, 0);
+        instrument.adjustSplitReferencePrices(ratio);
         // Sesuaikan harga pasar instrumen di bursa
         Money newInstPrice = new Money(instrument.getCurrentPrice().getAmount().divide(ratio, instrument.getCurrency().getDecimalPlaces(), RoundingMode.HALF_UP), instrument.getCurrency());
         instrument.updatePrice(newInstPrice, 0);
@@ -605,6 +682,7 @@ public final class CorporateActionService {
         if (action.isExecuted() || action.isCancelled()) return;
         BigDecimal ratio = action.getValueOrRatio();
         if (ratio.signum() <= 0) throw new IllegalArgumentException("Rasio split wajib positif");
+        instrument.validateShareSupplyEvent("SPLIT:" + action.getId(), ratio, 0, 0);
         BigDecimal splitPrice = instrument.getCurrentPrice().getAmount().divide(ratio, 8, RoundingMode.HALF_UP);
         for (Account account : accounts) {
             Position position = account.getPosition(instrument.getId());
@@ -632,8 +710,11 @@ public final class CorporateActionService {
             Money cashInLieu = new Money(fractional.multiply(splitPrice), position.getCurrency());
             if (cashInLieu.isPositive()) ledger.recordMutation("SPLIT-FRACTION-" + action.getId() + "-" + account.getId(), account, LedgerEntryType.TRADE_SELL, cashInLieu, true, timestamp, "Cash-in-lieu fraksi reverse split " + action.getId());
         }
+        instrument.applyShareSupplyEvent("SPLIT:" + action.getId(), ratio, 0, 0);
+        instrument.adjustSplitReferencePrices(ratio);
         instrument.updatePrice(new Money(splitPrice, instrument.getCurrency()), 0);
         action.markExecuted();
+        if (shareSupplyCatalog != null) shareSupplyCatalog.recalculateAllIndices();
     }
 
     /**

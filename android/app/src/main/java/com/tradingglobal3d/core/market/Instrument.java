@@ -20,7 +20,10 @@ public final class Instrument {
     private final String sector;
     private final Currency currency;
     private final int lotSize;
-    private final long sharesOutstanding;
+    private final long catalogIssuedShares;
+    private long issuedShares;
+    private long treasuryShares;
+    private final java.util.Map<String, String> shareSupplyEvents = new java.util.LinkedHashMap<>();
     private final boolean isActiveTrading;
 
     private Money currentPrice;
@@ -39,7 +42,8 @@ public final class Instrument {
         this.sector = Objects.requireNonNull(sector);
         this.currency = Objects.requireNonNull(currency);
         this.lotSize = lotSize;
-        this.sharesOutstanding = sharesOutstanding;
+        this.catalogIssuedShares = sharesOutstanding;
+        this.issuedShares = sharesOutstanding;
         this.isActiveTrading = isActiveTrading;
 
         this.currentPrice = Objects.requireNonNull(initialPrice);
@@ -56,7 +60,69 @@ public final class Instrument {
     public String getSector() { return sector; }
     public Currency getCurrency() { return currency; }
     public int getLotSize() { return lotSize; }
-    public long getSharesOutstanding() { return sharesOutstanding; }
+    public synchronized long getSharesOutstanding() { return Math.subtractExact(issuedShares, treasuryShares); }
+    public long getCatalogIssuedShares() { return catalogIssuedShares; }
+    public synchronized long getIssuedShares() { return issuedShares; }
+    public synchronized long getTreasuryShares() { return treasuryShares; }
+    public synchronized boolean hasShareSupplyEvent(String eventId) { return shareSupplyEvents.containsKey(eventId); }
+
+    private long[] nextShareSupply(String eventId, BigDecimal ratio, long issuedDelta, long treasuryDelta) {
+        if (eventId == null || eventId.trim().isEmpty() || ratio == null || ratio.signum() <= 0)
+            throw new IllegalArgumentException("Perubahan supply saham tidak valid");
+        String payload = ratio.stripTrailingZeros().toPlainString() + ":" + issuedDelta + ":" + treasuryDelta;
+        if (shareSupplyEvents.containsKey(eventId)) {
+            if (!payload.equals(shareSupplyEvents.get(eventId))) throw new IllegalArgumentException("ID supply sudah dipakai dengan perubahan berbeda");
+            return null;
+        }
+        long issued = Math.addExact(BigDecimal.valueOf(issuedShares).multiply(ratio).setScale(0, RoundingMode.DOWN).longValueExact(), issuedDelta);
+        long treasury = Math.addExact(BigDecimal.valueOf(treasuryShares).multiply(ratio).setScale(0, RoundingMode.DOWN).longValueExact(), treasuryDelta);
+        if (issued < 0 || treasury < 0 || treasury > issued) throw new IllegalArgumentException("Supply saham atau treasury tidak sah");
+        return new long[]{issued, treasury};
+    }
+
+    public synchronized void validateShareSupplyEvent(String eventId, BigDecimal ratio, long issuedDelta, long treasuryDelta) {
+        nextShareSupply(eventId, ratio, issuedDelta, treasuryDelta);
+    }
+
+    public synchronized void applyShareSupplyEvent(String eventId, BigDecimal ratio, long issuedDelta, long treasuryDelta) {
+        long[] next = nextShareSupply(eventId, ratio, issuedDelta, treasuryDelta);
+        if (next == null) return;
+        issuedShares = next[0]; treasuryShares = next[1];
+        shareSupplyEvents.put(eventId, ratio.stripTrailingZeros().toPlainString() + ":" + issuedDelta + ":" + treasuryDelta);
+    }
+
+    synchronized org.json.JSONObject exportShareSupply() throws org.json.JSONException {
+        return new org.json.JSONObject().put("version", 1).put("issuedShares", issuedShares).put("treasuryShares", treasuryShares)
+                .put("events", new org.json.JSONObject(shareSupplyEvents))
+                .put("eventOrder", new org.json.JSONArray(shareSupplyEvents.keySet()));
+    }
+
+    synchronized void restoreShareSupply(org.json.JSONObject state) throws org.json.JSONException {
+        if (state == null) {
+            issuedShares = catalogIssuedShares; treasuryShares = 0; shareSupplyEvents.clear(); return;
+        }
+        if (state.getInt("version") != 1) throw new IllegalArgumentException("Versi supply saham tidak didukung");
+        long issued = state.getLong("issuedShares"), treasury = state.getLong("treasuryShares");
+        if (issued < 0 || treasury < 0 || treasury > issued) throw new IllegalArgumentException("Supply save tidak valid");
+        java.util.Map<String, String> events = new java.util.LinkedHashMap<>();
+        org.json.JSONObject savedEvents = state.getJSONObject("events");
+        org.json.JSONArray order = state.getJSONArray("eventOrder");
+        if (order.length() != savedEvents.length()) throw new IllegalArgumentException("Urutan supply save tidak lengkap");
+        Instrument replay = new Instrument(id, ticker, name, exchange, sector, currency, lotSize, catalogIssuedShares, isActiveTrading, currentPrice);
+        for (int i = 0; i < order.length(); i++) {
+            String key = order.getString(i);
+            if (key.trim().isEmpty() || events.containsKey(key)) throw new IllegalArgumentException("ID supply save kosong atau duplikat");
+            String payload = savedEvents.getString(key);
+            String[] parts = payload.split(":", -1);
+            if (parts.length != 3) throw new IllegalArgumentException("Payload supply save tidak valid");
+            replay.applyShareSupplyEvent(key, new BigDecimal(parts[0]), Long.parseLong(parts[1]), Long.parseLong(parts[2]));
+            events.put(key, payload);
+        }
+        if (issued != replay.getIssuedShares() || treasury != replay.getTreasuryShares())
+            throw new IllegalArgumentException("Supply save tidak cocok dengan baseline dan riwayat aksi");
+        issuedShares = issued; treasuryShares = treasury;
+        shareSupplyEvents.clear(); shareSupplyEvents.putAll(events);
+    }
     public boolean isActiveTrading() { return isActiveTrading; }
 
     public Money getCurrentPrice() { return currentPrice; }
@@ -70,7 +136,7 @@ public final class Instrument {
     }
 
     public Money getMarketCap() {
-        BigDecimal cap = currentPrice.getAmount().multiply(BigDecimal.valueOf(sharesOutstanding));
+        BigDecimal cap = currentPrice.getAmount().multiply(BigDecimal.valueOf(getSharesOutstanding()));
         return new Money(cap, currency);
     }
 
@@ -95,6 +161,13 @@ public final class Instrument {
         if (volume < 0 || high.compareTo(price) < 0 || low.compareTo(price) > 0 || low.compareTo(high) > 0)
             throw new IllegalArgumentException("Statistik pasar save tidak valid: " + id);
         currentPrice = price; previousClosePrice = previous; dayHigh = high; dayLow = low; dayVolume = volume;
+    }
+
+    public synchronized void adjustSplitReferencePrices(BigDecimal ratio) {
+        if (ratio == null || ratio.signum() <= 0) throw new IllegalArgumentException("Rasio split tidak valid");
+        previousClosePrice = new Money(previousClosePrice.getAmount().divide(ratio, 8, RoundingMode.HALF_UP), currency);
+        dayHigh = new Money(dayHigh.getAmount().divide(ratio, 8, RoundingMode.HALF_UP), currency);
+        dayLow = new Money(dayLow.getAmount().divide(ratio, 8, RoundingMode.HALF_UP), currency);
     }
 
     public void startNewTradingDay() {

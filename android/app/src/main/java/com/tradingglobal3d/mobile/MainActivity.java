@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 public class MainActivity extends Activity {
     private WebView webView;
     private TradingFacade facade;
+    private TradingWebBridge bridge;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,8 +54,9 @@ public class MainActivity extends Activity {
             return;
         }
 
-        // Save yang gagal divalidasi tidak boleh digantikan permainan baru.
-        facade.startOrResume();
+        // Startup/load runs on the same clock worker as resume, never on the UI thread.
+        bridge = new TradingWebBridge(facade, this);
+        bridge.beginClockSync(true);
 
         // 2. Setup WebView dengan orientasi portrait dan tema navy (#0F1720)
         setupNotificationChannel();
@@ -101,7 +103,6 @@ public class MainActivity extends Activity {
         settings.setLoadsImagesAutomatically(true);
 
         // Pasang Native Bridge ke domain ekonomi
-        TradingWebBridge bridge = new TradingWebBridge(facade, this);
         webView.addJavascriptInterface(bridge, "TradingNativeBridge");
 
         // The Java bridge is available only to packaged application content.
@@ -123,35 +124,21 @@ public class MainActivity extends Activity {
     protected void onPause() {
         super.onPause();
         // Rekonsiliasi transisi lifecycle ke background pada rasio tidak aktif 24x (1 jam nyata = 1 hari game)
-        if (facade != null) {
-            facade.onAppLifecycleChanged(false);
-            try {
-                facade.save();
-                saveFailed = false;
-            } catch (Exception error) {
-                saveFailed = true;
-            }
-        }
+        if (bridge != null) bridge.beginClockSync(false);
     }
 
     @Override
     protected void onStop() {
         super.onStop();
         // Fail-safe autosave saat aplikasi diminimalkan / diswipe keluar
-        if (facade != null) {
-            try {
-                facade.save();
-            } catch (Exception ignored) {}
-        }
+        if (bridge != null) bridge.beginClockSync(false);
     }
 
     private boolean saveFailed;
 
     @Override protected void onResume() {
         super.onResume();
-        if (facade != null) {
-            facade.onAppLifecycleChanged(true);
-        }
+        if (bridge != null) bridge.beginClockSync(true);
         showSaveFailure();
     }
 

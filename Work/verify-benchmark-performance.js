@@ -35,8 +35,8 @@ async function run() {
         categories: {}
     };
 
-    // 1. Benchmark 5 Tab Navigasi (30 sampel per tab)
-    console.log("Benchmarking 5 navigation tabs (30 samples each)...");
+    // Five classic primary tabs, thirty samples each.
+    console.log("Benchmarking navigation routes (30 samples each)...");
     const tabs = ['beranda', 'pasar', 'aset', 'firma', 'riset'];
     for (const t of tabs) {
         const timings = [];
@@ -58,7 +58,7 @@ async function run() {
     const profTimings = [];
     for (let i = 0; i < 30; i++) {
         const start = performance.now();
-        await page.click('#view-riset button.shortcut:has-text("Profil Saya")');
+        await page.locator('#view-riset').getByRole('button', {name: 'Profil Saya', exact: true}).click();
         await page.waitForSelector('.flow-page[aria-label="Profil Saya"]');
         await page.click('.flow-page button.back-button');
         await page.waitForTimeout(20);
@@ -71,10 +71,12 @@ async function run() {
 
     // 3. Benchmark Modal Open & Close: Riwayat Transaksi (30 sampel)
     console.log("Benchmarking Riwayat Transaksi modal (30 samples)...");
+    await page.click('button.nav-item[data-tab="aset"]');
+    await page.locator('#asset-tools').evaluate(el => el.open = true);
     const histTimings = [];
     for (let i = 0; i < 30; i++) {
         const start = performance.now();
-        await page.click('#view-riset button.shortcut:has-text("Riwayat Transaksi")');
+        await page.click('#asset-tools button:has-text("Riwayat Transaksi")');
         await page.waitForSelector('.flow-page[aria-label="Riwayat Transaksi"]');
         await page.click('.flow-page button.back-button');
         await page.waitForTimeout(20);

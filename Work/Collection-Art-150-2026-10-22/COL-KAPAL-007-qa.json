@@ -1,0 +1,23 @@
+{
+  "width": 1254,
+  "height": 1254,
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "alpha_bbox": [
+    199,
+    330,
+    1087,
+    941
+  ],
+  "raw_alpha_bbox": [
+    47,
+    152,
+    1192,
+    1186
+  ],
+  "crop_threshold": 16,
+  "transparent_pixels": 1311097,
+  "visual_review": "PASS after imagegen correction: complete native vessel/aircraft silhouette, wider clear borders, real alpha and sharp navy/light previews individually inspected."
+}

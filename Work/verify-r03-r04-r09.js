@@ -28,7 +28,7 @@ async function run() {
     const nav = page.locator('.mission-tabs-nav');
     const tabDaily = nav.locator('button:has-text("Harian")');
     const tabWeekly = nav.locator('button:has-text("Mingguan")');
-    const tabCareer = nav.locator('button:has-text("Karier")');
+    const tabCareer = nav.getByRole('button', { name: /Target karier/i });
 
     if (await tabDaily.count() !== 1 || await tabWeekly.count() !== 1 || await tabCareer.count() !== 1) {
         throw new Error("Semua 3 tab misi (Harian, Mingguan, Karier) harus ada di Pusat Misi!");
@@ -44,8 +44,8 @@ async function run() {
     console.log(`Career missions count: ${cCount}`);
     if (cCount < 1) throw new Error("Target misi karier harus tampil di tab Karier!");
 
-    const progressBar = careerCards.first().locator('.xp-track');
-    if (await progressBar.count() !== 1) throw new Error("Progress bar harus ada pada kartu misi!");
+    const progress = careerCards.first().locator('.data-row').filter({hasText:'Progres'});
+    if (await progress.count() !== 1 || !(await progress.locator('strong').innerText()).trim()) throw new Error('Progres misi dari state harus ditampilkan tanpa persentase buatan');
 
     // Tangkap screenshot Pusat Misi
     const missionShot = path.join(evidenceDir, 'R04-mission-3tabs.png');
@@ -59,6 +59,7 @@ async function run() {
     // 2. Verifikasi R03: Profil Risiko Berbasis Perilaku (5 Indikator, Tanpa Kuis)
     // =========================================================================
     console.log("[2] Testing R03: Profil Risiko & 5 Indikator...");
+    await page.locator('[data-tab="beranda"]').click();
     await page.click('#btn-home-archetype');
     await page.waitForSelector('.flow-page[aria-label="Gaya Investor (Archetype)"]', { timeout: 5000 });
 
@@ -69,7 +70,7 @@ async function run() {
     }
 
     // Pastikan 5 indikator tampil
-    const indicatorRows = page.locator('.flow-page .data-row:has-text("📊")');
+    const indicatorRows = page.locator('.flow-page section.card').filter({has: page.getByRole('heading', {name: 'Indikator yang diamati', exact: true})}).locator('.data-row');
     const indCount = await indicatorRows.count();
     console.log(`Observed indicators count: ${indCount}`);
     if (indCount !== 5) throw new Error(`Harus ada tepat 5 indikator yang diamati, aktual: ${indCount}`);

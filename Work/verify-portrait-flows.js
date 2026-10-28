@@ -94,7 +94,7 @@ const errors = [];
     await page.locator('#asset-tools > summary').click();
     await page.getByRole('button', { name: 'Fasilitas margin & risiko', exact: true }).click();
     await opened('risk-locked', 'Ekuitas bersih');
-    const loanDisabled = await page.getByRole('button', { name: 'Tarik pinjaman margin — Portfolio Manager', exact: true }).isDisabled();
+    const loanDisabled = await page.getByRole('button', { name: /^Tarik pinjaman margin/ }).isDisabled();
     if (!loanDisabled) throw new Error('Margin loan button should be disabled for novice');
     await back();
 
@@ -116,7 +116,7 @@ const errors = [];
     await page.getByRole('button', { name: 'Lab strategi & sandbox what-if', exact: true }).click();
     const snapBeforeLab = (await call('getSnapshot')).personalAccount;
     await page.getByRole('button', { name: 'Eksekusi transaksi lab', exact: true }).click();
-    await opened('lab-result', 'Total trade lab');
+    await opened('lab-result', 'Transaksi lab');
     const snapAfterLab = (await call('getSnapshot')).personalAccount;
     if (JSON.stringify(snapBeforeLab) !== JSON.stringify(snapAfterLab)) {
         throw new Error('Lab trade must not mutate primary personal account');
@@ -126,14 +126,15 @@ const errors = [];
     await tab('aset');
     await page.locator('#asset-tools > summary').click();
     await page.getByRole('button', { name: 'Replay historis', exact: true }).click();
-    await opened('replay-unavailable', 'belum tersedia');
+    await opened('replay-datasets', 'Dataset');
+    const datasets = (await call('getHistoricalDatasets')).datasets || [];
+    if (await page.locator('#replay-dataset option').count() !== datasets.length) throw new Error('Replay dataset choices must match Java');
+    if (await page.getByRole('button', {name:'Mulai replay baru',exact:true}).isEnabled() !== Boolean(datasets.length)) throw new Error('Replay availability must match Java');
     await back();
 
     // 4. Flows Beranda
     await tab('beranda');
-    await page.locator('#btn-briefing').click();
-    await opened('briefing', '24 jam game = 5 menit nyata');
-    await back();
+    if (await page.locator('#btn-briefing, .session-card').count()) throw new Error('Removed session controls returned');
 
     await page.locator('#btn-reports').click();
     await opened('reports-empty', 'Belum ada hari');
@@ -159,20 +160,19 @@ const errors = [];
 
     // 5. Earn career rank PORTFOLIO_MANAGER naturally via fills, claims and skips
     await call('setClockState', true, 1);
-    await call('tickClock', 7);
+    await page.evaluate(() => {const clock=JSON.parse(TradingNativeBridge.getSnapshot()).clock,d=new Date(clock.timestamp+7*3600000),seconds=d.getUTCHours()*3600+d.getUTCMinutes()*60+d.getUTCSeconds();TradingNativeBridge.tickClock(Math.ceil(((9*3600+30*60-seconds+86400)%86400)/clock.rate));});
     await call('setClockState', false, 1);
 
-    for (const [ticker, price] of [['BBCA', '10300'], ['TLKM', '3200']]) {
+    for (const ticker of ['BBCA', 'TLKM']) {
         const payload = {
             requestId: 'UI-FLOWS-' + ticker,
             instrumentId: 'IDX:' + ticker,
             side: 'BUY',
-            type: 'LIMIT',
-            quantity: 100,
-            limitPrice: price
+            type: 'MARKET',
+            quantity: 100
         };
         const res = await call('submitOrder', JSON.stringify(payload));
-        if (!res.success) throw new Error('Order submission failed: ' + JSON.stringify(res));
+        if (res.status !== 'FILLED') throw new Error('Two real fills are required for diversification: ' + JSON.stringify(res));
     }
     await call('claimMission', 'MIS-01');
     await call('claimMission', 'MIS-02');
@@ -189,12 +189,14 @@ const errors = [];
 
     // 6. Firma / Bisnis flows with earned rank
     await tab('firma');
+    await page.locator('#firma-subtab-dana').click();
     await page.getByRole('button', { name: 'Fund Builder & alokasi portofolio', exact: true }).click();
     await opened('fund-builder', 'Rencana tersimpan');
     await back();
 
     await tab('firma');
-    await page.getByRole('button', { name: 'Yayasan Dana Sejahtera — Tawaran Tersedia', exact: true }).click();
+    await page.locator('#firma-subtab-dana').click();
+    await page.getByRole('button', { name: /^Yayasan Dana Sejahtera/ }).click();
     await opened('mandate-offer', 'High-water mark');
 
     await page.getByRole('button', { name: 'Terima Mandat Kelolaan Klien', exact: true }).click();
@@ -205,6 +207,7 @@ const errors = [];
     await back();
 
     await tab('firma');
+    await page.locator('#firma-subtab-dana').click();
     await page.getByRole('button', { name: 'Laporan klien & fee mandat', exact: true }).click();
     await opened('client-reports', 'Trust');
     await back();

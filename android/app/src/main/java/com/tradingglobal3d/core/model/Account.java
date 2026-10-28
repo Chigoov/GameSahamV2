@@ -29,6 +29,18 @@ public final class Account {
         }
     }
 
+    public Account copy() {
+        Account copy = new Account(this.id, this.name, this.type, this.clientMandateId);
+        for (Currency c : Currency.values()) {
+            copy.totalCash.put(c, this.totalCash.getOrDefault(c, BigDecimal.ZERO));
+            copy.reservedCash.put(c, this.reservedCash.getOrDefault(c, BigDecimal.ZERO));
+        }
+        for (Map.Entry<String, Position> entry : this.positions.entrySet()) {
+            copy.positions.put(entry.getKey(), entry.getValue());
+        }
+        return copy;
+    }
+
     public String getId() { return id; }
     public String getName() { return name; }
     public AccountType getType() { return type; }
