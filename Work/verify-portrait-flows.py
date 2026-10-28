@@ -56,7 +56,7 @@ with sync_playwright() as p:
     assert page.locator('#replay-dataset option').count()==len(datasets)
     assert page.get_by_role('button',name='Mulai replay baru',exact=True).is_enabled()==bool(datasets)
     back()
-    tab('beranda');page.locator('#btn-briefing').click();opened('briefing','Mode waktu');back()
+    tab('beranda');assert page.locator('#btn-briefing, .session-card').count() == 0
     page.locator('#btn-reports').click();opened('reports-empty','Belum ada hari');back()
     page.locator('#btn-entry-game').click();opened('entry-checkpoint','Portofolio Pribadi')
     page.get_by_role('button',name='Konfigurasi permainan baru',exact=True).click();opened('newgame-config','mereset');back()

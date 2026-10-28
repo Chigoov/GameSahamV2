@@ -134,9 +134,7 @@ const errors = [];
 
     // 4. Flows Beranda
     await tab('beranda');
-    await page.locator('#btn-briefing').click();
-    await opened('briefing', 'Mode waktu');
-    await back();
+    if (await page.locator('#btn-briefing, .session-card').count()) throw new Error('Removed session controls returned');
 
     await page.locator('#btn-reports').click();
     await opened('reports-empty', 'Belum ada hari');

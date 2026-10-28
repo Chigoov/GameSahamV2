@@ -53,6 +53,10 @@ public final class ResearchTechTreeService {
             this.unlocked = true;
         }
 
+        private void lock() {
+            this.unlocked = false;
+        }
+
         public JSONObject toJsonObject() throws JSONException {
             JSONObject obj = new JSONObject();
             obj.put("nodeId", nodeId);
@@ -119,11 +123,41 @@ public final class ResearchTechTreeService {
         return node;
     }
 
+    public synchronized double getUnlockedBonus(String statBonusType) {
+        double total = 0.0;
+        for (TechNode node : nodes.values())
+            if (node.isUnlocked() && node.getStatBonusType().equals(statBonusType)) total += node.getStatBonusValue();
+        return total;
+    }
+
     public synchronized JSONArray exportTree() throws JSONException {
         JSONArray arr = new JSONArray();
         for (TechNode n : nodes.values()) {
             arr.put(n.toJsonObject());
         }
         return arr;
+    }
+
+    public synchronized JSONArray exportState() throws JSONException {
+        JSONArray state = new JSONArray();
+        for (TechNode node : nodes.values()) state.put(new JSONObject()
+                .put("nodeId", node.getNodeId()).put("isUnlocked", node.isUnlocked()));
+        return state;
+    }
+
+    public synchronized void restoreState(JSONArray state) throws JSONException {
+        Map<String, Boolean> unlockedById = new HashMap<>();
+        for (int i = 0; i < state.length(); i++) {
+            JSONObject item = state.getJSONObject(i);
+            String id = item.getString("nodeId");
+            if (!nodes.containsKey(id) || unlockedById.put(id, item.getBoolean("isUnlocked")) != null)
+                throw new IllegalArgumentException("State pohon riset tidak dikenal atau duplikat");
+        }
+        for (Map.Entry<String, Boolean> item : unlockedById.entrySet()) {
+            TechNode node = nodes.get(item.getKey());
+            if (item.getValue()) node.unlock();
+            else if ("TECH-ALGO-1".equals(item.getKey())) throw new IllegalArgumentException("Node riset dasar harus terbuka");
+            else node.lock();
+        }
     }
 }

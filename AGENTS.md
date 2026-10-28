@@ -1,5 +1,17 @@
 # Instruksi aktif Game Saham 2D Portrait
 
+## Keputusan aktif pemilik 24 Oktober 2026
+
+Mode pengiriman terbaru: pemilik mengirim SATU file plan.md dari Work/Master-Plan-Gabungan-2026-10-24/Plans/ pada satu waktu. Hermes hanya mengerjakan ID dan deliverable file yang dikirim/ditunjuk pemilik. Setelah file itu selesai dan hasil diserahkan, BERHENTI menunggu file berikutnya. Keberadaan master 126 task atau urutan G01–G08 bukan izin melanjutkan otomatis. Instruksi ini menggantikan mandat lanjut antarkelompok otomatis; scope akhir dan standar penerimaan tetap. Pembuatan file plan tidak mencabut jeda yang sedang berlaku.
+
+Spesifikasi aktif adalah `master plan perbaikan.md` (20 paket, 126 subtask) dengan checkpoint `Work/Master-Plan-Gabungan-2026-10-24/CHECKPOINT.md`. Seluruh paragraf historis di bawah yang bertentangan digantikan secara terarah: waktu otomatis tunggal 24x, satu hari kalender game per satu jam nyata pada aktif/background/ditutup; tanpa kontrol pemain pause/speed/skip. Efek berita 60/120 menit nyata memakai deadline persisten. Tarif, hadiah dan formula ekonomi lain tetap.
+
+Pemilik menyetujui contoh revisi 2: background navy gelap dengan panel/kontrol UI terang, bukan background terang menyeluruh. Tab tetap Beranda/Pasar/Portofolio/Bisnis/Lainnya seperti versi lama. Kategori Portofolio bertingkat; Lainnya berkelompok Profil, Misi & Kompetisi, Riset, Pengaturan. Hapus UI lab sandbox dan uji stres saja, lindungi kompatibilitas save/shared domain/replay perdagangan. Antislop during mengikuti pilihan ini. Approval contoh sudah diperoleh; bukan bukti implementasi/gate final.
+
+Hermes menjadi writer implementasi mandat ini; tidak meluncurkan agen lain atau mengirim pesan lintas chat. Pertahankan seluruh delta baseline. QA memakai save baru terisolasi; save pemain `Artifacts/LocalPreview/preview-save/save_game_v2.json` hanya di-hash. Tidak ADB baru, instalasi/perangkat, push/publish, reset/clean, atau perubahan global. Laporan memakai x/20 paket dan y/126 subtask, bukti host/browser/APK/native dipisah.
+
+Keputusan pemilik 23 Oktober 2026 tentang waktu otomatis: hapus kartu Sesi pasar otomatis/Jadwal Sesi dan alur kontrol sesi dari UI. Dunia mulai otomatis, tidak menawarkan jeda manual, dan pergantian hari tidak menghentikan permainan. Saat aplikasi tidak dibuka, seluruh kejadian pasar serta ekonomi mengikuti waktu berlalu yang direkonsiliasi saat kembali; startup, load, pergantian mode, dan lifecycle harus memakai aturan yang sama tanpa kehilangan atau menggandakan waktu. Rasio tetap 5 menit nyata/hari game saat aktif dan 1 jam nyata/hari game saat tidak aktif. Jeda internal untuk melindungi save atau batas dataset replay bukan kontrol pemain. Hasil REA berupa token waktu tidak boleh disebut source mekanisme offline yang berhasil dipulihkan.
+
 Root yang diizinkan ditulis: C:/Users/HYPE AMD/Downloads/VIBE CODING/GAME SAHAM.
 
 Keputusan pemilik terbaru 23 Oktober 2026: kembalikan tampilan klasik sebelum redesain (`fc3cdd2`) dan navigasi Beranda/Pasar/Portofolio/Bisnis/Lainnya, tetapi pertahankan isi Aset dari redesain pada Portofolio. Ini menggantikan pilihan visual arang–ungu/empat tab di paragraf historis berikut. Ikuti bagian keputusan aktif di DESIGN.md. Pakai ulang komponen dan controller yang sudah dikoreksi; pertahankan data domain nyata, aksesibilitas, waktu 5 menit dan seluruh perbaikan Java/save. Versi redesain `1c821af` tetap tersimpan sebagai fallback, tanpa push atau reset save.

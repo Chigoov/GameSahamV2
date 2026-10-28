@@ -11,6 +11,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.math.BigDecimal;
 import java.util.*;
 
 /**
@@ -174,12 +175,22 @@ public final class CollectionManager {
 
     public synchronized JSONObject buyItem(String requestId, String itemId, Account account,
             EconomyLedger ledger, CareerManager career, long timestamp) throws JSONException {
-        return trade(requestId, itemId, account, ledger, career, timestamp, true);
+        return trade(requestId, itemId, account, ledger, career, timestamp, true, null);
+    }
+
+    public synchronized JSONObject buyItem(String requestId, String itemId, Account account,
+            EconomyLedger ledger, CareerManager career, long timestamp, BigDecimal expectedPrice) throws JSONException {
+        return trade(requestId, itemId, account, ledger, career, timestamp, true, expectedPrice);
     }
 
     public synchronized JSONObject sellItem(String requestId, String itemId, Account account,
             EconomyLedger ledger, CareerManager career, long timestamp) throws JSONException {
-        return trade(requestId, itemId, account, ledger, career, timestamp, false);
+        return trade(requestId, itemId, account, ledger, career, timestamp, false, null);
+    }
+
+    public synchronized JSONObject sellItem(String requestId, String itemId, Account account,
+            EconomyLedger ledger, CareerManager career, long timestamp, BigDecimal expectedPrice) throws JSONException {
+        return trade(requestId, itemId, account, ledger, career, timestamp, false, expectedPrice);
     }
 
     private void requirePersonal(Account account) {
@@ -188,7 +199,7 @@ public final class CollectionManager {
     }
 
     private JSONObject trade(String requestId, String itemId, Account account, EconomyLedger ledger,
-            CareerManager career, long timestamp, boolean buy) throws JSONException {
+            CareerManager career, long timestamp, boolean buy, BigDecimal expectedPrice) throws JSONException {
         requirePersonal(account);
         Objects.requireNonNull(ledger);
         if (requestId == null || requestId.trim().isEmpty() || requestId.length() > 160)
@@ -212,6 +223,17 @@ public final class CollectionManager {
             throw new IllegalStateException("Tunggakan pemilik sebelumnya belum diselesaikan");
         if (!buy && item.isPledged()) throw new IllegalStateException("Koleksi terikat agunan pinjaman aktif");
         Money value = item.getCurrentValuation();
+        if (expectedPrice != null && expectedPrice.compareTo(value.getAmount()) != 0) {
+            return new JSONObject().put("success", false)
+                    .put("status", "STALE_VALUATION")
+                    .put("itemId", itemId)
+                    .put("action", action)
+                    .put("expectedPrice", expectedPrice.toPlainString())
+                    .put("currentValuation", value.getAmount().toPlainString())
+                    .put("message", "Valuasi " + item.getName() + " telah berubah dari "
+                            + expectedPrice.toPlainString() + " menjadi " + value.getAmount().toPlainString()
+                            + ". Silakan tinjau kembali sebelum konfirmasi.");
+        }
         if (buy && account.getAvailableCash(Currency.IDR).isLessThan(value))
             throw new IllegalStateException("Kas pribadi tidak mencukupi untuk membeli koleksi");
         JSONObject receipt = new JSONObject().put("success", true).put("status", "SETTLED")

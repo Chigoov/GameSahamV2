@@ -42,6 +42,12 @@ async function run() {
     if (nodeCount < 4) {
         throw new Error(`Harus ada minimal 4 node riset (aktual: ${nodeCount})!`);
     }
+    const signalButton = page.locator('.flow-page[aria-label="Pohon Riset Finansial Tech Tree"] button:has-text("Hitung sinyal BBCA")');
+    if (await signalButton.count() !== 1) throw new Error("Tech Tree harus memberi jalur sinyal untuk instrumen.");
+    await signalButton.click();
+    const signalCard = page.locator('.flow-page[aria-label="Pohon Riset Finansial Tech Tree"] .card:has-text("Sinyal algoritma sesi berjalan")');
+    if (!(await signalCard.textContent()).includes("Arah:")) throw new Error("Sinyal algoritma harus menampilkan arah hasil domain.");
+    console.log("Current-session BBCA signal UI verified:", (await signalCard.textContent()).slice(-140));
 
     // Upgrade salah satu node yang terkunci
     const upgradeBtn = page.locator('.flow-page[aria-label="Pohon Riset Finansial Tech Tree"] button:has-text("Riset Automasi Eksekusi Order")');
@@ -60,6 +66,10 @@ async function run() {
 
     await page.locator('#firma-subtab-dana').click();
     await page.waitForTimeout(400);
+    const aumCapacityText = await page.locator('#firma-subtab-content').textContent();
+    if (!aumCapacityText.includes('Kapasitas AUM firma') || !aumCapacityText.includes('Pemakaian kapasitas AUM'))
+        throw new Error('UI Kelola Dana harus menampilkan baseline kapasitas AUM dan pemakaiannya.');
+    console.log('Firm AUM capacity and scale bonus visible in UI.');
 
     await page.locator('button:has-text("Bursa Headhunting Staf Analis Elit")').click();
     await page.waitForSelector('.flow-page[aria-label="Bursa Headhunting Staf Elit"]', { timeout: 5000 });

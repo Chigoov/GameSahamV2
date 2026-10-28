@@ -31,13 +31,42 @@ public final class ResearchService {
     private TerminalTier currentTier = TerminalTier.BASIC;
     private long subscriptionExpiresAt = Long.MAX_VALUE; // Basic gratis selamanya
     private long contentEpoch;
+    private long observedGameAt = -1, observedRealAt = -1;
+    private boolean replayClock;
 
     public ResearchService() {
         resetForGame(System.currentTimeMillis());
     }
 
+    public synchronized void resetForGame(long gameTime, long realTime) {
+        resetForGame(gameTime);
+        observeWorldTime(gameTime, realTime, false);
+    }
+
+    public synchronized void observeWorldTime(long gameTime, long realTime, boolean replay) {
+        if (gameTime < 0 || realTime < 0) throw new IllegalArgumentException("Waktu berita tidak valid");
+        long now = Math.max(observedRealAt, realTime);
+        for (NewsArticle article : newsList) {
+            if (!article.isPublished(gameTime)) continue;
+            long publishedReal = now;
+            if (observedGameAt >= 0 && observedRealAt >= 0 && article.getPublishedAt() > observedGameAt
+                    && gameTime > observedGameAt) {
+                long gameDelta = article.getPublishedAt() - observedGameAt;
+                long realDelta = now - observedRealAt;
+                publishedReal = observedRealAt + java.math.BigInteger.valueOf(gameDelta)
+                        .multiply(java.math.BigInteger.valueOf(realDelta))
+                        .divide(java.math.BigInteger.valueOf(gameTime - observedGameAt)).longValueExact();
+            }
+            article.startRealEffect(publishedReal);
+        }
+        observedGameAt = gameTime;
+        observedRealAt = now;
+        replayClock = replay;
+    }
+
     public synchronized void resetForGame(long baseTime) {
         contentEpoch = baseTime;
+        observedGameAt = -1; observedRealAt = -1; replayClock = false;
         newsList.clear();
         analystReports.clear();
         calendarEvents.clear();
@@ -133,13 +162,29 @@ public final class ResearchService {
     }
 
     public org.json.JSONObject exportState() throws org.json.JSONException {
-        return new org.json.JSONObject().put("tier", currentTier.name()).put("expiresAt", subscriptionExpiresAt).put("contentEpoch", contentEpoch);
+        JSONArray effects = new JSONArray();
+        for (NewsArticle article : newsList) effects.put(article.exportEffect());
+        return new org.json.JSONObject().put("tier", currentTier.name()).put("expiresAt", subscriptionExpiresAt).put("contentEpoch", contentEpoch)
+                .put("newsEffects", effects).put("observedGameAt", observedGameAt).put("observedRealAt", observedRealAt);
     }
 
     public void restoreState(org.json.JSONObject state) throws org.json.JSONException {
         if (state.has("contentEpoch")) resetForGame(state.getLong("contentEpoch"));
         currentTier = TerminalTier.valueOf(state.getString("tier"));
         subscriptionExpiresAt = state.getLong("expiresAt");
+        observedGameAt = state.optLong("observedGameAt", -1);
+        observedRealAt = state.optLong("observedRealAt", -1);
+        if (observedGameAt < -1 || observedRealAt < -1) throw new IllegalArgumentException("Anchor berita tidak valid");
+        JSONArray effects = state.optJSONArray("newsEffects");
+        if (effects != null) {
+            Set<String> seen = new HashSet<>();
+            for (int i = 0; i < effects.length(); i++) {
+                JSONObject effect = effects.getJSONObject(i);
+                String id = effect.getString("id");
+                if (!seen.add(id)) throw new IllegalArgumentException("Deadline berita duplikat");
+                for (NewsArticle article : newsList) if (id.equals(article.getId())) article.restoreEffect(effect);
+            }
+        }
     }
 
     public TerminalTier getCurrentTier() { return currentTier; }
@@ -147,6 +192,7 @@ public final class ResearchService {
 
     public synchronized void addNews(NewsArticle article) {
         newsList.add(article);
+        if (observedRealAt >= 0 && article.isPublished(observedGameAt)) article.startRealEffect(observedRealAt);
     }
 
     public synchronized void addAnalystReport(AnalystReport report) {
@@ -203,10 +249,14 @@ public final class ResearchService {
      * Berita mendatang mematuhi anti-future leak (hanya clue yang ditampilkan).
      */
     public synchronized JSONArray getNewsFeed(long currentTimestamp) throws JSONException {
+        return getNewsFeed(currentTimestamp, Math.max(0, observedRealAt));
+    }
+
+    public synchronized JSONArray getNewsFeed(long currentTimestamp, long realNow) throws JSONException {
         JSONArray arr = new JSONArray();
         for (NewsArticle a : newsList) {
             if (a.isAnnounced(currentTimestamp) || a.isPublished(currentTimestamp)) {
-                arr.put(a.toJsonObject(currentTimestamp));
+                arr.put(a.toJsonObject(currentTimestamp, Math.max(realNow, observedRealAt), replayClock));
             }
         }
         return arr;
@@ -216,9 +266,10 @@ public final class ResearchService {
      * Menghitung dampak sentimen berita aktif untuk emiten atau sektor tertentu (R12).
      */
     public synchronized double getActiveNewsImpact(String ticker, String sector, long currentTimestamp) {
+        if (replayClock) return 0.0;
         double impact = 0.0;
         for (NewsArticle a : newsList) {
-            if (a.isHorizonActive(currentTimestamp)) {
+            if (a.isPublished(currentTimestamp) && (observedRealAt >= 0 ? a.isRealEffectActive(observedRealAt) : a.isHorizonActive(currentTimestamp))) {
                 boolean matchTicker = ticker != null && ticker.equalsIgnoreCase(a.getRelatedTicker());
                 boolean matchSector = sector != null && sector.equalsIgnoreCase(a.getAffectedSector());
                 if (matchTicker || matchSector) {

@@ -82,6 +82,7 @@ public final class LoanContract {
     public static final BigDecimal DISBURSEMENT_FEE_RATE = new BigDecimal("0.005"); // 0.5%
     public static final BigDecimal PENALTY_RATE = new BigDecimal("0.0005");
     public static final BigDecimal MAX_PENALTY_RATIO = new BigDecimal("0.05");
+    public static final BigDecimal SIMPLE_24H_REAL_PENALTY_RATE = new BigDecimal("0.05"); // 5% sederhana per 24 jam nyata (A16)
 
     public LoanContract(String id, String productId, String accountId, Money principal, int tenorDays, long createdTimestamp) {
         this.id = Objects.requireNonNull(id);
@@ -113,6 +114,56 @@ public final class LoanContract {
     public String getCollateralId() { return collateralId; }
     void attachCollateral(CollectibleItem item) { collateralId = item.getId(); boundCollateral = item; }
     void bindCollateral(CollectibleItem item) { boundCollateral = item; }
+    public void detachCollateral() { this.collateralId = null; this.boundCollateral = null; }
+
+    private long lastRealPenaltyTimestamp;
+    public long getLastRealPenaltyTimestamp() { return lastRealPenaltyTimestamp; }
+    public void setLastRealPenaltyTimestamp(long ts) { this.lastRealPenaltyTimestamp = ts; }
+
+    public synchronized void accrueSimplePenalty24hReal(long realTimeElapsedMs) {
+        if (isClosed() || realTimeElapsedMs < 86400000L) return;
+        long periods = realTimeElapsedMs / 86400000L;
+        Money overdue = getOverduePrincipal();
+        if (!overdue.isPositive() || periods <= 0) return;
+        BigDecimal penaltyRate = SIMPLE_24H_REAL_PENALTY_RATE.multiply(BigDecimal.valueOf(periods));
+        Money penalty = overdue.multiply(penaltyRate);
+        if (penalty.isPositive()) {
+            for (Installment installment : schedule) {
+                if (installment.dueDay <= lastAccrualDay && installment.principalDue.subtract(installment.principalPaid).isPositive()) {
+                    installment.penaltyDue = installment.penaltyDue.add(penalty);
+                    break;
+                }
+            }
+            accruedPenalty = accruedPenalty.add(penalty);
+            totalPenaltyAssessed = totalPenaltyAssessed.add(penalty);
+            refreshStatus();
+        }
+    }
+
+    public synchronized void processRealTimeAccrual(long currentRealTimeMs) {
+        if (isClosed()) return;
+        if (lastRealPenaltyTimestamp <= 0) {
+            lastRealPenaltyTimestamp = currentRealTimeMs;
+            return;
+        }
+        if (currentRealTimeMs < lastRealPenaltyTimestamp) {
+            lastRealPenaltyTimestamp = currentRealTimeMs;
+            return;
+        }
+        Money overdue = getOverduePrincipal();
+        if (!overdue.isPositive()) {
+            lastRealPenaltyTimestamp = currentRealTimeMs;
+            return;
+        }
+        long elapsed = currentRealTimeMs - lastRealPenaltyTimestamp;
+        if (elapsed >= 86_400_000L) {
+            long periods = elapsed / 86_400_000L;
+            if (periods > 0) {
+                accrueSimplePenalty24hReal(periods * 86_400_000L);
+                lastRealPenaltyTimestamp += periods * 86_400_000L;
+            }
+        }
+    }
     JSONObject getDisbursementReceipt() throws JSONException { return disbursementReceipt == null ? null : new JSONObject(disbursementReceipt.toString()); }
     String getDisbursementPayload() { return disbursementPayload; }
     void recordDisbursement(String payload, JSONObject receipt) throws JSONException {
@@ -389,6 +440,7 @@ public final class LoanContract {
         obj.put("createdTimestamp", createdTimestamp);
         obj.put("paymentReceipts", new JSONObject(new JSONObject(paymentReceipts).toString()));
         obj.put("stateSchemaVersion", 2);
+        obj.put("lastRealPenaltyTimestamp", lastRealPenaltyTimestamp);
         obj.put("disbursementPayload", disbursementPayload == null ? JSONObject.NULL : disbursementPayload);
         obj.put("disbursementReceipt", disbursementReceipt == null ? JSONObject.NULL : new JSONObject(disbursementReceipt.toString()));
         obj.put("scheduleVersion", scheduleVersion);
@@ -420,15 +472,15 @@ public final class LoanContract {
         contract.remainingDays = obj.optInt("remainingDays", tenor);
         contract.accruedInterest = new Money(new BigDecimal(obj.optString("accruedInterest", "0")), Currency.IDR);
         contract.accruedPenalty = new Money(new BigDecimal(obj.optString("accruedPenalty", "0")), Currency.IDR);
+        contract.lastRealPenaltyTimestamp = obj.optLong("lastRealPenaltyTimestamp", 0);
         contract.status = LoanStatus.valueOf(obj.optString("status", "ACTIVE"));
         // ponytail: legacy restructuring never settles debt; retain it as an active contract.
         if (contract.status == LoanStatus.RESTRUCTURED) contract.status = LoanStatus.ACTIVE;
         if (id.trim().isEmpty() || pId.trim().isEmpty() || aId.trim().isEmpty()
-                || (!pId.equals("LOAN-PERS-01") && !pId.equals("LOAN-CORP-01"))
+                || (!pId.equals("LOAN-PERS-01") && !pId.equals("LOAN-PERS-02") && !pId.equals("LOAN-CORP-01"))
                 || !origP.isPositive() || (tenor != 7 && tenor != 14 && tenor != 30)
                 || contract.remainingPrincipal.isNegative() || contract.remainingPrincipal.compareTo(origP) > 0
                 || contract.remainingDays < 0 || contract.accruedInterest.isNegative() || contract.accruedPenalty.isNegative()
-                || contract.accruedPenalty.compareTo(origP.multiply(MAX_PENALTY_RATIO)) > 0
                 || (contract.status == LoanStatus.PAID_OFF && !contract.getTotalPayoffAmount().isZero()))
             throw new IllegalArgumentException("State pinjaman tidak valid");
         JSONObject receipts = obj.optJSONObject("paymentReceipts");
@@ -451,8 +503,7 @@ public final class LoanContract {
             contract.legacyScheduleMigration = obj.getBoolean("legacyScheduleMigration");
             contract.totalPenaltyAssessed = amount(obj, "totalPenaltyAssessed");
             if (contract.lastAccrualDay < day(ts) || contract.scheduleVersion < 1
-                    || contract.totalPenaltyAssessed.compareTo(contract.accruedPenalty) < 0
-                    || contract.totalPenaltyAssessed.compareTo(origP.multiply(MAX_PENALTY_RATIO)) > 0)
+                    || contract.totalPenaltyAssessed.compareTo(contract.accruedPenalty) < 0)
                 throw new IllegalArgumentException("Anchor/cap jadwal pinjaman tidak sah");
             contract.schedule.clear();
             JSONArray rows = obj.getJSONArray("schedule");
@@ -515,7 +566,7 @@ public final class LoanContract {
             String payload = obj.getString("disbursementPayload");
             if (!receipt.getBoolean("success") || !id.equals(receipt.getString("loanId"))
                     || !aId.equals(receipt.getString("accountId")) || receipt.getString("requestId").trim().isEmpty()
-                    || payload.trim().isEmpty() || (pId.equals("LOAN-PERS-01") && contract.collateralId == null))
+                    || payload.trim().isEmpty())
                 throw new IllegalArgumentException("Receipt pencairan tidak sah");
             contract.recordDisbursement(payload, receipt);
         } else if (!obj.isNull("disbursementPayload")) throw new IllegalArgumentException("Payload pencairan tanpa receipt");

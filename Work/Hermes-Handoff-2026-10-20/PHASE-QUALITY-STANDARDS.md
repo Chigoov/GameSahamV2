@@ -1,5 +1,9 @@
 # Standar minimum tinggi dan gerbang kelulusan setiap fase
 
+## Delta kontrak pemilik 24 Oktober 2026
+
+Untuk mandat `master plan perbaikan.md`, tempo aktif/inactive menjadi tunggal 24x (1 hari game = 1 jam nyata), tanpa kontrol pause/speed/skip pemain. Berita memakai deadline 60/120 menit nyata. UI mengikuti contoh revisi 2 yang disetujui: background gelap dan panel terang, tab lama tetap; lab/uji stres dihapus dari UI dengan kompatibilitas data/shared domain tetap dilindungi. Pernyataan dual-rate/Skip dan kewajiban launcher eksperimen historis di bawah digantikan hanya pada kontrak tersebut, bukan dihapus dari sejarah. Seluruh standar integritas, 10x100 aksi bermakna, viewport/200%, performa, bukti dan nol bug terbuka tetap berlaku. Tidak ADB/instalasi/perangkat baru; native NOT_TESTED_BY_SCOPE. Review mandiri terpisah, bukan independent-agent review karena delegasi tidak diizinkan.
+
 Keputusan pemilik, 20 Oktober 2026. Seluruh lima jawaban quality gate telah dikonfirmasi. Dokumen ini wajib dibaca bersama prompt master dan TASK.md masing-masing fase. Standar berikut menambah acceptance, tidak menggantikan atau mengurangi 228 requirement, fitur referensi, maupun keputusan produk sebelumnya.
 
 **Status saat dokumen disiapkan: spesifikasi; belum ada fase yang diluluskan oleh dokumen ini.** Target penyerahan tetap host/domain/browser/APK. Instalasi serta pembuktian runtime Android ditangguhkan, dicatat NOT_TESTED, dan tidak dianggap bug yang boleh disembunyikan sebagai PASS.

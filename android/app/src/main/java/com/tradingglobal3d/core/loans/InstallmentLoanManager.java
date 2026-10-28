@@ -51,7 +51,8 @@ public final class InstallmentLoanManager {
     }
     private void validateProduct(String productId, Account account, Money principal, int tenor) {
         Objects.requireNonNull(account); Objects.requireNonNull(principal);
-        boolean personal = "LOAN-PERS-01".equals(productId), corporate = "LOAN-CORP-01".equals(productId);
+        boolean personal = "LOAN-PERS-01".equals(productId) || "LOAN-PERS-02".equals(productId);
+        boolean corporate = "LOAN-CORP-01".equals(productId);
         if ((!personal && !corporate) || (personal && account.getType() != AccountType.PERSONAL)
                 || (corporate && account.getType() != AccountType.COMPANY) || principal.getCurrency() != Currency.IDR
                 || principal.isLessThan(Money.of(1_000_000, Currency.IDR)) || (tenor != 7 && tenor != 14 && tenor != 30))
@@ -72,6 +73,11 @@ public final class InstallmentLoanManager {
             maximum = collateral.getCurrentValuation().subtract(collateral.getMaintenanceArrears()).multiply(new BigDecimal("0.5"));
             if (maximum.isNegative()) maximum = Money.zero(Currency.IDR);
             basis = collateral.getCurrentValuation().getAmount().toPlainString() + ":" + collateral.getMaintenanceArrears().getAmount().toPlainString();
+        } else if (productId.equals("LOAN-PERS-02")) {
+            if (collateral != null) throw new IllegalArgumentException("Pembiayaan tanpa agunan tidak menerima agunan");
+            maximum = Money.of(50_000_000L, Currency.IDR).subtract(getTotalOutstandingPrincipal(account.getId()));
+            if (maximum.isNegative()) maximum = Money.zero(Currency.IDR);
+            basis = "COLLATERAL_FREE:" + maximum.getAmount().toPlainString();
         } else {
             if (collateral != null || cashflowLimit == null || cashflowLimit.getCurrency() != Currency.IDR || cashflowLimit.isNegative())
                 throw new IllegalArgumentException("Batas pinjaman perusahaan wajib berasal arus kas operasi aktual");
@@ -115,6 +121,22 @@ public final class InstallmentLoanManager {
                 .put("status", "SETTLED").put("quoteVersion", expectedQuoteVersion).put("collateralId", collateral == null ? JSONObject.NULL : collateral.getId());
         loan.recordDisbursement(input, receipt);
         return new JSONObject(receipt.toString());
+    }
+
+    public synchronized int releaseAllCollateralsPreservingDebt() {
+        int releasedCount = 0;
+        if (collectionManager != null) {
+            for (CollectibleItem item : collectionManager.getAllItems()) {
+                if (item.isPledged()) {
+                    item.releasePledgeMigration();
+                    releasedCount++;
+                }
+            }
+        }
+        for (LoanContract loan : loans.values()) {
+            loan.detachCollateral();
+        }
+        return releasedCount;
     }
 
     public synchronized void reset() {
@@ -172,7 +194,8 @@ public final class InstallmentLoanManager {
         Objects.requireNonNull(account, "Akun pinjaman wajib tersedia");
         Objects.requireNonNull(principal, "Pokok pinjaman wajib tersedia");
         Objects.requireNonNull(ledger, "Ledger wajib tersedia");
-        boolean personal = "LOAN-PERS-01".equals(productId), corporate = "LOAN-CORP-01".equals(productId);
+        boolean personal = "LOAN-PERS-01".equals(productId) || "LOAN-PERS-02".equals(productId);
+        boolean corporate = "LOAN-CORP-01".equals(productId);
         if ((!personal && !corporate) || (personal && account.getType() != AccountType.PERSONAL)
                 || (corporate && account.getType() != AccountType.COMPANY)) throw new IllegalArgumentException("Produk tidak sesuai jenis akun peminjam");
         if (now < 0) throw new IllegalArgumentException("Timestamp pencairan tidak sah");
@@ -221,6 +244,10 @@ public final class InstallmentLoanManager {
 
     public synchronized void processDailyAccrual(long gameTimestamp) {
         for (LoanContract loan : loans.values()) loan.processDailyAccrual(gameTimestamp);
+    }
+
+    public synchronized void processRealTimeAccrual(long realTimestamp) {
+        for (LoanContract loan : loans.values()) loan.processRealTimeAccrual(realTimestamp);
     }
 
     public synchronized JSONArray exportState() throws JSONException {

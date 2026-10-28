@@ -42,6 +42,7 @@ public final class OperatingCompany {
     private int workHours; // 6, 8, 10
     private BenefitTier benefitTier;
     private int morale; // 0 - 100
+    private boolean supplyChainCrisisActive;
     private Money payrollArrears = Money.zero(Currency.IDR);
     private long lastOperationsDay = Long.MIN_VALUE;
     private Money lastRevenue = Money.zero(Currency.IDR);
@@ -126,6 +127,7 @@ public final class OperatingCompany {
             int target = targetMorale();
             morale += Math.max(-5, Math.min(5, target - morale));
         }
+        supplyChainCrisisActive = false;
     }
 
     private int targetMorale() {
@@ -151,15 +153,21 @@ public final class OperatingCompany {
     // ponytail: legacy free-text sectors map to Jasa; canonical new sectors need no registry.
     public String getSectorModel() {
         String normalized = sector.toLowerCase(Locale.ROOT);
+        if (normalized.contains("energi") || normalized.contains("energy")) return "ENERGY";
         if (normalized.contains("manufaktur")) return "MANUFAKTUR";
         if (normalized.contains("ritel")) return "RITEL";
         return "JASA";
     }
 
+    public void applySupplyChainCrisis() { supplyChainCrisisActive = true; }
+
     public Money calculateDailyOperatingCost() {
         long base = getSectorModel().equals("MANUFAKTUR") ? 15_000_000L
                 : getSectorModel().equals("RITEL") ? 5_000_000L : 1_000_000L;
-        return Money.of(base, Currency.IDR).multiply(BigDecimal.valueOf(level));
+        Money cost = Money.of(base, Currency.IDR).multiply(BigDecimal.valueOf(level));
+        if (supplyChainCrisisActive && (getSectorModel().equals("MANUFAKTUR") || getSectorModel().equals("RITEL")))
+            cost = cost.multiply(new BigDecimal("1.50"));
+        return cost;
     }
 
     public Money calculateDailyCapacity() {
@@ -188,7 +196,9 @@ public final class OperatingCompany {
                 : getSectorModel().equals("RITEL") ? 20_000_000L : 8_000_000L;
         Money demand = Money.of(base, Currency.IDR).multiply(BigDecimal.valueOf(level)).multiply(getDemandFactor(day));
         Money capacity = calculateDailyCapacity();
-        return capacity.isLessThan(demand) ? capacity : demand;
+        Money sales = capacity.isLessThan(demand) ? capacity : demand;
+        if (supplyChainCrisisActive && getSectorModel().equals("ENERGY")) sales = sales.multiply(new BigDecimal("1.10"));
+        return sales;
     }
 
     public Money calculateDailyRevenue() {
@@ -221,6 +231,7 @@ public final class OperatingCompany {
         obj.put("workHours", workHours);
         obj.put("benefitTier", benefitTier.name());
         obj.put("morale", morale);
+        obj.put("supplyChainCrisisActive", supplyChainCrisisActive);
         obj.put("sectorModel", getSectorModel());
         obj.put("payrollArrears", payrollArrears.getAmount().toPlainString());
         obj.put("lastOperationsDay", lastOperationsDay);
@@ -264,6 +275,7 @@ public final class OperatingCompany {
         comp.setWorkPolicy(obj.optInt("workHours", 8),
                 BenefitTier.valueOf(obj.optString("benefitTier", BenefitTier.STANDARD.name())));
         comp.morale = Math.max(0, Math.min(100, obj.optInt("morale", 75)));
+        comp.supplyChainCrisisActive = obj.optBoolean("supplyChainCrisisActive", false);
         comp.payrollArrears = new Money(new BigDecimal(obj.optString("payrollArrears", "0")), Currency.IDR);
         if (comp.payrollArrears.isNegative()) throw new IllegalArgumentException("Tunggakan gaji tidak boleh negatif");
         comp.lastOperationsDay = obj.optLong("lastOperationsDay", Long.MIN_VALUE);

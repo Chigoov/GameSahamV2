@@ -51,18 +51,13 @@ with sync_playwright() as p:
 
     tab('beranda')
     call('setClockState',False,1)
-    page.wait_for_timeout(1300)
-    assert 'Dijeda' in page.locator('#home-clock-state').inner_text()
-    stopped=page.locator('#clock-display').inner_text()
-    page.wait_for_timeout(400)
-    assert page.locator('#clock-display').inner_text()==stopped
-    page.screenshot(path=str(out/'paused-clock.png'))
-    call('setClockState',True,1)
+    assert not call('getSnapshot')['clock']['isPaused']
+    assert page.locator('#home-clock-state, #btn-briefing, .session-card').count() == 0
+    before=page.locator('#clock-display').inner_text()
     page.wait_for_timeout(1400)
-    assert 'Berjalan otomatis' in page.locator('#home-clock-state').inner_text()
-    assert page.locator('#clock-display').inner_text()!=stopped
-    call('setClockState',False,1)
-    passed('Jam pause dan berjalan', 'Label dan interpolasi mengikuti snapshot Java, tanpa mengubah rasio waktu domain')
+    assert page.locator('#clock-display').inner_text()!=before
+    page.screenshot(path=str(out/'automatic-clock.png'))
+    passed('Waktu otomatis', 'Permintaan pause lama tidak menghentikan dunia; kartu sesi dihapus')
 
     page.locator('.nav-item[data-tab=riset]').click(); page.locator('#view-riset').get_by_role('button',name='Profil Saya',exact=True).click()
     assert page.locator('.flow-page').get_attribute('aria-label') == 'Profil Saya'
@@ -180,7 +175,7 @@ with sync_playwright() as p:
     assert page.evaluate('getComputedStyle(document.documentElement).fontSize') == '16px'
     passed('Save, load dan ukuran teks menu', 'Save/load Java terkonfirmasi; dua tombol ukuran mengubah font sebenarnya')
     back()
-    for action in ['Buka Briefing Pasar','Buka Menu Pasar','Buka Tiket Order Saham','Periksa Portofolio & Risiko','Buka Evaluasi Karir & Misi']:
+    for action in ['Buka Pasar','Buka Menu Pasar','Buka Tiket Order Saham','Periksa Portofolio & Risiko','Buka Evaluasi Karir & Misi']:
         page.locator('#btn-settings').click()
         page.get_by_role('button',name='Panduan tutorial interaktif',exact=True).click()
         page.get_by_role('button',name=action,exact=True).click()

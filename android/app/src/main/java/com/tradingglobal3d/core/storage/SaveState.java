@@ -174,7 +174,7 @@ public final class SaveState {
         }
         root.put("ledger", ledgerArray);
 
-        return root.toString(2);
+        return root.toString();
     }
 
     public static SaveState fromJsonString(String jsonStr) throws JSONException {

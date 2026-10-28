@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.UUID;
+import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -118,5 +119,62 @@ public class HoldingAndCustomFundsTahapS2Test {
             }
         }
         assertTrue("Kas anak usaha holding harus terverifikasi 35jt", verifiedCash);
+    }
+
+    @Test
+    public void diversifiedHoldingTransfersCapitalBetweenItsSubsidiariesWithoutExchangeTax() throws Exception {
+        facade.foundCompany("H-FIN", "Holding Finansial", "JASA", Money.of(25_000_000, Currency.IDR));
+        facade.foundCompany("H-ENE", "Holding Energi", "MANUFAKTUR", Money.of(25_000_000, Currency.IDR));
+        facade.foundCompany("H-CONS", "Holding Konsumer", "RITEL", Money.of(25_000_000, Currency.IDR));
+        facade.foundCompany("H-TECH", "Holding Teknologi", "JASA", Money.of(25_000_000, Currency.IDR));
+
+        JSONArray sectors = new JSONArray()
+                .put(new JSONObject().put("sector", "FINANCIAL").put("companyId", "H-FIN"))
+                .put(new JSONObject().put("sector", "ENERGY").put("companyId", "H-ENE"))
+                .put(new JSONObject().put("sector", "CONSUMER").put("companyId", "H-CONS"))
+                .put(new JSONObject().put("sector", "TECHNOLOGY").put("companyId", "H-TECH"));
+        JSONObject holding = facade.createHoldingCompany("HOLDING-01", "Nusantara Konglomerasi", sectors);
+        assertEquals(4, holding.getJSONArray("subsidiaries").length());
+
+        Money sourceBefore = facade.getAccount("ACC-H-FIN").getAvailableCash(Currency.IDR);
+        Money targetBefore = facade.getAccount("ACC-H-ENE").getAvailableCash(Currency.IDR);
+        int ledgerBefore = facade.getLedger().getEntries().size();
+        facade.transferHoldingCapital("HOLDING-TRANSFER-001", "HOLDING-01", "H-FIN", "H-ENE",
+                Money.of(5_000_000, Currency.IDR), "DIVIDEND");
+        assertEquals(sourceBefore.subtract(Money.of(5_000_000, Currency.IDR)),
+                facade.getAccount("ACC-H-FIN").getAvailableCash(Currency.IDR));
+        assertEquals(targetBefore.add(Money.of(5_000_000, Currency.IDR)),
+                facade.getAccount("ACC-H-ENE").getAvailableCash(Currency.IDR));
+        List<com.tradingglobal3d.core.economy.LedgerEntry> entries = facade.getLedger().getEntries();
+        assertEquals(ledgerBefore + 2, entries.size());
+        assertTrue(entries.get(entries.size() - 1).getDescription().contains("tanpa pajak bursa"));
+        assertTrue(entries.get(entries.size() - 2).getDescription().contains("tanpa pajak bursa"));
+        facade.transferHoldingCapital("HOLDING-TRANSFER-001", "HOLDING-01", "H-FIN", "H-ENE",
+                Money.of(5_000_000, Currency.IDR), "DIVIDEND");
+        assertEquals("Retry transfer tidak boleh menggandakan ledger", ledgerBefore + 2,
+                facade.getLedger().getEntries().size());
+        facade.save();
+        TradingFacade restored = new TradingFacade(SaveManager.forDirectory(testDir));
+        restored.setCatalog(facade.getCatalog());
+        assertTrue(restored.load());
+        assertEquals(1, restored.getHoldingCompaniesJson().length());
+        assertEquals(4, restored.getHoldingCompaniesJson().getJSONObject(0).getJSONArray("subsidiaries").length());
+        int restoredLedgerSize = restored.getLedger().getEntries().size();
+        restored.transferHoldingCapital("HOLDING-TRANSFER-001", "HOLDING-01", "H-FIN", "H-ENE",
+                Money.of(5_000_000, Currency.IDR), "DIVIDEND");
+        assertEquals(restoredLedgerSize, restored.getLedger().getEntries().size());
+    }
+
+    @Test
+    public void customMutualFundsSurviveSaveAndLoad() throws Exception {
+        facade.createCustomMutualFund("Fund Persistensi", 40, 30, 20, 10, BigDecimal.valueOf(50_000_000));
+        facade.save();
+
+        TradingFacade restored = new TradingFacade(SaveManager.forDirectory(testDir));
+        restored.setCatalog(facade.getCatalog());
+        assertTrue(restored.load());
+        JSONArray funds = restored.getCustomMutualFundsJson();
+        assertEquals(1, funds.length());
+        assertEquals("Fund Persistensi", funds.getJSONObject(0).getString("fundName"));
     }
 }

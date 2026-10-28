@@ -145,6 +145,9 @@ public final class CollectibleItem {
             throw new IllegalStateException("Agunan hanya dilepas setelah seluruh kewajiban lunas");
         pledgedLoanId = null;
     }
+    public void releasePledgeMigration() {
+        pledgedLoanId = null;
+    }
     public String getOwnerAccountId() { return ownerAccountId; }
     public Money getMaintenanceArrears() { return maintenanceArrears; }
     public long getLastMaintenanceDay() { return lastMaintenanceDay; }

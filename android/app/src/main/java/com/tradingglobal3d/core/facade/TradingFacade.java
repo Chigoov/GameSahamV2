@@ -67,7 +67,7 @@ public final class TradingFacade {
     private com.tradingglobal3d.core.career.PerformancePeriod weeklyPerformance;
     private com.tradingglobal3d.core.career.PerformancePeriod runPerformance;
     private JSONArray performanceHistory = new JSONArray();
-    private static final String RULES_VERSION = "2026.10.20.2";
+    private static final String RULES_VERSION = "2026.10.24.24x";
     private boolean recoveryRequired;
 
     public synchronized boolean startOrResume() {
@@ -75,17 +75,28 @@ public final class TradingFacade {
             boolean loaded = load();
             recoveryRequired = !loaded;
             if (loaded) {
-                long now = System.currentTimeMillis();
-                if (lastRealTimeAnchor > 0 && now > lastRealTimeAnchor) {
-                    reconcileOfflineElapsed(now - lastRealTimeAnchor);
-                }
-                this.lastRealTimeAnchor = System.currentTimeMillis();
-                if (clock != null) clock.setForeground(true);
+                resumeWorld();
             }
             return loaded;
         }
         initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(50_000_000));
+        persistFinancialMutation();
         return true;
+    }
+
+    private void resumeWorld() {
+        long now = realTimeClock.millis();
+        if (lastRealTimeAnchor > 0 && now > lastRealTimeAnchor) reconcileOfflineElapsed(now - lastRealTimeAnchor);
+        this.lastRealTimeAnchor = Math.max(lastRealTimeAnchor, now);
+        installmentLoanManager.processRealTimeAccrual(now);
+        clock.setForeground(true);
+        persistFinancialMutation();
+    }
+
+    private void saveBeforeModeSwitch() throws IOException, JSONException {
+        boolean foreground = clock.isForeground();
+        try { onAppLifecycleChanged(false); save(); }
+        finally { clock.setForeground(foreground); }
     }
     private GameClock clock;
     private long lastRealTimeAnchor = System.currentTimeMillis();
@@ -190,19 +201,20 @@ public final class TradingFacade {
             report.put("startingNetWorth", startNetWorth.format());
             report.put("endingNetWorth", endNetWorth.format());
             report.put("pnl", endNetWorth.subtract(startNetWorth).format());
-            report.put("timestamp", System.currentTimeMillis());
+            report.put("timestamp", realTimeClock.millis());
         } catch (JSONException ignored) {}
         this.lastOfflineCatchupReport = report;
-        this.lastRealTimeAnchor = System.currentTimeMillis();
+        this.lastRealTimeAnchor = Math.max(lastRealTimeAnchor, realTimeClock.millis());
         return report;
     }
 
     public synchronized JSONObject onAppLifecycleChanged(boolean foreground) {
-        if (clock == null) return null;
-        long now = System.currentTimeMillis();
+        if (clock == null || foreground == clock.isForeground()) return null;
+        long now = realTimeClock.millis();
         JSONObject result = null;
         if (!foreground) {
-            this.lastRealTimeAnchor = now;
+            if (now > lastRealTimeAnchor) advanceRealMs(now - lastRealTimeAnchor, true);
+            this.lastRealTimeAnchor = Math.max(lastRealTimeAnchor, now);
             clock.setForeground(false);
             try {
                 save();
@@ -211,7 +223,7 @@ public final class TradingFacade {
             if (!clock.isForeground() && lastRealTimeAnchor > 0 && now > lastRealTimeAnchor) {
                 result = reconcileOfflineElapsed(now - lastRealTimeAnchor);
             }
-            this.lastRealTimeAnchor = now;
+            this.lastRealTimeAnchor = Math.max(lastRealTimeAnchor, now);
             clock.setForeground(true);
         }
         return result;
@@ -271,6 +283,30 @@ public final class TradingFacade {
         if (compAccount == null) throw new IllegalStateException("Akun perusahaan belum tersedia");
         long now = clock != null ? clock.getGameTimestamp() : System.currentTimeMillis();
         companyManager.transferCapital(companyId, toCompany, personal, compAccount, amount, ledger, now);
+    }
+
+    public synchronized JSONObject createHoldingCompany(String holdingId, String holdingName, JSONArray subsidiaries)
+            throws JSONException {
+        JSONObject holding = companyManager.createHoldingCompany(holdingId, holdingName, subsidiaries);
+        persistFinancialMutation();
+        return holding;
+    }
+
+    public synchronized JSONObject transferHoldingCapital(String holdingId, String fromCompanyId, String toCompanyId,
+            Money amount, String transferType) throws JSONException {
+        return transferHoldingCapital(UUID.randomUUID().toString(), holdingId, fromCompanyId, toCompanyId, amount, transferType);
+    }
+
+    public synchronized JSONObject transferHoldingCapital(String requestId, String holdingId, String fromCompanyId,
+            String toCompanyId, Money amount, String transferType) throws JSONException {
+        JSONObject receipt = companyManager.transferHoldingCapital(holdingId, fromCompanyId, toCompanyId, amount,
+                transferType, accounts, ledger, clock.getGameTimestamp(), requestId);
+        persistFinancialMutation();
+        return receipt;
+    }
+
+    public synchronized JSONArray getHoldingCompaniesJson() throws JSONException {
+        return companyManager.getHoldingCompaniesJson();
     }
 
     public synchronized JSONObject getCompaniesJson() throws JSONException {
@@ -356,11 +392,17 @@ public final class TradingFacade {
     }
 
     public synchronized JSONObject transactCollection(String requestId, String itemId, boolean buy) throws JSONException {
+        return transactCollection(requestId, itemId, buy, null);
+    }
+
+    public synchronized JSONObject transactCollection(String requestId, String itemId, boolean buy, BigDecimal expectedPrice) throws JSONException {
         Account personal = getPersonalAccount();
         if (personal == null) throw new IllegalStateException("Permainan belum siap");
-        JSONObject receipt = buy ? collectionManager.buyItem(requestId, itemId, personal, ledger, careerManager, clock.getGameTimestamp())
-                : collectionManager.sellItem(requestId, itemId, personal, ledger, careerManager, clock.getGameTimestamp());
-        persistFinancialMutation();
+        JSONObject receipt = buy ? collectionManager.buyItem(requestId, itemId, personal, ledger, careerManager, clock.getGameTimestamp(), expectedPrice)
+                : collectionManager.sellItem(requestId, itemId, personal, ledger, careerManager, clock.getGameTimestamp(), expectedPrice);
+        if (receipt.optBoolean("success", false)) {
+            persistFinancialMutation();
+        }
         return receipt;
     }
 
@@ -442,10 +484,66 @@ public final class TradingFacade {
         }
         Account personal = getPersonalAccount();
         if (personal == null) throw new IllegalStateException("Akun pribadi belum tersedia");
+        JSONObject capacity = getFirmAumCapacityJson();
         return new JSONObject().put("success", true).put("aumIdr", aum.format())
                 .put("personalCashIdr", personal.getTotalCash(Currency.IDR).format()).put("activeClientCount", activeClients)
+                .put("aumCapacityIdr", capacity.getString("capacityIdr"))
+                .put("aumCapacityUtilizationPct", capacity.getDouble("utilizationPct"))
+                .put("aumScaleBonusPct", capacity.getDouble("scaleBonusPercent"))
                 .put("valuationRateUsdIdr", fxService.getMidRate().toPlainString()).put("timestamp", System.currentTimeMillis())
                 .put("parametersProvisional", true).put("mandates", mandates);
+    }
+
+    /**
+     * ponytail: baseline capacity is the sum of the current mandate contracts' initial deposits;
+     * the SCALE tech node increases that existing, contract-derived baseline by 50%.
+     */
+    public synchronized JSONObject getFirmAumCapacityJson() throws JSONException {
+        BigDecimal rate = fxService.getMidRate();
+        BigDecimal base = BigDecimal.ZERO;
+        for (ClientMandate mandate : firmManager.getAllMandates()) {
+            if (mandate.getStatus() == ClientMandate.MandateStatus.TERMINATED) continue;
+            Money deposit = mandate.getInitialDeposit();
+            base = base.add(deposit.getCurrency() == Currency.IDR ? deposit.getAmount() : deposit.getAmount().multiply(rate));
+        }
+        double scaleBonus = 0.0;
+        for (com.tradingglobal3d.core.research.ResearchTechTreeService.TechNode node : researchTechTreeService.getAllNodes())
+            if (node.isUnlocked() && "AUM_CAPACITY_BOOST".equals(node.getStatBonusType())) scaleBonus += node.getStatBonusValue();
+        BigDecimal capacity = base.multiply(BigDecimal.ONE.add(BigDecimal.valueOf(scaleBonus).movePointLeft(2)));
+        Money currentAum = getCurrentClientAumIdr();
+        double utilization = capacity.signum() > 0
+                ? currentAum.getAmount().multiply(BigDecimal.valueOf(100)).divide(capacity, 4, java.math.RoundingMode.HALF_UP).doubleValue()
+                : 0.0;
+        return new JSONObject().put("baseCapacityIdr", new Money(base, Currency.IDR).format())
+                .put("baseCapacityIdrRaw", base.toPlainString()).put("scaleBonusPercent", scaleBonus)
+                .put("capacityIdr", new Money(capacity, Currency.IDR).format()).put("capacityIdrRaw", capacity.toPlainString())
+                .put("currentAumIdr", currentAum.format()).put("currentAumIdrRaw", currentAum.getAmount().toPlainString())
+                .put("remainingCapacityIdr", new Money(capacity.subtract(currentAum.getAmount()).max(BigDecimal.ZERO), Currency.IDR).format())
+                .put("utilizationPct", utilization);
+    }
+
+    private Money getCurrentClientAumIdr() {
+        Money aum = Money.zero(Currency.IDR);
+        for (ClientMandate mandate : firmManager.getActiveMandates()) {
+            Account account = accounts.get(mandate.getClientAccountId());
+            if (account != null) aum = aum.add(account.getTotalPortfolioValue(Currency.IDR, fxService.getMidRate()));
+        }
+        return aum;
+    }
+
+    private void ensureAumCapacity(Money incoming) {
+        if (incoming == null || !incoming.isPositive()) throw new IllegalArgumentException("Setoran AUM harus positif");
+        BigDecimal amountIdr = incoming.getCurrency() == Currency.IDR
+                ? incoming.getAmount() : incoming.getAmount().multiply(fxService.getMidRate());
+        try {
+            JSONObject capacity = getFirmAumCapacityJson();
+            BigDecimal used = new BigDecimal(capacity.getString("currentAumIdrRaw"));
+            BigDecimal maximum = new BigDecimal(capacity.getString("capacityIdrRaw"));
+            if (used.add(amountIdr).compareTo(maximum) > 0)
+                throw new IllegalStateException("Setoran melampaui kapasitas AUM firma; naikkan kapasitas melalui Pohon Riset Skala.");
+        } catch (JSONException invalidCapacity) {
+            throw new IllegalStateException("Kapasitas AUM firma tidak dapat divalidasi", invalidCapacity);
+        }
     }
 
     public synchronized CareerManager getCareerManager() {
@@ -470,6 +568,7 @@ public final class TradingFacade {
 
     public synchronized void setCatalog(InstrumentCatalog catalog) {
         this.catalog = Objects.requireNonNull(catalog);
+        corporateService.bindShareSupplyCatalog(catalog);
         try { initialCatalogState = catalog.exportState(); }
         catch (JSONException error) { throw new IllegalArgumentException("Katalog tidak dapat disiapkan", error); }
         Account mm = accounts.get("ACC-NPC-MM-01");
@@ -519,17 +618,22 @@ public final class TradingFacade {
         this.companyManager.reset();
         this.collectionManager.reset();
         this.lastOfflineCatchupReport = null;
-        this.lastRealTimeAnchor = System.currentTimeMillis();
+        this.lastRealTimeAnchor = realTimeClock.millis();
         this.mutualFundManager.reset();
         this.installmentLoanManager.reset();
         this.timeDepositManager.reset();
+        this.portfolioInsuranceService.reset();
+        this.researchTechTreeService.reset();
+        this.headhuntingService.reset();
+        this.dailyStreakService.reset();
+        this.customMutualFunds.clear();
         this.periodicMissionManager.reset();
         this.leagueManager.reset();
         this.playerProfileManager.reset();
         if (this.clock != null) {
             this.periodicMissionManager.updateCalendar(this.clock.getCurrentDate(), careerManager.getCurrentRank());
         }
-        this.researchService.resetForGame(clock.getGameTimestamp());
+        this.researchService.resetForGame(clock.getGameTimestamp(), realTimeClock.millis());
         if (initialCatalogState != null) {
             try {
                 if (catalog != null) {
@@ -601,6 +705,7 @@ public final class TradingFacade {
 
         // Registrasi pool accounts reksa dana schema3
         mutualFundManager.registerPoolAccounts(accounts, ledger, clock.getGameTimestamp());
+        mutualFundManager.bindAccounts(accounts, catalog);
         leagueManager.bindMarket(accounts, ledger, catalog, clock.getGameTimestamp());
         multiAssetTrading.initializeDealer(accounts.get("ACC-NPC-MM-01"));
         collectionManager.updateValuations(clock.getGameTimestamp());
@@ -627,7 +732,7 @@ public final class TradingFacade {
             throw new IllegalStateException("Dataset replay kosong: " + ds);
         }
 
-        try { if (clock != null && getPersonalAccount() != null) save(); }
+        try { if (clock != null && getPersonalAccount() != null) saveBeforeModeSwitch(); }
         catch (IOException | JSONException error) { throw new IllegalStateException("Simpan progres aktif sebelum membuka replay", error); }
         saveManager = new SaveManager(primarySaveManager.getSaveFile().getParentFile(), "save_replay_v2.json");
         initializeNewGame(GameMode.HISTORICAL_REPLAY, initialCapital != null ? initialCapital : BigDecimal.valueOf(50_000_000), new GameClock(bars.get(0).getDate(), LocalTime.of(9, 0)));
@@ -682,14 +787,15 @@ public final class TradingFacade {
             baseIds.add(initialCatalogState.getJSONArray("instruments").getJSONObject(i).getString("id"));
         for (Instrument source : catalog.getAllInstruments()) if (baseIds.isEmpty() || baseIds.contains(source.getId())) detached.registerInstrument(new Instrument(source.getId(), source.getTicker(),
                 source.getName(), source.getExchange(), source.getSector(), source.getCurrency(), source.getLotSize(),
-                source.getSharesOutstanding(), source.isActiveTrading(), source.getCurrentPrice()));
+                source.getCatalogIssuedShares(), source.isActiveTrading(), source.getCurrentPrice()));
         staged.setCatalog(detached);
         if (!staged.load() || staged.getGameMode() != selected)
             throw new IllegalStateException("Progres mode tidak dapat divalidasi; permainan aktif dipertahankan");
-        save();
+        saveBeforeModeSwitch();
         SaveManager previous = saveManager;
         saveManager = target;
         if (!load()) { saveManager = previous; throw new IllegalStateException("Progres mode tidak dapat divalidasi"); }
+        resumeWorld();
         return new JSONObject(getSnapshotJson()).put("success", true);
     }
 
@@ -702,12 +808,14 @@ public final class TradingFacade {
 
     public synchronized String setClockState(boolean playing, int speed) throws JSONException {
         if (clock == null || recoveryRequired) throw new IllegalStateException("Permainan belum dapat dijalankan");
-        clock.setSpeedMultiplier(speed);
-        if (playing) clock.play(); else clock.pause();
+        clock.setSpeedMultiplier(1);
+        // Legacy controls cannot change the automatic world's tempo.
+        clock.play();
         return getSnapshotJson();
     }
 
     public synchronized GameMode getGameMode() { return gameMode; }
+    public synchronized boolean isRecoveryRequired() { return recoveryRequired; }
     public synchronized GameClock getClock() { return clock; }
     public synchronized EconomyLedger getLedger() { return ledger; }
     public synchronized SaveManager getSaveManager() { return saveManager; }
@@ -744,6 +852,10 @@ public final class TradingFacade {
         return clientAcc;
     }
 
+    public synchronized void registerAccount(Account account) {
+        if (account != null) accounts.put(account.getId(), account);
+    }
+
     public synchronized LedgerEntry deposit(String requestId, String accountId, Money amount, String description) {
         Account acc = accounts.get(accountId);
         if (acc == null) throw new IllegalArgumentException("Akun tidak ditemukan: " + accountId);
@@ -754,6 +866,72 @@ public final class TradingFacade {
         Account acc = accounts.get(accountId);
         if (acc == null) throw new IllegalArgumentException("Akun tidak ditemukan: " + accountId);
         return ledger.recordMutation(requestId, acc, LedgerEntryType.WITHDRAWAL, amount, false, clock.getGameTimestamp(), description);
+    }
+
+    public synchronized long getCommittedShares(String accountId, String instrumentId) {
+        if (!accounts.containsKey(accountId)) throw new IllegalArgumentException("Akun tidak ditemukan: " + accountId);
+        requireInstrument(instrumentId);
+        long committed = corporateService.reservedCorporateShares(accountId, instrumentId);
+        for (Order order : orderManager.getOrdersForAccount(accountId))
+            if (order.isSell() && order.getStatus() == OrderStatus.PENDING_TRIGGER
+                    && instrumentId.equals(order.getInstrumentId()))
+                committed = Math.addExact(committed, order.getRemainingQuantity());
+        OrderBook book = marketEngine.getBook(instrumentId);
+        if (book != null) for (Queue<Order> level : book.getAsks().values()) for (Order order : level)
+            if (order.isSell() && !order.getStatus().isFinal() && accountId.equals(order.getAccountId()))
+                committed = Math.addExact(committed, order.getRemainingQuantity());
+        return committed;
+    }
+
+    public synchronized JSONObject getOrderCapacity(String accountId, String instrumentId, String sideName,
+                                                     String typeName, String priceText) throws JSONException {
+        Account account = accounts.get(accountId);
+        Instrument instrument = requireInstrument(instrumentId);
+        if (account == null || (account.getType() != AccountType.PERSONAL && account.getType() != AccountType.CLIENT))
+            throw new IllegalArgumentException("Akun transaksi tidak tersedia");
+        OrderSide side = OrderSide.valueOf(sideName);
+        OrderType type = OrderType.valueOf(typeName);
+        long lot = instrument.getLotSize();
+        BigDecimal price = type == OrderType.LIMIT ? new BigDecimal(priceText) : instrument.getCurrentPrice().getAmount();
+        if (price.signum() <= 0 || lot <= 0) throw new IllegalArgumentException("Harga atau ukuran lot tidak tersedia");
+        Order sample = new Order("CAPACITY", "CAPACITY", accountId, instrumentId, side, type,
+                type == OrderType.LIMIT ? new Money(price, instrument.getCurrency()) : null,
+                type == OrderType.STOP_LOSS || type == OrderType.TAKE_PROFIT ? new Money(new BigDecimal(priceText), instrument.getCurrency()) : null,
+                lot, clock.getGameTimestamp(), null);
+        applySectorFeeDiscount(sample, account, instrument);
+        Money cash = account.getAvailableCash(instrument.getCurrency());
+        Position position = account.getPosition(instrumentId);
+        long held = position == null ? 0 : Math.max(0, position.getQuantity());
+        long committed = getCommittedShares(accountId, instrumentId);
+        OrderBook book = marketEngine.getOrCreateBook(instrument);
+        long availableShares = Math.max(0, held - committed), maxLots;
+        if (side == OrderSide.SELL) maxLots = availableShares / lot;
+        else {
+            BigDecimal unit = price.multiply(BigDecimal.valueOf(lot));
+            BigDecimal fee = unit.multiply(sample.getEffectiveFeeRate(MatchingEngine.BUY_FEE_RATE))
+                    .setScale(instrument.getCurrency().getDecimalPlaces(), java.math.RoundingMode.CEILING);
+            maxLots = cash.getAmount().divide(unit.add(fee), 0, java.math.RoundingMode.DOWN).min(BigDecimal.valueOf(Long.MAX_VALUE / lot)).longValueExact();
+            if (type == OrderType.MARKET) {
+                long liquidity = 0;
+                for (Queue<Order> level : book.getAsks().values()) for (Order order : level)
+                    if (!order.getStatus().isFinal() && !accountId.equals(order.getAccountId())) liquidity = Math.addExact(liquidity, order.getRemainingQuantity());
+                long low = 0, high = Math.min(maxLots, liquidity / lot);
+                while (low < high) {
+                    long middle = low + (high - low + 1) / 2;
+                    Order candidate = new Order("CAPACITY", "CAPACITY", accountId, instrumentId, side, type, null, null,
+                            middle * lot, clock.getGameTimestamp(), null);
+                    candidate.setFeeDiscountPercent(sample.getFeeDiscountPercent());
+                    JSONObject quote = marketEngine.getMatchingEngine().previewOrder(candidate, account, instrument, book, clock.getGameTimestamp());
+                    if (quote.optBoolean("success") && quote.optLong("estimatedFillQuantity") == middle * lot) low = middle;
+                    else high = middle - 1;
+                }
+                maxLots = low;
+            }
+        }
+        return new JSONObject().put("success", true).put("accountId", accountId).put("instrumentId", instrumentId)
+                .put("lotSize", lot).put("currency", instrument.getCurrency().name()).put("maxLots", maxLots)
+                .put("availableShares", availableShares).put("availableCashRaw", cash.getAmount().toPlainString())
+                .put("asOf", clock.getGameTimestamp());
     }
 
     public synchronized JSONObject previewOrder(Order order) throws JSONException {
@@ -771,6 +949,7 @@ public final class TradingFacade {
                 }
             }
         }
+        applySectorFeeDiscount(order, account, instrument);
         JSONObject preview = marketEngine.getMatchingEngine().previewOrder(order, account, instrument,
                 marketEngine.getOrCreateBook(instrument), clock.getGameTimestamp());
         return preview.put("mode", gameMode.getDisplayName());
@@ -802,6 +981,19 @@ public final class TradingFacade {
     public synchronized boolean isSectorUnlocked(String sector, com.tradingglobal3d.core.market.MarketExchange exchange) {
         int playerLevel = progressManager != null ? progressManager.getCurrentLevel() : 1;
         return playerLevel >= getRequiredLevelForSector(sector, exchange);
+    }
+
+    private void applySectorFeeDiscount(Order order, Account account, Instrument instrument) {
+        if (account.getType() != AccountType.PERSONAL) {
+            order.setFeeDiscountPercent(0.0);
+            return;
+        }
+        com.tradingglobal3d.core.market.SectorDominanceService.SectorStatus status = sectorDominanceService
+                .evaluateDominance(account, catalog, fxService.getMidRate()).get(instrument.getSector());
+        double discount = status != null && status.isDominant() ? status.getFeeDiscountPct() : 0.0;
+        for (com.tradingglobal3d.core.research.ResearchTechTreeService.TechNode node : researchTechTreeService.getAllNodes())
+            if (node.isUnlocked() && "BROKER_FEE_REDUCTION".equals(node.getStatBonusType())) discount += node.getStatBonusValue();
+        order.setFeeDiscountPercent(Math.min(100.0, discount));
     }
 
     public synchronized MatchingEngine.OrderResult submitOrder(Order order) {
@@ -843,11 +1035,16 @@ public final class TradingFacade {
         }
         if (order.isSell()) {
             Position position = acc.getPosition(inst.getId());
-            long reserved = corporateService.reservedCorporateShares(acc.getId(), inst.getId());
-            if (position != null && position.getQuantity() - reserved < order.getTotalQuantity())
-                throw new IllegalStateException("Saham telah direservasi untuk aksi korporasi");
+            long committed = getCommittedShares(acc.getId(), inst.getId());
+            if (position != null && position.getQuantity() - committed < order.getTotalQuantity()) {
+                order.setStatus(OrderStatus.REJECTED);
+                orderManager.registerOrder(order);
+                return new MatchingEngine.OrderResult(order, false,
+                        "Saham telah direservasi oleh aksi korporasi atau order jual aktif", Collections.emptyList());
+            }
         }
 
+        applySectorFeeDiscount(order, acc, inst);
         String validationError = MatchingEngine.validateOrder(order, acc, inst);
         if (validationError != null) {
             order.setStatus(OrderStatus.REJECTED);
@@ -907,6 +1104,7 @@ public final class TradingFacade {
             if (existing == null) throw new IllegalStateException("Akun mandat aktif tidak ditemukan; perlu pemulihan");
             return existing;
         }
+        ensureAumCapacity(mandate.getInitialDeposit());
         Account clientAcc = createClientAccount(mandate.getClientName(), mandate.getId(), mandate.getInitialDeposit());
         mandate.setClientAccountId(clientAcc.getId());
         progressManager.onMandateAccepted(clock.getGameTimestamp());
@@ -929,8 +1127,10 @@ public final class TradingFacade {
         if (mandate == null || mandate.getClientAccountId() == null) {
             throw new IllegalArgumentException("Mandat aktif tidak ditemukan: " + mandateId);
         }
+        ensureAumCapacity(amount);
         Account clientAcc = accounts.get(mandate.getClientAccountId());
         firmManager.processClientDeposit(mandate, clientAcc, amount, ledger, clock.getGameTimestamp());
+        persistFinancialMutation();
     }
 
     public synchronized boolean clientWithdraw(String mandateId, Money amount) {
@@ -998,6 +1198,25 @@ public final class TradingFacade {
         if (acc == null) return false;
         if (orderManager.cancelPendingTrigger(order.getRequestId())) return true;
         return marketEngine.cancelOrder(order, acc);
+    }
+
+    public synchronized int expireDayOrders() {
+        int count = 0;
+        for (Order order : orderManager.getAllOrders()) {
+            if (!order.getStatus().isFinal()) {
+                Account account = accounts.get(order.getAccountId());
+                if (account != null) {
+                    if (order.getStatus() == OrderStatus.PENDING_TRIGGER) {
+                        orderManager.cancelPendingTrigger(order.getRequestId());
+                        order.setStatus(OrderStatus.EXPIRED);
+                        count++;
+                    } else if (marketEngine.expireOrder(order, account)) {
+                        count++;
+                    }
+                }
+            }
+        }
+        return count;
     }
 
     private int lastEvaluatedPersonalLedgerSize = 0;
@@ -1109,7 +1328,7 @@ public final class TradingFacade {
 
     public synchronized String getNewsFeedJson() {
         try {
-            return researchService.getNewsFeed(clock.getGameTimestamp()).toString();
+            return researchService.getNewsFeed(clock.getGameTimestamp(), Math.max(lastRealTimeAnchor, realTimeClock.millis())).toString();
         } catch (Exception e) {
             return "[]";
         }
@@ -1447,6 +1666,9 @@ public final class TradingFacade {
             if (existing.getDate().equals(clock.getCurrentDate())) return existing;
         long now = clock.getGameTimestamp();
 
+        // Batalkan/kedaluwarsa sisa antrean order harian yang belum match
+        expireDayOrders();
+
         // 1. Bebankan biaya pembiayaan harian (short borrow fee & bunga pinjaman margin)
         riskService.accrueDailyFinancingCosts(personal, catalog, ledger, fxService.getMidRate(), now);
 
@@ -1474,6 +1696,7 @@ public final class TradingFacade {
         mutualFundManager.advanceDay(0.0, ledger, now);
 
         // Akrual bunga dan penalti harian pinjaman tenor
+        installmentLoanManager.processRealTimeAccrual(realTimeClock.millis());
         installmentLoanManager.processDailyAccrual(now);
 
         DailySessionReport report = careerManager.closeDayAndAdvance(
@@ -1576,10 +1799,10 @@ public final class TradingFacade {
 
     public synchronized boolean tick(int realSeconds) {
         if (realSeconds < 0) throw new IllegalArgumentException("Waktu tidak boleh negatif");
-        if (clock == null || clock.isPaused() || realSeconds == 0) return false;
+        if (clock == null || !clock.isForeground() || clock.isPaused() || realSeconds == 0) return false;
         try {
             long gameSeconds = clock.advanceRealMs(realSeconds * 1000L, true);
-            this.lastRealTimeAnchor = System.currentTimeMillis();
+            this.lastRealTimeAnchor = Math.max(lastRealTimeAnchor, realTimeClock.millis());
             if (gameSeconds <= 0) return false;
             return advanceWorldSeconds(gameSeconds);
         } catch (RuntimeException error) {
@@ -1588,13 +1811,19 @@ public final class TradingFacade {
         }
     }
 
+    public synchronized boolean syncClock() {
+        long now = realTimeClock.millis();
+        if (clock == null || now <= lastRealTimeAnchor) return false;
+        return advanceRealMs(now - lastRealTimeAnchor, clock.isForeground());
+    }
+
     public synchronized boolean advanceRealMs(long realMs, boolean isForeground) {
         if (realMs < 0) throw new IllegalArgumentException("Waktu tidak boleh negatif");
         if (clock == null || realMs == 0) return false;
         if (isForeground && clock.isPaused()) return false;
         try {
             long gameSeconds = clock.advanceRealMs(realMs, isForeground);
-            this.lastRealTimeAnchor = System.currentTimeMillis();
+            this.lastRealTimeAnchor = Math.max(lastRealTimeAnchor, realTimeClock.millis());
             if (gameSeconds <= 0) return false;
             return advanceWorldSeconds(gameSeconds);
         } catch (RuntimeException error) {
@@ -1604,9 +1833,9 @@ public final class TradingFacade {
     }
 
     private boolean advanceWorldSeconds(long remaining) {
-        // ponytail: economy runs on absolute minute boundaries; sub-minute events need an explicit event boundary here.
+        // Lifecycle cannot change event boundaries or trigger outcomes.
         LocalDate initialDate = clock.getCurrentDate();
-        boolean isFastForward = !clock.isForeground() || remaining >= 86400L;
+        long realEnd = Math.max(lastRealTimeAnchor, realTimeClock.millis());
 
         while (remaining > 0) {
             if (gameMode == GameMode.HISTORICAL_REPLAY && replayEngine.isReplayCompleted(clock.getCurrentDate(), clock.getCurrentTime())) {
@@ -1614,19 +1843,9 @@ public final class TradingFacade {
             }
             long midnight = 86400 - clock.getCurrentTime().toSecondOfDay();
             long step;
-            if (isFastForward) {
-                int currentSec = clock.getCurrentTime().toSecondOfDay();
-                long secondsToNextEvent;
-                if (currentSec < 57600) { // 16:00:00 cutoff reksa dana
-                    secondsToNextEvent = 57600 - currentSec;
-                } else { // 24:00:00 midnight settlement
-                    secondsToNextEvent = midnight;
-                }
-                step = Math.min(remaining, secondsToNextEvent);
-            } else {
-                long secondsToMinute = 60 - clock.getCurrentTime().getSecond();
-                step = Math.min(remaining, Math.min(secondsToMinute, midnight));
-            }
+            int eventInterval = 60;
+            long secondsToNextEvent = eventInterval - clock.getCurrentTime().toSecondOfDay() % eventInterval;
+            step = Math.min(remaining, Math.min(secondsToNextEvent, midnight));
 
             if (step == midnight) {
                 clock.advanceGameSeconds(step - 1);
@@ -1640,6 +1859,8 @@ public final class TradingFacade {
                 clock.advanceGameSeconds(step);
             }
             remaining -= step;
+            long eventReal = realEnd - Math.floorDiv(Math.addExact(Math.multiplyExact(remaining, 1000L), clock.getGameMsRemainder()), 24L);
+            researchService.observeWorldTime(clock.getGameTimestamp(), Math.max(0, eventReal), gameMode == GameMode.HISTORICAL_REPLAY);
             if (clock.getCurrentTime().equals(LocalTime.of(16, 0))) {
                 try {
                     mutualFundManager.processCutoff(accounts, ledger, clock.getGameTimestamp());
@@ -1668,7 +1889,7 @@ public final class TradingFacade {
                     mutualFundManager.recordRebalanceFailure(rebalErr.getMessage(), clock.getGameTimestamp());
                 }
             }
-            if (!isFastForward && clock.getCurrentTime().getSecond() == 0) {
+            if (clock.getCurrentTime().getSecond() == 0) {
                 if (gameMode == GameMode.HISTORICAL_REPLAY) {
                     refreshReplayLiquidity();
                     Instrument replayInstrument = catalog.getById(replayEngine.getActiveDatasetId());
@@ -1681,10 +1902,7 @@ public final class TradingFacade {
                 }
                 evaluateTriggers();
             }
-            if (isFastForward && (step == midnight || remaining == 0)) {
-                evaluateTriggers();
-                multiAssetTrading.updateValuations(catalog, fxService, accounts, clock.getGameTimestamp());
-            } else if (!isFastForward && (clock.getCurrentTime().getMinute() % 15 == 0 || remaining == 0)) {
+            if (clock.getCurrentTime().getMinute() % 15 == 0 || remaining == 0) {
                 multiAssetTrading.updateValuations(catalog, fxService, accounts, clock.getGameTimestamp());
             }
         }
@@ -1699,14 +1917,13 @@ public final class TradingFacade {
             return skipDayReceipts.get(requestId);
         }
         if (clock == null || recoveryRequired) throw new IllegalStateException("Permainan belum siap");
-        clock.pause();
         JSONObject receipt = new JSONObject().put("success", false).put("requestId", requestId)
                 .put("from", clock.getCurrentDate()+"T"+clock.getCurrentTime()).put("status", "PROCESSING");
         skipDayReceipts.put(requestId, receipt);
         try {
             long before = clock.getGameTimestamp();
             advanceWorldSeconds(86400);
-            this.lastRealTimeAnchor = System.currentTimeMillis();
+            this.lastRealTimeAnchor = realTimeClock.millis();
             long elapsed = (clock.getGameTimestamp() - before) / 1000;
             receipt.put("success", elapsed == 86400).put("status", elapsed == 86400 ? "COMPLETED" : "DATASET_COMPLETE")
                     .put("to", clock.getCurrentDate()+"T"+clock.getCurrentTime()).put("gameSeconds", elapsed);
@@ -1756,6 +1973,7 @@ public final class TradingFacade {
             runtime.put("weeklyBaselineNetWorth", weeklyBaselineNetWorth.getAmount().toPlainString());
         }
         runtime.put("rulesVersion", RULES_VERSION);
+        runtime.put("worldClockVersion", 1);
         runtime.put("catalog", catalog.exportState());
         runtime.put("risk", riskService.exportState());
         runtime.put("orders", savedOrders.exportState());
@@ -1771,6 +1989,7 @@ public final class TradingFacade {
         for (StrategyLabSandbox lab : strategyLabs.values()) labs.put(lab.exportState());
         runtime.put("strategyLabs", labs);
         runtime.put("companies", companyManager.exportState());
+        runtime.put("holdingCompanies", companyManager.exportHoldingState());
         runtime.put("collections", collectionManager.exportState());
         runtime.put("playerProgress", progressManager.exportState());
         runtime.put("replayEngine", replayEngine.exportState());
@@ -1779,6 +1998,15 @@ public final class TradingFacade {
         runtime.put("periodicMissions", periodicMissionManager.exportState());
         runtime.put("league", leagueManager.exportState());
         runtime.put("playerProfile", playerProfileManager.exportState());
+        runtime.put("strategicTimeDeposits", timeDepositManager.exportState());
+        runtime.put("strategicPortfolioInsurance", portfolioInsuranceService.exportState());
+        runtime.put("strategicResearchTechTree", researchTechTreeService.exportState());
+        runtime.put("strategicHeadhunting", headhuntingService.exportState());
+        runtime.put("strategicDailyStreak", dailyStreakService.exportState());
+        runtime.put("strategicSectorDominance", sectorDominanceService.exportState(getPersonalAccount(), catalog, fxService.getMidRate()));
+        JSONArray customFundsState = new JSONArray();
+        for (JSONObject fund : customMutualFunds) customFundsState.put(new JSONObject(fund.toString()));
+        runtime.put("strategicCustomMutualFunds", customFundsState);
         JSONObject closeReceipts = new JSONObject();
         for (Map.Entry<String, JSONObject> receipt : dayCloseReceipts.entrySet()) closeReceipts.put(receipt.getKey(), receipt.getValue());
         runtime.put("dayCloseReceipts", closeReceipts);
@@ -1893,6 +2121,7 @@ public final class TradingFacade {
             if (runtime.has("companies")) {
                 com.tradingglobal3d.core.business.CompanyManager stagedCompanies = new com.tradingglobal3d.core.business.CompanyManager();
                 stagedCompanies.restoreState(runtime.getJSONArray("companies"));
+                if (runtime.has("holdingCompanies")) stagedCompanies.restoreHoldingState(runtime.getJSONArray("holdingCompanies"));
                 Set<String> companyAccounts = new HashSet<>();
                 if (stagedCompanies.getAllCompanies().size() != runtime.getJSONArray("companies").length())
                     throw new IllegalArgumentException("ID perusahaan duplikat");
@@ -1917,11 +2146,10 @@ public final class TradingFacade {
             if (runtime.has("mutualFunds")) {
                 MutualFundManager stagedMutualFunds = new MutualFundManager();
                 stagedMutualFunds.restoreState(runtime.getJSONArray("mutualFunds"));
-                SaveState detachedState = SaveState.fromJsonString(state.toJsonString());
                 Map<String, Account> savedAccounts = new LinkedHashMap<>();
-                for (Account account : detachedState.getAccounts()) savedAccounts.put(account.getId(), account);
+                for (Account account : state.getAccounts()) savedAccounts.put(account.getId(), account.copy());
                 stagedMutualFunds.validateAccounts(savedAccounts);
-                EconomyLedger stagedLedger = new EconomyLedger(); stagedLedger.restoreEntries(detachedState.getLedgerEntries());
+                EconomyLedger stagedLedger = new EconomyLedger();
                 stagedMutualFunds.registerPoolAccounts(savedAccounts, stagedLedger, new GameClock(state.getGameDate(), state.getGameTime()).getGameTimestamp());
                 stagedMutualFunds.bindAccounts(savedAccounts, restoredCatalog);
             }
@@ -1936,7 +2164,7 @@ public final class TradingFacade {
                     for (Account account : state.getAccounts()) if (account.getId().equals(loan.getAccountId())) borrower = account;
                     if (borrower == null || (borrower.getType() != AccountType.PERSONAL && borrower.getType() != AccountType.COMPANY))
                         throw new IllegalArgumentException("Akun peminjam save tidak valid");
-                    if (("LOAN-PERS-01".equals(loan.getProductId()) && borrower.getType() != AccountType.PERSONAL)
+                    if ((("LOAN-PERS-01".equals(loan.getProductId()) || "LOAN-PERS-02".equals(loan.getProductId())) && borrower.getType() != AccountType.PERSONAL)
                             || ("LOAN-CORP-01".equals(loan.getProductId()) && borrower.getType() != AccountType.COMPANY))
                         throw new IllegalArgumentException("Produk pinjaman tidak cocok dengan peminjam");
                 }
@@ -1944,6 +2172,18 @@ public final class TradingFacade {
             if (runtime.has("periodicMissions")) new PeriodicMissionManager().restoreState(runtime.getJSONObject("periodicMissions"));
             if (runtime.has("league")) new LeagueManager().restoreState(runtime.getJSONObject("league"));
             if (runtime.has("playerProfile")) new PlayerProfileManager().restoreState(runtime.getJSONObject("playerProfile"));
+            if (runtime.has("strategicTimeDeposits")) new com.tradingglobal3d.core.multiasset.TimeDepositManager()
+                    .restoreState(runtime.getJSONObject("strategicTimeDeposits"));
+            if (runtime.has("strategicPortfolioInsurance")) new com.tradingglobal3d.core.risk.PortfolioInsuranceService()
+                    .restoreState(runtime.getJSONObject("strategicPortfolioInsurance"));
+            if (runtime.has("strategicResearchTechTree")) new com.tradingglobal3d.core.research.ResearchTechTreeService()
+                    .restoreState(runtime.getJSONArray("strategicResearchTechTree"));
+            if (runtime.has("strategicHeadhunting")) new com.tradingglobal3d.core.firm.HeadhuntingService()
+                    .restoreState(runtime.getJSONArray("strategicHeadhunting"));
+            if (runtime.has("strategicDailyStreak")) new com.tradingglobal3d.core.player.DailyStreakService()
+                    .restoreState(runtime.getJSONObject("strategicDailyStreak"));
+            if (runtime.has("strategicSectorDominance")) new com.tradingglobal3d.core.market.SectorDominanceService()
+                    .validateState(runtime.getJSONArray("strategicSectorDominance"));
             new MultiAssetTradingService(new FundBuilderService()).restore(runtime.optJSONObject("multiAssetTrading") != null ? runtime.getJSONObject("multiAssetTrading") : new JSONObject());
             if (runtime.has("weeklyPerformance")) com.tradingglobal3d.core.career.PerformancePeriod.restore(runtime.getJSONObject("weeklyPerformance"));
             if (runtime.has("runPerformance")) com.tradingglobal3d.core.career.PerformancePeriod.restore(runtime.getJSONObject("runPerformance"));
@@ -1952,12 +2192,13 @@ public final class TradingFacade {
         }
         this.runId = state.getRuntimeState().optString("runId", "LEGACY-" + java.util.UUID.nameUUIDFromBytes((state.getGameDate() + ":" + state.getLedgerEntries().size()).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         this.catalog = restoredCatalog;
+        corporateService.bindShareSupplyCatalog(restoredCatalog);
         this.strategyLabs.clear(); this.strategyLabs.putAll(restoredLabs);
         String savedBaseline = state.getRuntimeState().optString("weeklyBaselineNetWorth", null);
         this.weeklyBaselineNetWorth = savedBaseline != null ? new Money(new BigDecimal(savedBaseline), Currency.IDR) : getPersonalNetWorth();
         this.gameMode = state.getGameMode();
         this.clock = new GameClock(state.getGameDate(), state.getGameTime());
-        this.clock.setSpeedMultiplier(state.getSpeedMultiplier());
+        this.clock.setSpeedMultiplier(1);
         this.clock.setGameMsRemainder(state.getGameMsRemainder());
         this.clock.setForeground("FOREGROUND".equalsIgnoreCase(state.getLifecycleState()));
         this.lastRealTimeAnchor = state.getLastRealTimeAnchor();
@@ -1977,6 +2218,10 @@ public final class TradingFacade {
             if (runtime.has("career")) careerManager.restoreState(runtime.getJSONObject("career"));
             if (runtime.has("mandates")) firmManager.restoreState(runtime.getJSONArray("mandates"));
             if (runtime.has("subscription")) researchService.restoreState(runtime.getJSONObject("subscription"));
+            // Legacy articles have no historical real deadline. Start one transition once, then persist it.
+            long newsAnchor = runtime.has("subscription") && runtime.getJSONObject("subscription").has("newsEffects")
+                    ? lastRealTimeAnchor : Math.max(lastRealTimeAnchor, realTimeClock.millis());
+            researchService.observeWorldTime(clock.getGameTimestamp(), newsAnchor, gameMode == GameMode.HISTORICAL_REPLAY);
             fxService.restoreState(runtime.has("fx") ? runtime.getJSONObject("fx") : new FxExchangeService().exportState());
             fundBuilder.restoreState(runtime.has("fundPlans") ? runtime.getJSONArray("fundPlans") : new JSONArray());
             multiAssetTrading.restore(runtime.optJSONObject("multiAssetTrading") != null ? runtime.getJSONObject("multiAssetTrading") : new JSONObject());
@@ -1985,6 +2230,7 @@ public final class TradingFacade {
             installmentLoanManager.reset(); periodicMissionManager.reset(); leagueManager.reset();
             playerProfileManager.reset(); replayEngine.reset();
             if (runtime.has("companies")) companyManager.restoreState(runtime.getJSONArray("companies"));
+            if (runtime.has("holdingCompanies")) companyManager.restoreHoldingState(runtime.getJSONArray("holdingCompanies"));
             if (runtime.has("collections")) collectionManager.restoreState(runtime.getJSONArray("collections"));
             if (runtime.has("playerProgress")) progressManager.restoreState(runtime.optJSONObject("playerProgress"));
             if (runtime.has("replayEngine")) replayEngine.restoreState(runtime.optJSONObject("replayEngine"));
@@ -1993,6 +2239,16 @@ public final class TradingFacade {
             if (runtime.has("periodicMissions")) periodicMissionManager.restoreState(runtime.getJSONObject("periodicMissions"));
             if (runtime.has("league")) leagueManager.restoreState(runtime.getJSONObject("league"));
             if (runtime.has("playerProfile")) playerProfileManager.restoreState(runtime.getJSONObject("playerProfile"));
+            if (runtime.has("strategicTimeDeposits")) timeDepositManager.restoreState(runtime.getJSONObject("strategicTimeDeposits"));
+            if (runtime.has("strategicPortfolioInsurance")) portfolioInsuranceService.restoreState(runtime.getJSONObject("strategicPortfolioInsurance"));
+            if (runtime.has("strategicResearchTechTree")) researchTechTreeService.restoreState(runtime.getJSONArray("strategicResearchTechTree"));
+            if (runtime.has("strategicHeadhunting")) headhuntingService.restoreState(runtime.getJSONArray("strategicHeadhunting"));
+            if (runtime.has("strategicDailyStreak")) dailyStreakService.restoreState(runtime.getJSONObject("strategicDailyStreak"));
+            if (runtime.has("strategicCustomMutualFunds")) {
+                customMutualFunds.clear();
+                JSONArray savedCustomFunds = runtime.getJSONArray("strategicCustomMutualFunds");
+                for (int i = 0; i < savedCustomFunds.length(); i++) customMutualFunds.add(new JSONObject(savedCustomFunds.getJSONObject(i).toString()));
+            }
             if (runtime.has("dailySponsorLastClaimedRealDate")) {
                 dailySponsorLastClaimedRealDate = runtime.getString("dailySponsorLastClaimedRealDate");
             }
@@ -2024,8 +2280,9 @@ public final class TradingFacade {
             }
             marketEngine.registerNpcAgent(new NpcAgent("NPC-RETAIL-01", "Investor Ritel Mandiri", NpcStrategyType.RETAIL_NOISE, retailAccount));
 
-            // Bind collection manager ke loan manager setelah keduanya di-restore
+            // Bind collection manager ke loan manager setelah keduanya di-restore dan lepaskan agunan migrasi (A16)
             installmentLoanManager.bindCollectionManager(collectionManager);
+            installmentLoanManager.releaseAllCollateralsPreservingDebt();
 
             // Bind fund pool accounts setelah restore akun dan katalog
             mutualFundManager.registerPoolAccounts(accounts, ledger, clock.getGameTimestamp());
@@ -2065,7 +2322,7 @@ public final class TradingFacade {
             IpoOffering ipo = listed.get(id);
             if (source == null && ipo == null) throw new IllegalArgumentException("Instrumen save tidak dikenal: " + id);
             result.registerInstrument(source != null ? new Instrument(source.getId(), source.getTicker(), source.getName(), source.getExchange(),
-                    source.getSector(), source.getCurrency(), source.getLotSize(), source.getSharesOutstanding(), source.isActiveTrading(), source.getCurrentPrice())
+                    source.getSector(), source.getCurrency(), source.getLotSize(), source.getCatalogIssuedShares(), source.isActiveTrading(), source.getCurrentPrice())
                     : new Instrument(id, ipo.getTicker(), ipo.getCompanyName(), com.tradingglobal3d.core.market.MarketExchange.valueOf(ipo.getCurrency() == Currency.USD ? "US" : "IDX"),
                     "IPO", ipo.getCurrency(), ipo.getLotSize(), ipo.getSharesOffered(), true, ipo.getOfferingPrice()));
         }
@@ -2084,7 +2341,7 @@ public final class TradingFacade {
                     if (ids.add(id)) {
                         Instrument source = catalog.getById(id);
                         result.registerInstrument(new Instrument(source.getId(), source.getTicker(), source.getName(), source.getExchange(),
-                                source.getSector(), source.getCurrency(), source.getLotSize(), source.getSharesOutstanding(),
+                                source.getSector(), source.getCurrency(), source.getLotSize(), source.getCatalogIssuedShares(),
                                 source.isActiveTrading(), new Money(new BigDecimal(initial.getString("price")), source.getCurrency())));
                         saved.put(new JSONObject(initial.toString()));
                     }
@@ -2097,6 +2354,12 @@ public final class TradingFacade {
         }
         for (MarketIndex index : catalog.getAllIndices()) result.registerIndex(new MarketIndex(index.getId(), index.getTicker(), index.getName(),
                 index.getExchange(), index.getBaseValue(), index.getMethod(), index.getMemberIds()));
+        if (catalogState != null) {
+            result.restoreState(catalogState);
+            savedCorporate.bindShareSupplyCatalog(result);
+            savedCorporate.reconcileShareSupply();
+            runtime.put("catalog", result.exportState());
+        }
         return result;
     }
 
@@ -2199,7 +2462,21 @@ public final class TradingFacade {
         root.put("playerProgress", progressManager.toSnapshotJson());
         root.put("accountCount", accounts.size());
         root.put("ledgerEntryCount", ledger.getEntries().size());
+        if (saveManager != null) {
+            root.put("saveMetadata", saveManager.getSaveMetadata());
+            java.io.File pFile = saveManager.getSaveFile();
+            if (pFile != null && pFile.exists()) {
+                root.put("savedTimestamp", pFile.lastModified());
+            }
+        }
+        if (lastOfflineCatchupReport != null) {
+            root.put("offlineCatchupReport", lastOfflineCatchupReport);
+        }
         return root.toString();
+    }
+
+    public synchronized JSONObject getSaveMetadata() throws JSONException {
+        return saveManager != null ? saveManager.getSaveMetadata() : new JSONObject().put("format", "JSON Standar (Skema V2, UTF-8)").put("primaryExists", false).put("backupFileExists", false);
     }
 
     private JSONObject careerAccess(CareerRank required) throws JSONException {
@@ -2273,11 +2550,56 @@ public final class TradingFacade {
                 .put("weeklyHistory", new JSONArray(performanceHistory.toString()));
     }
 
+    public synchronized JSONObject getIssuerOwnership(String instrumentId) throws JSONException {
+        Instrument instrument = requireInstrument(instrumentId);
+        long outstanding = instrument.getSharesOutstanding(), mapped = 0, shortShares = 0, treasuryMapped = 0;
+        String denominatorStatus = outstanding <= 0 ? "INVALID" : "DYNAMIC";
+        boolean validDenominator = outstanding > 0;
+        JSONArray holders = new JSONArray();
+        List<Account> ordered = new ArrayList<>(accounts.values());
+        ordered.sort(Comparator.comparing(Account::getId));
+        for (Account account : ordered) {
+            ShortPosition shortPosition = riskService.getShortPosition(account.getId(), instrument.getTicker());
+            if (shortPosition != null && instrument.getExchange().name().equals(shortPosition.getExchange()))
+                shortShares = Math.addExact(shortShares, shortPosition.getBorrowedShares());
+            Position position = account.getPosition(instrument.getId());
+            if (position == null) continue;
+            long quantity = position.getQuantity();
+            if (quantity == 0) continue;
+            boolean treasury = corporateService.isTreasuryHolder(account.getId(), instrumentId);
+            if (treasury) treasuryMapped = Math.addExact(treasuryMapped, quantity);
+            else mapped = Math.addExact(mapped, quantity);
+            Object percent = validDenominator && !treasury ? BigDecimal.valueOf(quantity).multiply(BigDecimal.valueOf(100))
+                    .divide(BigDecimal.valueOf(outstanding), 8, java.math.RoundingMode.HALF_UP) : JSONObject.NULL;
+            holders.put(new JSONObject().put("holderId", account.getId()).put("name", account.getName())
+                    .put("accountType", account.getType().name()).put("quantity", quantity).put("percent", percent).put("isTreasury", treasury)
+                    .put("isPersonalPlayer", account.getId().equals(personalAccountId))
+                    .put("isClientAccount", account.getType() == AccountType.CLIENT));
+        }
+        long knownClaims = Math.addExact(mapped, shortShares);
+        boolean reconciled = validDenominator && knownClaims <= outstanding && treasuryMapped == instrument.getTreasuryShares();
+        boolean complete = reconciled && knownClaims == outstanding && shortShares == 0;
+        return new JSONObject().put("success", true).put("instrumentId", instrument.getId())
+                .put("asOf", clock.getGameTimestamp()).put("sharesOutstanding", outstanding)
+                .put("issuedShares", instrument.getIssuedShares()).put("treasuryShares", instrument.getTreasuryShares())
+                .put("recordedTreasuryShares", treasuryMapped).put("supplyReconciled", reconciled)
+                .put("unknownLegacyShares", validDenominator ? Math.max(0, outstanding - knownClaims) : JSONObject.NULL)
+                .put("denominatorStatus", denominatorStatus).put("registryComplete", complete)
+                .put("mappedShares", mapped).put("unmappedShares", validDenominator ? Math.max(0, outstanding - mapped) : JSONObject.NULL)
+                .put("recordedShortShares", shortShares).put("holders", holders)
+                .put("coverage", !validDenominator ? "UNKNOWN" : !reconciled ? "INCONSISTENT" : complete ? "COMPLETE" : "PARTIAL")
+                .put("holderBasis", "RECORDED_ACCOUNT_POSITIONS")
+                .put("coverageNote", "Daftar akun pemegang yang tercatat. Registri seluruh saham beredar belum lengkap; saham yang belum terpetakan tidak diatribusikan ke investor rekaan. Posisi short tidak dihitung sebagai kepemilikan positif.");
+    }
+
     public synchronized JSONObject getChartData(String instrumentId, String timeframe) throws JSONException {
         Instrument inst = catalog.getById(instrumentId);
         if (inst == null) {
             return new JSONObject().put("success", false).put("message", "Instrumen tidak ditemukan: " + instrumentId);
         }
+
+        if (timeframe != null && Arrays.asList("R6H", "R1D", "R7D", "R30D").contains(timeframe))
+            return getChartRange(inst, timeframe);
 
         if (gameMode == GameMode.HISTORICAL_REPLAY && replayEngine.isReplayActive()
                 && (instrumentId.equalsIgnoreCase(replayEngine.getActiveDatasetId())
@@ -2488,6 +2810,65 @@ public final class TradingFacade {
         return result;
     }
 
+    private JSONObject getChartRange(Instrument instrument, String range) throws JSONException {
+        long duration = "R6H".equals(range) ? 21600000L : "R1D".equals(range) ? 86400000L
+                : "R7D".equals(range) ? 604800000L : 2592000000L;
+        long interval = "R6H".equals(range) ? 300000L : "R1D".equals(range) ? 900000L
+                : "R7D".equals(range) ? 14400000L : 86400000L;
+        long end = clock.getGameTimestamp(), start = end - duration;
+        JSONArray bars = new JSONArray();
+        int trades = 0;
+        String source = "MATCHED_TRADES";
+        if (gameMode == GameMode.HISTORICAL_REPLAY) {
+            source = "HISTORICAL_DAILY";
+            interval = Math.max(interval, 86400000L);
+            if (instrument.getId().equals(replayEngine.getActiveDatasetId())) {
+                for (HistoricalBar bar : replayEngine.getVisibleBars(clock.getCurrentDate(), clock.getCurrentTime())) {
+                    long timestamp = bar.getDate().atStartOfDay(java.time.ZoneId.of("Asia/Jakarta")).toInstant().toEpochMilli();
+                    if (timestamp < start || timestamp > end) continue;
+                    bars.put(new JSONObject().put("timestamp", timestamp).put("time", bar.getDate().toString())
+                            .put("open", bar.getOpen()).put("high", bar.getHigh()).put("low", bar.getLow())
+                            .put("close", bar.getClose()).put("volume", bar.getVolume()).put("isReference", false)
+                            .put("partial", false));
+                }
+            }
+        } else {
+            OrderBook book = marketEngine.getBook(instrument.getId());
+            Map<String, TradeFill> unique = new LinkedHashMap<>();
+            if (book != null) for (TradeFill fill : book.getTradeHistory()) {
+                if (fill.getTimestamp() >= start && fill.getTimestamp() <= end) unique.putIfAbsent(fill.getFillId(), fill);
+            }
+            List<TradeFill> fills = new ArrayList<>(unique.values());
+            fills.sort(Comparator.comparingLong(TradeFill::getTimestamp).thenComparing(TradeFill::getFillId));
+            Map<Long, List<TradeFill>> buckets = new TreeMap<>();
+            for (TradeFill fill : fills) buckets.computeIfAbsent(Math.floorDiv(fill.getTimestamp(), interval) * interval,
+                    key -> new ArrayList<>()).add(fill);
+            for (Map.Entry<Long, List<TradeFill>> entry : buckets.entrySet()) {
+                List<TradeFill> items = entry.getValue();
+                BigDecimal open = items.get(0).getPrice().getAmount(), high = open, low = open;
+                long volume = 0;
+                for (TradeFill fill : items) {
+                    high = high.max(fill.getPrice().getAmount()); low = low.min(fill.getPrice().getAmount());
+                    volume = Math.addExact(volume, fill.getQuantity());
+                }
+                long timestamp = entry.getKey();
+                bars.put(new JSONObject().put("timestamp", timestamp)
+                        .put("time", java.time.Instant.ofEpochMilli(timestamp).atZone(java.time.ZoneId.of("Asia/Jakarta"))
+                                .format(java.time.format.DateTimeFormatter.ofPattern("dd MMM HH:mm", java.util.Locale.forLanguageTag("id-ID"))))
+                        .put("open", open).put("high", high).put("low", low)
+                        .put("close", items.get(items.size() - 1).getPrice().getAmount()).put("volume", volume)
+                        .put("isReference", false).put("partial", timestamp < start || timestamp + interval > end));
+            }
+            trades = fills.size();
+        }
+        return new JSONObject().put("success", true).put("instrumentId", instrument.getId()).put("ticker", instrument.getTicker())
+                .put("currency", instrument.getCurrency().name()).put("lotSize", instrument.getLotSize())
+                .put("range", range).put("rangeStart", start).put("rangeEnd", end).put("intervalMs", interval)
+                .put("totalTrades", trades).put("bars", bars).put("source", source)
+                .put("coverage", bars.length() == 0 ? "EMPTY" : "AVAILABLE_HISTORY")
+                .put("historyComplete", false);
+    }
+
     public synchronized com.tradingglobal3d.core.boss.MarketBossService getMarketBossService() {
         return marketBossService;
     }
@@ -2544,26 +2925,103 @@ public final class TradingFacade {
         return portfolioInsuranceService.toJsonObject(curSession);
     }
 
+    public synchronized JSONObject previewTurnaroundBailout() throws JSONException {
+        Account personal = getPersonalAccount();
+        if (personal == null) return new JSONObject().put("eligible", false).put("reason", "Akun pribadi belum siap");
+        BigDecimal usdRate = fxService.getMidRate();
+        Money totalDebt = riskService.getMarginDebt(personal.getId(), Currency.IDR)
+                .add(new Money(riskService.getMarginDebt(personal.getId(), Currency.USD).getAmount().multiply(usdRate), Currency.IDR))
+                .add(installmentLoanManager.getTotalOutstandingLiability(personal.getId()));
+        Money netWorth = getPersonalNetWorth();
+        Money cash = personal.getAvailableCash(Currency.IDR);
+        boolean eligible = totalDebt.isPositive() && cash.getAmount().compareTo(BigDecimal.valueOf(500_000)) < 0
+                && !netWorth.isPositive();
+        JSONArray auctionItems = new JSONArray();
+        Money estimatedProceeds = Money.zero(Currency.IDR);
+        for (com.tradingglobal3d.core.collection.CollectibleItem item : collectionManager.getAllItems()) {
+            if (!item.isOwned() || !personal.getId().equals(item.getOwnerAccountId()) || item.isPledged()) continue;
+            auctionItems.put(new JSONObject().put("id", item.getId()).put("name", item.getName())
+                    .put("estimatedValue", item.getCurrentValuation().format()));
+            estimatedProceeds = estimatedProceeds.add(item.getCurrentValuation());
+        }
+        return new JSONObject().put("eligible", eligible)
+                .put("reason", eligible ? "Akun memenuhi syarat pemulihan insolvensi" : "Perlu utang aktif, kas IDR di bawah Rp 500.000, dan kekayaan bersih tidak positif")
+                .put("cash", cash.format()).put("netWorth", netWorth.format()).put("totalDebt", totalDebt.format())
+                .put("auctionItems", auctionItems).put("estimatedAuctionProceeds", estimatedProceeds.format())
+                .put("warning", "Koleksi tidak diagunkan yang tercantum akan dijual; perkiraan hasil bukan jaminan harga");
+    }
+
     public synchronized JSONObject executeTurnaroundBailout(String requestId) throws JSONException {
         Account personal = getPersonalAccount();
-        if (personal == null) return new JSONObject().put("success", false).put("message", "Akun pribadi tidak ditemukan");
+        if (personal == null) throw new IllegalStateException("Akun pribadi belum siap");
+        if (requestId == null || requestId.trim().isEmpty() || requestId.length() > 120)
+            throw new IllegalArgumentException("ID permintaan turnaround tidak valid");
+        String markerId = "TURNAROUND-" + requestId;
+        if (ledger.isRequestProcessed(markerId))
+            return new JSONObject().put("success", true).put("alreadyProcessed", true)
+                    .put("message", "Permintaan turnaround ini sudah diproses.");
 
-        // Bantuan suntikan darurat restrukturisasi
-        Money bailoutRelief = Money.of(25_000_000, Currency.IDR);
-        ledger.recordMutation(
-                "BAILOUT-" + requestId,
-                personal,
-                LedgerEntryType.BAILOUT,
-                bailoutRelief,
-                true,
-                clock.getGameTimestamp(),
-                "Suntikan Dana Penyelamatan Kebangkrutan & Restrukturisasi Turnaround"
-        );
+        BigDecimal usdRate = fxService.getMidRate();
+        Money marginIdr = riskService.getMarginDebt(personal.getId(), Currency.IDR);
+        Money marginUsd = new Money(riskService.getMarginDebt(personal.getId(), Currency.USD).getAmount()
+                .multiply(usdRate), Currency.IDR);
+        Money installmentDebt = installmentLoanManager.getTotalOutstandingLiability(personal.getId());
+        Money totalDebt = marginIdr.add(marginUsd).add(installmentDebt);
+        if (!totalDebt.isPositive() || personal.getAvailableCash(Currency.IDR).getAmount().compareTo(BigDecimal.valueOf(500_000)) >= 0
+                || getPersonalNetWorth().isPositive())
+            throw new IllegalStateException("Fasilitas turnaround hanya tersedia saat akun insolven: utang aktif, kas IDR di bawah Rp 500.000, dan kekayaan bersih tidak positif.");
 
+        int auctionedCollections = 0;
+        Money auctionProceeds = Money.zero(Currency.IDR);
+        for (com.tradingglobal3d.core.collection.CollectibleItem item : collectionManager.getAllItems()) {
+            if (!item.isOwned() || !personal.getId().equals(item.getOwnerAccountId()) || item.isPledged()) continue;
+            JSONObject receipt = collectionManager.sellItem(requestId + "-AUCTION-" + item.getId(), item.getId(),
+                    personal, ledger, careerManager, clock.getGameTimestamp());
+            if (receipt.getBoolean("success")) {
+                auctionedCollections++;
+                auctionProceeds = auctionProceeds.add(new Money(new BigDecimal(receipt.getString("amount")), Currency.IDR));
+            }
+        }
+
+        Money marginRepaidIdr = Money.zero(Currency.IDR);
+        Money availableIdr = personal.getAvailableCash(Currency.IDR);
+        if (availableIdr.isPositive() && marginIdr.isPositive()) {
+            marginRepaidIdr = marginIdr.isLessThan(availableIdr) ? marginIdr : availableIdr;
+            riskService.repayMarginLoan(personal, marginRepaidIdr, ledger, clock.getGameTimestamp());
+        }
+        Money marginRepaidUsd = Money.zero(Currency.USD);
+        Money availableUsd = personal.getAvailableCash(Currency.USD);
+        Money outstandingUsd = riskService.getMarginDebt(personal.getId(), Currency.USD);
+        if (availableUsd.isPositive() && outstandingUsd.isPositive()) {
+            marginRepaidUsd = outstandingUsd.isLessThan(availableUsd) ? outstandingUsd : availableUsd;
+            riskService.repayMarginLoan(personal, marginRepaidUsd, ledger, clock.getGameTimestamp());
+        }
+
+        JSONArray restructuredLoans = new JSONArray();
+        for (LoanContract loan : installmentLoanManager.getAllLoans()) {
+            if (!personal.getId().equals(loan.getAccountId()) || loan.getTotalPayoffAmount().isZero()) continue;
+            JSONObject receipt = loan.restructure(30, clock.getGameTimestamp());
+            restructuredLoans.put(receipt);
+        }
+        JSONObject marginRestructure = new JSONObject();
+        for (Currency currency : Currency.values()) {
+            Money debt = riskService.getMarginDebt(personal.getId(), currency);
+            if (debt.isPositive()) {
+                Money relief = riskService.restructureDebt(personal, currency, clock.getGameTimestamp());
+                marginRestructure.put(currency.name(), new JSONObject().put("debtRelief", relief.format())
+                        .put("remainingDebt", riskService.getMarginDebt(personal.getId(), currency).format()));
+            }
+        }
+        careerManager.penalizeReputation(10);
+        ledger.recordMutation(markerId, personal, LedgerEntryType.BAILOUT, Money.zero(Currency.IDR), true,
+                clock.getGameTimestamp(), "Receipt idempoten: turnaround, lelang koleksi, dan restrukturisasi utang");
         persistFinancialMutation();
-        return new JSONObject().put("success", true)
-                .put("bailoutRelief", bailoutRelief.format())
-                .put("message", "Restrukturisasi kebangkrutan berhasil. Dana talangan masuk ke kas.");
+        return new JSONObject().put("success", true).put("alreadyProcessed", false)
+                .put("auctionedCollections", auctionedCollections).put("auctionProceeds", auctionProceeds.format())
+                .put("marginDebtRepaidIdr", marginRepaidIdr.format()).put("marginDebtRepaidUsd", marginRepaidUsd.format())
+                .put("debtRestructure", marginRestructure).put("restructuredLoans", restructuredLoans)
+                .put("cashGrant", Money.zero(Currency.IDR).format()).put("reputationPenalty", 10)
+                .put("message", "Turnaround selesai: koleksi dilelang untuk membayar utang, lalu sisa kewajiban dijadwalkan ulang dengan penalti reputasi.");
     }
 
     public synchronized JSONObject createCustomMutualFund(String fundName, double eqPct, double commPct, double cryptoPct, double cashPct, BigDecimal aum) throws JSONException {
@@ -2621,6 +3079,20 @@ public final class TradingFacade {
         return researchTechTreeService.exportTree();
     }
 
+    public synchronized JSONObject getAlgorithmicMarketSignal(String instrumentId) throws JSONException {
+        Instrument instrument = requireInstrument(instrumentId);
+        double bonus = researchTechTreeService.getUnlockedBonus("SIGNAL_ACCURACY");
+        if (bonus <= 0.0) return new JSONObject().put("available", false).put("reason", "Buka node Algoritma sebelum meminta sinyal.");
+        double threshold = Math.max(0.10, 1.0 - bonus / 100.0);
+        double change = instrument.getDailyChangePercent();
+        String direction = change > threshold ? "BUY" : change < -threshold ? "SELL" : "HOLD";
+        return new JSONObject().put("available", true).put("instrumentId", instrument.getId())
+                .put("direction", direction).put("observedChangePercent", change)
+                .put("signalBonusPercent", bonus).put("triggerThresholdPercent", threshold)
+                .put("basis", "current-day-price-change").put("usesFutureData", false)
+                .put("disclaimer", "Sinyal simulasi dari perubahan harga sesi berjalan; bukan prediksi atau rekomendasi.");
+    }
+
     public synchronized JSONObject upgradeTechNode(String nodeId) throws JSONException {
         Account personal = getPersonalAccount();
         if (personal == null) return new JSONObject().put("success", false).put("message", "Akun tidak ditemukan");
@@ -2662,8 +3134,21 @@ public final class TradingFacade {
 
     public synchronized JSONObject triggerMarketShockEvent(String eventType) throws JSONException {
         // Black Swan Shock (15% drop) or Supply Chain Crisis
-        double dropRate = "SUPPLY_CHAIN_CRISIS".equalsIgnoreCase(eventType) ? 0.08 : 0.15;
+        if (!"BLACK_SWAN_SHOCK".equalsIgnoreCase(eventType) && !"SUPPLY_CHAIN_CRISIS".equalsIgnoreCase(eventType))
+            throw new IllegalArgumentException("Jenis kejutan pasar tidak dikenal");
+        boolean supplyChainCrisis = "SUPPLY_CHAIN_CRISIS".equalsIgnoreCase(eventType);
+        double dropRate = supplyChainCrisis ? 0.08 : 0.15;
+        Account personal = getPersonalAccount();
+        Money startingNetWorth = personal != null ? getPersonalNetWorth() : Money.zero(Currency.IDR);
+        Money cashBufferIdr = Money.zero(Currency.IDR);
+        if (personal != null) cashBufferIdr = personal.getAvailableCash(Currency.IDR)
+                .add(new Money(personal.getAvailableCash(Currency.USD).getAmount().multiply(fxService.getMidRate()), Currency.IDR));
+        int affectedCompanies = supplyChainCrisis ? companyManager.applySupplyChainCrisis() : 0;
         int affectedCount = 0;
+        Money totalLoss = Money.zero(Currency.IDR);
+        Money grossEquityLoss = Money.zero(Currency.IDR);
+        Money safeHavenGain = Money.zero(Currency.IDR);
+        BigDecimal usdRate = fxService != null ? fxService.getMidRate() : BigDecimal.valueOf(15800);
         for (Instrument inst : catalog.getActiveUniverse()) {
             boolean isEnergy = inst.getSector() != null && inst.getSector().toLowerCase().contains("energi");
             boolean isManufacturing = inst.getSector() != null && (inst.getSector().toLowerCase().contains("manufaktur") || inst.getSector().toLowerCase().contains("industri") || inst.getSector().toLowerCase().contains("konsumer"));
@@ -2682,15 +3167,64 @@ public final class TradingFacade {
                 newPrice = current.multiply(BigDecimal.valueOf(1.0 - dropRate)).setScale(0, java.math.RoundingMode.HALF_UP);
             }
             if (newPrice.compareTo(BigDecimal.ONE) >= 0 && !newPrice.equals(current)) {
+                Position playerPosition = personal != null ? personal.getPosition(inst.getId()) : null;
+                if (playerPosition == null && personal != null) playerPosition = personal.getPosition(inst.getTicker());
+                if (playerPosition != null && playerPosition.getQuantity() > 0 && newPrice.compareTo(current) < 0) {
+                    BigDecimal rawLoss = current.subtract(newPrice).multiply(BigDecimal.valueOf(playerPosition.getQuantity()));
+                    BigDecimal idrLoss = inst.getCurrency() == Currency.USD ? rawLoss.multiply(usdRate) : rawLoss;
+                    totalLoss = totalLoss.add(new Money(idrLoss, Currency.IDR));
+                    grossEquityLoss = grossEquityLoss.add(new Money(idrLoss, Currency.IDR));
+                }
                 inst.updatePrice(new Money(newPrice, inst.getCurrency()), 0);
                 affectedCount++;
             }
         }
+        double safeHavenMovePercent = 0.0;
+        if ("BLACK_SWAN_SHOCK".equalsIgnoreCase(eventType)) {
+            com.tradingglobal3d.core.multiasset.CommodityInstrument gold = fundBuilder.getCommodity("COMM:GOLD");
+            if (gold != null) {
+                BigDecimal goldBefore = gold.getSpotPricePerUnit().getAmount();
+                BigDecimal goldAfter = goldBefore.multiply(new BigDecimal("1.05")).setScale(0, java.math.RoundingMode.HALF_UP);
+                gold.updateSpotPrice(new Money(goldAfter, gold.getCurrency()));
+                safeHavenMovePercent = 5.0;
+                if (personal != null) {
+                    Position goldPosition = personal.getPosition("COMM:XAU");
+                    if (goldPosition != null && goldPosition.getQuantity() > 0) {
+                        safeHavenGain = new Money(goldAfter.subtract(goldBefore)
+                                .multiply(BigDecimal.valueOf(goldPosition.getQuantity())), Currency.IDR);
+                        totalLoss = totalLoss.subtract(safeHavenGain);
+                        if (totalLoss.isNegative()) totalLoss = Money.zero(Currency.IDR);
+                    }
+                }
+            }
+        }
+        Money reimbursement = Money.zero(Currency.IDR);
+        boolean insuranceClaimSettled = false;
+        int currentSession = playerProfileManager.getRunDaysPlayed();
+        if (personal != null && totalLoss.isPositive() && portfolioInsuranceService.getActivePolicy() != null) {
+            reimbursement = portfolioInsuranceService.evaluateMarketCrashClaim(personal, dropRate * 100.0,
+                    totalLoss, ledger, clock.getGameTimestamp(), currentSession);
+            insuranceClaimSettled = reimbursement.isPositive();
+        }
+        double netLossPctOfStartingWealth = startingNetWorth.isPositive()
+                ? totalLoss.getAmount().multiply(BigDecimal.valueOf(100)).divide(startingNetWorth.getAmount(), 4, java.math.RoundingMode.HALF_UP).doubleValue()
+                : 0.0;
         persistFinancialMutation();
         return new JSONObject().put("success", true)
                 .put("eventType", eventType)
                 .put("affectedInstruments", affectedCount)
-                .put("dropRatePercent", dropRate * 100);
+                .put("dropRatePercent", dropRate * 100)
+                .put("startingNetWorth", startingNetWorth.format())
+                .put("cashBufferIdr", cashBufferIdr.format())
+                .put("netLossPercentOfStartingWealth", netLossPctOfStartingWealth)
+                .put("affectedCompanies", affectedCompanies)
+                .put("safeHavenGoldMovePercent", safeHavenMovePercent)
+                .put("safeHavenGain", safeHavenGain.getAmount().toPlainString())
+                .put("grossPlayerLoss", grossEquityLoss.getAmount().toPlainString())
+                .put("netPlayerLoss", totalLoss.getAmount().toPlainString())
+                .put("playerPortfolioLoss", totalLoss.format())
+                .put("insuranceClaimSettled", insuranceClaimSettled)
+                .put("insuranceReimbursement", reimbursement.format());
     }
 
     private String readStreamUtf8(InputStream is) throws IOException {
@@ -3178,6 +3712,7 @@ public final class TradingFacade {
     }
 
     public synchronized JSONObject getDailySponsorStatus() throws JSONException {
+        dailyStreakService.recordSessionLogin(playerProfileManager.getRunDaysPlayed());
         java.time.ZoneId wib = java.time.ZoneId.of("Asia/Jakarta");
         LocalDate todayReal = LocalDate.now(realTimeClock.withZone(wib));
         long nowReal = realTimeClock.millis();
@@ -3194,8 +3729,9 @@ public final class TradingFacade {
         JSONObject status = new JSONObject();
         status.put("eligible", eligible);
         status.put("alreadyClaimed", !eligible);
-        status.put("grantAmount", 25_000_000L);
-        status.put("grantAmountFormatted", Money.of(25_000_000L, Currency.IDR).format());
+        Money dailyGrant = currentDailySponsorGrant();
+        status.put("grantAmount", dailyGrant.getAmount().longValueExact());
+        status.put("grantAmountFormatted", dailyGrant.format());
         status.put("nextClaimAt", nextClaimAtMs);
         status.put("nextClaimAtLabel", "00.00 WIB");
         status.put("todayRealDate", todayReal.toString());
@@ -3219,8 +3755,10 @@ public final class TradingFacade {
 
         if (ledger.isRequestProcessed(requestId)) {
             // Idempotent retry: jika request sama sudah diproses
+            com.tradingglobal3d.core.economy.LedgerEntry receipt = ledger.getProcessedEntry(todayKey);
+            Money credited = receipt != null && receipt.isCredit() ? receipt.getAmount() : currentDailySponsorGrant();
             return new JSONObject().put("success", true)
-                    .put("amount", Money.of(25_000_000L, Currency.IDR).format())
+                    .put("amount", credited.format())
                     .put("message", "Permintaan klaim hibah harian sudah diproses.")
                     .put("alreadyClaimed", true)
                     .put("nextClaimAt", nextClaimAtMs);
@@ -3249,7 +3787,7 @@ public final class TradingFacade {
                     .put("nextClaimAt", nextClaimAtMs);
         }
 
-        Money grantAmount = Money.of(25_000_000L, Currency.IDR);
+        Money grantAmount = currentDailySponsorGrant();
         long nowSim = clock != null ? clock.getGameTimestamp() : System.currentTimeMillis();
 
         dailySponsorLastClaimedRealDate = todayReal.toString();
@@ -3266,6 +3804,12 @@ public final class TradingFacade {
                 .put("message", "Sponsor harian " + grantAmount.format() + " berhasil masuk ke kas pribadi!")
                 .put("nextClaimAt", nextClaimAtMs)
                 .put("alreadyClaimed", true);
+    }
+
+    private Money currentDailySponsorGrant() {
+        BigDecimal base = BigDecimal.valueOf(25_000_000L);
+        BigDecimal multiplier = BigDecimal.valueOf(dailyStreakService.getRewardMultiplier());
+        return new Money(base.multiply(multiplier).setScale(0, java.math.RoundingMode.HALF_UP), Currency.IDR);
     }
 
     // =========================================================================

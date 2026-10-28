@@ -16,7 +16,7 @@ cp = os.pathsep.join(map(str, [classes, json_jar, android_jar]))
 jbin = Path("C:/Program Files/Android/Android Studio/jbr/bin")
 
 server_proc = subprocess.Popen([
-    str(jbin / "java.exe"), "-Dqa.port=8794", "-cp", cp,
+    str(jbin / "java.exe"), "-Dqa.port=8794", "-Dqa.initialCapital=200000000", "-cp", cp,
     "com.tradingglobal3d.mobile.WireQaServer",
     str(root / "android/app/src/main/assets"), str(qa_save), "8794"
 ], cwd=str(root))

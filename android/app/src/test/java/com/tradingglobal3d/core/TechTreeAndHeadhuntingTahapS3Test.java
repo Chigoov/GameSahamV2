@@ -111,4 +111,69 @@ public class TechTreeAndHeadhuntingTahapS3Test {
         Money cashAfter = personal.getAvailableCash(Currency.IDR);
         assertEquals(initialCash.subtract(cand1.getPoachCost()), cashAfter);
     }
+
+    @Test
+    public void scaleResearchUnlockRaisesExistingMandateAumCapacityByFiftyPercent() throws Exception {
+        GameTestSupport.unlockManager(facade);
+        facade.acceptClientMandate("MANDATE-01");
+        facade.acceptClientMandate("MANDATE-02");
+        facade.acceptClientMandate("MANDATE-03");
+        JSONObject before = facade.getFirmAumCapacityJson();
+        assertEquals(0.0, before.getDouble("scaleBonusPercent"), 0.001);
+        BigDecimal baseCapacity = new BigDecimal(before.getString("baseCapacityIdrRaw"));
+        Money extra = new Money(baseCapacity.multiply(new BigDecimal("0.40")), Currency.IDR);
+        try {
+            facade.clientDeposit("MANDATE-01", extra);
+            fail("Setoran di atas batas AUM dasar harus ditolak sebelum riset Scale");
+        } catch (IllegalStateException expected) {
+            assertTrue(expected.getMessage().contains("kapasitas AUM"));
+        }
+
+        facade.upgradeTechNode("TECH-SCALE-1");
+        JSONObject upgraded = facade.getFirmAumCapacityJson();
+        assertEquals(50.0, upgraded.getDouble("scaleBonusPercent"), 0.001);
+        assertTrue(new BigDecimal(upgraded.getString("capacityIdrRaw")).compareTo(baseCapacity.multiply(new BigDecimal("1.50"))) >= 0);
+        facade.clientDeposit("MANDATE-01", extra);
+        JSONObject after = facade.getFirmAumCapacityJson();
+        assertTrue(new BigDecimal(after.getString("currentAumIdrRaw")).compareTo(new BigDecimal(after.getString("capacityIdrRaw"))) <= 0);
+        facade.save();
+        TradingFacade restored = new TradingFacade(SaveManager.forDirectory(testDir));
+        restored.setCatalog(facade.getCatalog());
+        assertTrue("State firma/rise harus dapat dimuat dari save lama", restored.load());
+        JSONObject restoredCapacity = restored.getFirmAumCapacityJson();
+        assertEquals(50.0, restoredCapacity.getDouble("scaleBonusPercent"), 0.001);
+        assertEquals(after.getString("currentAumIdrRaw"), restoredCapacity.getString("currentAumIdrRaw"));
+    }
+
+    @Test
+    public void algorithmicResearchUnlockChangesDomainSignalIndicator() throws Exception {
+        com.tradingglobal3d.core.market.Instrument bbca = facade.getCatalog().getById("IDX:BBCA");
+        BigDecimal open = bbca.getCurrentPrice().getAmount();
+        BigDecimal current = open.multiply(new BigDecimal("1.0075")).setScale(0, java.math.RoundingMode.HALF_UP);
+        bbca.updatePrice(new Money(current, Currency.IDR), 0);
+        JSONObject base = facade.getAlgorithmicMarketSignal("IDX:BBCA");
+        assertEquals("Peningkatan 10% belum cukup untuk sinyal breakout 0.75%", "HOLD", base.getString("direction"));
+        assertEquals(10.0, base.getDouble("signalBonusPercent"), 0.001);
+        facade.upgradeTechNode("TECH-ALGO-2");
+        JSONObject upgraded = facade.getAlgorithmicMarketSignal("IDX:BBCA");
+        assertEquals(35.0, upgraded.getDouble("signalBonusPercent"), 0.001);
+        assertEquals("Peningkatan 35% menurunkan ambang dan mendeteksi arah naik", "BUY", upgraded.getString("direction"));
+        assertEquals("current-day-price-change", upgraded.getString("basis"));
+        assertFalse("Sinyal tidak boleh mengklaim data masa depan", upgraded.getBoolean("usesFutureData"));
+    }
+
+    @Test
+    public void researchAndHeadhuntingProgressSurviveSaveAndLoad() throws Exception {
+        facade.upgradeTechNode("TECH-EFF-1");
+        facade.poachStaffCandidate("CAND-01");
+        facade.save();
+
+        TradingFacade restored = new TradingFacade(SaveManager.forDirectory(testDir));
+        restored.setCatalog(facade.getCatalog());
+        assertTrue(restored.load());
+        assertTrue("Tech node upgrade harus dipulihkan", restored.getResearchTechTreeService()
+                .getNode("TECH-EFF-1").isUnlocked());
+        assertTrue("Status kandidat direkrut harus dipulihkan", restored.getHeadhuntingService()
+                .getCandidate("CAND-01").isHired());
+    }
 }

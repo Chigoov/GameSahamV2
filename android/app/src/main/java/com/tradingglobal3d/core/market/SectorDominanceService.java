@@ -84,7 +84,7 @@ public final class SectorDominanceService {
                     ? playerVal.multiply(BigDecimal.valueOf(100)).divide(totalCap, 4, RoundingMode.HALF_UP).doubleValue()
                     : 0.0;
 
-            boolean isDominant = pct >= 25.0; // Ambang penguasa sektor 25%
+            boolean isDominant = pct > 25.0; // Persyaratan masterplan: kepemilikan harus melebihi 25%
             results.put(sec, new SectorStatus(sec, pct, isDominant, isDominant, isDominant ? 25.0 : 0.0));
         }
 
@@ -97,5 +97,29 @@ public final class SectorDominanceService {
             arr.put(s.toJsonObject());
         }
         return arr;
+    }
+
+    public synchronized JSONArray exportState(Account personal, InstrumentCatalog catalog, BigDecimal usdRate) throws JSONException {
+        JSONArray arr = new JSONArray();
+        for (SectorStatus status : evaluateDominance(personal, catalog, usdRate).values())
+            arr.put(new JSONObject().put("sectorName", status.getSectorName())
+                    .put("playerOwnershipPct", status.getPlayerOwnershipPct()).put("isDominant", status.isDominant())
+                    .put("vetoPowerActive", status.isVetoPowerActive()).put("feeDiscountPct", status.getFeeDiscountPct()));
+        return arr;
+    }
+
+    public synchronized void validateState(JSONArray state) throws JSONException {
+        Set<String> sectors = new HashSet<>();
+        for (int i = 0; i < state.length(); i++) {
+            JSONObject item = state.getJSONObject(i);
+            String sector = item.getString("sectorName");
+            double pct = item.getDouble("playerOwnershipPct");
+            double discount = item.getDouble("feeDiscountPct");
+            boolean dominant = item.getBoolean("isDominant");
+            if (sector.trim().isEmpty() || !sectors.add(sector) || !Double.isFinite(pct) || pct < 0
+                    || dominant != (pct > 25.0) || item.getBoolean("vetoPowerActive") != dominant
+                    || discount != (dominant ? 25.0 : 0.0))
+                throw new IllegalArgumentException("State dominasi sektor tidak valid");
+        }
     }
 }

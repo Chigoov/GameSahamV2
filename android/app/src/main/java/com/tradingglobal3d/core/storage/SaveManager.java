@@ -86,9 +86,8 @@ public final class SaveManager {
                         Files.move(tempBackup, backupFile.toPath(),
                                 StandardCopyOption.REPLACE_EXISTING,
                                 StandardCopyOption.ATOMIC_MOVE);
-                    } catch (AtomicMoveNotSupportedException e) {
-                        Files.move(tempBackup, backupFile.toPath(),
-                                StandardCopyOption.REPLACE_EXISTING);
+                    } catch (java.nio.file.FileSystemException e) {
+                        robustMove(tempBackup, backupFile.toPath());
                     }
                 } finally {
                     Files.deleteIfExists(tempBackup);
@@ -98,19 +97,33 @@ public final class SaveManager {
 
         // 3. Verifikasi tempFile dan Atomic replace temp ke target file
         try {
-            String tempContent = readFileToString(tempFile);
-            SaveState.fromJsonString(tempContent);
+            if (!tempFile.exists() || tempFile.length() == 0) {
+                throw new IOException("Temp save file kosong atau tidak ditemukan");
+            }
             try {
                 Files.move(tempFile.toPath(), targetFile.toPath(),
                         StandardCopyOption.REPLACE_EXISTING,
                         StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(tempFile.toPath(), targetFile.toPath(),
-                        StandardCopyOption.REPLACE_EXISTING);
+            } catch (java.nio.file.FileSystemException e) {
+                robustMove(tempFile.toPath(), targetFile.toPath());
             }
         } finally {
             Files.deleteIfExists(tempFile.toPath());
         }
+    }
+
+    private static void robustMove(Path source, Path target) throws IOException {
+        IOException lastError = null;
+        for (int attempt = 0; attempt < 10; attempt++) {
+            try {
+                Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+                return;
+            } catch (IOException ex) {
+                lastError = ex;
+                try { Thread.sleep(20); } catch (InterruptedException ignored) {}
+            }
+        }
+        if (lastError != null) throw lastError;
     }
 
     /**
@@ -206,6 +219,24 @@ public final class SaveManager {
                 || !path.toFile().getCanonicalFile().toPath().getParent().equals(directory))
             throw new IOException("Path backup prestige tidak aman");
         return path;
+    }
+
+    public synchronized org.json.JSONObject getSaveMetadata() throws org.json.JSONException {
+        File primary = getSaveFile();
+        File backup = getBackupFile();
+        boolean primaryExists = primary.exists() && primary.length() > 0;
+        boolean backupExists = backup.exists() && backup.length() > 0;
+        org.json.JSONObject meta = new org.json.JSONObject();
+        meta.put("format", "JSON Standar (Skema V2, UTF-8)");
+        meta.put("primaryExists", primaryExists);
+        meta.put("primaryLastModified", primaryExists ? primary.lastModified() : org.json.JSONObject.NULL);
+        meta.put("primarySizeBytes", primaryExists ? primary.length() : 0);
+        meta.put("backupRotationSupported", true);
+        meta.put("backupFileExists", backupExists);
+        meta.put("backupLastModified", backupExists ? backup.lastModified() : org.json.JSONObject.NULL);
+        meta.put("backupSizeBytes", backupExists ? backup.length() : 0);
+        meta.put("backupStatusLabel", backupExists ? "Tersedia (" + backup.length() + " bytes)" : "Belum tersedia (dibuat pada penyimpanan berikutnya)");
+        return meta;
     }
 
     private String readFileToString(File file) throws IOException {

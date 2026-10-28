@@ -17,6 +17,11 @@ subprocess.run([
     str(jbin / "javac.exe"), "-encoding", "UTF-8", "-cp", cp, "-d", str(classes),
     str(root / "android/app/src/main/java/com/tradingglobal3d/core/research/ResearchTechTreeService.java"),
     str(root / "android/app/src/main/java/com/tradingglobal3d/core/firm/HeadhuntingService.java"),
+    str(root / "android/app/src/main/java/com/tradingglobal3d/core/multiasset/TimeDeposit.java"),
+    str(root / "android/app/src/main/java/com/tradingglobal3d/core/multiasset/TimeDepositManager.java"),
+    str(root / "android/app/src/main/java/com/tradingglobal3d/core/risk/PortfolioInsuranceService.java"),
+    str(root / "android/app/src/main/java/com/tradingglobal3d/core/player/DailyStreakService.java"),
+    str(root / "android/app/src/main/java/com/tradingglobal3d/core/market/SectorDominanceService.java"),
     str(root / "android/app/src/main/java/com/tradingglobal3d/core/facade/TradingFacade.java"),
     str(root / "android/app/src/main/java/com/tradingglobal3d/mobile/TradingWebBridge.java"),
     str(root / "android/app/src/test/java/com/tradingglobal3d/core/TechTreeAndHeadhuntingTahapS3Test.java")
@@ -27,3 +32,4 @@ res = subprocess.run([
     "com.tradingglobal3d.core.TechTreeAndHeadhuntingTahapS3Test"
 ], cwd=str(root / "android/app"))
 print("Tahap S3 Test Exit code:", res.returncode)
+raise SystemExit(res.returncode)

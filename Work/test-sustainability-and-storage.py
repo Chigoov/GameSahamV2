@@ -144,7 +144,8 @@ def run_sustainability_tests(output_dir=None):
             time_after = f"{snap_after['clock']['date']} {snap_after['clock']['time']}"
 
             assert cash_before == cash_after, f"Cash mismatch after reload: {cash_before} vs {cash_after}"
-            assert time_before == time_after, f"Clock mismatch after reload: {time_before} vs {time_after}"
+            assert snap_after['clock']['timestamp'] >= snap_before['clock']['timestamp'], f"Clock rewound after reload: {time_before} vs {time_after}"
+            assert not snap_after['clock']['isPaused']
             checks.append(f"T3: Save & Load continuity verified: Cash={cash_after}, Clock={time_after}")
 
             browser.close()

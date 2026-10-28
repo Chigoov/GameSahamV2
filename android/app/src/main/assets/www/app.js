@@ -104,21 +104,198 @@
     let activeDetailStock = null;
     let anchorGameTimestamp = 0;
     let anchorPerfNow = performance.now();
-    let anchorRate = 96;
+    let anchorRate = 0;
+    let clockRunId = null;
     let latestDailySponsor = null;
+    let clockSyncRunning = false;
+    let clockSyncBlocked = false;
+    let lastKnownSessionLabel = null;
+    let clockSyncPromise = null;
+    let clockSyncRegions = null;
+    let lastClockSyncPerf = -Infinity;
+
+    function requestClockSync(foreground = !document.hidden, isManual = false) {
+        if (!bridge.beginClockSync) return Promise.resolve();
+        if (clockSyncRunning) { bridge.beginClockSync(foreground); return clockSyncPromise; }
+        clockSyncRunning = true;
+
+        if (isManual) {
+            clockSyncBlocked = true;
+            const heavy = performance.now() - lastClockSyncPerf > 5000;
+            const regions = [...document.querySelectorAll('.app-header, .app-scroll, .bottom-nav, #order-modal')];
+            if (!clockSyncRegions) clockSyncRegions = regions.map(region => ({region, inert: region.inert}));
+            const focused = document.activeElement;
+            const lockHeavy = () => regions.forEach(region => { region.inert = true; });
+            if (heavy) lockHeavy();
+            let deferredClick = null;
+            const blockInteraction = event => {
+                if (event.target.closest('#clock-sync-status, .back-button, #btn-close-modal, .toast-dismiss')) {
+                    return;
+                }
+                event.preventDefault(); event.stopImmediatePropagation();
+                if (event.type === 'click' && !heavy && !regions.some(region => region.inert)) {
+                    deferredClick = event.target.closest('button, a, input, select, textarea, [role="button"]');
+                }
+            };
+            document.addEventListener('click', blockInteraction, true);
+            document.addEventListener('submit', blockInteraction, true);
+            const notice = document.getElementById('clock-sync-status') || node('section', 'clock-sync-status');
+            notice.id = 'clock-sync-status';
+            notice.setAttribute('role', 'status');
+            notice.replaceChildren(node('strong', '', 'Menyelaraskan waktu permainan'), node('p', '', 'Aktivitas selama kamu pergi sedang diproses. Transaksi tersedia kembali setelah progres tersimpan.'));
+            notice.hidden = !heavy;
+            if (!notice.isConnected) document.body.append(notice);
+            clockSyncPromise = new Promise((resolve, reject) => {
+                const reveal = setTimeout(() => { lockHeavy(); notice.hidden = false; }, 150);
+                requestAnimationFrame(() => setTimeout(() => {
+                    try { bridge.beginClockSync(foreground); } catch (error) { finish(error); return; }
+                    poll();
+                }, 0));
+                function finish(error) {
+                    clearTimeout(reveal);
+                    document.removeEventListener('click', blockInteraction, true);
+                    document.removeEventListener('submit', blockInteraction, true);
+                    clockSyncRunning = false;
+                    clockSyncBlocked = false;
+                    if (clockSyncRegions) {
+                        clockSyncRegions.forEach(({region, inert}) => { region.inert = inert; });
+                        clockSyncRegions = null;
+                    }
+                    if (notice.isConnected) notice.remove();
+                    if (error) {
+                        reject(error);
+                        return;
+                    }
+                    if (focused && focused.isConnected && !focused.closest('[inert]')) focused.focus({preventScroll: true});
+                    lastClockSyncPerf = performance.now();
+                    resolve();
+                    if (deferredClick && deferredClick.isConnected) queueMicrotask(() => deferredClick.click());
+                }
+                function poll() {
+                    try {
+                        const state = JSON.parse(bridge.getClockSyncStatus());
+                        if (state.status === 'PENDING') { setTimeout(poll, 50); return; }
+                        if (state.success === false || state.status !== 'COMPLETED') throw new Error(state.message || 'Progres belum dapat diselaraskan.');
+                        finish();
+                    } catch (error) { finish(error); }
+                }
+            });
+            return clockSyncPromise;
+        }
+
+        // Background non-blocking heartbeat
+        clockSyncPromise = new Promise((resolve, reject) => {
+            try { bridge.beginClockSync(foreground); } catch (error) { clockSyncRunning = false; reject(error); return; }
+            function pollBackground() {
+                try {
+                    const state = JSON.parse(bridge.getClockSyncStatus());
+                    if (state.status === 'PENDING') { setTimeout(pollBackground, 50); return; }
+                    clockSyncRunning = false;
+                    if (state.success === false || state.status !== 'COMPLETED') {
+                        reject(new Error(state.message || 'Penyelarasan waktu latar belakang gagal'));
+                        return;
+                    }
+                    lastClockSyncPerf = performance.now();
+                    resolve();
+                } catch (error) {
+                    clockSyncRunning = false;
+                    reject(error);
+                }
+            }
+            pollBackground();
+        });
+        return clockSyncPromise;
+    }
 
     function renderFlowingClock() {
-        if (!anchorGameTimestamp) return;
+        if (!anchorGameTimestamp || document.hidden) return;
         const elapsedRealMs = performance.now() - anchorPerfNow;
         const currentSimMs = anchorGameTimestamp + elapsedRealMs * anchorRate;
         // Waktu game dihitung dalam offset WIB (UTC+7)
         const date = new Date(currentSimMs + 7 * 3600000);
         const hours = String(date.getUTCHours()).padStart(2, '0');
         const mins = String(date.getUTCMinutes()).padStart(2, '0');
-        const secs = String(date.getUTCSeconds()).padStart(2, '0');
         if (clockDisplay) {
-            clockDisplay.textContent = `${hours}:${mins}:${secs} WIB`;
+            clockDisplay.textContent = `${hours}:${mins} WIB`;
         }
+    }
+
+    let newsRealHighWater = 0;
+    let newsRealPerfAnchor = performance.now();
+
+    function newsEffectLabel(news) {
+        if (news.effectStatus === 'NOT_APPLICABLE_REPLAY') return 'Tidak berlaku pada replay';
+        if (news.effectStatus === 'SCHEDULED') {
+            const gameNow = anchorGameTimestamp + Math.max(0, performance.now() - anchorPerfNow) * anchorRate;
+            const remaining = Math.max(0, Number(news.publishedAt) - gameNow);
+            if (!Number.isFinite(remaining)) return news.countdownLabel || 'Terjadwal';
+            const minutes = Math.ceil(remaining / 60000);
+            return minutes ? `Rilis dalam ${Math.floor(minutes / 60)}j ${minutes % 60}m (waktu game)` : 'Menunggu konfirmasi rilis';
+        }
+        const ends = Number(news.effectEndsRealAt);
+        const asOf = Number(news.effectAsOfRealAt);
+        if (!Number.isFinite(ends) || ends < 0 || !Number.isFinite(asOf)) return 'Waktu pengaruh belum tersedia';
+        const perf = performance.now();
+        newsRealHighWater = Math.max(asOf, Date.now(), newsRealHighWater + Math.max(0, perf - newsRealPerfAnchor));
+        newsRealPerfAnchor = perf;
+        const remaining = Math.max(0, ends - newsRealHighWater);
+        if (remaining === 0) return 'Berakhir';
+        const minutes = Math.ceil(remaining / 60000);
+        const hours = Math.floor(minutes / 60);
+        return `Aktif · sisa ${hours ? hours + 'j ' : ''}${minutes % 60}m nyata`;
+    }
+
+    const visibleNews = new Map();
+    let homeNewsSignature = '';
+
+    function rememberNews(news) {
+        news.forEach(article => visibleNews.set(article.id, article));
+    }
+    function newsEffectNode(news, className = '') {
+        visibleNews.set(news.id, news);
+        const label = node('span', className, newsEffectLabel(news));
+        label.dataset.newsEffectId = news.id;
+        return label;
+    }
+    function updateNewsEffects() {
+        if (document.hidden) return;
+        document.querySelectorAll('[data-news-effect-id]').forEach(label => {
+            const news = visibleNews.get(label.dataset.newsEffectId);
+            if (news) {
+                const text = newsEffectLabel(news);
+                if (label.textContent !== text) label.textContent = text;
+            }
+        });
+    }
+    function appendNewsTiming(panel, news) {
+        const grid = node('div', 'news-timing-grid');
+        const appendCell = (label, valueNode) => {
+            const cell = node('div', 'timing-cell');
+            cell.append(node('small', '', label), valueNode);
+            grid.append(cell);
+        };
+        appendCell('Status pengaruh', newsEffectNode(news, 'change-pill'));
+        appendCell('Durasi nyata', node('strong', '', Number.isFinite(Number(news.effectDurationRealMs)) ? `${Number(news.effectDurationRealMs) / 60000} menit` : 'Belum tersedia'));
+        appendCell('Perkiraan dampak', node('strong', '', `${news.direction || 'NETRAL'}${news.estimatedRange ? ' · ' + news.estimatedRange : ''}`));
+        for (const [key, label] of [['effectStartsRealAt', 'Mulai nyata (WIB)'], ['effectEndsRealAt', 'Berakhir nyata (WIB)']]) {
+            appendCell(label, node('strong', '', Number(news[key]) >= 0 ? new Date(Number(news[key])).toLocaleString('id-ID', {timeZone: 'Asia/Jakarta'}) : 'Belum tersedia'));
+        }
+        panel.append(grid);
+    }
+    function openNewsDetail(news, returnTo = null) {
+        const current = visibleNews.get(news.id) || news;
+        const detail = showFlow('Kabar & Dampak Pasar');
+        if (returnTo) {
+            detail.newsReturn = returnTo;
+        }
+        detail.append(node('h2', '', current.headline));
+        appendNewsTiming(detail, current);
+        flowText(detail, 'Kategori & Sektor', `${current.categoryLabel || 'Pasar'} · ${current.affectedSector || 'Umum'}`);
+        if (current.relatedTicker) flowText(detail, 'Emiten terkait', current.relatedTicker);
+        if (current.confidence) flowText(detail, 'Keyakinan', current.confidence);
+        flowText(detail, 'Publikasi (waktu game)', current.countdownLabel || 'Terjadwal');
+        detail.append(node('p', 'article-copy', current.content));
+        if (current.isPublished && bridge.recordResearchRead) bridge.recordResearchRead(current.id);
     }
 
     function updateSponsorCountdown() {
@@ -133,7 +310,14 @@
             }
             const remaining = Math.max(0, nextMs - Date.now());
             if (remaining === 0) {
-                refreshSnapshot();
+                if (claimSponsorBtn) {
+                    claimSponsorBtn.disabled = false;
+                    claimSponsorBtn.textContent = 'Klaim Bantuan Sponsor';
+                }
+                if (qaSponsor) {
+                    qaSponsor.disabled = false;
+                    qaSponsor.setAttribute('aria-label', 'Klaim bantuan sponsor harian');
+                }
                 return;
             }
             const hours = Math.floor(remaining / 3600000);
@@ -163,33 +347,187 @@
     let activeReceiptRequestId = null;
     let activeDetailPositionInstrumentId = null;
     const activeToastKeys = new Set();
+    // Bounded in-memory session LRU cache for deduplicating repeated callbacks within the active session (capacity 500)
+    const settledEventKeys = new Set();
+    const toastNotificationHistory = [];
+    window.getToastHistory = () => toastNotificationHistory.slice();
+    const toastQueue = [];
+
+    function processToastQueue() {
+        const container = document.getElementById('toast-container');
+        if (!container || toastQueue.length === 0) return;
+        while (container.children.length < 3 && toastQueue.length > 0) {
+            // Priority queue: critical messages (error/alert) take precedence over info/success
+            let idx = toastQueue.findIndex(t => t.isCritical);
+            if (idx === -1) idx = 0;
+            const [next] = toastQueue.splice(idx, 1);
+            renderToast(next.type, next.title, next.message);
+        }
+    }
+
+    function renderToast(type, title, message) {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+        const isIncomingCritical = type === 'error' || type === 'alert';
+        const toast = document.createElement('div');
+        toast.className = `game-toast ${type || 'info'}`;
+        toast.setAttribute('role', isIncomingCritical ? 'alert' : 'status');
+        const icon = node('div', 'toast-icon', type === 'success' || type === 'achievement' ? '✓' : 'i');
+        icon.setAttribute('aria-hidden', 'true');
+        const body = node('div', 'toast-body'); body.append(node('strong', '', title), node('small', '', message));
+        const dismiss = node('button', 'toast-dismiss', '×'); dismiss.setAttribute('aria-label', 'Tutup pemberitahuan');
+        const removeToast = () => {
+            if (!toast.isConnected) return;
+            toast.classList.remove('visible');
+            setTimeout(() => {
+                toast.remove();
+                processToastQueue();
+            }, 250);
+        };
+        dismiss.onclick = removeToast;
+        toast.append(icon, body, dismiss);
+        container.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.add('visible'));
+
+        // Non-critical toasts auto-dismiss after 3200ms. Critical toasts stay until dismissed by player!
+        if (!isIncomingCritical) {
+            setTimeout(removeToast, 3200);
+        }
+    }
+
+    // K-018: Tracking in-flight collection intents so retries after lost response reuse requestId & recover receipt
+    const pendingCollectionIntents = new Map(); // key: (buy ? 'BUY:' : 'SELL:') + itemId -> { requestId, expectedPrice }
+
+    function loadPersistedCollectionIntents() {
+        try {
+            const raw = (typeof sessionStorage !== 'undefined') ? sessionStorage.getItem('game_pending_col_intents') : null;
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                for (const [k, v] of Object.entries(parsed)) {
+                    pendingCollectionIntents.set(k, v);
+                }
+            }
+        } catch(e) {}
+    }
+    loadPersistedCollectionIntents();
+
+    function persistCollectionIntents() {
+        try {
+            if (typeof sessionStorage !== 'undefined') {
+                const obj = {};
+                for (const [k, v] of pendingCollectionIntents.entries()) {
+                    obj[k] = v;
+                }
+                sessionStorage.setItem('game_pending_col_intents', JSON.stringify(obj));
+            }
+        } catch(e) {}
+    }
+
+    function getOrCreateCollectionRequestId(itemId, buy, expectedPrice) {
+        const key = (buy ? 'BUY:' : 'SELL:') + itemId;
+        const existing = pendingCollectionIntents.get(key);
+        if (existing && existing.expectedPrice === expectedPrice) {
+            return existing.requestId;
+        }
+        const requestId = 'COL-' + (buy ? 'BUY' : 'SELL') + '-' + itemId + '-' + Date.now();
+        pendingCollectionIntents.set(key, { requestId, expectedPrice, itemId, buy });
+        persistCollectionIntents();
+        return requestId;
+    }
+
+    function clearCollectionIntent(itemId, buy) {
+        const key = (buy ? 'BUY:' : 'SELL:') + itemId;
+        pendingCollectionIntents.delete(key);
+        persistCollectionIntents();
+    }
+
+    function checkAndRecoverPendingCollectionIntent(item) {
+        if (!item || !bridge.transactCollection) return;
+        const buyKey = 'BUY:' + item.id;
+        const sellKey = 'SELL:' + item.id;
+        const isOwned = Boolean(item.isOwned || item.owned);
+        if (isOwned && pendingCollectionIntents.has(buyKey)) {
+            const intent = pendingCollectionIntents.get(buyKey);
+            try {
+                const req = { requestId: intent.requestId, itemId: item.id, buy: true, expectedPrice: intent.expectedPrice };
+                const res = JSON.parse(bridge.transactCollection(JSON.stringify(req)));
+                if (res && res.success) {
+                    clearCollectionIntent(item.id, true);
+                    const transAmount = res.amount ? formatMoney(res.amount) : formatMoney(intent.expectedPrice);
+                    showGameToast('success', 'Pembelian Dipulihkan!', `${item.name} berhasil dibeli seharga ${transAmount}. Status telah dikonfirmasi dari receipt domain.`);
+                    return res;
+                }
+            } catch(e) {}
+        }
+        if (!isOwned && pendingCollectionIntents.has(sellKey)) {
+            const intent = pendingCollectionIntents.get(sellKey);
+            try {
+                const req = { requestId: intent.requestId, itemId: item.id, buy: false, expectedPrice: intent.expectedPrice };
+                const res = JSON.parse(bridge.transactCollection(JSON.stringify(req)));
+                if (res && res.success) {
+                    clearCollectionIntent(item.id, false);
+                    const transAmount = res.amount ? formatMoney(res.amount) : formatMoney(intent.expectedPrice);
+                    showGameToast('success', 'Penjualan Dipulihkan!', `${item.name} berhasil dijual seharga ${transAmount}. Status telah dikonfirmasi dari receipt domain.`);
+                    return res;
+                }
+            } catch(e) {}
+        }
+    }
 
     function showGameToast(type, title, message, dedupeKey) {
-        const key = dedupeKey || (title + ':' + message);
-        if (activeToastKeys.has(key)) return;
-        activeToastKeys.add(key);
-        setTimeout(() => { activeToastKeys.delete(key); }, 5000);
+        if (dedupeKey) {
+            if (settledEventKeys.has(dedupeKey)) return;
+            settledEventKeys.add(dedupeKey);
+            if (settledEventKeys.size > 500) {
+                const oldest = settledEventKeys.values().next().value;
+                settledEventKeys.delete(oldest);
+            }
+        } else {
+            const key = title + ':' + message;
+            if (activeToastKeys.has(key)) return;
+            activeToastKeys.add(key);
+            setTimeout(() => { activeToastKeys.delete(key); }, 5000);
+        }
+
+        // Bounded notification history (inbox) for recovery trail
+        toastNotificationHistory.push({ type: type || 'info', title, message, dedupeKey: dedupeKey || null, timestamp: Date.now() });
+        if (toastNotificationHistory.length > 50) toastNotificationHistory.shift();
 
         const container = document.getElementById('toast-container');
         if (!container) return;
 
-        const toast = document.createElement('div');
-        toast.className = `game-toast ${type || 'info'}`;
-        const icon = node('div', 'toast-icon', type === 'success' || type === 'achievement' ? '✓' : 'i');
-        icon.setAttribute('aria-hidden', 'true');
-        const body = node('div', 'toast-body'); body.append(node('strong', '', title), node('small', '', message));
-        const dismiss = node('button', 'toast-dismiss', '×'); dismiss.setAttribute('aria-label', 'Tutup pemberitahuan'); dismiss.onclick = () => toast.remove();
-        toast.append(icon, body, dismiss);
-        container.replaceChildren(toast);
-        requestAnimationFrame(() => toast.classList.add('visible'));
-        setTimeout(() => {
-            toast.classList.remove('visible');
-            setTimeout(() => toast.remove(), 250);
-        }, 3200);
+        const isIncomingCritical = type === 'error' || type === 'alert';
+
+        if (container.children.length >= 3) {
+            // Priority eviction: evict oldest non-alert/non-error toast first
+            let evictCandidate = null;
+            for (let i = 0; i < container.children.length; i++) {
+                const child = container.children[i];
+                if (!child.classList.contains('error') && !child.classList.contains('alert')) {
+                    evictCandidate = child;
+                    break;
+                }
+            }
+            if (evictCandidate) {
+                evictCandidate.remove();
+                renderToast(type, title, message);
+                return;
+            } else {
+                // All 3 slots currently contain critical (error/alert) messages!
+                // Critical protection: NEVER evict an active critical toast!
+                // Queue the incoming toast in toastQueue so it is shown when one is dismissed
+                toastQueue.push({ type, title, message, isCritical: isIncomingCritical });
+                if (toastQueue.length > 20) toastQueue.shift();
+                return;
+            }
+        }
+
+        renderToast(type, title, message);
     }
+    window.showGameToast = showGameToast;
 
     function applyPlayerPreferences(preferences) {
-        document.documentElement.style.fontSize = preferences.textSize === '200%' ? '200%' : '';
+        document.documentElement.style.fontSize = ''; // Mengikuti skala teks sistem perangkat bawaan (A12)
         document.documentElement.classList.toggle('high-contrast', preferences.highContrast === true);
         document.documentElement.classList.toggle('reduced-motion', preferences.reducedMotion === true);
     }
@@ -201,6 +539,7 @@
         return result;
     }
     function refreshSnapshot() {
+        if (clockSyncBlocked) return;
         try {
             const raw = bridge.getSnapshot();
             const snap = JSON.parse(raw);
@@ -211,9 +550,6 @@
                 const profile=JSON.parse(bridge.getPlayerProfile());
                 if (profile.success !== false && profile.preferences) { applyPlayerPreferences(profile.preferences); preferenceRunId=snap.runId; }
             }
-            document.getElementById('home-clock-state').textContent = snap.clock
-                ? `${snap.clock.sessionLabel} · ${snap.clock.isPaused ? 'Dijeda' : 'Berjalan'} ${snap.clock.speed}×`
-                : 'Waktu domain belum tersedia.';
             document.getElementById('home-career-state').textContent = snap.career
                 ? `${snap.career.title} · Reputasi ${snap.career.reputation}/100`
                 : 'Progres karier domain belum tersedia pada pratinjau ini.';
@@ -234,14 +570,33 @@
             }
 
             if (snap.clock) {
-                anchorGameTimestamp = snap.clock.timestamp || anchorGameTimestamp;
-                anchorPerfNow = performance.now();
-                anchorRate = snap.clock.isPaused ? 0 : (Number.isFinite(Number(snap.clock.rate)) ? Number(snap.clock.rate) * (Number(snap.clock.speed) || 1) : 0);
+                const presenterNow = performance.now();
+                const sameRun = clockRunId === snap.runId;
+                if (!sameRun) {
+                    newsRealHighWater = 0;
+                    newsRealPerfAnchor = presenterNow;
+                    visibleNews.clear();
+                    homeNewsSignature = '';
+                }
+                const displayedTimestamp = anchorGameTimestamp + Math.max(0, presenterNow - anchorPerfNow) * anchorRate;
+                const domainTimestamp = Number(snap.clock.timestamp) || anchorGameTimestamp;
+                anchorGameTimestamp = sameRun && !snap.clock.isPaused ? Math.max(domainTimestamp, displayedTimestamp) : domainTimestamp;
+                clockRunId = snap.runId;
+                anchorPerfNow = presenterNow;
+                anchorRate = snap.clock.isPaused ? 0 : (Number.isFinite(Number(snap.clock.rate)) ? Number(snap.clock.rate) : 0);
                 if (clockDisplay) clockDisplay.textContent = snap.clock.time;
-                sessionLabel.textContent = snap.clock.sessionLabel;
-                sessionDot.className = 'status-dot ' + (snap.clock.isTradingOpen ? 'open' : 'halt');
-                document.getElementById('home-clock-state').textContent = `${snap.clock.sessionLabel} · ${snap.clock.isPaused ? 'Dijeda' : 'Berjalan otomatis'}`;
+                if (sessionLabel) sessionLabel.textContent = snap.clock.sessionLabel;
+                if (sessionDot) sessionDot.className = 'status-dot ' + (snap.clock.isTradingOpen ? 'open' : 'halt');
+                if (lastKnownSessionLabel !== null && snap.clock.sessionLabel && lastKnownSessionLabel !== snap.clock.sessionLabel) {
+                    showGameToast('info', 'Sesi Bursa Berganti', `Sesi pasar kini beralih ke ${snap.clock.sessionLabel}.`, 'SESSION_CHANGE:' + snap.clock.sessionLabel + ':' + (snap.clock.date || ''));
+                }
+                lastKnownSessionLabel = snap.clock.sessionLabel;
                 renderFlowingClock();
+            }
+            if (snap.offlineCatchupReport && snap.offlineCatchupReport.timestamp) {
+                const catchupTs = snap.offlineCatchupReport.timestamp;
+                const pnl = snap.offlineCatchupReport.pnl || 'Rp 0';
+                showGameToast('info', 'Penyelarasan Waktu Offline', `Simulasi mengejar waktu offline. Perubahan nilai: ${pnl}.`, 'OFFLINE_CATCHUP:' + catchupTs);
             }
             if (snap.dailySponsor) {
                 latestDailySponsor = snap.dailySponsor;
@@ -353,7 +708,12 @@
         }
         try {
             const feed = JSON.parse(bridge.getResearchFeed());
-            const allNews = feed.news || [];
+            if (feed.success === false || !Array.isArray(feed.news)) throw new Error(feed.message || 'Kabar pasar belum dapat dimuat.');
+            const allNews = feed.news;
+            rememberNews(allNews);
+            const signature = homeNewsFilter + JSON.stringify(allNews.map(n => [n.id, n.isPublished, n.headline, n.content, n.direction, n.estimatedRange]));
+            if (signature === homeNewsSignature && container.childElementCount) { updateNewsEffects(); return; }
+            homeNewsSignature = signature;
             if (!allNews.length) {
                 container.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted); margin:0;">Belum ada kabar pasar yang terbit saat ini.</p>';
                 return;
@@ -383,30 +743,100 @@
 
                 const top = node('div', 'section-heading');
                 top.append(node('span', 'eyebrow', `${n.categoryLabel || 'Pasar'}${n.affectedSector ? ' · ' + n.affectedSector : ''}${n.relatedTicker ? ' (' + n.relatedTicker + ')' : ''}`));
-                top.append(node('span', `change-pill ${isGood ? 'positive' : isBad ? 'negative' : ''}`, `${n.direction || 'Dampak belum tersedia'}${n.estimatedRange ? ' (' + n.estimatedRange + ')' : ''}`));
+                top.append(node('span', `change-pill ${isGood ? 'positive' : isBad ? 'negative' : ''}`, `Perkiraan dampak: ${n.direction || 'belum tersedia'}${n.estimatedRange ? ' (' + n.estimatedRange + ')' : ''}`));
                 const timing = node('div', 'flex-row');
-                timing.append(node('span', '', n.countdownLabel || (n.publishedAt == null ? 'Waktu belum tersedia' : new Date(n.publishedAt).toLocaleString('id-ID', {timeZone: 'Asia/Jakarta'}))), node('span', '', 'Baca rincian'));
+                timing.append(newsEffectNode(n), node('span', '', 'Baca rincian'));
                 if (n.confidence) timing.append(node('span', '', `Keyakinan: ${n.confidence}`));
                 card.append(top, node('h3', '', n.headline), node('p', '', n.content ? n.content.substring(0, 110) + (n.content.length > 110 ? '…' : '') : 'Isi berita belum tersedia.'), timing);
-                card.onclick = () => {
-                    const detail = showFlow('Kabar & Dampak Pasar');
-                    detail.append(node('h2', '', n.headline));
-                    flowText(detail, 'Kategori & Sektor', `${n.categoryLabel || 'Pasar'} · ${n.affectedSector || 'Umum'}`);
-                    if (n.relatedTicker) flowText(detail, 'Emiten terkait', n.relatedTicker);
-                    flowText(detail, 'Arah & Estimasi Dampak', `${n.direction || 'NETRAL'}${n.estimatedRange ? ' (Rentang perkiraan: ' + n.estimatedRange + ')' : ''}`);
-                    flowText(detail, 'Tingkat Keyakinan (Confidence)', n.confidence);
-                    flowText(detail, 'Horizon Waktu', n.horizonDays == null ? null : `${n.horizonDays} hari permainan`);
-                    flowText(detail, 'Status Waktu Game', n.countdownLabel || 'Terjadwal');
-                    detail.append(node('p', 'article-copy', n.content));
-                    if (bridge.recordResearchRead) bridge.recordResearchRead(n.id);
-                    refreshSnapshot();
-                };
+                card.onclick = () => openNewsDetail(n);
                 card.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); card.click(); } };
                 container.appendChild(card);
             });
         } catch(e) {
             container.replaceChildren(node('p', 'notice', 'Gagal memuat kabar pasar: ' + e.message));
         }
+    }
+
+    function formatPositionMoney(value, currency) {
+        const amount = Number(value);
+        if (!Number.isFinite(amount)) return 'Belum tersedia';
+        if (currency === 'USD') return '$' + amount.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+        if (currency === 'IDR') return 'Rp ' + amount.toLocaleString('id-ID', {minimumFractionDigits:0, maximumFractionDigits:0});
+        return `${currency || ''} ${amount.toLocaleString('id-ID')}`.trim();
+    }
+
+    function positionPnlDisplay(pos) {
+        const amount = Number(pos.unrealizedPnLRaw || 0);
+        const status = amount > 0 ? 'Untung' : amount < 0 ? 'Rugi' : 'Impas';
+        const pnlClass = amount > 0 ? 'positive' : amount < 0 ? 'negative' : 'neutral';
+        const sign = amount > 0 ? '+' : '';
+        return {pnlClass, text:`${status} · ${sign}${pos.unrealizedPnL} (${sign}${pos.unrealizedPnLPercent || '0.00'}%)`};
+    }
+
+    function renderPositionCard(pos) {
+        const card = node('article', 'position-card position-row');
+        card.dataset.instrumentId = pos.instrumentId;
+        card.tabIndex = 0;
+        card.setAttribute('role', 'button');
+        const lotInfo = pos.lotSize > 0 ? ` (${pos.lots} lot)` : '';
+        const sharesText = `${Number(pos.quantity).toLocaleString('id-ID')} saham${lotInfo}`;
+        card.setAttribute('aria-label', `Posisi ${pos.ticker || pos.instrumentId} ${pos.exchange || ''}, ${sharesText}, nilai ${pos.marketValue}, laba rugi ${pos.unrealizedPnL} (${pos.unrealizedPnLPercent || '0.00'}%)`);
+        card.onclick = () => openPositionDetailModal(pos.instrumentId);
+        card.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPositionDetailModal(pos.instrumentId); } };
+
+        const header = node('div', 'pos-card-header');
+        const idCol = node('div', 'pos-id-col');
+        const badge = node('span', 'pos-exchange-badge', pos.exchange || (pos.instrumentId.startsWith('US:') ? 'US' : 'IDX'));
+        const tickerLine = node('div');
+        tickerLine.append(node('strong', 'pos-ticker', pos.ticker || pos.instrumentId), badge);
+        idCol.append(tickerLine);
+        if (pos.name) idCol.append(node('small', 'pos-name', pos.name));
+
+        const valCol = node('div', 'pos-val-col');
+        valCol.append(node('strong', 'pos-market-val', pos.marketValue));
+        const pnl = positionPnlDisplay(pos);
+        valCol.append(node('span', `pos-pnl ${pnl.pnlClass}`, pnl.text));
+
+        header.append(idCol, valCol);
+
+        const details = node('div', 'pos-card-details');
+        const quantityCell = node('div', 'pos-detail-cell');
+        quantityCell.append(node('small', '', 'Jumlah'), node('span', 'pos-qty', sharesText));
+        const averageCell = node('div', 'pos-detail-cell');
+        averageCell.append(node('small', '', 'Rata-rata'), node('span', 'pos-avg', formatPositionMoney(pos.averageCost, pos.currency)));
+        const marketPriceCell = node('div', 'pos-detail-cell');
+        marketPriceCell.append(node('small', '', 'Harga pasar'), node('span', 'pos-cur', formatPositionMoney(pos.currentPrice, pos.currency)));
+        details.append(quantityCell, averageCell, marketPriceCell);
+
+        card.append(header, details);
+        return card;
+    }
+
+    function updatePositionCard(card, pos) {
+        const valEl = card.querySelector('.pos-market-val');
+        if (valEl && valEl.textContent !== pos.marketValue) valEl.textContent = pos.marketValue;
+
+        const pnlEl = card.querySelector('.pos-pnl');
+        if (pnlEl) {
+            const pnl = positionPnlDisplay(pos);
+            pnlEl.className = `pos-pnl ${pnl.pnlClass}`;
+            if (pnlEl.textContent !== pnl.text) pnlEl.textContent = pnl.text;
+        }
+
+        const qtyEl = card.querySelector('.pos-qty');
+        const lotInfo = pos.lotSize > 0 ? ` (${pos.lots} lot)` : '';
+        const sharesText = `${Number(pos.quantity).toLocaleString('id-ID')} saham${lotInfo}`;
+        if (qtyEl && qtyEl.textContent !== sharesText) qtyEl.textContent = sharesText;
+
+        const avgEl = card.querySelector('.pos-avg');
+        const avgText = formatPositionMoney(pos.averageCost, pos.currency);
+        if (avgEl && avgEl.textContent !== avgText) avgEl.textContent = avgText;
+
+        const curEl = card.querySelector('.pos-cur');
+        const curText = formatPositionMoney(pos.currentPrice, pos.currency);
+        if (curEl && curEl.textContent !== curText) curEl.textContent = curText;
+
+        card.setAttribute('aria-label', `Posisi ${pos.ticker || pos.instrumentId} ${pos.exchange || ''}, ${sharesText}, nilai ${pos.marketValue}, laba rugi ${pos.unrealizedPnL} (${pos.unrealizedPnLPercent || '0.00'}%)`);
     }
 
     function openPositionDetailModal(instrumentId) {
@@ -433,15 +863,56 @@
             };
             Object.entries(labels).forEach(([key, label]) => {
                 let val = String(position[key] ?? '-');
-                if (key === 'quantity') val = `${position.quantity} saham`;
+                if (key === 'averageCost' || key === 'currentPrice') val = formatPositionMoney(position[key], position.currency);
+                if (key === 'quantity') {
+                    const lotInfo = position.lotSize > 0 && Number(position.quantity) > 0 ? ` (${position.lots} lot)` : '';
+                    val = `${position.quantity} saham${lotInfo}`;
+                }
                 flowText(panel, label, val);
             });
             flowText(panel, 'Catatan', isClosed
                 ? 'Posisi telah ditutup sepenuhnya. Nilai laba/rugi terealisasi di atas belum dikurangi biaya transaksi.'
                 : 'Nilai laba/rugi terealisasi di atas belum dikurangi biaya transaksi.');
+
+            // Tombol tindakan ke tiket order / pasar
+            flowButton(panel, 'Beli / Jual saham ini', () => {
+                const stock = {
+                    id: position.instrumentId,
+                    ticker: position.ticker || position.instrumentId.split(':')[1] || position.instrumentId,
+                    exchange: position.exchange || (position.instrumentId.startsWith('US:') ? 'US' : 'IDX'),
+                    lotSize: position.lotSize || 100,
+                    currency: position.currency || 'IDR',
+                    currentPriceRaw: position.currentPrice,
+                    currentPrice: formatMoney(Number(position.currentPrice), position.currency)
+                };
+                openOrderTicket(stock, null);
+            });
         } catch(e) {
             console.warn('Gagal membuka detail posisi:', e);
         }
+    }
+
+    function renderPortfolioEmpty(parent) {
+        emptyState(parent, 'Belum ada posisi', 'Pilih saham di Pasar dan tinjau order pertamamu.');
+        const search = node('button', 'btn-primary', 'Cari saham');
+        search.type = 'button';
+        search.addEventListener('click', () => switchTab('pasar'));
+        parent.querySelector('.empty-state').append(search);
+    }
+
+    function setPortfolioDataStale(stale) {
+        const existing = document.getElementById('portfolio-data-status');
+        if (!stale) { existing?.remove(); return; }
+        if (existing || document.getElementById('asset-summary')?.dataset.portfolioLoaded !== 'true') return;
+        const notice = node('section', 'notice');
+        notice.id = 'portfolio-data-status';
+        notice.setAttribute('role', 'status');
+        notice.append(node('p', '', 'Portofolio belum dapat diperbarui. Angka yang tampil adalah snapshot terakhir yang berhasil dimuat.'));
+        const retry = node('button', 'btn-primary', 'Coba perbarui portofolio');
+        retry.type = 'button';
+        retry.addEventListener('click', () => syncPortfolioLive());
+        notice.append(retry);
+        document.querySelector('#view-aset .page-heading')?.after(notice);
     }
 
     function syncPortfolioLive() {
@@ -451,7 +922,9 @@
         if (!posContainer || !summary || !currentAccount || !bridge.getPortfolio) return;
         try {
             const portfolio = JSON.parse(bridge.getPortfolio(currentAccount.id));
-            if (!portfolio || !portfolio.success) return;
+            if (!portfolio || !portfolio.success) { setPortfolioDataStale(true); return; }
+            setPortfolioDataStale(false);
+            if (summary.dataset.portfolioLoaded !== 'true') { loadAsetView(); return; }
 
             // Update Net Worth di summary
             const nwEl = summary.querySelector('.metric-hero');
@@ -483,6 +956,8 @@
                         if (span.textContent === 'USD tersedia') strong.textContent = portfolio.cash.USD.available;
                         if (span.textContent === 'USD tertahan') strong.textContent = portfolio.cash.USD.reserved;
                     }
+                    if (span.textContent === 'Laba/Rugi Mengambang (Unrealized)') strong.textContent = portfolio.totalUnrealizedPnL;
+                    if (span.textContent === 'Hasil terealisasi sebelum biaya') strong.textContent = portfolio.totalRealizedPnL;
                     if (span.textContent === 'Posisi saham (valuasi IDR)') strong.textContent = portfolio.positionsValueIdr;
                     if (span.textContent === 'Kewajiban') strong.textContent = portfolio.liabilities;
                     if (span.textContent === 'Kurs valuasi USD/IDR' && portfolio.valuationRateUsdIdr) strong.textContent = portfolio.valuationRateUsdIdr;
@@ -491,36 +966,36 @@
 
             // Reconcile Positions List in place
             if (portfolio.positions) {
-                const currentRows = posContainer.querySelectorAll('.position-row');
-                if (portfolio.positions.length === 0) {
-                    if (currentRows.length > 0 || !posContainer.querySelector('.empty-state')) {
+                const activePositions = portfolio.positions.filter(p => Number(p.quantity) > 0);
+                const currentCards = posContainer.querySelectorAll('.position-card, .position-row');
+                if (activePositions.length === 0) {
+                    if (currentCards.length > 0 || !posContainer.querySelector('.empty-state')) {
                         posContainer.replaceChildren();
-                        emptyState(posContainer, 'Belum ada posisi', 'Pilih saham di Pasar dan tinjau order pertamamu.');
+                        renderPortfolioEmpty(posContainer);
                     }
                 } else {
                     const empty = posContainer.querySelector('.empty-state');
                     if (empty) empty.remove();
-                    if (currentRows.length === portfolio.positions.length) {
-                        portfolio.positions.forEach((pos, idx) => {
-                            const btn = currentRows[idx];
-                            const isPosClosed = pos.quantity === 0;
-                            const text = `${pos.instrumentId}: ${pos.quantity} saham ${isPosClosed ? '(Ditutup)' : ''} · ${pos.marketValue}`;
-                            btn.dataset.instrumentId = pos.instrumentId;
-                            btn.onclick = () => openPositionDetailModal(pos.instrumentId);
-                            const arrow = btn.querySelector('span[aria-hidden="true"]');
-                            btn.textContent = text;
-                            if (arrow) btn.append(arrow);
+                    const existingCards = Array.from(currentCards);
+                    const currentIds = existingCards.map(c => c.dataset.instrumentId);
+                    const activeIds = activePositions.map(p => p.instrumentId);
+                    const cardsById = new Map(existingCards.map(card => [card.dataset.instrumentId, card]));
+                    const isSameList = currentIds.length === activeIds.length && currentIds.every((id, idx) => id === activeIds[idx]);
+                    if (isSameList) {
+                        activePositions.forEach(pos => {
+                            const card = cardsById.get(pos.instrumentId);
+                            if (card) updatePositionCard(card, pos);
                         });
                     } else {
-                        posContainer.replaceChildren();
-                        portfolio.positions.forEach(position => {
-                            const isPosClosed = position.quantity === 0;
-                            const button = flowButton(posContainer, `${position.instrumentId}: ${position.quantity} saham ${isPosClosed ? '(Ditutup)' : ''} · ${position.marketValue}`, () => {
-                                openPositionDetailModal(position.instrumentId);
-                            });
-                            button.className = 'action-link position-row';
-                            button.dataset.instrumentId = position.instrumentId;
+                        const focusedInstrumentId = document.activeElement?.closest('.position-card')?.dataset.instrumentId;
+                        const nextCards = activePositions.map(pos => {
+                            const card = cardsById.get(pos.instrumentId) || renderPositionCard(pos);
+                            if (cardsById.has(pos.instrumentId)) updatePositionCard(card, pos);
+                            return card;
                         });
+                        posContainer.replaceChildren(...nextCards);
+                        const focusedCard = nextCards.find(card => card.dataset.instrumentId === focusedInstrumentId);
+                        if (focusedCard) focusedCard.focus({preventScroll:true});
                     }
                 }
             }
@@ -532,7 +1007,7 @@
                 const heroCaption = flowPanel.querySelector('.hero-caption');
                 const rows = flowPanel.querySelectorAll('.data-row');
                 const isUsd = activeDetailPositionInstrumentId.startsWith('US:');
-                const zeroVal = isUsd ? '$0.00' : 'Rp 0';
+                const zeroVal = formatPositionMoney(0, isUsd ? 'USD' : 'IDR');
 
                 if (curPos) {
                     const isClosed = curPos.quantity === 0;
@@ -546,10 +1021,10 @@
                         const lbl = r.querySelector('span')?.textContent;
                         const str = r.querySelector('strong');
                         if (!lbl || !str) return;
-                        if (lbl === 'Jumlah saham') str.textContent = `${curPos.quantity} saham`;
+                        if (lbl === 'Jumlah saham') str.textContent = `${Number(curPos.quantity).toLocaleString('id-ID')} saham${curPos.lotSize > 0 && Number(curPos.quantity) > 0 ? ` (${curPos.lots} lot)` : ''}`;
                         if (lbl === 'Mata uang') str.textContent = String(curPos.currency);
-                        if (lbl === 'Harga / saham') str.textContent = String(curPos.currentPrice);
-                        if (lbl === 'Biaya rata-rata / saham') str.textContent = String(curPos.averageCost);
+                        if (lbl === 'Harga / saham') str.textContent = formatPositionMoney(curPos.currentPrice, curPos.currency);
+                        if (lbl === 'Biaya rata-rata / saham') str.textContent = formatPositionMoney(curPos.averageCost, curPos.currency);
                         if (lbl === 'Laba/rugi belum terealisasi') str.textContent = String(curPos.unrealizedPnL);
                         if (lbl === 'Hasil terealisasi sebelum biaya') str.textContent = String(curPos.realizedPnLGross ?? '-');
                         if (lbl === 'Catatan') {
@@ -572,6 +1047,7 @@
                 }
             }
         } catch(e) {
+            setPortfolioDataStale(true);
             console.warn('Portfolio sync error:', e);
         }
     }
@@ -638,6 +1114,30 @@
         return map[status] || status;
     }
 
+    function receiptRow(panel, label, value) {
+        let row = Array.from(panel.querySelectorAll('.data-row')).find(item => item.querySelector('span')?.textContent === label);
+        if (!row) row = flowText(panel, label, value);
+        else {
+            const strong = row.querySelector('strong');
+            if (strong) strong.textContent = value;
+        }
+    }
+
+    function renderReceiptAmounts(panel, receipt) {
+        const currency = receipt.currency === 'USD' ? 'USD' : 'IDR';
+        const amount = raw => formatMoney(Number(raw), currency);
+        if (receipt.averageFillPriceRaw != null && Number(receipt.filledQuantity) > 0)
+            receiptRow(panel, 'Harga rata-rata terisi', amount(receipt.averageFillPriceRaw));
+        if (receipt.filledValueRaw != null && Number(receipt.filledQuantity) > 0)
+            receiptRow(panel, 'Nilai transaksi terisi', amount(receipt.filledValueRaw));
+        if (receipt.feeDataAvailable) {
+            receiptRow(panel, 'Biaya transaksi aktual', amount(receipt.actualFeeRaw));
+            receiptRow(panel, receipt.cashImpactDirection === 'INFLOW' ? 'Kas bersih diterima' : 'Kas bersih dibayarkan', amount(receipt.cashImpactRaw));
+        } else if (Number(receipt.filledQuantity) > 0) {
+            receiptRow(panel, 'Biaya transaksi aktual', 'Tidak tersedia pada data transaksi lama');
+        }
+    }
+
     const lastRecordedReceiptFilled = new Map();
     function updateReceiptLive(reqId) {
         if (!flowPanel || !reqId) return;
@@ -648,6 +1148,10 @@
             const raw = bridge.getOrderStatus(reqId);
             const statusObj = JSON.parse(raw);
             if (!statusObj || !statusObj.success) return;
+            renderReceiptAmounts(flowPanel, statusObj);
+            if (statusObj.status === 'CANCELLED') {
+                receiptRow(flowPanel, 'Sisa dibatalkan', `${statusObj.cancelledQuantity ?? statusObj.remainingQuantity ?? 0} saham belum terisi; fill sebelumnya tetap tercatat.`);
+            }
 
             const rows = flowPanel.querySelectorAll('.data-row');
             rows.forEach(r => {
@@ -661,17 +1165,25 @@
                         strong.setAttribute('data-status', statusObj.status);
                         if (statusObj.status === 'FILLED') {
                             showGameToast('success', 'Order Terisi Penuh!', `${statusObj.instrumentId}: ${statusObj.filledQuantity} saham telah terisi`, 'RECEIPT_FILL:' + reqId + ':' + statusObj.filledQuantity);
-                            flowPanel.querySelectorAll('button').forEach(b => {
-                                if (b.textContent.includes('Batalkan')) b.remove();
-                            });
+                        } else if (statusObj.status === 'PENDING_TRIGGER') {
+                            showGameToast('info', 'Order Pemicu Aktif', `${statusObj.instrumentId}: Menunggu kondisi harga pemicu terpenuhi`, 'RECEIPT_TRIGGER:' + reqId);
                         } else if (statusObj.status === 'CANCELLED') {
+                            showGameToast('info', 'Order Dibatalkan', `${statusObj.instrumentId}: Sisa order dibatalkan`, 'RECEIPT_CANCEL:' + reqId);
+                        } else if (statusObj.status === 'EXPIRED') {
+                            showGameToast('info', 'Order Kedaluwarsa', `${statusObj.instrumentId}: Masa berlaku order telah berakhir`, 'RECEIPT_EXPIRED:' + reqId);
+                        } else if (statusObj.status === 'REJECTED') {
+                            showGameToast('info', 'Order Ditolak', `${statusObj.instrumentId}: Order ditolak bursa`, 'RECEIPT_REJECTED:' + reqId);
+                        }
+                        if (!['OPEN', 'PARTIALLY_FILLED', 'PENDING_TRIGGER'].includes(statusObj.status)) {
                             flowPanel.querySelectorAll('button').forEach(b => {
                                 if (b.textContent.includes('Batalkan')) b.remove();
                             });
                         }
                     }
                 }
-                if (label === 'Terisi / sisa') {
+                if (label === 'Terisi / sisa' || label === 'Terisi / tidak terisi') {
+                    const cancelled = statusObj.status === 'CANCELLED';
+                    r.querySelector('span').textContent = cancelled ? 'Terisi / tidak terisi' : 'Terisi / sisa';
                     const newText = `${statusObj.filledQuantity ?? '-'} / ${statusObj.remainingQuantity ?? '-'} saham`;
                     if (strong.textContent !== newText) {
                         strong.textContent = newText;
@@ -707,10 +1219,73 @@
         }
     }
 
+    function updateIssuerOwnership(panel, stockId) {
+        if (!panel?.isConnected) return;
+        const status = panel.querySelector('.ownership-status');
+        const meta = panel.querySelector('.ownership-meta');
+        const list = panel.querySelector('.ownership-list');
+        try {
+            const snapshot = bridgeResult('getIssuerOwnership', stockId);
+            if (snapshot.instrumentId !== stockId) throw new Error('Identitas emiten tidak cocok');
+            panel.dataset.coverage = snapshot.coverage;
+            panel.dataset.refreshCount = String(Number(panel.dataset.refreshCount || 0) + 1);
+            status.removeAttribute('role');
+            status.textContent = snapshot.coverage === 'INCONSISTENT' ? 'Perlu rekonsiliasi: jumlah tercatat melebihi saham beredar.'
+                : snapshot.coverage === 'UNKNOWN' ? 'Porsi belum tersedia: penyebut saham beredar belum sah atau belum direkonsiliasi setelah aksi korporasi.'
+                : snapshot.coverage === 'COMPLETE' ? 'Seluruh saham beredar sudah terpetakan pada akun pemegang.'
+                : 'Parsial: belum seluruh saham beredar terpetakan.';
+            meta.replaceChildren();
+            flowText(meta, 'Saham beredar', Number(snapshot.sharesOutstanding) > 0 ? `${Number(snapshot.sharesOutstanding).toLocaleString('id-ID')} saham` : 'Belum tersedia');
+            if (snapshot.issuedShares != null) flowText(meta, 'Saham diterbitkan', `${Number(snapshot.issuedShares).toLocaleString('id-ID')} saham`);
+            if (Number(snapshot.treasuryShares) > 0) flowText(meta, 'Treasury · di luar saham beredar', `${Number(snapshot.treasuryShares).toLocaleString('id-ID')} saham`);
+            flowText(meta, 'Saham tercatat', `${Number(snapshot.mappedShares).toLocaleString('id-ID')} saham`);
+            if (snapshot.unknownLegacyShares != null) flowText(meta, 'Pemegang legacy belum diketahui', `${Number(snapshot.unknownLegacyShares).toLocaleString('id-ID')} saham`);
+            if (snapshot.unmappedShares != null) flowText(meta, 'Belum terpetakan', `${Number(snapshot.unmappedShares).toLocaleString('id-ID')} saham`);
+            if (Number(snapshot.recordedShortShares) > 0) flowText(meta, 'Saham dipinjam · kewajiban short', `${Number(snapshot.recordedShortShares).toLocaleString('id-ID')} saham; bukan pemegang tambahan`);
+            flowText(meta, 'Waktu game', new Date(snapshot.asOf).toLocaleString('id-ID', {timeZone:'Asia/Jakarta'}));
+            const oldRows = new Map(Array.from(list.querySelectorAll('[data-holder-id]'), row => [row.dataset.holderId, row]));
+            const holders = snapshot.holders || [];
+            const rows = holders.map(holder => {
+                const row = oldRows.get(holder.holderId) || node('div', 'data-row ownership-holder');
+                row.dataset.holderId = holder.holderId;
+                if (!row.firstChild) row.append(node('span'), node('strong'));
+                row.firstChild.textContent = holder.name + (holder.isTreasury ? ' · Treasury' : holder.isPersonalPlayer ? ' · Saya' : holder.isClientAccount ? ' · Akun klien' : '');
+                row.lastChild.textContent = `${Number(holder.quantity).toLocaleString('id-ID')} saham${holder.percent == null ? '' : ' · ' + Number(holder.percent).toLocaleString('id-ID', {maximumFractionDigits:8}) + '%'}`;
+                return row;
+            });
+            if (!holders.length) {
+                list.replaceChildren();
+                emptyState(list, 'Belum ada pemegang yang terpetakan', 'Daftar hanya memuat pemegang yang tercatat, bukan pemilik rekaan.');
+            } else if (rows.length !== list.children.length || rows.some((row, index) => row !== list.children[index])) list.replaceChildren(...rows);
+        } catch (error) {
+            status.setAttribute('role', 'alert');
+            status.textContent = `${panel.dataset.refreshCount ? 'Daftar belum dapat diperbarui; data terakhir tetap ditampilkan.' : 'Pemegang saham gagal dimuat.'} ${error.message}`;
+        }
+        panel.removeAttribute('aria-busy');
+    }
+
+    function mountIssuerOwnership(parent, stockId) {
+        const panel = node('section', 'issuer-ownership');
+        panel.id = 'issuer-ownership-panel';
+        panel.dataset.instrumentId = stockId;
+        panel.setAttribute('aria-label', 'Pemegang saham dunia game');
+        panel.setAttribute('aria-busy', 'true');
+        const status = node('p', 'notice ownership-status', 'Memuat pemegang saham…');
+        status.setAttribute('role', 'status');
+        const retry = node('button', 'btn-secondary', 'Perbarui pemegang saham');
+        retry.type = 'button';
+        retry.addEventListener('click', () => updateIssuerOwnership(panel, stockId));
+        panel.append(status, node('div', 'ownership-meta'), node('div', 'ownership-list'), retry);
+        parent.append(panel);
+        requestAnimationFrame(() => requestAnimationFrame(() => updateIssuerOwnership(panel, stockId)));
+    }
+
     function updateInstrumentDetailLive(stockId) {
         if (!flowPanel || !stockId) return;
         const detailAttr = flowPanel.getAttribute('data-stock-id') || flowPanel.closest('.flow-page')?.getAttribute('data-stock-id');
         if (detailAttr !== stockId) return;
+        const ownershipPanel = flowPanel.querySelector('#issuer-ownership-panel');
+        if (ownershipPanel && !ownershipPanel.hasAttribute('aria-busy')) updateIssuerOwnership(ownershipPanel, stockId);
         try {
             const stocks = JSON.parse(bridge.getInstruments('', '', null, true));
             const fresh = stocks.find(s => s.id === stockId);
@@ -879,6 +1454,43 @@
         }
     }
 
+    function selectMarketMovers(stocks) {
+        const valid = [...new Map(stocks.filter(stock => stock.id && stock.dailyChangePercent !== null
+            && stock.dailyChangePercent !== '' && Number.isFinite(Number(stock.dailyChangePercent)))
+            .map(stock => [stock.id, stock])).values()];
+        const tie = (a, b) => String(a.ticker).localeCompare(String(b.ticker)) || String(a.id).localeCompare(String(b.id));
+        return {
+            gainers: valid.filter(stock => Number(stock.dailyChangePercent) > 0)
+                .sort((a, b) => Number(b.dailyChangePercent) - Number(a.dailyChangePercent) || tie(a, b)).slice(0, 3),
+            losers: valid.filter(stock => Number(stock.dailyChangePercent) < 0)
+                .sort((a, b) => Number(a.dailyChangePercent) - Number(b.dailyChangePercent) || tie(a, b)).slice(0, 3)
+        };
+    }
+
+    function renderMarketHighlights(stocks) {
+        const highlights = document.getElementById('market-highlights');
+        const activeId = highlights.querySelector(':focus')?.dataset.instrumentId;
+        const groups = selectMarketMovers(stocks);
+        highlights.replaceChildren();
+        [['gainers', '3 Penguat'], ['losers', '3 Pelemah']].forEach(([key, title]) => {
+            const section = node('section', 'highlight-group');
+            section.append(node('h3', '', title));
+            groups[key].forEach((stock, index) => {
+                const button = node('button', 'highlight' + (key === 'losers' ? ' loss' : ''));
+                button.type = 'button'; button.dataset.instrumentId = stock.id;
+                const percent = Number(stock.dailyChangePercent);
+                button.append(node('span', '', `${index + 1}. ${stock.ticker}`), node('strong', '', `${percent > 0 ? '+' : ''}${percent.toLocaleString('id-ID', {maximumFractionDigits: 2})}%`));
+                button.setAttribute('aria-label', `Detail ${stock.ticker} ${stock.exchange || ''}, ${percent > 0 ? 'naik' : 'turun'} ${Math.abs(percent)} persen`);
+                button.onclick = () => openInstrumentDetail(stock); section.append(button);
+            });
+            if (groups[key].length < 3) section.append(node('p', 'small muted', groups[key].length
+                ? `Hanya ${groups[key].length} emiten ${key === 'gainers' ? 'menguat' : 'melemah'} di daftar ini.`
+                : `Belum ada ${key === 'gainers' ? 'penguat' : 'pelemah'} di daftar ini.`));
+            highlights.append(section);
+        });
+        if (activeId) [...highlights.querySelectorAll('button')].find(button => button.dataset.instrumentId === activeId)?.focus({preventScroll: true});
+    }
+
     function loadStocks() {
         const query = document.getElementById('search-stock-input').value;
         const exchange = document.getElementById('filter-exchange-select').value;
@@ -893,13 +1505,7 @@
             ? `${stocks.length} emiten pada daftar ini.`
             : watchlistOnly && !query.trim() && !exchange && !sector ? 'Watchlist masih kosong.' : 'Tidak ada emiten untuk filter ini.';
 
-        const movers = [...allStocks].filter(x => Number.isFinite(Number(x.dailyChangePercent))).sort((a,b) => Number(b.dailyChangePercent)-Number(a.dailyChangePercent));
-        const highlights = document.getElementById('market-highlights'); highlights.replaceChildren();
-        if (movers.length) [[movers[0], 'Terkuat di daftar', false], [movers[movers.length-1], 'Terlemah di daftar', true]].forEach(([stock,label,loss]) => {
-            const tile = node('div','highlight' + (Number(stock.dailyChangePercent) < 0 ? ' loss' : ''));
-            if (Number(stock.dailyChangePercent) === 0) { tile.className = 'highlight neutral'; label = 'Belum ada perubahan'; }
-            tile.append(node('small','',label),node('strong','',stock.ticker),node('p','',`${Number(stock.dailyChangePercent)>=0?'+':''}${stock.dailyChangePercent}%`)); highlights.append(tile);
-        });
+        renderMarketHighlights(stocks);
         stocks.forEach(st => {
             const item = document.createElement('div');
             item.className = 'stock-list-item';
@@ -917,7 +1523,7 @@
                     <div class="stock-ticker flex-row">
                         <span>${st.ticker}</span>
                         <span class="badge">${st.exchange}</span>
-                        ${st.isSectorLocked ? `<span class="badge-locked" style="background:rgba(255,160,0,0.18); color:#FFA000; border:1px solid rgba(255,160,0,0.4); border-radius:6px; padding:2px 6px; font-size:0.65rem; font-weight:700;">🔒 Lv.${st.requiredLevel}</span>` : ''}
+                        ${st.isSectorLocked ? `<span class="badge-locked" style="background:#FEF9C3; color:#854D0E; border:1px solid #CA8A04; border-radius:6px; padding:2px 6px; font-size:0.65rem; font-weight:700;">🔒 Lv.${st.requiredLevel}</span>` : ''}
                     </div>
                     <div class="stock-name">${st.name}</div>
                     <div class="stock-sector">${st.sector || ''}</div>
@@ -974,6 +1580,14 @@
         try {
             const fresh = JSON.parse(bridge.getInstruments('', '', null, true));
             if (!Array.isArray(fresh)) throw new Error('Daftar harga belum tersedia');
+            if (currentTab === 'pasar') {
+                const query = document.getElementById('search-stock-input').value;
+                const exchange = document.getElementById('filter-exchange-select').value;
+                const sector = document.getElementById('filter-sector-select').value;
+                const filtered = JSON.parse(bridge.getInstruments(query, exchange, sector || null, true));
+                const watchlistOnly = document.getElementById('filter-list-select').value === 'watchlist';
+                renderMarketHighlights(watchlistOnly ? filtered.filter(stock => stock.isWatchlist) : filtered);
+            }
             document.querySelectorAll('#stock-list-container .stock-list-item, #home-market-list .stock-list-item').forEach(row => {
                 const stock = row.instrument;
                 const latest = fresh.find(item => item.id === stock.id);
@@ -1047,12 +1661,24 @@
 
     function loadAsetView() {
         refreshSnapshot();
+        document.querySelectorAll('#portfolio-data-status, [data-portfolio-load-error]').forEach(el => el.remove());
         const posContainer = document.getElementById('portfolio-positions-list');
         posContainer.replaceChildren();
         document.getElementById('asset-tools')?.remove();
         let summary = document.getElementById('asset-summary');
         if (!summary) { summary = document.querySelector('#view-aset .card'); summary.id = 'asset-summary'; }
         summary.replaceChildren(); summary.className = 'asset-overview';
+        const categoryHost = views.aset.querySelector('#portfolio-categories') || node('section', 'card portfolio-categories');
+        categoryHost.id = 'portfolio-categories';
+        if (!categoryHost.isConnected) views.aset.append(categoryHost);
+        const positionsSection = posContainer.closest('.card');
+        const pageHeading = views.aset.querySelector('.page-heading');
+        if (pageHeading) {
+            pageHeading.after(summary, positionsSection, categoryHost);
+        } else {
+            views.aset.append(summary, positionsSection, categoryHost);
+        }
+        let activePortfolioCategory = null;
         if (!currentAccount || !bridge.getPortfolio) {
             summary.textContent = 'Portofolio domain belum tersedia pada pratinjau ini.'; return;
         }
@@ -1073,68 +1699,324 @@
                     const chosen = latestSnapshot.tradingAccounts.find(x => x.id === accSelect.value);
                     if (chosen) {
                         currentAccount = { id: chosen.id, name: chosen.name, type: chosen.type };
+                        showGameToast('info', 'Akun Aktif Beralih', `Sekarang mengelola ${chosen.name} (${chosen.type === 'CLIENT' ? 'Akun Klien' : 'Akun Pribadi'}).`);
                         loadAsetView();
                     }
                 };
                 summary.appendChild(accSelect);
             }
 
-            const portfolio = JSON.parse(bridge.getPortfolio(currentAccount.id));
-            if (!portfolio.success) throw new Error(portfolio.message || 'Snapshot akun gagal');
-            const title = node('div','section-heading'); title.append(node('h2','',portfolio.accountType === 'CLIENT' ? 'Akun klien' : 'Kekayaan saya'),node('span','live-badge',portfolio.accountType === 'CLIENT' ? 'Dana terpisah' : 'Pribadi')); summary.append(title);
-            metricCard(summary, 'NILAI BERSIH · IDR', portfolio.netWorth || (portfolio.accountType === 'PERSONAL' ? latestSnapshot.personalAccount.netWorth : 'Belum tersedia'),portfolio.accountName);
-            const allocation = node('section','card'); allocation.append(node('h2','card-title','Komposisi aset'));
-            flowText(allocation,'Kas (valuasi IDR)',portfolio.cashValueIdr);
-            flowText(allocation,'Posisi saham (valuasi IDR)',portfolio.positionsValueIdr);
-            if (portfolio.totalUnrealizedPnL) {
-                flowText(allocation, 'Laba/Rugi Mengambang (Unrealized)', portfolio.totalUnrealizedPnL);
+            let portfolio = null;
+            let portfolioError = null;
+            try {
+                portfolio = JSON.parse(bridge.getPortfolio(currentAccount.id));
+                if (!portfolio || !portfolio.success) throw new Error(portfolio?.message || 'Snapshot akun gagal');
+            } catch (error) {
+                portfolioError = error;
             }
-            if (portfolio.totalRealizedPnL) {
-                flowText(allocation, 'Laba Bersih Terealisasi (Realized)', portfolio.totalRealizedPnL);
-            }
-            if (portfolio.positionsSharePercent != null) {
-                const bar = node('div','allocation-bar'); bar.setAttribute('role','img'); bar.setAttribute('aria-label',`${portfolio.positionsSharePercent}% aset berupa posisi saham`);
-                const fill = node('span'); fill.style.width = `${Math.max(0,Math.min(100,Number(portfolio.positionsSharePercent)))}%`; bar.append(fill); allocation.append(bar);
-            }
-            flowText(allocation,'Kewajiban',portfolio.liabilities);
-            summary.append(allocation);
-            const wallets = node('details','card'); wallets.append(node('summary','','Dompet IDR & USD')); summary.append(wallets);
-            for (const currency of ['IDR', 'USD']) {
-                const cash = portfolio.cash[currency];
-                flowText(wallets, `${currency} total`, cash.total);
-                flowText(wallets, `${currency} tersedia`, cash.available);
-                flowText(wallets, `${currency} tertahan`, cash.reserved);
+            summary.dataset.portfolioLoaded = portfolioError ? 'false' : 'true';
+            if (portfolioError) {
+                summary.textContent = 'Ringkasan nilai dan kas belum tersedia karena data portofolio gagal dimuat.';
+                emptyState(posContainer, 'Portofolio belum dapat dimuat', 'Coba muat ulang; data ini berbeda dari keadaan tanpa posisi.');
+            } else {
+                const title = node('div','section-heading'); title.append(node('h2','',portfolio.accountType === 'CLIENT' ? 'Akun klien' : 'Kekayaan saya'),node('span','live-badge',portfolio.accountType === 'CLIENT' ? 'Dana terpisah' : 'Pribadi')); summary.append(title);
+                metricCard(summary, 'NILAI BERSIH · IDR', portfolio.netWorth || (portfolio.accountType === 'PERSONAL' ? latestSnapshot.personalAccount.netWorth : 'Belum tersedia'),portfolio.accountName);
+                const allocation = node('section','card'); allocation.append(node('h2','card-title','Komposisi aset'));
+                flowText(allocation,'Kas (valuasi IDR)',portfolio.cashValueIdr);
+                flowText(allocation,'Posisi saham (valuasi IDR)',portfolio.positionsValueIdr);
+                if (portfolio.totalUnrealizedPnL) {
+                    flowText(allocation, 'Laba/Rugi Mengambang (Unrealized)', portfolio.totalUnrealizedPnL);
+                }
+                if (portfolio.totalRealizedPnL) {
+                    flowText(allocation, 'Hasil terealisasi sebelum biaya', portfolio.totalRealizedPnL);
+                }
+                if (portfolio.positionsSharePercent != null) {
+                    const bar = node('div','allocation-bar'); bar.setAttribute('role','img'); bar.setAttribute('aria-label',`${portfolio.positionsSharePercent}% aset berupa posisi saham`);
+                    const fill = node('span'); fill.style.width = `${Math.max(0,Math.min(100,Number(portfolio.positionsSharePercent)))}%`; bar.append(fill); allocation.append(bar);
+                }
+                flowText(allocation,'Kewajiban',portfolio.liabilities);
+                summary.append(allocation);
+                const wallets = node('details','card'); wallets.append(node('summary','','Dompet IDR & USD'));
+                flowText(wallets, 'Total Kekayaan Bersih Konsolidasi (A21)', portfolio.netWorth || (latestSnapshot && latestSnapshot.personalAccount ? latestSnapshot.personalAccount.netWorth : 'Belum tersedia'));
+                flowText(wallets, 'Total Valuasi Seluruh Kas', portfolio.cashValueIdr);
+                for (const currency of ['IDR', 'USD']) {
+                    const cash = portfolio.cash[currency];
+                    flowText(wallets, `${currency} total`, cash.total);
+                    flowText(wallets, `${currency} tersedia`, cash.available);
+                    flowText(wallets, `${currency} tertahan`, cash.reserved);
+                }
+                const btnAlloc = node('button', 'btn-secondary', 'Lihat Rincian Alokasi Dana Tertahan (A20)');
+                btnAlloc.style.width = '100%';
+                btnAlloc.style.marginTop = '8px';
+                btnAlloc.style.minHeight = '48px';
+                btnAlloc.onclick = () => openReservedCashAllocationModal();
+                wallets.append(btnAlloc);
+                summary.append(wallets);
+
+                const activePositions = (portfolio.positions || []).filter(p => Number(p.quantity) > 0);
+                if (!activePositions.length) {
+                    renderPortfolioEmpty(posContainer);
+                } else {
+                    posContainer.replaceChildren(...activePositions.map(renderPositionCard));
+                }
             }
 
-            flowButton(summary, 'Rincian Kekayaan Bersih Konsolidasi', () => openConsolidatedWealthModal());
-            flowButton(summary, 'Reksa Dana Berbasis NAB', () => openMyMutualFundsModal());
-            flowButton(summary, 'Utang & Pinjaman Tenor', () => openLoansModal());
-            flowButton(summary, 'Bisnis operasional & anak usaha', () => { switchTab('firma'); loadFirmaView(); });
-            flowButton(summary, 'Barang koleksi & properti mewah', () => openCollectionsGalleryModal());
-            flowButton(summary, 'Multi-aset', () => openMultiAssets());
-            flowButton(summary, 'Riwayat Transaksi Akun', () => openTransactionHistoryModal());
-            flowButton(summary, 'Tukar IDR / USD', () => openFxForm());
-            flowButton(summary, 'Fasilitas margin & risiko', () => openRiskModal());
-            flowButton(summary, 'Audit Pajak & Kepatuhan Risiko', () => openTaxAuditModal());
-            flowButton(summary, 'Asuransi Portofolio (Hedging)', () => openPortfolioInsuranceModal());
-            flowButton(summary, 'Restrukturisasi Darurat (Turnaround)', () => executeBailoutAction());
-            flowButton(summary, 'Racik Reksa Dana Kustom', () => openCustomFundBuilderModal());
-            flowButton(summary, 'Aksi korporasi & voting RUPS', () => openCorporateActionModal());
-            flowButton(summary, 'Uji stres portofolio', () => openStressTestModal());
-            flowButton(summary, 'Lab strategi & sandbox what-if', () => openStrategyLabModal());
-            flowButton(summary, 'Replay historis', () => openHistoricalReplayModal());
-            if (!portfolio.positions.length) emptyState(posContainer,'Belum ada posisi','Pilih saham di Pasar dan tinjau order pertamamu.');
-            portfolio.positions.forEach(position => {
-                const button = flowButton(posContainer, `${position.instrumentId}: ${position.quantity} saham · ${position.marketValue}`, () => {
-                    openPositionDetailModal(position.instrumentId);
+            // N11/N17: satu peta route kategori eksplisit; membuka kategori hanya navigasi.
+            document.getElementById('asset-tools')?.remove();
+            const categories = [
+                { id: 'saham-order', title: 'Saham & Order', desc: 'Posisi saham, order aktif, dan riwayat transaksi saham', icon: '📈', routes: [
+                    { id: 'order-history', label: 'Order aktif & riwayat', run: () => openPortfolioOrders() },
+                    { id: 'corporate-actions', label: 'Aksi korporasi & voting RUPS', run: () => openCorporateActionModal() },
+                    { id: 'historical-replay', label: 'Replay historis pasar', run: () => openHistoricalReplayModal() }
+                ] },
+                { id: 'dompet-valuta', title: 'Dompet & Valuta', desc: 'Saldo IDR/USD, dana tertahan, pertukaran valuta, dan riwayat kas', icon: '💵', routes: [
+                    { id: 'fx', label: 'Tukar IDR / USD', run: () => openFxForm() },
+                    { id: 'account-ledger', label: 'Riwayat kas & transaksi akun', run: () => openTransactionHistoryModal() }
+                ] },
+                { id: 'investasi-lain', title: 'Investasi Lain', desc: 'Reksa dana, obligasi, deposito, dan komoditas', icon: '🏛️', routes: [
+                    { id: 'my-funds', label: 'Reksa dana saya', run: () => openMyMutualFundsModal() },
+                    { id: 'multi-assets', label: 'Obligasi, deposito & komoditas', run: () => openMultiAssets() }
+                ] },
+                { id: 'kewajiban-proteksi', title: 'Kewajiban & Proteksi', desc: 'Pinjaman, margin, perlindungan, dan laporan kepatuhan', icon: '🛡️', routes: [
+                    { id: 'loans', label: 'Utang & pinjaman tenor', run: () => openLoansModal() },
+                    { id: 'turnaround', label: 'Restrukturisasi darurat', run: () => executeBailoutAction() },
+                    { id: 'risk', label: 'Fasilitas margin & risiko', run: () => openRiskModal() },
+                    { id: 'insurance', label: 'Asuransi portofolio', run: () => openPortfolioInsuranceModal() },
+                    { id: 'tax', label: 'Audit pajak & kepatuhan', run: () => openTaxAuditModal() },
+                    { id: 'wealth', label: 'Rincian kekayaan bersih konsolidasi', run: () => openConsolidatedWealthModal() }
+                ] },
+                { id: 'properti-koleksi', title: 'Properti & Koleksi', desc: 'Koleksi dan aset properti dengan valuasi', icon: '💎', routes: [
+                    { id: 'collections', label: 'Galeri barang koleksi & properti', run: () => openCollectionsGalleryModal() }
+                ] },
+                { id: 'bisnis-dana-kelolaan', title: 'Usaha & Dana Kelolaan', desc: 'Shortcut usaha, klien, dan dana ke halaman Bisnis', icon: '🏢', routes: [
+                    { id: 'business', label: 'Perusahaan operasional', run: () => { switchTab('firma'); loadFirmaView('usaha'); } },
+                    { id: 'managed-funds', label: 'Dana kelolaan', run: () => { switchTab('firma'); loadFirmaView('dana'); } },
+                    { id: 'fund-builder', label: 'Racik dana kelolaan', run: () => openCustomFundBuilderModal() }
+                ] }
+            ];
+            const categoryChildren = {
+                'investasi-lain': [
+                    { id: 'reksa-dana', title: 'Reksa Dana', desc: 'Kepemilikan unit/NAB dan transaksi akun terpilih', routes: ['my-funds'] },
+                    { id: 'obligasi-deposito-komoditas', title: 'Obligasi, Deposito & Komoditas', desc: 'Produk investasi non-ekuitas di katalog multi-aset', routes: ['multi-assets'] }
+                ],
+                'kewajiban-proteksi': [
+                    { id: 'pinjaman-cicilan', title: 'Pinjaman & Cicilan', desc: 'Pinjaman tenor, agunan, jadwal, dan restrukturisasi', routes: ['loans','turnaround'] },
+                    { id: 'margin-proteksi', title: 'Margin & Proteksi', desc: 'Margin health, pinjaman saham, dan asuransi yang berlaku', routes: ['risk','insurance'] },
+                    { id: 'pajak-laporan', title: 'Pajak & Laporan', desc: 'Audit, ledger, dan laporan kepatuhan akun', routes: ['tax','wealth'] }
+                ]
+            };
+            const catSection = categoryHost;
+            const renderCategoryLanding = () => {
+                activePortfolioCategory = null;
+                catSection.dataset.view = 'landing';
+                catSection.removeAttribute('data-category-id');
+                catSection.replaceChildren(node('h2', 'card-title', 'Kategori Portofolio'));
+                categories.forEach(cat => {
+                    const button = node('button', 'category-launcher-item');
+                    button.type = 'button';
+                    button.dataset.categoryId = cat.id;
+                    button.setAttribute('aria-label', `${cat.title}: ${cat.desc}`);
+                    button.setAttribute('aria-expanded', 'false');
+                    const body = node('span', 'cat-body');
+                    body.append(node('strong', '', cat.title), node('small', '', cat.desc));
+                    button.append(
+                        node('span', 'cat-icon', cat.icon),
+                        body,
+                        node('span', 'cat-chevron', '›')
+                    );
+                    button.addEventListener('click', () => categoryChildren[cat.id]
+                        ? renderSubcategoryPage(cat)
+                        : renderCategoryPage(cat, cat.routes));
+                    catSection.append(button);
                 });
-                button.className = 'action-link position-row';
-                button.dataset.instrumentId = position.instrumentId;
-            });
-            const tools = node('details','card'); tools.id = 'asset-tools'; tools.append(node('summary','','Alat portofolio & eksperimen'));
-            [...summary.children].filter(el => el.tagName === 'BUTTON' && !el.textContent.startsWith('Tukar')).forEach(el => tools.append(el));
-            views.aset.append(tools);
+            };
+            const addCategoryBack = (label, onBack) => {
+                const back = node('button', 'portfolio-category-back', `‹  ${label}`);
+                back.type = 'button';
+                back.setAttribute('aria-label', label);
+                back.addEventListener('click', onBack);
+                return back;
+            };
+            const restoreCategoryScroll = () => {
+                document.querySelector('.app-scroll').scrollTop = scrollPositions.aset || 0;
+            };
+            const renderSubcategoryPage = cat => {
+                activePortfolioCategory = cat.id;
+                catSection.dataset.view = 'category';
+                catSection.dataset.categoryId = cat.id;
+                catSection.removeAttribute('data-subcategory-id');
+                catSection.replaceChildren(
+                    addCategoryBack('Kembali ke Portofolio', () => {
+                        renderCategoryLanding();
+                        restoreCategoryScroll();
+                        catSection.querySelector(`.category-launcher-item[data-category-id="${cat.id}"]`)?.focus({preventScroll:true});
+                    }),
+                    node('h2', 'card-title', cat.title),
+                    node('p', 'portfolio-category-description', cat.desc)
+                );
+                categoryChildren[cat.id].forEach(child => {
+                    const button = node('button', 'category-launcher-item');
+                    button.type = 'button';
+                    button.dataset.subcategoryId = child.id;
+                    button.setAttribute('aria-label', `${child.title}: ${child.desc}`);
+                    button.setAttribute('aria-expanded', 'false');
+                    const body = node('span', 'cat-body');
+                    body.append(node('strong', '', child.title), node('small', '', child.desc));
+                    button.append(body, node('span', 'cat-chevron', '›'));
+                    button.addEventListener('click', () => renderCategoryPage(
+                        cat, child.routes.map(id => cat.routes.find(route => route.id === id)), child));
+                    catSection.append(button);
+                });
+                catSection.querySelector('.portfolio-category-back').focus({preventScroll:true});
+                const main = document.querySelector('.app-scroll');
+                main.scrollTop = Math.min(main.scrollTop, catSection.offsetTop);
+            };
+            const renderCategoryPage = (cat, routes, subcategory = null) => {
+                activePortfolioCategory = cat.id;
+                catSection.dataset.view = 'category';
+                catSection.dataset.categoryId = cat.id;
+                if (subcategory) catSection.dataset.subcategoryId = subcategory.id;
+                else catSection.removeAttribute('data-subcategory-id');
+                catSection.replaceChildren();
+                const onBack = () => {
+                    if (subcategory || categoryChildren[cat.id]) {
+                        renderSubcategoryPage(cat);
+                        if (subcategory) catSection.querySelector(`.category-launcher-item[data-subcategory-id="${subcategory.id}"]`)?.focus({preventScroll:true});
+                        else catSection.querySelector('.category-launcher-item')?.focus({preventScroll:true});
+                    } else {
+                        renderCategoryLanding();
+                        restoreCategoryScroll();
+                        catSection.querySelector(`.category-launcher-item[data-category-id="${cat.id}"]`)?.focus({preventScroll:true});
+                    }
+                };
+                catSection.append(
+                    addCategoryBack(categoryChildren[cat.id] ? `Kembali ke ${cat.title}` : 'Kembali ke Portofolio', onBack),
+                    node('h2', 'card-title', subcategory?.title || cat.title),
+                    node('p', 'portfolio-category-description', subcategory?.desc || cat.desc)
+                );
+                routes.forEach(route => {
+                    const button = node('button', 'portfolio-category-route');
+                    button.append(node('span', 'portfolio-route-label', route.label), node('span', 'cat-chevron', '›'));
+                    button.type = 'button';
+                    button.dataset.portfolioRoute = route.id;
+                    button.addEventListener('click', route.run);
+                    catSection.append(button);
+                });
+                catSection.querySelector('.portfolio-category-back').focus({preventScroll:true});
+                const main = document.querySelector('.app-scroll');
+                main.scrollTop = Math.min(main.scrollTop, catSection.offsetTop);
+            };
+            renderCategoryLanding();
+            if (portfolioError) {
+                const errorMessage = node('p', 'notice', `Portofolio gagal dimuat: ${portfolioError.message}`);
+                errorMessage.setAttribute('role', 'alert');
+                const retry = node('button', 'btn-primary', 'Coba muat ulang portofolio');
+                retry.type = 'button';
+                retry.addEventListener('click', () => loadAsetView());
+                errorMessage.dataset.portfolioLoadError = 'true';
+                retry.dataset.portfolioLoadError = 'true';
+                pageHeading?.after(errorMessage, retry);
+            }
         } catch (error) { summary.textContent = 'Portofolio gagal dimuat: ' + error.message; }
+    }
+
+    function openPortfolioOrders() {
+        refreshSnapshot();
+        if (latestSnapshot && latestSnapshot.recoveryRequired) return;
+        const panel = showFlow('Order Aktif & Riwayat');
+        flowText(panel, 'Akun', currentAccount ? `${currentAccount.name} (${currentAccount.id})` : 'Belum tersedia');
+        if (!bridge.getOrders || !currentAccount) { flowText(panel, 'Riwayat', 'Bridge riwayat domain belum tersedia.'); return; }
+        
+        const filterControls = node('div', 'filter-chips');
+        filterControls.style.marginBottom = '12px';
+        const labelActive = node('label');
+        const activeOnly = document.createElement('input'); activeOnly.type = 'checkbox'; activeOnly.checked = true;
+        labelActive.append(activeOnly, document.createTextNode(' Hanya order aktif'));
+        filterControls.append(labelActive);
+        panel.append(filterControls);
+
+        const list = document.createElement('div');
+        list.className = 'order-history-list';
+        panel.append(list);
+
+        const render = () => {
+            list.replaceChildren();
+            try {
+                const orders = JSON.parse(bridge.getOrders(currentAccount.id, activeOnly.checked));
+                if (!orders.length) {
+                    emptyState(list, 'Belum ada order', activeOnly.checked ? 'Tidak ada order yang sedang aktif saat ini.' : 'Belum ada riwayat transaksi order.');
+                    return;
+                }
+                orders.forEach(order => {
+                    const card = node('article', 'card order-history-card');
+                    card.style.marginBottom = '10px';
+                    card.style.border = '1px solid var(--border)';
+                    card.style.borderRadius = '10px';
+                    card.style.padding = '12px 14px';
+
+                    const isBuy = order.side === 'BUY';
+                    const sidePillClass = isBuy ? 'badge-available' : 'badge-pledged';
+                    const sideLabel = isBuy ? 'BELI' : 'JUAL';
+                    const statusLabel = formatOrderStatus(order.status);
+
+                    const topRow = node('div', 'flex-row');
+                    topRow.style.justifyContent = 'space-between';
+                    topRow.style.marginBottom = '6px';
+                    topRow.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <strong style="font-size:1rem; color:var(--text);">${order.instrumentId}</strong>
+                            <span class="${sidePillClass}" style="font-size:0.75rem; font-weight:700;">${sideLabel}</span>
+                        </div>
+                        <span class="badge-status" style="font-size:0.75rem;">${statusLabel}</span>
+                    `;
+                    card.append(topRow);
+
+                    const infoRow = node('div');
+                    infoRow.style.fontSize = '0.85rem';
+                    infoRow.style.color = 'var(--text-secondary)';
+                    infoRow.style.marginBottom = '8px';
+                    infoRow.textContent = `Terisi: ${order.filledQuantity ?? 0} / ${order.quantity} saham · ${order.type === 'LIMIT' ? 'Limit ' + (order.limitPrice || '') : order.type}`;
+                    card.append(infoRow);
+
+                    const btnRow = node('div');
+                    btnRow.style.display = 'flex';
+                    btnRow.style.gap = '8px';
+
+                    const btnReceipt = node('button', 'btn-secondary', 'Lihat Rincian');
+                    btnReceipt.style.flex = '1';
+                    btnReceipt.style.minHeight = '48px';
+                    btnReceipt.onclick = () => {
+                        activeRequestId = order.requestId;
+                        orderDraft = null;
+                        orderPreview = null;
+                        showOrderReceipt(order);
+                    };
+
+                    const btnStock = node('button', 'btn-secondary', 'Buka di Pasar');
+                    btnStock.style.flex = '1';
+                    btnStock.style.minHeight = '48px';
+                    btnStock.onclick = () => {
+                        try {
+                            const stocks = JSON.parse(bridge.getInstruments('', '', null, true));
+                            const target = stocks.find(s => s.id === order.instrumentId || s.ticker === order.instrumentId);
+                            if (target) {
+                                openInstrumentDetail(target);
+                            } else {
+                                showGameToast('info', 'Saham Pasar', `Membuka pasar untuk ${order.instrumentId}`);
+                                switchTab('pasar');
+                            }
+                        } catch(e) {
+                            switchTab('pasar');
+                        }
+                    };
+
+                    btnRow.append(btnReceipt, btnStock);
+                    card.append(btnRow);
+                    list.append(card);
+                });
+            } catch (error) { flowText(list, 'Riwayat gagal dimuat', error.message); }
+        };
+        activeOnly.addEventListener('change', render); render();
     }
 
     let currentFirmaSubtab = 'usaha';
@@ -1210,20 +2092,31 @@
         compSection.append(compTitle);
         flowText(compSection, 'Kekayaan terintegrasi', 'Kas dan ekuitas perusahaan operasional 100% milik pemain terhitung di total kekayaan bersih.');
 
-        const foundBtn = document.createElement('button');
-        foundBtn.className = 'btn-primary';
-        foundBtn.style.marginBottom = '12px';
-        foundBtn.textContent = '+ Dirikan Perusahaan Baru';
-        foundBtn.onclick = () => openFoundCompanyModal();
-        compSection.append(foundBtn);
-
+        let companies = [];
         if (bridge.getCompanies) {
             try {
                 const compRes = JSON.parse(bridge.getCompanies());
-                const comps = compRes.companies || [];
+                companies = compRes.companies || [];
+                const comps = companies;
                 if (comps.length === 0) {
-                    flowText(compSection, 'Status anak usaha', 'Belum ada perusahaan operasional. Dirikan anak usaha baru dengan modal minimal Rp 25.000.000.');
+                    const empty = node('div', 'empty-state');
+                    empty.append(
+                        node('strong', '', 'Belum memiliki perusahaan operasional'),
+                        node('p', '', 'Dirikan anak usaha pertama untuk menghasilkan pendapatan harian dan mendiversifikasi aset bisnis di luar pasar modal. Modal pendirian minimal Rp 25.000.000 dari kas pribadi.')
+                    );
+                    const createCta = node('button', 'btn-primary', '+ Dirikan Perusahaan Baru (Min. Rp 25.000.000)');
+                    createCta.type = 'button';
+                    createCta.style.marginTop = '12px';
+                    createCta.onclick = () => openFoundCompanyModal();
+                    empty.append(createCta);
+                    compSection.append(empty);
                 } else {
+                    const foundBtn = node('button', 'btn-primary', '+ Dirikan Perusahaan Baru');
+                    foundBtn.type = 'button';
+                    foundBtn.style.marginBottom = '14px';
+                    foundBtn.onclick = () => openFoundCompanyModal();
+                    compSection.append(foundBtn);
+
                     comps.forEach(c => {
                         const cCard = document.createElement('article');
                         cCard.className = 'card company-summary-card';
@@ -1238,16 +2131,21 @@
 
                         const netProfit = c.dailyNetProfit == null ? NaN : Number(c.dailyNetProfit);
                         const meta = node('div', 'section-heading');
-                        meta.append(node('span', 'eyebrow', sectorIndo), node('span', 'badge', c.level == null ? 'Level belum tersedia' : `Level ${c.level}`));
+                        meta.append(
+                            node('span', 'eyebrow', sectorIndo),
+                            node('span', 'badge', c.level == null ? 'Level belum tersedia' : `Level ${c.level}`),
+                            node('span', 'badge-status', c.isHalted ? 'Tersuspensi' : 'Operasional Normal')
+                        );
                         cCard.append(meta, node('h3', '', c.name));
+                        flowText(cCard, 'Status operasional', c.isHalted ? 'Tersuspensi / Butuh Perhatian' : 'Beroperasi Normal');
                         flowText(cCard, 'Kas operasional', formatMoney(c.cash));
                         const profitRow = flowText(cCard, 'Perkiraan laba bersih', Number.isFinite(netProfit) ? `${netProfit >= 0 ? '+' : ''}${formatMoney(netProfit)} / hari` : null);
-                        if (Number.isFinite(netProfit)) profitRow.querySelector('strong').className = netProfit >= 0 ? 'positive' : 'negative';
+                        if (Number.isFinite(netProfit) && profitRow) profitRow.querySelector('strong').className = netProfit >= 0 ? 'positive' : 'negative';
                         flowText(cCard, 'Staf & eksekutif', `${c.employeeCount == null ? 'Jumlah pegawai belum tersedia' : c.employeeCount + ' pegawai'} · CEO: ${c.ceoName || 'Belum tersedia'}`);
 
                         const btnOpen = document.createElement('button');
                         btnOpen.className = 'btn-primary';
-                        btnOpen.style.marginTop = '10px';
+                        btnOpen.style.marginTop = '12px';
                         btnOpen.textContent = 'Kelola usaha & operasional';
                         btnOpen.onclick = () => openCompanyDetailModal(c);
                         cCard.appendChild(btnOpen);
@@ -1259,15 +2157,118 @@
                 flowText(compSection, 'Perusahaan gagal dimuat', err.message);
             }
         }
+        renderHoldingSection(compSection, companies);
         container.append(compSection);
+    }
+
+    function renderHoldingSection(container, companies) {
+        const card = document.createElement('section');
+        card.className = 'card';
+        card.append(node('h2', 'card-title', 'Holding & anak usaha lintas sektor'));
+        flowText(card, 'Kriteria pembentukan', 'Pilih empat perusahaan yang ada untuk membentuk satu grup: Finansial, Energi, Konsumer, dan Teknologi. Transfer/dividen internal memakai ledger dua sisi tanpa pajak bursa.');
+        let holdings = [];
+        try { holdings = bridge.getHoldingCompanies ? JSON.parse(bridge.getHoldingCompanies()) : []; }
+        catch (error) { flowText(card, 'Holding gagal dimuat', error.message); }
+        if (holdings.length) {
+            holdings.forEach(holding => {
+                const group = node('article', 'card');
+                group.append(node('h3', '', holding.holdingName));
+                holding.subsidiaries.forEach(sub => flowText(group, sub.sector, sub.companyName));
+                flowButton(group, 'Injeksi modal / tarik dividen internal', () => openHoldingTransferModal(holding));
+                card.append(group);
+            });
+        } else {
+            flowText(card, 'Status grup', 'Belum ada holding. Perusahaan harus sudah berdiri sebelum dipilih sebagai anak usaha.');
+            const create = document.createElement('button');
+            create.className = 'btn-primary';
+            create.type = 'button';
+            create.textContent = 'Bentuk Holding 4 Sektor';
+            create.disabled = companies.length < 4 || !bridge.createHoldingCompany;
+            create.onclick = () => openHoldingCreationModal(companies);
+            card.append(create);
+        }
+        container.append(card);
+    }
+
+    function openHoldingCreationModal(companies) {
+        const panel = showFlow('Bentuk Holding Perusahaan');
+        flowText(panel, 'Empat sektor wajib', 'Pilih satu anak usaha yang telah berdiri untuk setiap sektor. Satu perusahaan tidak dapat mengisi dua sektor.');
+        const name = document.createElement('input');
+        name.className = 'input-field';
+        name.setAttribute('aria-label', 'Nama holding');
+        name.placeholder = 'Nama holding';
+        name.value = 'Nusantara Konglomerasi';
+        panel.append(name);
+        const sectors = [['FINANCIAL','Finansial'],['ENERGY','Energi'],['CONSUMER','Konsumer'],['TECHNOLOGY','Teknologi']];
+        const selectors = [];
+        for (const [id,label] of sectors) {
+            const fieldLabel = document.createElement('label');
+            fieldLabel.textContent = `Anak usaha sektor ${label}`;
+            const select = document.createElement('select');
+            select.className = 'input-field';
+            select.setAttribute('aria-label', fieldLabel.textContent);
+            select.append(new Option('Pilih perusahaan…',''));
+            companies.forEach(company => select.append(new Option(`${company.name} · ${company.sector}`, company.id)));
+            panel.append(fieldLabel, select);
+            selectors.push({sector:id,select});
+        }
+        const status = node('p','notice','');
+        flowButton(panel,'Bentuk Holding',() => {
+            try {
+                const values = selectors.map(item => item.select.value);
+                if (!name.value.trim() || values.some(value => !value) || new Set(values).size !== 4)
+                    throw new Error('Nama dan empat anak usaha berbeda wajib dipilih.');
+                const subsidiaries = selectors.map(item => ({sector:item.sector,companyId:item.select.value}));
+                const result = JSON.parse(bridge.createHoldingCompany(JSON.stringify({holdingId:`HOLD-${Date.now()}`,holdingName:name.value.trim(),subsidiaries})));
+                if (result.success === false) throw new Error(result.message || 'Holding ditolak.');
+                flowText(panel,'Status','Holding terbentuk dan tersimpan.');
+                loadFirmaView('usaha');
+            } catch(error) { status.textContent = error.message; }
+        });
+        panel.append(status);
+    }
+
+    function openHoldingTransferModal(holding) {
+        const panel = showFlow(`Transfer Internal · ${holding.holdingName}`);
+        flowText(panel,'Tujuan','Suntikkan modal atau pindahkan dividen antar anak usaha dalam holding yang sama. Satu hari biaya payroll/operasi tetap harus tersedia.');
+        const from = document.createElement('select'), to = document.createElement('select'), kind = document.createElement('select');
+        [from,to].forEach(select => {
+            select.className = 'input-field';
+            holding.subsidiaries.forEach(sub => select.append(new Option(`${sub.sector} · ${sub.companyName}`,sub.companyId)));
+        });
+        from.setAttribute('aria-label','Perusahaan sumber');
+        to.setAttribute('aria-label','Perusahaan tujuan');
+        kind.className = 'input-field';
+        kind.setAttribute('aria-label','Jenis transfer internal');
+        kind.append(new Option('Injeksi modal','CAPITAL_INJECTION'),new Option('Dividen internal','DIVIDEND'));
+        const amount = document.createElement('input');
+        amount.type='number'; amount.min='1'; amount.step='1'; amount.value='5000000'; amount.className='input-field'; amount.setAttribute('aria-label','Nominal IDR');
+        panel.append(from,to,kind,amount);
+        const status=node('p','notice','');
+        flowButton(panel,'Tinjau & kirim transfer internal',() => {
+            try {
+                if (!from.value || !to.value || from.value===to.value || Number(amount.value)<=0) throw new Error('Pilih dua anak usaha berbeda dan nominal positif.');
+                const result=JSON.parse(bridge.transferHoldingCapital(JSON.stringify({requestId:`HOLD-TRF-${crypto.randomUUID()}`,holdingId:holding.holdingId,fromCompanyId:from.value,toCompanyId:to.value,amount:String(amount.value),transferType:kind.value})));
+                if (!result.success) throw new Error(result.message || 'Transfer holding ditolak.');
+                flowText(panel,'Receipt',`${result.transferType} ${result.amount} terselesaikan antar anak usaha tanpa pajak bursa.`);
+                refreshSnapshot();
+            } catch(error) { status.textContent=error.message; }
+        });
+        panel.append(status);
     }
 
     function openCompanyDetailModal(company, activeSubtab = 'ringkasan') {
         const panel = showFlow(company.name);
+        panel.setAttribute('data-company-detail-id', company.id);
         flowText(panel, 'Unit Usaha Operasional', `${company.name} · Sektor ${company.sectorModel || company.sector || 'Bisnis'}`);
 
         const navWrap = document.createElement('div');
         navWrap.className = 'company-local-nav';
+        navWrap.style.display = 'flex';
+        navWrap.style.gap = '8px';
+        navWrap.style.margin = '10px 0 14px';
+        navWrap.style.flexWrap = 'wrap';
+
         const subtabs = [
             { id: 'ringkasan', label: 'Ringkasan' },
             { id: 'tim', label: 'Tim & SDM' },
@@ -1278,135 +2279,159 @@
         const contentBox = document.createElement('div');
         contentBox.className = 'company-subtab-box';
 
+        function selectCompanySubtab(currentTabId) {
+            navWrap.querySelectorAll('.subtab-pill').forEach(btn => {
+                const isActive = btn.dataset.tabId === currentTabId;
+                btn.classList.toggle('active', isActive);
+                btn.setAttribute('aria-pressed', String(isActive));
+            });
+            renderCompanySubtabContent(currentTabId);
+        }
+
         subtabs.forEach(tab => {
             const btn = document.createElement('button');
             btn.className = 'subtab-pill' + (activeSubtab === tab.id ? ' active' : '');
+            btn.dataset.tabId = tab.id;
             btn.textContent = tab.label;
             btn.type = 'button';
-            btn.onclick = () => openCompanyDetailModal(company, tab.id);
+            btn.onclick = () => selectCompanySubtab(tab.id);
             btn.setAttribute('aria-pressed', String(activeSubtab === tab.id));
             navWrap.appendChild(btn);
         });
         panel.append(navWrap, contentBox);
 
-        if (activeSubtab === 'ringkasan') {
-            const card = document.createElement('section');
-            card.className = 'card';
-            card.innerHTML = `<h2 class="card-title">Ringkasan Operasional Perusahaan</h2>`;
-            flowText(card, 'Tingkat skala', `Level ${company.level} (${company.sectorModel || company.sector})`);
-            flowText(card, 'Saldo kas perusahaan', `Rp ${Number(company.cash || 0).toLocaleString('id-ID')}`);
-            flowText(card, 'CEO / pimpinan', company.ceoName);
-            flowText(card, 'Proyeksi pendapatan', `+Rp ${Number(company.dailyRevenue || 0).toLocaleString('id-ID')} / hari`);
-            flowText(card, 'Beban gaji (payroll)', `-Rp ${Number(company.dailyPayroll || 0).toLocaleString('id-ID')} / hari`);
-            flowText(card, 'Biaya operasional & fasilitas', `-Rp ${Number(company.dailyOperatingCost || 0).toLocaleString('id-ID')} / hari`);
-            const net = Number(company.dailyNetProfit != null ? company.dailyNetProfit : (Number(company.dailyRevenue || 0) - Number(company.dailyPayroll || 0) - Number(company.dailyOperatingCost || 0)));
-            flowText(card, 'Laba bersih harian', `Rp ${net.toLocaleString('id-ID')} / hari`);
+        function renderCompanySubtabContent(currentTabId) {
+            contentBox.replaceChildren();
 
-            const upBtn = document.createElement('button');
-            upBtn.className = 'btn-primary';
-            upBtn.style.marginTop = '12px';
-            upBtn.textContent = `Tingkatkan skala ke level ${company.level + 1}`;
-            upBtn.onclick = () => {
-                const request = { companyId: company.id, action: 'UPGRADE', workHours: company.workHours || 8, benefitTier: company.benefitTier || 'STANDARD' };
-                reviewCompanyAction(request);
-            };
-            card.append(upBtn);
-            contentBox.append(card);
-
-        } else if (activeSubtab === 'tim') {
-            const card = document.createElement('section');
-            card.className = 'card';
-            card.innerHTML = `<h2 class="card-title">Divisi SDM & Struktur Organisasi</h2>`;
-            flowText(card, 'Total karyawan aktif', `${company.employeeCount || (company.employees ? company.employees.length : 0)} pegawai`);
-            flowText(card, 'Pengeluaran payroll', `Rp ${Number(company.dailyPayroll || 0).toLocaleString('id-ID')} / hari`);
-
-            const hireBtn = document.createElement('button');
-            hireBtn.className = 'btn-primary';
-            hireBtn.style.marginTop = '10px';
-            hireBtn.textContent = 'Rekrut pegawai & eksekutif';
-            hireBtn.onclick = () => openCompanyStaffModal(company);
-            card.append(hireBtn);
-
-            const staffList = document.createElement('div');
-            staffList.style.marginTop = '12px';
-            const emps = company.employees || [];
-            if (!emps.length) {
-                flowText(card, 'Staf operasional', 'Belum ada pegawai direkrut. Rekrut staf untuk meningkatkan kapasitas produksi dan moral.');
-            } else {
-                emps.forEach(emp => {
-                    const row = document.createElement('div');
-                    row.className = 'data-row';
-                    const identity = node('div');
-                    identity.append(node('strong', '', emp.name), node('small', '', `${emp.roleLabel || emp.role} · Level ${emp.level}`));
-                    row.append(identity, node('strong', '', `${formatMoney(emp.dailySalary)} / hari`));
-                    staffList.append(row);
-                });
-                card.append(staffList);
+            let c = company;
+            if (bridge.getCompanies) {
+                try {
+                    const compRes = JSON.parse(bridge.getCompanies());
+                    const fresh = (compRes.companies || []).find(x => x.id === company.id);
+                    if (fresh) c = fresh;
+                } catch(e) {}
             }
-            contentBox.append(card);
 
-        } else if (activeSubtab === 'fasilitas') {
-            const card = document.createElement('section');
-            card.className = 'card';
-            card.innerHTML = `<h2 class="card-title">Kebijakan Kerja, Fasilitas & Moral</h2>`;
-            flowText(card, 'Kebijakan jam kerja', company.workHours == null ? null : `${company.workHours} jam per hari`);
-            flowText(card, 'Tingkat tunjangan fasilitas', company.benefitTier);
-            flowText(card, 'Indeks kepuasan moral', company.morale == null ? null : `${company.morale}%`);
+            if (currentTabId === 'ringkasan') {
+                const card = document.createElement('section');
+                card.className = 'card';
+                card.innerHTML = `<h2 class="card-title">Ringkasan Operasional Perusahaan</h2>`;
+                flowText(card, 'Tingkat skala', `Level ${c.level} (${c.sectorModel || c.sector})`);
+                flowText(card, 'Saldo kas perusahaan', `Rp ${Number(c.cash || 0).toLocaleString('id-ID')}`);
+                flowText(card, 'CEO / pimpinan', c.ceoName);
+                flowText(card, 'Proyeksi pendapatan', `+Rp ${Number(c.dailyRevenue || 0).toLocaleString('id-ID')} / hari`);
+                flowText(card, 'Beban gaji (payroll)', `-Rp ${Number(c.dailyPayroll || 0).toLocaleString('id-ID')} / hari`);
+                flowText(card, 'Biaya operasional & fasilitas', `-Rp ${Number(c.dailyOperatingCost || 0).toLocaleString('id-ID')} / hari`);
+                const net = Number(c.dailyNetProfit != null ? c.dailyNetProfit : (Number(c.dailyRevenue || 0) - Number(c.dailyPayroll || 0) - Number(c.dailyOperatingCost || 0)));
+                flowText(card, 'Laba bersih harian', `Rp ${net.toLocaleString('id-ID')} / hari`);
 
-            const polBtn = document.createElement('button');
-            polBtn.className = 'btn-primary';
-            polBtn.style.marginTop = '12px';
-            polBtn.textContent = 'Ubah kebijakan & fasilitas kerja';
-            polBtn.onclick = () => openCompanyPolicyModal(company);
-            card.append(polBtn);
-            contentBox.append(card);
+                const upBtn = document.createElement('button');
+                upBtn.className = 'btn-primary';
+                upBtn.style.marginTop = '12px';
+                upBtn.textContent = `Tingkatkan skala ke level ${c.level + 1}`;
+                upBtn.onclick = () => {
+                    const request = { companyId: c.id, action: 'UPGRADE', workHours: c.workHours || 8, benefitTier: c.benefitTier || 'STANDARD' };
+                    reviewCompanyAction(request);
+                };
+                card.append(upBtn);
+                contentBox.append(card);
 
-        } else if (activeSubtab === 'keuangan') {
-            const card = document.createElement('section');
-            card.className = 'card';
-            card.innerHTML = `<h2 class="card-title">Keuangan, Modal & Laporan Usaha</h2>`;
-            flowText(card, 'Saldo kas usaha', `Rp ${Number(company.cash || 0).toLocaleString('id-ID')}`);
-            flowText(card, 'Tunggakan gaji', `Rp ${Number(company.payrollArrears || 0).toLocaleString('id-ID')}`);
+            } else if (currentTabId === 'tim') {
+                const card = document.createElement('section');
+                card.className = 'card';
+                card.innerHTML = `<h2 class="card-title">Divisi SDM & Struktur Organisasi</h2>`;
+                flowText(card, 'Total karyawan aktif', `${c.employeeCount || (c.employees ? c.employees.length : 0)} pegawai`);
+                flowText(card, 'Pengeluaran payroll', `Rp ${Number(c.dailyPayroll || 0).toLocaleString('id-ID')} / hari`);
 
-            const actionGroup = document.createElement('div');
-            actionGroup.className = 'shortcut-grid';
+                const hireBtn = document.createElement('button');
+                hireBtn.className = 'btn-primary';
+                hireBtn.style.marginTop = '10px';
+                hireBtn.textContent = 'Rekrut pegawai & eksekutif';
+                hireBtn.onclick = () => openCompanyStaffModal(c);
+                card.append(hireBtn);
 
-            const capBtn = document.createElement('button');
-            capBtn.className = 'btn-primary';
-            capBtn.textContent = 'Suntik modal / tarik dividen';
-            capBtn.onclick = () => openCompanyCapitalModal(company);
+                const staffList = document.createElement('div');
+                staffList.style.marginTop = '12px';
+                const emps = c.employees || [];
+                if (!emps.length) {
+                    flowText(card, 'Staf operasional', 'Belum ada pegawai direkrut. Rekrut staf untuk meningkatkan kapasitas produksi dan moral.');
+                } else {
+                    emps.forEach(emp => {
+                        const row = document.createElement('div');
+                        row.className = 'data-row';
+                        const identity = node('div');
+                        identity.append(node('strong', '', emp.name), node('small', '', `${emp.roleLabel || emp.role} · Level ${emp.level}`));
+                        row.append(identity, node('strong', '', `${formatMoney(emp.dailySalary)} / hari`));
+                        staffList.append(row);
+                    });
+                    card.append(staffList);
+                }
+                contentBox.append(card);
 
-            const loanBtn = document.createElement('button');
-            loanBtn.className = 'btn-secondary';
-            loanBtn.textContent = 'Ajukan pinjaman modal kerja';
-            loanBtn.onclick = () => openDisburseLoanModal('LOAN-CORP-01', company.id);
+            } else if (currentTabId === 'fasilitas') {
+                const card = document.createElement('section');
+                card.className = 'card';
+                card.innerHTML = `<h2 class="card-title">Kebijakan Kerja, Fasilitas & Moral</h2>`;
+                flowText(card, 'Kebijakan jam kerja', c.workHours == null ? null : `${c.workHours} jam per hari`);
+                flowText(card, 'Tingkat tunjangan fasilitas', c.benefitTier);
+                flowText(card, 'Indeks kepuasan moral', c.morale == null ? null : `${c.morale}%`);
 
-            actionGroup.append(capBtn, loanBtn);
-            card.append(actionGroup);
+                const polBtn = document.createElement('button');
+                polBtn.className = 'btn-primary';
+                polBtn.style.marginTop = '12px';
+                polBtn.textContent = 'Ubah kebijakan & fasilitas kerja';
+                polBtn.onclick = () => openCompanyPolicyModal(c);
+                card.append(polBtn);
+                contentBox.append(card);
 
-            // Riwayat Laporan Harian
-            const reportHeading = document.createElement('h3');
-            reportHeading.className = 'card-title';
-            reportHeading.textContent = 'Riwayat Laporan Keuangan Harian';
-            card.append(reportHeading);
+            } else if (currentTabId === 'keuangan') {
+                const card = document.createElement('section');
+                card.className = 'card';
+                card.innerHTML = `<h2 class="card-title">Keuangan, Modal & Laporan Usaha</h2>`;
+                flowText(card, 'Saldo kas usaha', `Rp ${Number(c.cash || 0).toLocaleString('id-ID')}`);
+                flowText(card, 'Tunggakan gaji', `Rp ${Number(c.payrollArrears || 0).toLocaleString('id-ID')}`);
 
-            const reports = company.operationalReports || [];
-            if (!reports.length) {
-                flowText(card, 'Laporan keuangan', 'Belum ada siklus hari operasional yang diselesaikan.');
-            } else {
-                reports.slice().reverse().forEach(rep => {
-                    const rRow = document.createElement('div');
-                    rRow.className = 'card';
-                    rRow.classList.add('card');
-                    flowText(rRow, 'Hari / Tanggal', `Hari #${rep.day || rep.date || '-'}`);
-                    flowText(rRow, 'Pendapatan usaha', `+Rp ${Number(rep.revenue || 0).toLocaleString('id-ID')}`);
-                    flowText(rRow, 'Beban operasi & gaji', `-Rp ${(Number(rep.operatingCost || 0) + Number(rep.payrollPaid || 0)).toLocaleString('id-ID')}`);
-                    flowText(rRow, 'Arus kas bersih', `Rp ${Number(rep.netCashflow || 0).toLocaleString('id-ID')}`);
-                    card.append(rRow);
-                });
+                const actionGroup = document.createElement('div');
+                actionGroup.className = 'shortcut-grid';
+
+                const capBtn = document.createElement('button');
+                capBtn.className = 'btn-primary';
+                capBtn.textContent = 'Suntik modal / tarik dividen';
+                capBtn.onclick = () => openCompanyCapitalModal(c);
+
+                const loanBtn = document.createElement('button');
+                loanBtn.className = 'btn-secondary';
+                loanBtn.textContent = 'Ajukan pinjaman modal kerja';
+                loanBtn.onclick = () => openDisburseLoanModal('LOAN-CORP-01', c.id);
+
+                actionGroup.append(capBtn, loanBtn);
+                card.append(actionGroup);
+
+                // Riwayat Laporan Harian
+                const reportHeading = document.createElement('h3');
+                reportHeading.className = 'card-title';
+                reportHeading.textContent = 'Riwayat Laporan Keuangan Harian';
+                card.append(reportHeading);
+
+                const reports = c.operationalReports || [];
+                if (!reports.length) {
+                    flowText(card, 'Laporan keuangan', 'Belum ada siklus hari operasional yang diselesaikan.');
+                } else {
+                    reports.slice().reverse().forEach(rep => {
+                        const rRow = document.createElement('div');
+                        rRow.className = 'card';
+                        flowText(rRow, 'Hari / Tanggal', `Hari #${rep.day || rep.date || '-'}`);
+                        flowText(rRow, 'Pendapatan usaha', `+Rp ${Number(rep.revenue || 0).toLocaleString('id-ID')}`);
+                        flowText(rRow, 'Beban operasi & gaji', `-Rp ${(Number(rep.operatingCost || 0) + Number(rep.payrollPaid || 0)).toLocaleString('id-ID')}`);
+                        flowText(rRow, 'Arus kas bersih', `Rp ${Number(rep.netCashflow || 0).toLocaleString('id-ID')}`);
+                        card.append(rRow);
+                    });
+                }
+                contentBox.append(card);
             }
-            contentBox.append(card);
         }
+
+        renderCompanySubtabContent(activeSubtab);
     }
 
     function renderCollectionsGallery(container, isModal = false) {
@@ -1501,13 +2526,70 @@
                 'LEGENDARIS': 'Legendaris'
             };
 
+            function transactCollectionItem(item, buy) {
+                let currentRequestId = null;
+                try {
+                    let price = Number(item.currentValuation != null ? item.currentValuation : (item.basePrice || 0));
+                    if (bridge.getCollections) {
+                        try {
+                            const freshRes = JSON.parse(bridge.getCollections());
+                            const list = Array.isArray(freshRes) ? freshRes : (freshRes.collections || freshRes.items || []);
+                            const fresh = list.find(x => x.id === item.id);
+                            if (fresh) {
+                                const freshPrice = Number(fresh.currentValuation != null ? fresh.currentValuation : (fresh.basePrice || 0));
+                                if (freshPrice !== price) {
+                                    clearCollectionIntent(item.id, buy);
+                                    showGameToast('info', 'Valuasi Koleksi Berubah', `Harga saat ini telah diperbarui menjadi ${formatMoney(freshPrice)}. Silakan tinjau kembali.`);
+                                    renderCollectionsGallery(container, isModal);
+                                    return;
+                                }
+                                price = freshPrice;
+                            }
+                        } catch(ignored) {}
+                    }
+                    currentRequestId = getOrCreateCollectionRequestId(item.id, buy, price);
+                    const req = { requestId: currentRequestId, itemId: item.id, buy, expectedPrice: price };
+                    const res = JSON.parse(bridge.transactCollection(JSON.stringify(req)));
+                    if (!res.success) {
+                        if (res.status === 'STALE_VALUATION') {
+                            clearCollectionIntent(item.id, buy);
+                            showGameToast('info', 'Valuasi Koleksi Berubah', res.message || 'Harga telah diperbarui. Silakan tinjau kembali.');
+                            renderCollectionsGallery(container, isModal);
+                            return;
+                        }
+                        if (/kas.*tidak mencukupi|bukan milik|diagunkan/i.test(res.message || '')) {
+                            clearCollectionIntent(item.id, buy);
+                        }
+                        throw new Error(res.message);
+                    }
+                    clearCollectionIntent(item.id, buy);
+                    const transAmount = res.amount ? formatMoney(res.amount) : formatMoney(price);
+                    showGameToast('success', buy ? 'Koleksi Berhasil Dibeli!' : 'Koleksi Berhasil Terjual!', buy ? `${item.name} berhasil dibeli seharga ${transAmount}. Masuk ke galeri aset mewah.` : `${item.name} berhasil dijual seharga ${transAmount}.`);
+                    refreshSnapshot();
+                    renderCollectionsGallery(container, isModal);
+                } catch(err) {
+                    showGameToast('info', buy ? 'Pembelian Gagal' : 'Penjualan Gagal', err.message);
+                }
+            }
+
             function createCollectionCard(item, isOwned) {
                 const card = document.createElement('article');
                 card.className = 'card collection-item-card' + (isOwned ? ' owned-luxury' : '');
                 card.setAttribute('data-collection-id', item.id);
+                card.tabIndex = 0;
+                card.setAttribute('role', 'article');
 
                 const catIndo = categoryLabels[(item.category || '').toUpperCase()] || item.category || 'Aset Mewah';
                 const rarityIndo = rarityLabels[(item.rarity || '').toUpperCase()] || item.rarityLabel || item.rarity || 'Standar';
+
+                const isPledged = Boolean(item.isPledged || item.pledgedLoanId);
+                const personalCash = latestSnapshot?.personalAccount?.cash?.IDR?.available
+                    ? (parseInt(String(latestSnapshot.personalAccount.cash.IDR.available).replace(/[^0-9]/g, ''), 10) || 0)
+                    : 0;
+                const valuationPrice = Number(item.currentValuation != null ? item.currentValuation : (item.basePrice || 0));
+                const canAfford = personalCash >= valuationPrice;
+
+                card.setAttribute('aria-label', `Koleksi ${item.name}, kategori ${catIndo}, kelangkaan ${rarityIndo}, status ${isOwned ? 'dimiliki' : 'tersedia'}`);
 
                 const headerDiv = document.createElement('div');
                 headerDiv.className = 'section-heading';
@@ -1516,9 +2598,13 @@
                 leftMeta.className = 'flex-row';
                 leftMeta.append(node('span', 'eyebrow', catIndo));
                 if (isOwned) {
-                    leftMeta.append(node('span', 'badge-owned', 'Dimiliki'));
+                    leftMeta.append(node('span', 'badge-owned', '✓ Dimiliki'));
+                } else if (canAfford) {
+                    leftMeta.append(node('span', 'badge-available', '○ Dapat Dibeli'));
+                } else {
+                    leftMeta.append(node('span', 'badge-locked', '🔒 Kas Kurang'));
                 }
-                if (item.isPledged || item.pledgedLoanId) {
+                if (isPledged) {
                     leftMeta.append(node('span', 'badge-pledged', 'Diagunkan'));
                 }
 
@@ -1526,7 +2612,28 @@
                 headerDiv.append(node('span', 'change-pill', rarityIndo));
                 card.appendChild(headerDiv);
 
-                const visualWrap = node('div', 'collection-visual-frame', `${catIndo} · ${rarityIndo}`);
+                const visualWrap = node('div', 'collection-visual-frame');
+                visualWrap.style.background = 'radial-gradient(circle at center, #1e2d42 0%, #0d1522 100%)';
+                visualWrap.style.borderRadius = '10px';
+                visualWrap.style.overflow = 'hidden';
+                visualWrap.style.display = 'flex';
+                visualWrap.style.alignItems = 'center';
+                visualWrap.style.justifyContent = 'center';
+                visualWrap.style.minHeight = '140px';
+                visualWrap.style.marginBottom = '8px';
+
+                const img = document.createElement('img');
+                img.src = `images/collections/${item.id}.webp`;
+                img.alt = item.name;
+                img.loading = 'lazy';
+                img.style.maxWidth = '100%';
+                img.style.maxHeight = '140px';
+                img.style.objectFit = 'contain';
+                img.onerror = () => {
+                    img.onerror = () => { visualWrap.textContent = `${catIndo} · ${rarityIndo}`; };
+                    img.src = `images/collections/${item.id}.png`;
+                };
+                visualWrap.appendChild(img);
                 card.appendChild(visualWrap);
 
                 const title = document.createElement('h3');
@@ -1534,66 +2641,71 @@
                 title.textContent = item.name;
                 card.appendChild(title);
 
-                flowText(card, 'Status kepemilikan', isOwned ? '✓ Dimiliki Pemain' : '○ Tersedia di Galeri');
+                flowText(card, 'Status kepemilikan', isOwned ? (isPledged ? '✓ Dimiliki (Diagunkan pada pinjaman)' : '✓ Dimiliki Pemain') : (canAfford ? '○ Tersedia di Galeri' : '🔒 Belum Terbeli (Kas tidak cukup)'));
                 flowText(card, 'Valuasi terkini', formatMoney(item.currentValuation));
                 flowText(card, 'Biaya pemeliharaan', item.dailyMaintenanceCost == null ? null : `${formatMoney(item.dailyMaintenanceCost)} / hari`);
                 flowText(card, 'Bonus reputasi', item.reputationBonus == null ? null : `+${item.reputationBonus} poin reputasi`);
 
-                const actBtn = document.createElement('button');
-                actBtn.style.marginTop = '10px';
+                const actionsRow = document.createElement('div');
+                actionsRow.className = 'collection-actions-row';
+
+                const detailBtn = document.createElement('button');
+                detailBtn.className = 'btn-secondary btn-collection-detail';
+                detailBtn.type = 'button';
+                detailBtn.textContent = 'Lihat rincian';
+                detailBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    openCollectionItemDetailModal(item);
+                };
+                actionsRow.appendChild(detailBtn);
 
                 if (isOwned) {
-                    if (item.isPledged || item.pledgedLoanId) {
+                    if (isPledged) {
+                        const actBtn = document.createElement('button');
                         actBtn.className = 'btn-secondary';
                         actBtn.disabled = true;
                         actBtn.textContent = 'Diagunkan (tidak dapat dijual)';
+                        actionsRow.appendChild(actBtn);
                     } else {
-                        actBtn.className = 'btn-secondary';
-                        actBtn.textContent = `Jual Koleksi (Terima Rp ${Number(item.currentValuation || 0).toLocaleString('id-ID')})`;
-                        let selling = false;
-                        actBtn.onclick = () => {
-                            if (selling) return;
-                            selling = true;
-                            actBtn.disabled = true;
-                            actBtn.textContent = 'Memproses penjualan...';
-                            try {
-                                const res = JSON.parse(bridge.transactCollection(JSON.stringify({requestId: 'COL-SELL-' + Date.now(), itemId: item.id, buy: false})));
-                                if (!res.success) throw new Error(res.message);
-                                showGameToast('success', 'Koleksi Berhasil Terjual!', `${item.name} berhasil dijual`);
-                                refreshSnapshot();
-                                renderCollectionsGallery(container, isModal);
-                            } catch (err) {
-                                selling = false;
-                                actBtn.disabled = false;
-                                actBtn.textContent = `Jual Koleksi (Terima Rp ${Number(item.currentValuation || 0).toLocaleString('id-ID')})`;
-                                showGameToast('info', 'Penjualan Gagal', err.message);
-                            }
+                        const actBtn = document.createElement('button');
+                        actBtn.className = 'btn-secondary btn-collection-sell';
+                        actBtn.type = 'button';
+                        actBtn.textContent = `Jual Koleksi (${formatMoney(item.currentValuation)})`;
+                        actBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            transactCollectionItem(item, false);
                         };
+                        actionsRow.appendChild(actBtn);
                     }
                 } else {
-                    actBtn.className = 'btn-primary';
-                    actBtn.textContent = `Beli Koleksi (Rp ${Number(item.basePrice || 0).toLocaleString('id-ID')})`;
-                    let buying = false;
-                    actBtn.onclick = () => {
-                        if (buying) return;
-                        buying = true;
+                    const actBtn = document.createElement('button');
+                    actBtn.className = 'btn-primary btn-collection-buy';
+                    actBtn.type = 'button';
+                    if (canAfford) {
+                        actBtn.textContent = `Beli Koleksi (${formatMoney(valuationPrice)})`;
+                        actBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            transactCollectionItem(item, true);
+                        };
+                    } else {
                         actBtn.disabled = true;
-                        actBtn.textContent = 'Memproses pembelian...';
-                        try {
-                            const res = JSON.parse(bridge.transactCollection(JSON.stringify({requestId: 'COL-BUY-' + Date.now(), itemId: item.id, buy: true})));
-                            if (!res.success) throw new Error(res.message);
-                            showGameToast('success', 'Koleksi Berhasil Dibeli!', `${item.name} masuk ke galeri aset mewah`);
-                            refreshSnapshot();
-                            renderCollectionsGallery(container, isModal);
-                        } catch (err) {
-                            buying = false;
-                            actBtn.disabled = false;
-                            actBtn.textContent = `Beli Koleksi (Rp ${Number(item.basePrice || 0).toLocaleString('id-ID')})`;
-                            showGameToast('info', 'Pembelian Gagal', err.message);
-                        }
-                    };
+                        actBtn.textContent = 'Kas pribadi belum cukup';
+                    }
+                    actionsRow.appendChild(actBtn);
                 }
-                card.appendChild(actBtn);
+
+                card.appendChild(actionsRow);
+
+                card.onclick = (e) => {
+                    if (e.target.closest('button')) return;
+                    openCollectionItemDetailModal(item);
+                };
+                card.onkeydown = (e) => {
+                    if ((e.key === 'Enter' || e.key === ' ') && e.target === card) {
+                        e.preventDefault();
+                        openCollectionItemDetailModal(item);
+                    }
+                };
                 return card;
             }
 
@@ -1681,54 +2793,146 @@
         try {
             const firm = JSON.parse(bridge.getFirmSnapshot());
             if (firm.success) {
+                // 1. Panel Pasif: Ringkasan Status Karier & AUM Firma
                 const summary = document.createElement('section');
                 summary.className = 'firm-summary card';
                 const fTitle = document.createElement('h2');
                 fTitle.className = 'card-title';
-                fTitle.textContent = 'Firma investasi & dana kelolaan klien';
+                fTitle.textContent = 'Firma Investasi & Status AUM';
                 summary.append(fTitle);
 
-                metricCard(summary, 'DANA KELOLAAN KLIEN · IDR', firm.aumIdr, `${firm.activeClientCount} klien aktif · terpisah dari kekayaan pribadi`);
+                metricCard(summary, 'DANA KELOLAAN KLIEN · IDR', firm.aumIdr, `${firm.activeClientCount} akun mandat aktif · terpisah dari kekayaan pribadi`);
+                flowText(summary, 'Kapasitas AUM firma', firm.aumCapacityIdr || 'Belum tersedia');
+                flowText(summary, 'Pemakaian kapasitas AUM', firm.aumCapacityUtilizationPct == null ? '0.00%' : `${Number(firm.aumCapacityUtilizationPct).toFixed(2)}% · tambahan kapasitas dari riset ${firm.aumScaleBonusPct || 0}%`);
                 flowText(summary, 'Kas pribadi IDR (bukan AUM)', firm.personalCashIdr);
-                flowText(summary, 'Klien aktif', firm.activeClientCount);
-
-                flowButton(summary, 'Fund Builder & alokasi portofolio', () => openFundBuilder(), 'fundBuilder');
-                flowButton(summary, 'Laporan klien & fee mandat', () => openClientReports());
-                flowButton(summary, 'Bursa Headhunting Staf Analis Elit', () => openHeadhuntingModal());
-                flowText(summary, 'Batas', 'Tarif dan batas mengikuti aturan simulasi awal. Periksa ketentuan setiap mandat.');
+                flowText(summary, 'Klien aktif', `${firm.activeClientCount} akun kelolaan`);
+                flowText(summary, 'Pemisahan dana', 'Portofolio dan kas klien dikelola dalam rekening terpisah 100% dari kekayaan pribadi manajer investasi.');
                 container.append(summary);
 
-                container.append(node('h2', 'card-title', 'Klien & tawaran mandat'));
-                firm.mandates.forEach(mandate => flowButton(container, `${mandate.clientName} · ${mandate.statusLabel}`, () => {
-                    const panel = showFlow('Detail mandat');
-                    flowText(panel, 'Klien / ID', `${mandate.clientName} / ${mandate.id}`);
-                    flowText(panel, 'Status / akun', `${mandate.statusLabel} / ${mandate.accountId || 'Belum ada akun klien'}`);
-                    flowText(panel, 'Profil risiko / benchmark', `${mandate.riskProfile} / ${mandate.benchmark}`);
-                    flowText(panel, 'Setoran awal', mandate.initialDeposit);
-                    flowText(panel, 'Batas konsentrasi (rasio)', mandate.maxConcentration);
-                    flowText(panel, 'Cadangan kas minimum (rasio)', mandate.minCashReserve);
-                    flowText(panel, 'Tarif management fee tahunan (rasio)', mandate.managementFeeAnnualRate);
-                    flowText(panel, 'Tarif performance fee (rasio)', mandate.performanceFeeRate);
-                    flowText(panel, 'High-water mark', mandate.highWaterMark);
-                    flowText(panel, 'Trust (0–100)', mandate.trust);
-                    if (mandate.status === 'OFFERED' && bridge.acceptClientMandate) {
-                        flowButton(panel, 'Terima Mandat Kelolaan Klien', () => {
-                            try {
-                                const res = JSON.parse(bridge.acceptClientMandate(mandate.id));
-                                if (!res.success) throw new Error(res.message);
-                                flowText(panel, 'Status Penerimaan', `${res.message} (Akun: ${res.accountId})`);
-                                refreshSnapshot();
-                                loadFirmaView('dana');
-                            } catch (err) {
-                                flowText(panel, 'Penerimaan Mandat Ditolak', err.message);
-                            }
-                        }, 'mandates');
-                    } else if (mandate.status === 'ACTIVE') {
-                        flowText(panel, 'Status Mandat', `Mandat aktif dikelola. Akun kelolaan: ${mandate.accountId}`);
-                    }
-                }));
+                // 2. Launcher Terpisah: Fitur Pengelolaan & Alokasi Dana
+                const launcherCard = document.createElement('section');
+                launcherCard.className = 'card firm-launchers-section';
+                launcherCard.innerHTML = `<h2 class="card-title">Fitur Pengelolaan & Alokasi Dana</h2>`;
+                const launchersGrid = document.createElement('div');
+                launchersGrid.className = 'firm-launchers-grid';
+                flowButton(launchersGrid, 'Fund Builder & alokasi portofolio', () => openFundBuilder(), 'fundBuilder');
+                flowButton(launchersGrid, 'Laporan klien & fee mandat', () => openClientReports());
+                flowButton(launchersGrid, 'Bursa Headhunting Staf Analis Elit', () => openHeadhuntingModal());
+                launcherCard.append(launchersGrid);
+                container.append(launcherCard);
+
+                // 3. Section Mandat Klien
+                const mandatesSection = document.createElement('section');
+                mandatesSection.className = 'card firm-mandates-section';
+                mandatesSection.innerHTML = `<h2 class="card-title">Klien & Tawaran Mandat</h2>`;
+                flowText(mandatesSection, 'Ketentuan mandat', 'Tarif fee tahunan dan performance fee dihitung otomatis saat tutup hari bursa. Dana klien dikelola pada akun terpisah.');
+
+                const isMandateUnlocked = latestSnapshot?.featureAccess?.mandates?.unlocked !== false;
+                if (!isMandateUnlocked) {
+                    const lockNotice = node('div', 'notice');
+                    lockNotice.append(
+                        node('strong', '', 'Pengelolaan Mandat Klien Terkunci'),
+                        node('p', '', 'Pangkat saat ini belum memenuhi syarat untuk mengelola dana pihak ketiga. Capai jabatan Portfolio Manager untuk membuka hak kelola mandat.')
+                    );
+                    const reqBtn = node('button', 'btn-secondary', 'Lihat syarat promosi karier');
+                    reqBtn.type = 'button';
+                    reqBtn.style.marginTop = '8px';
+                    reqBtn.onclick = () => openPlayerProfileModal();
+                    lockNotice.append(reqBtn);
+                    mandatesSection.append(lockNotice);
+                }
+
+                const mandates = firm.mandates || [];
+                if (!mandates.length) {
+                    const empty = document.createElement('p');
+                    empty.className = 'empty-state';
+                    empty.textContent = 'Belum ada tawaran mandat klien. Tawaran baru akan masuk seiring peningkatan reputasi dan kenaikan pangkat karier.';
+                    mandatesSection.append(empty);
+                } else {
+                    mandates.forEach(mandate => {
+                        const mCard = document.createElement('article');
+                        mCard.className = 'card mandate-card';
+                        mCard.setAttribute('data-mandate-id', mandate.id);
+
+                        const top = node('div', 'section-heading');
+                        top.append(node('span', 'eyebrow', mandate.clientName), node('span', 'badge-status', mandate.statusLabel || mandate.status));
+                        mCard.append(top, node('h3', '', `${mandate.clientName} · ${mandate.riskProfile}`));
+                        flowText(mCard, 'Setoran modal awal', mandate.initialDeposit);
+                        flowText(mCard, 'Indeks acuan (benchmark)', mandate.benchmark);
+                        flowText(mCard, 'Tarif management fee', mandate.managementFeeAnnualRate != null ? `${(Number(mandate.managementFeeAnnualRate) * 100).toFixed(1)}% p.a.` : '-');
+                        flowText(mCard, 'Tarif performance fee', mandate.performanceFeeRate != null ? `${(Number(mandate.performanceFeeRate) * 100).toFixed(0)}% di atas HWM` : '-');
+
+                        const btnReview = node('button', mandate.status === 'OFFERED' ? 'btn-primary' : 'btn-secondary', 'Tinjau rincian mandat');
+                        btnReview.type = 'button';
+                        btnReview.style.marginTop = '10px';
+                        btnReview.onclick = () => openMandateDetailModal(mandate);
+                        mCard.append(btnReview);
+                        mandatesSection.append(mCard);
+                    });
+                }
+                container.append(mandatesSection);
             }
         } catch (error) { flowText(container, 'Firma gagal dimuat', error.message); }
+    }
+
+    function openMandateDetailModal(mandate) {
+        const panel = showFlow('Detail Mandat: ' + mandate.clientName);
+        panel.setAttribute('data-mandate-detail-id', mandate.id);
+
+        const card = node('section', 'card');
+        const meta = node('div', 'section-heading');
+        meta.append(node('span', 'eyebrow', `Klien ${mandate.riskProfile}`), node('span', 'badge-status', mandate.statusLabel || mandate.status));
+        card.append(meta, node('h2', 'card-title', mandate.clientName));
+
+        flowText(card, 'ID Mandat', mandate.id);
+        flowText(card, 'Status mandat', mandate.statusLabel || mandate.status);
+        flowText(card, 'Akun klien terpisah', mandate.accountId || 'Belum ada akun klien');
+        flowText(card, 'Profil risiko & benchmark', `${mandate.riskProfile} (Benchmark: ${mandate.benchmark})`);
+        flowText(card, 'Setoran modal awal', mandate.initialDeposit);
+        flowText(card, 'Batas konsentrasi per saham', mandate.maxConcentration != null ? `${(Number(mandate.maxConcentration) * 100).toFixed(0)}% maksimal per emiten` : '-');
+        flowText(card, 'Cadangan kas minimum', mandate.minCashReserve != null ? `${(Number(mandate.minCashReserve) * 100).toFixed(0)}% kas likuid` : '-');
+        flowText(card, 'Tarif management fee tahunan', mandate.managementFeeAnnualRate != null ? `${(Number(mandate.managementFeeAnnualRate) * 100).toFixed(1)}% p.a.` : '-');
+        flowText(card, 'Tarif performance fee', mandate.performanceFeeRate != null ? `${(Number(mandate.performanceFeeRate) * 100).toFixed(0)}% di atas HWM` : '-');
+        flowText(card, 'High-Water Mark (HWM)', mandate.highWaterMark || '-');
+        flowText(card, 'Skor kepercayaan klien (Trust)', `${mandate.trust} / 100`);
+        panel.append(card);
+
+        const actions = node('section', 'card');
+        actions.append(node('h3', 'card-title', 'Tindakan Mandat'));
+
+        const isMandateUnlocked = latestSnapshot?.featureAccess?.mandates?.unlocked !== false;
+
+        if (mandate.status === 'OFFERED') {
+            if (isMandateUnlocked && bridge.acceptClientMandate) {
+                flowButton(actions, 'Terima Mandat Kelolaan Klien', () => {
+                    try {
+                        const res = JSON.parse(bridge.acceptClientMandate(mandate.id));
+                        if (!res.success) throw new Error(res.message);
+                        showGameToast('success', 'Mandat Diterima!', `${res.message}. Akun kelolaan: ${res.accountId}`);
+                        refreshSnapshot();
+                        closeFlow();
+                        loadFirmaView('dana');
+                    } catch (err) {
+                        showGameToast('info', 'Penerimaan Mandat Ditolak', err.message);
+                    }
+                });
+            } else {
+                const lockP = node('p', 'notice', 'Penerimaan mandat klien terkunci. Memerlukan jabatan Portfolio Manager untuk membuka hak mengelola portofolio pihak ketiga.');
+                const viewReqBtn = node('button', 'btn-secondary', 'Lihat syarat promosi karier');
+                viewReqBtn.type = 'button';
+                viewReqBtn.style.marginTop = '8px';
+                viewReqBtn.onclick = () => openPlayerProfileModal();
+                actions.append(lockP, viewReqBtn);
+            }
+        } else if (mandate.status === 'ACTIVE') {
+            actions.append(node('p', 'notice', `Mandat aktif dikelola. Akun kelolaan: ${mandate.accountId}. Saldo dan posisi saham terpisah 100% dari rekening pribadi manajer. Transaksi dilakukan melalui menu Pasar dengan memilih akun klien.`));
+            const viewReportsBtn = node('button', 'btn-secondary', 'Lihat laporan performa & fee klien');
+            viewReportsBtn.type = 'button';
+            viewReportsBtn.style.marginTop = '8px';
+            viewReportsBtn.onclick = () => openClientReports();
+            actions.append(viewReportsBtn);
+        }
+        panel.append(actions);
     }
 
     function openFoundCompanyModal() {
@@ -2160,219 +3364,530 @@
         } catch (e) { flowText(panel, 'Gagal memuat paket', e.message); }
     }
 
+    function createHubGroup(title, eyebrow) {
+        const card = node('section', 'card hub-group-card');
+        const header = node('div', 'section-heading');
+        header.append(node('span', 'eyebrow', eyebrow), node('h2', 'card-title', title));
+        card.append(header);
+        const list = node('div', 'hub-item-list');
+        card.append(list);
+        return { card, list };
+    }
+
+    function createHubRow(icon, title, desc, badgeText, onClick) {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'hub-item-row';
+        row.onclick = onClick;
+
+        const left = node('div', 'hub-item-left');
+        const iconDiv = node('div', 'hub-item-icon', icon);
+        const textDiv = node('div', 'hub-item-text');
+        textDiv.append(node('div', 'hub-item-title', title), node('div', 'hub-item-desc', desc));
+        left.append(iconDiv, textDiv);
+
+        const right = node('div', 'hub-item-right');
+        if (badgeText) {
+            right.append(node('span', 'hub-item-badge', badgeText));
+        }
+        right.append(node('span', 'hub-item-chevron', '›'));
+
+        row.append(left, right);
+        return row;
+    }
+
     function loadRisetView() {
         refreshSnapshot();
         const view = views.riset;
         view.replaceChildren();
-        pageHeading(view, 'Lainnya & Riset', 'PROFIL, MISI, LIGA & TERMINAL');
-        const hub = node('div','quick-grid');
-        [['Profil Saya',openPlayerProfileModal],['Misi Periodik',openPeriodicMissionsModal],['Liga & Rival',openLeagueAndRivalModal],['Galeri Koleksi',openCollectionsGalleryModal],['Riwayat Transaksi',openTransactionHistoryModal]].forEach(([label,open])=>{
-            const button=flowButton(hub,label,()=>open()); button.className='shortcut';
+
+        // 0. Progres Hero Banner
+        const banner = node('section', 'card hub-progres-banner');
+        const pHeader = node('div', 'hub-progres-header');
+        
+        let pName = 'Investor';
+        let pRank = 'Novice Trader';
+        let pRep = 0;
+        let pLevel = 1;
+        let pXp = 0;
+        
+        try {
+            if (bridge.getPlayerProfile) {
+                const prof = JSON.parse(bridge.getPlayerProfile());
+                if (prof.name) pName = prof.name;
+                if (prof.careerRankLabel || prof.careerRank) pRank = prof.careerRankLabel || prof.careerRank;
+                if (prof.reputation != null) pRep = prof.reputation;
+            }
+            if (bridge.getPlayerProgress) {
+                const prog = JSON.parse(bridge.getPlayerProgress());
+                if (prog.level != null) pLevel = prog.level;
+                if (prog.currentXp != null) pXp = prog.currentXp;
+            }
+        } catch(e) {}
+
+        pHeader.append(
+            node('div', '', `${pName} · Level ${pLevel}`),
+            node('span', 'badge-owned', pRank)
+        );
+        banner.append(pHeader);
+
+        const pGrid = node('div', 'hub-progres-grid');
+        const p1 = node('div', 'hub-progres-item');
+        p1.append(node('span', '', 'Reputasi Karier'), node('strong', '', `${pRep} Poin`));
+        const p2 = node('div', 'hub-progres-item');
+        p2.append(node('span', '', 'Total Pengalaman'), node('strong', '', `${pXp} XP`));
+        const p3 = node('div', 'hub-progres-item');
+        p3.append(node('span', '', 'Status Pasar'), node('strong', '', latestSnapshot?.clock?.sessionLabel || 'Sesi Game'));
+        pGrid.append(p1, p2, p3);
+        banner.append(pGrid);
+        view.append(banner);
+
+        // Group 1: Profil & Progres
+        const g1 = createHubGroup('Profil & Progres', 'PROFIL & PRESTISE');
+        g1.list.append(
+            createHubRow('👤', 'Profil Saya & Identitas', 'Kelola nama, statistik performa, dan identitas investor', pRank, () => openPlayerProfileModal()),
+            createHubRow('🏆', 'Level & Pencapaian', 'Progres XP dan lencana prestasi trading yang telah diraih', `Level ${pLevel}`, () => openAchievementsModal()),
+            createHubRow('🎯', 'Gaya & Arketipe Investor', 'Karakteristik strategi dan kebiasaan trading di bursa', 'Arketipe', () => openInvestorArchetypeModal()),
+            createHubRow('🌟', 'Era Baru & Prestise', 'Mulai siklus baru dengan multiplier reputasi & modal ekstra', 'Era Baru', () => openPrestigeModal())
+        );
+        view.append(g1.card);
+
+        // Group 2: Misi & Kompetisi
+        const g2 = createHubGroup('Misi & Kompetisi', 'TARGET & TANTANGAN');
+        g2.list.append(
+            createHubRow('📋', 'Misi Periodik', 'Target harian dan mingguan berhadiah uang tunai & XP', 'Target', () => openPeriodicMissionsModal()),
+            createHubRow('🥇', 'Liga & Peringkat Rival', 'Kompetisi imbal hasil portofolio melawan rival pasar', 'Divisi Liga', () => openLeagueAndRivalModal()),
+            createHubRow('🎁', 'Sponsor Harian & Kehadiran', 'Klaim dana bantuan modal sponsor setiap hari bursa', 'Sponsor', () => openDailySponsorModal()),
+            createHubRow('⚔️', 'Duel Bos Taipan Pasar', 'Tantang 4 bos pasar modal dalam duel imbal hasil 1-on-1', 'Tantangan', () => openMarketBossModal())
+        );
+        view.append(g2.card);
+
+        // Group 3: Riset Pasar & Pengembangan
+        let currentTier = 'BASIC';
+        try {
+            if (bridge.getResearchFeed) {
+                const rf = JSON.parse(bridge.getResearchFeed());
+                if (rf.tier) currentTier = rf.tier;
+            }
+        } catch(e) {}
+
+        const g3 = createHubGroup('Riset & Intelijen Pasar', 'ANALISIS & TEKNOLOGI');
+        g3.list.append(
+            createHubRow('📊', 'Terminal Riset & Konsensus', 'Analisis fundamental emiten, rasio keuangan, dan konsensus analis', 'Terminal', () => openResearchTerminal()),
+            createHubRow('📰', 'Berita Pasar & Sentimen', 'Warta bursa terkini dan estimasi arah pergerakan harga', 'Berita', () => openResearchNewsFeedModal()),
+            createHubRow('💳', 'Paket Langganan Terminal', 'Kelola tingkat akses tier BASIC, PRO, dan INSTITUTIONAL', `Tier ${currentTier}`, () => openResearchTiersModal()),
+            createHubRow('🌳', 'Pohon Riset Finansial (Tech Tree)', 'Riset teknologi order, analisis pasar, dan fitur bursa', 'Teknologi', () => openTechTreeModal()),
+            createHubRow('⚡', 'Kartu Booster Riset R&D', 'Aktivasi booster untuk mempercepat hasil dan akurasi riset', 'Booster', () => openResearchBoostersModal()),
+            createHubRow('⏪', 'Replay Historis Perdagangan', 'Uji strategi pada data pergerakan pasar historis nyata', 'Simulasi', () => openHistoricalReplayModal())
+        );
+        view.append(g3.card);
+
+        // Group 4: Pengaturan & Sistem
+        const g4 = createHubGroup('Pengaturan & Sistem', 'PREFERENSI & PENYIMPANAN');
+        g4.list.append(
+            createHubRow('📖', 'Panduan Bermain & Bantuan', 'Mekanisme bursa 24x, manajemen risiko, dan panduan fitur', 'Edukasi', () => openTutorialModal()),
+            createHubRow('⏱️', 'Sinkronisasi Jam Bursa', 'Periksa waktu sesi bursa 24x dan status sinkronisasi server', 'Waktu Game', () => openClockSyncModal()),
+            createHubRow('💾', 'Penyimpanan Permainan & Backup', 'Simpan permainan secara manual dan periksa integritas cadangan', 'Simpan', () => openSaveManagementModal()),
+            createHubRow('🔔', 'Riwayat Notifikasi & Pesan', 'Daftar pesan penting, kesalahan transaksi, dan warta sistem', 'Pesan', () => openNotificationHistoryModal()),
+            createHubRow('🔄', 'Mulai Permainan Baru (Reset Run)', 'Mulai ulang permainan dari awal dengan konfirmasi ganda aman', 'Atur Ulang', () => openNewGameConfirmationModal())
+        );
+        view.append(g4.card);
+    }
+
+    function openPrestigeModal() {
+        const panel = showFlow('Era Baru & Prestise');
+        panel.setAttribute('data-modal-id', 'prestige-modal');
+        flowText(panel, 'Informasi Era Baru', 'Masuki Era Baru untuk mereset perjalanan aktif dan membuka multiplier reputasi, perolehan XP lebih cepat, serta modal awal yang lebih besar.');
+
+        if (!bridge.getPrestigeStatus) {
+            flowText(panel, 'Status', 'Layanan prestise belum tersedia.');
+            return;
+        }
+
+        try {
+            const pres = JSON.parse(bridge.getPrestigeStatus());
+            const isEligible = Boolean(pres.eligible);
+
+            const card = node('section', 'card');
+            const meta = node('div', 'section-heading');
+            meta.append(node('span', 'eyebrow', 'Status Kelayakan'), node('span', isEligible ? 'badge-owned' : 'badge-pledged', isEligible ? 'Memenuhi Syarat' : 'Belum Terbuka'));
+            card.append(meta, node('h2', 'card-title', isEligible ? 'Siap Memulai Era Baru' : 'Persyaratan Belum Terpenuhi'));
+
+            flowText(card, 'Pangkat yang diperlukan', pres.requiredRank || 'Belum tersedia');
+            flowText(card, 'Hari perjalanan berjalan', `${pres.runDays || 0} hari game`);
+            flowText(card, 'Bonus Era Baru', pres.prestigeBonus || 'Multiplier Reputasi & Kas Awal');
+            panel.append(card);
+
+            const checklistCard = node('section', 'card');
+            checklistCard.append(node('h2', 'card-title', 'Checklist Persyaratan'));
+            const blockers = pres.blockers || [];
+            if (blockers.length === 0) {
+                checklistCard.append(node('p', 'notice', isEligible ? 'Seluruh persyaratan telah terpenuhi. Anda dapat memulai Era Baru kapan saja.' : 'Rincian persyaratan belum tersedia.'));
+            } else {
+                blockers.forEach(b => {
+                    const row = node('div', 'data-row');
+                    row.append(node('span', 'negative', 'Belum Terpenuhi'), node('strong', '', b));
+                    checklistCard.append(row);
+                });
+            }
+            panel.append(checklistCard);
+
+            const impactCard = node('section', 'card');
+            impactCard.append(node('h2', 'card-title', 'Dampak Siklus Era Baru'));
+            flowText(impactCard, 'Yang direset', pres.reset || 'Kas pribadi, posisi portofolio, anak usaha, dan level XP run berjalan.');
+            flowText(impactCard, 'Yang dipertahankan', pres.retained || 'Nama identitas pemain, preferensi akun, statistik lifetime, dan lencana pencapaian.');
+            flowText(impactCard, 'Proteksi data', 'Sistem secara otomatis membuat cadangan aman sebelum reset dijalankan.');
+            panel.append(impactCard);
+
+            const actions = node('section', 'card');
+            actions.append(node('h3', 'card-title', 'Tindakan Prestise'));
+
+            if (isEligible) {
+                const confirmBtn = node('button', 'btn-primary', 'Konfirmasi & Masuk Era Baru');
+                confirmBtn.type = 'button';
+                confirmBtn.style.marginTop = '10px';
+                confirmBtn.onclick = () => {
+                    if (!confirm('PERINGATAN ERA BARU:\nApakah Anda yakin ingin memulai Era Baru sekarang? Portofolio dan anak usaha saat ini akan direset untuk siklus prestise baru.')) return;
+                    confirmBtn.disabled = true;
+                    confirmBtn.textContent = 'Memproses Era Baru...';
+                    try {
+                        const reqId = 'PRESTIGE-' + Date.now();
+                        const res = JSON.parse(bridge.confirmPrestige(JSON.stringify({ requestId: reqId, runId: pres.runId })));
+                        if (res && res.success !== false) {
+                            showGameToast('success', 'Era Baru Dimulai!', res.message || 'Progres telah diperbarui ke siklus prestise.');
+                            refreshSnapshot();
+                            setTimeout(() => { closeFlow(); loadRisetView(); }, 1200);
+                        } else {
+                            throw new Error(res.message || 'Gagal memulai Era Baru');
+                        }
+                    } catch(err) {
+                        confirmBtn.disabled = false;
+                        confirmBtn.textContent = 'Konfirmasi & Masuk Era Baru';
+                        showGameToast('info', 'Prestise Ditolak', err.message);
+                    }
+                };
+                actions.append(confirmBtn);
+            } else {
+                actions.append(node('p', 'notice', 'Pintu Era Baru masih terkunci. Tingkatkan pangkat karier dan penuhi seluruh checklist persyaratan di atas untuk membuka opsi ini.'));
+            }
+            panel.append(actions);
+        } catch(e) {
+            flowText(panel, 'Gagal memuat status prestise', e.message);
+        }
+    }
+
+    function openDailySponsorModal() {
+        const panel = showFlow('Hadiah Sponsor Harian');
+        panel.setAttribute('data-modal-id', 'daily-sponsor-modal');
+        flowText(panel, 'Bantuan Modal Bursa', 'Klaim dana bantuan operasional dari sponsor bursa resmi sekali setiap pergantian hari game.');
+
+        const card = node('section', 'card');
+        card.append(node('h2', 'card-title', 'Status Kehadiran & Sponsor'));
+
+        const sponsor = latestDailySponsor || {};
+        const isClaimed = Boolean(sponsor.alreadyClaimed);
+        const streak = sponsor.streakCount || 1;
+        const amount = sponsor.grantAmountFormatted || sponsor.amount || 'Rp 5.000.000';
+
+        flowText(card, 'Streak Kehadiran', `${streak} hari beruntun`);
+        flowText(card, 'Nominal Bantuan Sponsor', amount);
+        flowText(card, 'Status Hari Ini', isClaimed ? '✓ Sudah Diklaim' : '○ Siap Diklaim');
+        panel.append(card);
+
+        const actions = node('section', 'card');
+        actions.append(node('h3', 'card-title', 'Tindakan Klaim'));
+
+        if (!isClaimed) {
+            const claimBtn = node('button', 'btn-primary', `Klaim Bantuan Sponsor (${amount})`);
+            claimBtn.type = 'button';
+            claimBtn.style.marginTop = '10px';
+            let claiming = false;
+            claimBtn.onclick = () => {
+                if (claiming) return;
+                claiming = true;
+                claimBtn.disabled = true;
+                claimBtn.textContent = 'Mengklaim dana...';
+                try {
+                    const reqId = 'SPONSOR-' + Date.now();
+                    const res = JSON.parse(bridge.claimDailySponsor(JSON.stringify({ requestId: reqId })));
+                    if (!res.success) throw new Error(res.message);
+                    showGameToast('success', 'Sponsor Berhasil Diklaim!', res.message || `${amount} berhasil masuk ke kas pribadi.`);
+                    refreshSnapshot();
+                    setTimeout(() => { closeFlow(); loadRisetView(); }, 800);
+                } catch(err) {
+                    claiming = false;
+                    claimBtn.disabled = false;
+                    claimBtn.textContent = `Klaim Bantuan Sponsor (${amount})`;
+                    showGameToast('info', 'Klaim Gagal', err.message);
+                }
+            };
+            actions.append(claimBtn);
+        } else {
+            actions.append(node('p', 'notice', 'Anda telah mengklaim jatah sponsor hari ini. Bantuan berikutnya akan tersedia pada pembukaan hari bursa baru.'));
+        }
+        panel.append(actions);
+    }
+
+    function openTutorialModal() {
+        const panel = showFlow('Panduan Bermain & Bantuan');
+        panel.setAttribute('data-modal-id', 'tutorial-modal');
+        flowText(panel, 'Edukasi Mekanisme', 'Pelajari mekanisme pasar modal 24x, aturan bursa, dan strategi pengembangan kekayaan.');
+
+        const guides = [
+            {
+                title: '1. Dunia Otomatis 24x Tanpa Pause',
+                desc: 'Waktu game berjalan terus menerus secara deterministik: 1 hari bursa game setara dengan 1 jam nyata. Tidak ada tombol pause atau manipulasi waktu manual pemain, menjaga integritas simulasi.'
+            },
+            {
+                title: '2. Dua Pasar Bursa Utama (IDX & US)',
+                desc: 'Bursa Indonesia (IDX) buka pada pagi-sore hari dengan satuan 1 lot = 100 lembar. Bursa Amerika (US) buka pada malam-dini hari dengan satuan 1 unit = 1 lembar dalam valuta USD.'
+            },
+            {
+                title: '3. Jenis Order & Eksekusi',
+                desc: 'Gunakan Market Order untuk eksekusi instan pada kuotasi terbaik, Limit Order untuk menetapkan harga batas, serta Stop Loss dan Take Profit untuk manajemen risiko otomatis saat menyentuh trigger.'
+            },
+            {
+                title: '4. Fasilitas Margin & Likuidasi',
+                desc: 'Fasilitas margin memungkinkan peminjaman modal trading dengan bunga harian. Pertahankan rasio ekuitas di atas batas pemeliharaan (30%) untuk menghindari likuidasi paksa portofolio pada level 20%.'
+            },
+            {
+                title: '5. Pemisahan Dana Kelolaan Klien',
+                desc: 'Pada firma investasi, dana kelolaan klien (AUM) dikelola pada rekening terpisah 100% dari kekayaan pribadi manajer. Manajer memperoleh pendapatan dari management fee tahunan dan performance fee di atas High-Water Mark.'
+            }
+        ];
+
+        guides.forEach(g => {
+            const card = node('article', 'card');
+            card.append(node('h3', 'card-title', g.title), node('p', '', g.desc));
+            panel.append(card);
         });
-        view.append(hub);
-        appendPrestigeSection(view);
-        flowButton(view,'Terminal: analis, konsensus & perbandingan',openResearchTerminal);
-        flowButton(view,'Hasil investasi & arus kas',openPerformanceReport);
-        flowButton(view, 'Lab strategi & sandbox what-if', openStrategyLabModal);
-        flowButton(view, 'Replay historis', openHistoricalReplayModal);
-        flowButton(view, 'Kartu Booster Riset R&D', openResearchBoostersModal);
-        flowButton(view, 'Pohon Riset Finansial Tech Tree', openTechTreeModal);
+    }
+
+    function openClockSyncModal() {
+        const panel = showFlow('Sinkronisasi Jam Bursa Game');
+        panel.setAttribute('data-modal-id', 'clock-sync-modal');
+        flowText(panel, 'Waktu Dunia Terpadu', 'Jam bursa game diatur secara terpusat oleh engine Java dengan siklus 24x kecepatan waktu riil.');
+
+        const card = node('section', 'card');
+        card.append(node('h2', 'card-title', 'Status Jam Game Terkini'));
+
+        const clock = latestSnapshot?.clock || {};
+        const rate = clock.rate != null ? Number(clock.rate) : 24;
+        flowText(card, 'Sesi Pasar Saat Ini', clock.sessionLabel || 'Sesi Game');
+        flowText(card, 'Laju Waktu', `${rate}x kecepatan waktu nyata`);
+        flowText(card, 'Status Perdagangan IDX', clock.isIdxTradingOpen ? 'Buka untuk Trading' : 'Tutup');
+        flowText(card, 'Status Perdagangan US', clock.isUsTradingOpen ? 'Buka untuk Trading' : 'Tutup');
+        flowText(card, 'Waktu Sinkronisasi Terakhir', new Date().toLocaleTimeString('id-ID'));
+        panel.append(card);
+
+        const actions = node('section', 'card');
+        actions.append(node('h3', 'card-title', 'Tindakan Sinkronisasi'));
+        const syncBtn = node('button', 'btn-primary', 'Sinkronkan Jam Sekarang');
+        syncBtn.type = 'button';
+        syncBtn.style.marginTop = '10px';
+        syncBtn.onclick = () => {
+            syncBtn.disabled = true;
+            syncBtn.textContent = 'Menyinkronkan...';
+            const syncOpId = 'SYNC-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
+            requestClockSync(true, true)
+                .then(() => {
+                    showGameToast('success', 'Waktu Disinkronkan', 'Jam permainan telah diselaraskan dengan engine waktu game.', syncOpId + ':OK');
+                    refreshSnapshot();
+                    closeFlow();
+                    loadRisetView();
+                })
+                .catch(err => {
+                    syncBtn.disabled = false;
+                    syncBtn.textContent = 'Sinkronkan Jam Sekarang';
+                    showGameToast('info', 'Sinkronisasi Gagal', err.message, syncOpId + ':ERR');
+                });
+        };
+        actions.append(syncBtn);
+        panel.append(actions);
+    }
+
+    function openNotificationHistoryModal() {
+        const panel = showFlow('Riwayat Notifikasi & Pesan');
+        panel.setAttribute('data-modal-id', 'notification-history-modal');
+        flowText(panel, 'Pusat Pesan', 'Riwayat pemberitahuan sistem, kesalahan transaksi, dan warta penting yang diterima selama sesi permainan ini.');
+
+        const card = node('section', 'card');
+        card.append(node('h2', 'card-title', 'Pemberitahuan Terkini'));
+        const list = getToastHistory();
+        if (!list.length) {
+            emptyState(card, 'Belum ada riwayat pemberitahuan', 'Pemberitahuan dan warta penting yang muncul selama sesi akan tercatat di sini.');
+        } else {
+            const container = node('div', 'notification-history-list');
+            list.slice().reverse().forEach(item => {
+                const row = node('div', 'data-row notification-history-item');
+                row.style.marginBottom = '8px';
+                row.style.display = 'block';
+                const typeLabel = item.type === 'error' ? 'ERROR' : item.type === 'alert' ? 'PERINGATAN' : item.type === 'success' ? 'SUKSES' : 'INFO';
+                const typeBadgeClass = item.type === 'error' ? 'badge-locked' : item.type === 'alert' ? 'badge-pledged' : item.type === 'success' ? 'badge-owned' : 'badge';
+                const timeStr = item.timestamp ? new Date(item.timestamp).toLocaleTimeString('id-ID') : '';
+                row.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%; margin-bottom:4px;">
+                        <span class="${typeBadgeClass}" style="font-size:0.7rem; font-weight:700;">[${typeLabel}] ${item.title}</span>
+                        <small style="color:#475569; font-size:0.75rem;">${timeStr}</small>
+                    </div>
+                    <p style="margin:0; font-size:0.875rem; color:#0F172A; width:100%; word-break:break-word;">${item.message}</p>
+                `;
+                container.appendChild(row);
+            });
+            card.appendChild(container);
+        }
+        panel.append(card);
+    }
+    window.openNotificationHistoryModal = openNotificationHistoryModal;
+
+    let lastSavedTimeFormatted = null;
+
+    function openSaveManagementModal() {
+        const panel = showFlow('Penyimpanan Permainan & Backup');
+        panel.setAttribute('data-modal-id', 'save-management-modal');
+        flowText(panel, 'Integritas Berkas Save', 'Sistem menggunakan mekanisme penyimpanan ganda (save utama dan backup otomatis) untuk mencegah kehilangan data.');
+
+        let meta = null;
+        if (bridge.getSaveMetadata) {
+            try { meta = JSON.parse(bridge.getSaveMetadata()); } catch(ignored) {}
+        }
+        if (!meta && latestSnapshot?.saveMetadata) {
+            meta = latestSnapshot.saveMetadata;
+        }
+
+        const card = node('section', 'card');
+        card.append(node('h2', 'card-title', 'Status Berkas Penyimpanan'));
+        flowText(card, 'Format Berkas', meta?.format || 'JSON Standar (Skema V2, UTF-8)');
+
+        let lastSavedText = 'Belum tersedia';
+        if (meta?.primaryLastModified) {
+            lastSavedText = new Date(meta.primaryLastModified).toLocaleTimeString('id-ID');
+        } else if (lastSavedTimeFormatted) {
+            lastSavedText = lastSavedTimeFormatted;
+        } else if (latestSnapshot?.savedTimestamp) {
+            lastSavedText = new Date(latestSnapshot.savedTimestamp).toLocaleTimeString('id-ID');
+        }
+        flowText(card, 'Penyimpanan Terakhir', lastSavedText);
+        flowText(card, 'Mekanisme Rotasi', 'Aktif (Rotasi Atomik)');
+        flowText(card, 'Cadangan Otomatis (.bak)', meta?.backupStatusLabel || (meta?.backupFileExists ? 'Tersedia' : 'Belum tersedia'));
+        panel.append(card);
+
+        const actions = node('section', 'card');
+        actions.append(node('h3', 'card-title', 'Tindakan Penyimpanan'));
+        const saveBtn = node('button', 'btn-primary', 'Simpan Permainan Sekarang');
+        saveBtn.type = 'button';
+        saveBtn.style.marginTop = '10px';
+        saveBtn.onclick = () => {
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Menyimpan berkas...';
+            try {
+                if (bridge.saveGame) {
+                    const res = JSON.parse(bridge.saveGame());
+                    if (res && res.success === false) throw new Error(res.message || 'Gagal menyimpan');
+                }
+                lastSavedTimeFormatted = new Date().toLocaleTimeString('id-ID');
+                showGameToast('success', 'Permainan Tersimpan!', 'Seluruh progres, saldo, dan posisi berhasil disimpan dengan aman.', 'SAVE_GAME_OK:' + Date.now());
+                refreshSnapshot();
+                setTimeout(() => {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Simpan Permainan Sekarang';
+                    openSaveManagementModal();
+                }, 800);
+            } catch(e) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Simpan Permainan Sekarang';
+                showGameToast('info', 'Penyimpanan Gagal', e.message, 'SAVE_GAME_FAIL:' + Date.now());
+            }
+        };
+        actions.append(saveBtn);
+        panel.append(actions);
+    }
+
+    function openNewGameConfirmationModal() {
+        const panel = showFlow('Mulai Permainan Baru (Reset Run)');
+        panel.setAttribute('data-modal-id', 'new-game-modal');
+
+        const card = node('section', 'card');
+        card.style.borderLeft = '4px solid var(--negative)';
+        card.append(node('h2', 'card-title', 'Peringatan Penghapusan Progres'));
+        card.append(node('p', 'notice', 'PERINGATAN: Memulai permainan baru akan mereset kas, portofolio saham, bisnis operasional, dan level perjalanan aktif Anda saat ini dari awal. Tindakan ini tidak dapat dibatalkan.'));
+        flowText(card, 'Yang akan direset', 'Kas pribadi, kepemilikan saham, anak usaha, utang margin, dan XP perjalanan.');
+        flowText(card, 'Pilihan mode awal', 'Pasar Internal Reguler (Modal Awal Rp 50.000.000)');
+        panel.append(card);
+
+        const actions = node('section', 'card');
+        actions.append(node('h3', 'card-title', 'Konfirmasi Mulai Baru'));
+
+        const confirmBtn = node('button', 'btn-primary', 'Konfirmasi Reset & Mulai Baru');
+        confirmBtn.type = 'button';
+        confirmBtn.style.background = 'var(--negative)';
+        confirmBtn.style.marginTop = '10px';
+
+        confirmBtn.onclick = () => {
+            if (!confirm('APAKAH ANDA YAKIN INGIN MERESET PERMAINAN?\nSeluruh kemajuan saat ini akan dihapus dan permainan akan dimulai dari awal.')) return;
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Mereset permainan...';
+            try {
+                const req = JSON.stringify({ mode: 'INTERNAL_MARKET' });
+                const res = JSON.parse(bridge.startNewGame ? bridge.startNewGame(req) : '{"success":false,"message":"Bridge startNewGame belum tersedia"}');
+                if (!res.success) throw new Error(res.message);
+                showGameToast('success', 'Permainan Direset', 'Perjalanan baru telah dimulai.');
+                refreshSnapshot();
+                setTimeout(() => {
+                    closeFlow();
+                    switchTab('beranda');
+                }, 1200);
+            } catch(e) {
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Konfirmasi Reset & Mulai Baru';
+                showGameToast('info', 'Gagal Memulai Baru', e.message);
+            }
+        };
+        actions.append(confirmBtn);
+        panel.append(actions);
+    }
+
+    function openResearchNewsFeedModal() {
+        const panel = showFlow('Berita Pasar & Riset Terkini');
+        panel.setAttribute('data-modal-id', 'research-news-feed-modal');
+        flowText(panel, 'Warta Ekonomi Simulasi', 'Catatan peristiwa dan rilis data bursa yang telah terbit resmi pada waktu permainan.');
 
         if (!bridge.getResearchFeed) {
-            flowText(view, 'Riset', 'Riset belum dapat dimuat.'); return;
+            flowText(panel, 'Berita', 'Feed berita belum dapat dimuat.');
+            return;
         }
 
         try {
             const feed = JSON.parse(bridge.getResearchFeed());
-
-            // 1. Status Terminal & Paket
-            const tierSection = document.createElement('section');
-            tierSection.className = 'card';
-            const tierTitle = document.createElement('h2');
-            tierTitle.className = 'card-title';
-            tierTitle.textContent = 'Paket terminal riset aktif';
-            tierSection.append(tierTitle);
-            flowText(tierSection, 'Tingkat paket', `${feed.tierTitle} (${feed.tier})`);
-            flowText(tierSection, 'Masa berlaku', feed.tier === 'BASIC' ? 'Permanen (Gratis)' : new Date(feed.expiresAt).toLocaleDateString('id-ID'));
-            flowButton(tierSection, 'Lihat paket & opsi langganan', () => openResearchTiersModal());
-            view.append(tierSection);
-
-            // 2. Berita Pasar
-            const newsSection = document.createElement('section');
-            newsSection.className = 'card';
-            const newsTitle = document.createElement('h2');
-            newsTitle.className = 'card-title';
-            newsTitle.textContent = 'Berita pasar & riset terkini';
-            newsSection.append(newsTitle);
-            newsSection.append(node('p','notice','Catatan simulasi yang sudah terbit pada waktu game.'));
-
-            if (!feed.news || !feed.news.length) {
-                flowText(newsSection, 'Berita', 'Belum ada berita terbit saat ini.');
+            const news = feed.news || [];
+            if (!news.length) {
+                const empty = node('div', 'empty-state');
+                empty.append(node('strong', '', 'Belum ada berita terbit'), node('p', '', 'Berita ekonomi makro dan emiten akan diterbitkan seiring berjalannya waktu game.'));
+                panel.append(empty);
             } else {
-                feed.news.forEach(n => {
-                const card = node('article','card news-card');
-                const topRow = node('div', 'section-heading');
-                topRow.style.margin = '0 0 6px 0';
-                topRow.append(
-                    node('span','eyebrow',`${n.categoryLabel}${n.relatedTicker ? ' · '+n.relatedTicker : ''}`),
-                    node('span', 'change-pill', n.publishedAt == null ? 'Waktu belum tersedia' : new Date(n.publishedAt).toLocaleString('id-ID', {timeZone:'Asia/Jakarta'}))
-                );
-                const h3 = node('h3','',n.headline);
-                h3.style.margin = '4px 0 8px';
-                const impactRow = node('div');
-                impactRow.className = 'flex-row';
-                const impactBadge = node('span', 'change-pill', n.relatedTicker ? `Emiten: ${n.relatedTicker}` : n.categoryLabel);
-                impactRow.append(impactBadge);
-                card.append(topRow, h3, impactRow);
-                const button = flowButton(card,'Baca catatan', () => {
-                        const detail = showFlow('Catatan riset');
-                        detail.append(node('span','live-badge','Simulasi game'),node('h2','',n.headline));
-                        flowText(detail,'Kategori',n.categoryLabel);
-                        flowText(detail,'Terbit (waktu game)',new Date(n.publishedAt).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'}));
-                        flowText(detail,'Sumber','Skenario simulasi internal game');
-                        detail.append(node('p','article-copy',n.content));
-                        if (bridge.recordResearchRead) bridge.recordResearchRead(n.id);
-                        refreshSnapshot();
-                    });
-                    button.className='text-button'; newsSection.append(card);
-                });
-                refreshSnapshot();
-            }
-            view.append(newsSection);
+                news.forEach(n => {
+                    const card = node('article', 'card news-card');
+                    const topRow = node('div', 'section-heading');
+                    topRow.style.margin = '0 0 6px 0';
+                    topRow.append(
+                        node('span', 'eyebrow', `${n.categoryLabel || 'Bursa'}${n.relatedTicker ? ' · ' + n.relatedTicker : ''}`),
+                        node('span', 'change-pill', n.publishedAt == null ? 'Waktu belum tersedia' : new Date(n.publishedAt).toLocaleString('id-ID', {timeZone:'Asia/Jakarta'}))
+                    );
+                    const h3 = node('h3', '', n.headline);
+                    h3.style.margin = '4px 0 8px';
+                    const impactRow = node('div', 'flex-row');
+                    const impactBadge = node('span', 'change-pill', `${n.affectedSector || n.categoryLabel || 'Sektor'} · Perkiraan dampak: ${n.direction || 'netral'}${n.estimatedRange ? ' · ' + n.estimatedRange : ''}`);
+                    impactRow.append(impactBadge, newsEffectNode(n, 'change-pill'));
+                    card.append(topRow, h3, impactRow);
 
-            // 3. Konsensus Analis
-            const analystSection = document.createElement('section');
-            analystSection.className = 'card';
-            const analystTitle = document.createElement('h2');
-            analystTitle.className = 'card-title';
-            analystTitle.textContent = 'Konsensus analis & target harga';
-            analystSection.append(analystTitle);
-
-            if (!feed.analysts || !feed.analysts.length) {
-                flowText(analystSection, 'Analis', 'Belum ada konsensus analis tersedia.');
-            } else {
-                feed.analysts.forEach(a => {
-                    const card = document.createElement('article');
-                    card.className = 'card';
-                    const h = document.createElement('h3');
-                    h.textContent = `${a.ticker} · Rekomendasi: ${a.recommendationLabel} (${a.recommendation})`;
-                    card.append(h);
-                    flowText(card, 'Analis & sekuritas', `${a.analystName} (${a.firmName})`);
-                    flowText(card, 'Target harga', a.targetPrice);
-                    flowText(card, 'Akurasi historis analis', `${a.accuracyHistoryPercent}% akurat`);
-                    flowText(card, 'Tesis analisis', a.thesisSummary);
-                    analystSection.append(card);
+                    const btn = flowButton(card, 'Baca catatan lengkap', () => openNewsDetail(n, () => openResearchNewsFeedModal()));
+                    btn.className = 'text-button';
+                    panel.append(card);
                 });
             }
-            view.append(analystSection);
-
-            // 4. Kalender Finansial
-            const calSection = document.createElement('section');
-            calSection.className = 'card';
-            const calTitle = document.createElement('h2');
-            calTitle.className = 'card-title';
-            calTitle.textContent = 'Kalender bursa & ekonomi makro';
-            calSection.append(calTitle);
-
-            if (latestSnapshot.featureAccess && !latestSnapshot.featureAccess.calendar.unlocked) {
-                flowText(calSection, 'Kalender terkunci', `Terbuka pada jabatan ${latestSnapshot.featureAccess.calendar.requiredTitle}.`);
-            } else if (!feed.calendar || !feed.calendar.length) {
-                flowText(calSection, 'Kalender', 'Belum ada agenda kalender mendatang.');
-            } else {
-                feed.calendar.forEach(c => {
-                    const card = document.createElement('article');
-                    card.className = 'card';
-                    const h = document.createElement('h3');
-                    h.textContent = `${c.date}: ${c.title}`;
-                    card.append(h);
-                    flowText(card, 'Kategori', `${c.categoryLabel}${c.relatedTicker ? ' · ' + c.relatedTicker : ''}`);
-                    flowText(card, 'Keterangan', c.details);
-                    calSection.append(card);
-                });
-            }
-            view.append(calSection);
-
-        } catch (e) { flowText(view, 'Gagal memuat feed riset', e.message); }
-    }
-
-    function appendPrestigeSection(view) {
-            if (bridge.getPrestigeStatus) {
-                try {
-                    const presRes = JSON.parse(bridge.getPrestigeStatus());
-                    const presSection = document.createElement('section');
-                    presSection.className = 'card';
-                    const presHeader = document.createElement('div');
-                    presHeader.className = 'section-heading';
-                    presHeader.append(node('h2', 'card-title', 'Era baru'), node('span', presRes.eligible ? 'badge-owned' : 'badge-pledged', presRes.eligible ? 'Memenuhi syarat' : 'Belum terbuka'));
-                    presSection.append(presHeader);
-
-                    flowText(presSection, 'Pangkat yang diperlukan', presRes.requiredRank);
-                    flowText(presSection, 'Hari perjalanan', presRes.runDays);
-                    flowText(presSection, 'Manfaat era baru', presRes.prestigeBonus);
-
-                    const btnAction = document.createElement('button');
-                    btnAction.className = presRes.eligible ? 'btn-primary' : 'btn-secondary';
-                    btnAction.style.marginTop = '10px';
-                    btnAction.textContent = presRes.eligible ? 'Tinjau era baru' : 'Lihat syarat & progres';
-                    btnAction.onclick = () => {
-                        const pPanel = showFlow(presRes.eligible ? 'Tinjauan Era Baru (Prestige)' : 'Persyaratan Era Baru');
-                        flowText(pPanel, 'Era baru', 'Tinjau syarat dan perubahan progres sebelum memulai perjalanan baru.');
-
-                        const checklistCard = document.createElement('section');
-                        checklistCard.className = 'card';
-                        checklistCard.innerHTML = '<h2 class="card-title">Checklist Persyaratan</h2>';
-
-                        const blockersList = presRes.blockers || [];
-                        if (blockersList.length === 0) {
-                            checklistCard.append(node('p', 'notice', presRes.eligible ? 'Seluruh persyaratan telah terpenuhi.' : 'Rincian persyaratan belum tersedia.'));
-                        } else {
-                            blockersList.forEach(b => {
-                                const bRow = document.createElement('div');
-                                bRow.className = 'data-row';
-                                bRow.append(node('span', 'negative', 'Belum terpenuhi'), node('strong', '', b));
-                                checklistCard.appendChild(bRow);
-                            });
-                        }
-                        pPanel.append(checklistCard);
-
-                        if (presRes.eligible) {
-                            flowText(pPanel, 'Yang direset', presRes.reset || 'Kas, posisi, bisnis, XP, dan karier perjalanan.');
-                            flowText(pPanel, 'Yang dipertahankan', presRes.retained || 'Identitas, preferensi, statistik lifetime, riwayat prestige.');
-                            flowText(pPanel, 'Proteksi data', 'Game akan membuat backup aman terlebih dahulu.');
-
-                            const actBtn = document.createElement('button');
-                            actBtn.className = 'btn-primary';
-                            actBtn.style.marginTop = '12px';
-                            actBtn.textContent = 'Konfirmasi & Mulai Era Baru';
-                            const prestigeRunId = presRes.runId;
-                            actBtn.onclick = () => {
-                                actBtn.disabled = true;
-                                actBtn.textContent = 'Memproses...';
-                                try {
-                                    const reqId = 'PRESTIGE-' + Date.now();
-                                    const confirmRes = JSON.parse(bridge.confirmPrestige(JSON.stringify({ requestId: reqId, runId: prestigeRunId })));
-                                    if (confirmRes && confirmRes.success !== false) {
-                                        showGameToast('success', 'Era baru dimulai', confirmRes.message || 'Progres telah diperbarui.');
-                                        setTimeout(() => { closeFlow(); refreshSnapshot(); }, 1500);
-                                    } else {
-                                        actBtn.disabled = false;
-                                        actBtn.textContent = 'Konfirmasi & Mulai Era Baru';
-                                        flowText(pPanel, 'Gagal', confirmRes.message || 'Tidak dapat memulai era baru');
-                                    }
-                                } catch (e) {
-                                    actBtn.disabled = false;
-                                    actBtn.textContent = 'Konfirmasi & Mulai Era Baru';
-                                    flowText(pPanel, 'Error', e.message);
-                                }
-                            };
-                            pPanel.append(actBtn);
-                        }
-                    };
-                    presSection.append(btnAction);
-                    view.append(presSection);
-                } catch (presErr) { flowText(view, 'Era baru belum dapat dimuat', presErr.message); }
-            }
-
+        } catch(e) {
+            flowText(panel, 'Gagal memuat berita', e.message);
+        }
     }
 
     let flowPanel = null;
@@ -2381,7 +3896,7 @@
     let orderPreview = null;
     function showFlow(title, isolated = false) {
         if (!flowPanel) flowOpener = document.activeElement;
-        else flowPanel.closest('.flow-page').remove();
+        else document.querySelectorAll('.flow-page').forEach(fp => fp.remove());
         const layer = node('section', 'flow-page' + (isolated ? ' isolated' : ''));
         layer.setAttribute('aria-label', title);
         const content = node('div', 'flow-content');
@@ -2395,12 +3910,15 @@
         heading.focus(); return content;
     }
     function closeFlow(recovered = false) {
-        if (!flowPanel) return false;
-        if (flowPanel.getAttribute('aria-label') === 'Pemulihan save diperlukan' && recovered !== true) return true;
+        if (!flowPanel && !document.querySelector('.flow-page')) return false;
+        if (flowPanel && flowPanel.getAttribute('aria-label') === 'Pemulihan save diperlukan' && recovered !== true) return true;
         activeDetailStock = null;
         activeReceiptRequestId = null;
         activeDetailPositionInstrumentId = null;
-        flowPanel.closest('.flow-page').remove(); flowPanel = null;
+        const newsReturn = flowPanel?.newsReturn;
+        document.querySelectorAll('.flow-page').forEach(fp => fp.remove());
+        flowPanel = null;
+        if (newsReturn) { newsReturn(); return true; }
         document.querySelectorAll('body > :not(script)').forEach(el => el.inert = false);
         if (flowOpener && flowOpener.isConnected) flowOpener.focus({preventScroll:true});
         return true;
@@ -2426,7 +3944,7 @@
         panel.append(button); return button;
     }
     function openIndexDetail(index) {
-        const panel = showFlow('Detail indeks');
+        const panel = showFlow('Detail Indeks');
         if (!bridge.getIndexDetail) {
             flowText(panel, 'Indeks', 'Bridge detail indeks belum tersedia pada pratinjau ini.'); return;
         }
@@ -2438,14 +3956,30 @@
                 return;
             }
             if (!detail.success) throw new Error(detail.message || 'Detail indeks belum tersedia');
-            flowText(panel, 'Indeks / bursa', `${detail.ticker} · ${detail.name} (${detail.exchange})`);
-            flowText(panel, 'Sumber', detail.sourceLabel);
-            flowText(panel, 'Nilai', `${detail.value} ${detail.unit}`);
-            flowText(panel, 'Waktu game', `${detail.gameDate} ${detail.gameTime}`);
-            flowText(panel, 'Metode', detail.method);
-            flowText(panel, 'Periode berlaku', detail.validFrom);
-            flowText(panel, 'Batas', detail.limitations);
-            if (!detail.historyAvailable) flowText(panel, 'Grafik', 'Histori indeks belum tersedia; tidak menampilkan grafik contoh.');
+
+            // Kartu ringkas indeks (Anotasi A & Pilihan Pemilik)
+            const indexCard = node('section', 'card prototype-index-card');
+            indexCard.style.padding = '16px';
+            indexCard.style.borderRadius = '12px';
+            indexCard.style.marginBottom = '12px';
+            indexCard.style.background = 'var(--surface-raised)';
+            indexCard.innerHTML = `
+                <p style="font-size:0.95rem; font-weight:700; color:var(--text); margin:0 0 4px;">${detail.ticker} · ${detail.name} (${detail.exchange})</p>
+                <strong style="font-size:1.6rem; color:var(--action); display:block; margin:6px 0;">${detail.value} ${detail.unit}</strong>
+                <p style="font-size:0.75rem; color:var(--text-secondary); margin:0;">Indeks simulasi game · ${detail.gameDate} ${detail.gameTime}</p>
+            `;
+            panel.append(indexCard);
+
+            const details = node('details', 'card');
+            details.style.marginBottom = '12px';
+            details.innerHTML = `<summary style="font-weight:700; cursor:pointer; padding:4px 0;">Lihat informasi & metodologi</summary>`;
+            flowText(details, 'Sumber', detail.sourceLabel);
+            flowText(details, 'Metode', detail.method);
+            flowText(details, 'Periode berlaku', detail.validFrom);
+            flowText(details, 'Batas', detail.limitations);
+            if (!detail.historyAvailable) flowText(details, 'Grafik', 'Histori indeks belum tersedia; tidak menampilkan grafik contoh.');
+            panel.append(details);
+
             detail.members.forEach(member => {
                 const button = flowButton(panel, `Anggota ${member.instrumentId} · ${member.name}`, () => {
                     try {
@@ -2490,9 +4024,8 @@
         panel.appendChild(holdingsCard);
 
         // Chart Container
-        let currentTimeframe = 'D1';
+        let currentTimeframe = 'R1D';
         let currentChartType = 'candle';
-        let chartTableOpen = false;
         let chartSignature = null;
         const chartWrapper = document.createElement('div');
         chartWrapper.id = 'instrument-chart-section';
@@ -2501,7 +4034,7 @@
 
         function renderChart() {
             const focused = chartWrapper.contains(document.activeElement) ? document.activeElement.dataset.chartControl : null;
-            const tableScrollLeft = chartWrapper.querySelector('#chart-table')?.scrollLeft || 0;
+
             if (!bridge.getChartData) {
                 chartWrapper.replaceChildren();
                 flowText(chartWrapper, 'Grafik', 'Bridge riwayat harga domain belum tersedia.');
@@ -2522,9 +4055,9 @@
 
                 const tfButtons = document.createElement('div');
                 tfButtons.className = 'timeframe-buttons';
-                ['M1', 'M5', 'M15', 'H1', 'D1'].forEach(tf => {
+                [['R6H', '6 jam'], ['R1D', '1 hari'], ['R7D', '7 hari'], ['R30D', '1 bulan']].forEach(([tf, label]) => {
                     const btn = document.createElement('button');
-                    btn.textContent = tf;
+                    btn.textContent = label;
                     btn.dataset.timeframe = tf;
                     btn.dataset.chartControl = 'timeframe-' + tf;
                     if (tf === currentTimeframe) btn.classList.add('active');
@@ -2560,7 +4093,7 @@
                 // OHLC Readout
                 const bars = chartData.bars || [];
                 if (!bars.length) {
-                    emptyState(chartWrapper, 'Grafik Belum Tersedia', 'Data grafik untuk periode ' + currentTimeframe + ' belum tersedia. Pilih periode D1 untuk melihat acuan harian atau lakukan transaksi.');
+                    emptyState(chartWrapper, 'Belum ada riwayat pada rentang ini', 'Riwayat ditampilkan dari transaksi yang tercatat. Rentang memakai waktu game; 1 bulan berarti 30 hari terakhir.');
                     return;
                 }
                 const lastBar = bars[bars.length - 1] || { time: '-', open: 0, high: 0, low: 0, close: 0, volume: 0 };
@@ -2626,41 +4159,19 @@
                 chartWrapper.appendChild(chartLayout);
                 const times = node('div','chart-times'); times.append(node('span','',bars[0].time),node('span','',lastBar.time)); chartWrapper.append(times);
 
-                // Alternative Table Toggle
-                const tableToggleBtn = document.createElement('button');
-                tableToggleBtn.className = 'btn-secondary';
-                tableToggleBtn.style.marginTop = '6px';
-                tableToggleBtn.textContent = chartTableOpen ? 'Tutup Tabel OHLCV' : 'Tabel OHLCV Alternatif';
-                tableToggleBtn.dataset.chartControl = 'toggle-table';
-                tableToggleBtn.setAttribute('aria-expanded', String(chartTableOpen));
-                tableToggleBtn.setAttribute('aria-controls', 'chart-table');
-                const tableContainer = document.createElement('div');
-                tableContainer.id = 'chart-table';
-                tableContainer.tabIndex = 0;
-                tableContainer.dataset.chartControl = 'table';
-                tableContainer.setAttribute('aria-label', 'Riwayat OHLCV, gulir horizontal untuk semua kolom');
-                tableContainer.style.display = chartTableOpen ? 'block' : 'none';
-                tableContainer.style.margin = '8px 0';
-                tableContainer.innerHTML = `
-                    <table class="depth-table" aria-label="Riwayat OHLCV game">
-                        <thead><tr><th>Waktu</th><th>Open</th><th>High</th><th>Low</th><th>Close</th><th>Vol</th></tr></thead>
-                        <tbody>${bars.map(b => `<tr><td>${b.time}</td><td>${b.open}</td><td>${b.high}</td><td>${b.low}</td><td>${b.close}</td><td>${b.volume}</td></tr>`).join('')}</tbody>
-                    </table>
-                `;
-                tableToggleBtn.onclick = () => {
-                    chartTableOpen = !chartTableOpen;
-                    tableContainer.style.display = chartTableOpen ? 'block' : 'none';
-                    tableToggleBtn.textContent = chartTableOpen ? 'Tutup Tabel OHLCV' : 'Tabel OHLCV Alternatif';
-                    tableToggleBtn.setAttribute('aria-expanded', String(chartTableOpen));
+                let selectedBar = bars.length - 1;
+                const describeBar = () => {
+                    const bar = bars[selectedBar];
+                    readout.replaceChildren(node('span', '', `${bar.time}${bar.partial ? ' · belum lengkap' : ''}`),
+                        node('span', '', `Open ${bar.open} · High ${bar.high} · Low ${bar.low} · Close ${bar.close} · Volume ${bar.volume}`));
                 };
-                chartWrapper.appendChild(tableToggleBtn);
-                chartWrapper.appendChild(tableContainer);
-                tableContainer.scrollLeft = tableScrollLeft;
-
-                const provNotice = document.createElement('div');
-                provNotice.className = 'notice flex-row';
-                provNotice.innerHTML = `<span>Sumber data: ${chartData.source || 'Simulasi pasar game'}</span><span>Timeframe: ${currentTimeframe}</span>`;
-                chartWrapper.appendChild(provNotice);
+                const selection = node('input'); selection.type = 'range'; selection.min = 0;
+                selection.max = bars.length - 1; selection.value = selectedBar;
+                selection.dataset.chartControl = 'selected-candle';
+                selection.setAttribute('aria-label', 'Pilih candle untuk membaca harga dan volume');
+                selection.style.width = '100%'; selection.style.minHeight = '48px';
+                selection.oninput = () => { selectedBar = Number(selection.value); describeBar(); };
+                chartWrapper.append(selection); describeBar();
             } catch (e) {
                 chartSignature = null;
                 const warning = chartWrapper.querySelector('.chart-warning') || node('p', 'notice chart-warning');
@@ -2826,17 +4337,16 @@
                 flowText(fundContent, 'Arus kas investasi capex (CFI)', formatMoney(cf.cfi, fundamentals.currency));
                 flowText(fundContent, 'Arus kas pendanaan (CFF)', formatMoney(cf.cff, fundamentals.currency));
                 flowText(fundContent, 'Arus kas bersih', formatMoney(cf.netCashflow, fundamentals.currency));
-            } else if (tabId === 'pemegang' && fundamentals) {
-                const sh = fundamentals.shareStructure || {};
-                flowText(fundContent, 'Saham beredar (outstanding)', sh.sharesOutstanding == null ? null : `${Number(sh.sharesOutstanding).toLocaleString('id-ID')} lembar`);
-                flowText(fundContent, 'Porsi saham publik (free float)', sh.freeFloatShares == null || sh.freeFloatPercent == null ? null : `${Number(sh.freeFloatShares).toLocaleString('id-ID')} lembar (${sh.freeFloatPercent}%)`);
-                flowText(fundContent, 'Jumlah pemegang saham', sh.totalShareholdersCount == null ? null : `${Number(sh.totalShareholdersCount).toLocaleString('id-ID')} investor`);
-                flowText(fundContent, 'Struktur pemegang utama', sh.majorShareholders);
+            } else if (tabId === 'pemegang') {
+                fundContent.append(node('h3', '', 'Pemegang saham dunia game'));
+                mountIssuerOwnership(fundContent, stock.id);
             }
 
             const provNotice = document.createElement('div');
             provNotice.className = 'notice';
-            provNotice.textContent = `Sumber identitas: ${fundamentals?.identitySource || companyProfile?.source || 'Belum tersedia'}. Sumber angka: ${fundamentals?.financialSource || 'Belum tersedia'}. Periode: ${fundamentals?.periodType || 'Belum tersedia'}. Angka fundamental berasal dari state simulasi game.`;
+            provNotice.textContent = tabId === 'pemegang'
+                ? 'Pemegang dan jumlah saham berasal dari akun yang tercatat dalam domain game, bukan daftar pemegang perusahaan di dunia nyata. Unit reksa dana dan kewajiban short tidak dihitung sebagai pemegang tambahan.'
+                : `Sumber identitas: ${fundamentals?.identitySource || companyProfile?.source || 'Belum tersedia'}. Sumber angka: ${fundamentals?.financialSource || 'Belum tersedia'}. Periode: ${fundamentals?.periodType || 'Belum tersedia'}. Angka fundamental berasal dari state simulasi game.`;
             fundContent.appendChild(provNotice);
         }
 
@@ -2868,6 +4378,23 @@
             watchlist.className = 'btn-secondary';
             watchlist.setAttribute('aria-pressed', String(stock.isWatchlist));
         }
+
+        const issuerNews = node('section', 'card issuer-news');
+        issuerNews.append(node('h2', 'card-title', 'Berita terkait'));
+        try {
+            const feed = JSON.parse(bridge.getResearchFeed());
+            if (feed.success === false || !Array.isArray(feed.news)) throw new Error(feed.message || 'Berita belum dapat dimuat.');
+            const related = feed.news.filter(news => news.relatedTicker === stock.ticker || news.affectedSector === stock.sector);
+            rememberNews(related);
+            if (!related.length) emptyState(issuerNews, 'Belum ada berita terkait', 'Berita yang sudah tersedia akan muncul di sini.');
+            related.forEach(news => {
+                const item = node('article', 'news-card');
+                item.append(node('h3', '', news.headline), node('p', '', `${news.categoryLabel} · ${news.affectedSector} · Perkiraan dampak: ${news.direction}${news.estimatedRange ? ' · ' + news.estimatedRange : ''}`), newsEffectNode(news));
+                flowButton(item, 'Baca ' + news.headline, () => openNewsDetail(news, () => openInstrumentDetail(stock)));
+                issuerNews.append(item);
+            });
+        } catch (error) { issuerNews.append(node('p', 'notice', 'Berita terkait belum dapat dimuat. Coba buka kembali rincian emiten.')); }
+        panel.append(issuerNews);
 
         const isHalted = book && book.haltState && book.haltState !== 'NORMAL';
         if (isHalted) {
@@ -2943,6 +4470,12 @@
                     showGameToast('info', 'Order Terisi Sebagian', `${draft.side === 'BUY' ? 'Beli' : 'Jual'} ${result.filledQuantity} saham ${draft.instrumentId} (sisa ${result.remainingQuantity} saham)`, 'ORDER_PARTIAL:' + draft.requestId + ':' + result.filledQuantity);
                 } else if (result.status === 'OPEN') {
                     showGameToast('info', 'Order Masuk Antrean', `${draft.side === 'BUY' ? 'Beli' : 'Jual'} ${draft.quantity} saham ${draft.instrumentId} (${draft.type === 'LIMIT' ? 'Limit ' + (draft.limitPrice || '') : 'Market'})`, 'ORDER_OPEN:' + draft.requestId);
+                } else if (result.status === 'PENDING_TRIGGER') {
+                    showGameToast('info', 'Order Pemicu Tersimpan', `${draft.side === 'BUY' ? 'Beli' : 'Jual'} ${draft.quantity} saham ${draft.instrumentId} menunggu harga menyentuh ${draft.triggerPrice || ''}`, 'ORDER_TRIGGER:' + draft.requestId);
+                } else if (result.status === 'REJECTED' || result.success === false) {
+                    showGameToast('error', 'Order Ditolak', result.message || 'Pesanan ditolak oleh bursa.', 'ORDER_REJECT:' + draft.requestId);
+                } else if (result.status === 'CANCELLED') {
+                    showGameToast('info', 'Order Dibatalkan', result.message || 'Pesanan dibatalkan.', 'ORDER_CANCEL:' + draft.requestId);
                 }
             } catch (error) {
                 showOrderReceipt({success:false, status:'UNKNOWN', message:'Status belum terkonfirmasi. Periksa status dengan ID yang sama.'});
@@ -2958,20 +4491,45 @@
         const statusLabel = formatOrderStatus(result.status || 'DITOLAK');
         const statusRow = flowText(panel, 'Status', statusLabel);
         statusRow.querySelector('strong')?.setAttribute('data-status', result.status || 'DITOLAK');
-        flowText(panel, 'Mode', modeLabel.textContent);
-        flowText(panel, 'Akun', result.accountId || (orderDraft && orderDraft.accountId));
         flowText(panel, 'Instrumen / mata uang', `${result.instrumentId || (orderDraft && orderDraft.instrumentId) || '-'} / ${result.currency || orderPreview && orderPreview.currency || '-'}`);
         flowText(panel, 'Pesan', result.message || 'Status dari domain');
-        if (result.status === 'CANCELLED') flowText(panel, 'Sisa dibatalkan', 'Kuantitas belum terisi tidak lagi aktif. Fill sebelumnya tidak dibatalkan.');
-        flowText(panel, 'Order / permintaan', `${result.orderId || '-'} / ${activeRequestId}`);
-        flowText(panel, 'Terisi / sisa', `${result.filledQuantity ?? '-'} / ${result.remainingQuantity ?? '-'} saham`);
+        if (result.status === 'CANCELLED') flowText(panel, 'Sisa dibatalkan', `${result.cancelledQuantity ?? result.remainingQuantity ?? 0} saham belum terisi; fill sebelumnya tetap tercatat.`);
+        flowText(panel, result.status === 'CANCELLED' ? 'Terisi / tidak terisi' : 'Terisi / sisa', `${result.filledQuantity ?? '-'} / ${result.remainingQuantity ?? '-'} saham`);
+        renderReceiptAmounts(panel, result);
+        const targetInst = result.instrumentId || (orderDraft && orderDraft.instrumentId);
+        if (targetInst && bridge.getInstruments) {
+            flowButton(panel, `Lihat ${targetInst} di Pasar`, () => {
+                try {
+                    const stocks = JSON.parse(bridge.getInstruments('', '', null, true));
+                    const target = stocks.find(s => s.id === targetInst || s.ticker === targetInst);
+                    if (target) {
+                        openInstrumentDetail(target);
+                    } else {
+                        switchTab('pasar');
+                    }
+                } catch(e) {
+                    switchTab('pasar');
+                }
+            });
+        }
         if (bridge.getOrderStatus) flowButton(panel, 'Periksa status', () => showOrderReceipt(JSON.parse(bridge.getOrderStatus(activeRequestId))));
         if (bridge.cancelOrder && ['OPEN','PARTIALLY_FILLED','PENDING_TRIGGER'].includes(result.status)) {
             flowButton(panel, 'Batalkan sisa', () => {
                 if (window.confirm(`Batalkan hanya sisa ${result.remainingQuantity} saham?`)) {
-                    showOrderReceipt(JSON.parse(bridge.cancelOrder(activeRequestId)));
-                    refreshSnapshot();
-                    showGameToast('info', 'Order Dibatalkan', `Sisa ${result.remainingQuantity} saham dibatalkan. Kas tertahan dipulihkan.`, 'ORDER_CANCEL:' + activeRequestId);
+                    try {
+                        const cancelRes = JSON.parse(bridge.cancelOrder(activeRequestId));
+                        showOrderReceipt(cancelRes);
+                        refreshSnapshot();
+                        if (cancelRes.success) {
+                            const isSell = (orderDraft && orderDraft.side === 'SELL') || cancelRes.side === 'SELL' || result.side === 'SELL';
+                            const assetDesc = isSell ? 'Saham tertahan dipulihkan ke posisi.' : 'Kas tertahan dipulihkan ke saldo.';
+                            showGameToast('info', 'Order Dibatalkan', `Sisa ${cancelRes.cancelledQuantity ?? result.remainingQuantity} saham dibatalkan. ${assetDesc}`, 'ORDER_CANCEL:' + activeRequestId);
+                        } else {
+                            showGameToast('info', 'Pembatalan Gagal', cancelRes.message || 'Order tidak dapat dibatalkan.', 'ORDER_CANCEL_FAIL:' + activeRequestId);
+                        }
+                    } catch(err) {
+                        showGameToast('info', 'Pembatalan Gagal', err.message, 'ORDER_CANCEL_ERR:' + activeRequestId);
+                    }
                 }
             });
         }
@@ -3284,16 +4842,16 @@
                             flowText(dCard, 'Bank penerbit', d.bankName);
                             flowText(dCard, 'Nominal pokok', d.principal);
                             flowText(dCard, 'Suku bunga p.a.', d.annualInterestRate);
-                            flowText(dCard, 'Tenor', `${d.tenorDays} hari game`);
+                            flowText(dCard, 'Tenor', `${d.tenorSessions || d.tenorDays} sesi`);
                             flowText(dCard, 'Bunga berjalan (Accrued)', d.accruedInterest);
                             flowText(dCard, 'Status', d.isMatured ? 'SUDAH JATUH TEMPO (Bunga Penuh)' : 'Sedang Berjalan');
 
                             const btnWithdraw = document.createElement('button');
                             btnWithdraw.className = d.isMatured ? 'btn-primary' : 'btn-secondary';
                             btnWithdraw.style.marginTop = '6px';
-                            btnWithdraw.textContent = d.isMatured ? 'Cairkan Pokok & Bunga' : 'Tarik Dini (Penalti Bunga 50%)';
+                            btnWithdraw.textContent = d.isMatured ? 'Cairkan Pokok & Bunga' : 'Tarik Dini (Seluruh bunga hangus)';
                             btnWithdraw.onclick = () => {
-                                if (!d.isMatured && !confirm('Penarikan sebelum jatuh tempo akan dikenakan penalti bunga 50%. Lanjutkan penarikan?')) return;
+                                if (!d.isMatured && !confirm('Jika dicairkan sebelum jatuh tempo, seluruh bunga yang sudah terakru hangus. Pokok deposito tetap kembali. Lanjutkan penarikan?')) return;
                                 try {
                                     const res = JSON.parse(bridge.withdrawTimeDeposit(JSON.stringify({ depositId: d.id })));
                                     if (res.success) {
@@ -3541,7 +5099,21 @@
         try {
             const reports = JSON.parse(bridge.getClientReports());
             if (!reports.length) {
-                flowText(panel, 'Mandat klien', 'Belum ada mandat klien terdaftar.');
+                const empty = node('div', 'empty-state');
+                empty.append(
+                    node('strong', '', 'Belum ada laporan klien'),
+                    node('p', '', 'Belum ada akun mandat klien aktif yang menghasilkan rekapitulasi kinerja atau pemotongan fee berkala.')
+                );
+                const cta = node('button', 'btn-primary', 'Tinjau tawaran mandat');
+                cta.type = 'button';
+                cta.style.marginTop = '12px';
+                cta.onclick = () => {
+                    closeFlow();
+                    switchTab('firma');
+                    loadFirmaView('dana');
+                };
+                empty.append(cta);
+                panel.append(empty);
             } else {
                 reports.forEach(r => {
                     const card = document.createElement('article');
@@ -4022,8 +5594,8 @@
     }
 
     function openDisburseLoanModal(defaultProductId, companyId = null) {
-        const panel = showFlow('Pengajuan Pinjaman Tenor');
-        flowText(panel, 'Ketentuan simulasi', 'Suku bunga harian 0.05% atas sisa pokok, biaya provisi pencairan 0.5%. Pokok utang tetap utuh dan dicicil harian.');
+        const panel = showFlow('Pengajuan Fasilitas Pembiayaan');
+        flowText(panel, 'Ketentuan Pembiayaan (A16)', 'Game merekomendasikan opsi terbaik berdasarkan profil Anda. Tanpa agunan barang mewah, suku bunga harian 0.05%, provisi 0.5%, dan denda keterlambatan 5% sederhana setiap 24 jam nyata atas cicilan tertunggak.');
 
         const pSelectLabel = document.createElement('label');
         pSelectLabel.textContent = 'Jenis produk pembiayaan';
@@ -4031,7 +5603,7 @@
         pSelect.id = 'loan-product'; pSelectLabel.htmlFor = pSelect.id;
         pSelect.className = 'input-field';
         pSelect.innerHTML = `
-            <option value="LOAN-PERS-01" ${defaultProductId === 'LOAN-PERS-01' ? 'selected' : ''}>Pinjaman Pribadi Multiguna (Plafon Rp 1 - 50 Juta)</option>
+            <option value="LOAN-PERS-02" selected>Pembiayaan Tunai Personal (Tanpa Agunan, Plafon s/d Rp 50 Juta)</option>
             <option value="LOAN-CORP-01" ${defaultProductId === 'LOAN-CORP-01' ? 'selected' : ''}>Kredit Modal Kerja Perusahaan (Plafon Rp 5 - 100 Juta)</option>
         `;
 
@@ -4041,8 +5613,8 @@
         tenorSelect.id = 'loan-tenor'; tenorLabel.htmlFor = tenorSelect.id;
         tenorSelect.className = 'input-field';
         tenorSelect.innerHTML = `
-            <option value="7">7 Hari Game</option>
-            <option value="14" selected>14 Hari Game (Standar)</option>
+            <option value="7">7 Hari Game (Singkat)</option>
+            <option value="14" selected>14 Hari Game (Rekomendasi)</option>
             <option value="30">30 Hari Game (Ekspansif)</option>
         `;
 
@@ -4064,61 +5636,19 @@
             if(companyId)companySelect.value=companyId;
         }catch(error){companySection.append(node('p','notice',error.message));}
         companySection.append(companyLabel,companySelect);
-        // Pemilih agunan (hanya untuk pinjaman pribadi)
+        companySection.style.display = 'none';
+
         const collateralSection = document.createElement('div');
-        collateralSection.style.margin = '8px 0';
-        const collateralLabel = document.createElement('label');
-        collateralLabel.textContent = 'Agunan koleksi (wajib untuk pinjaman pribadi)';
+        collateralSection.style.display = 'none'; // Agunan dilepas (A16)
         const collateralSelect = document.createElement('select');
-        collateralSelect.id = 'loan-collateral'; collateralLabel.htmlFor = collateralSelect.id;
-        collateralSelect.className = 'input-field';
-        collateralSelect.innerHTML = '<option value="">Memuat koleksi...</option>';
-        collateralSection.append(collateralLabel, collateralSelect);
+        collateralSelect.id = 'loan-collateral';
+        collateralSelect.innerHTML = '<option value="">(Tanpa Agunan)</option>';
+        collateralSection.append(collateralSelect);
 
-        const collateralInfo = document.createElement('div');
-        collateralInfo.className = 'notice';
-        collateralSection.append(collateralInfo);
-
-        function loadCollateralOptions() {
-            try {
-                const collectionResponse = JSON.parse(bridge.getCollections());
-                const collections = Array.isArray(collectionResponse) ? collectionResponse : (collectionResponse.collections || []);
-                const eligible = [];
-                if (Array.isArray(collections)) {
-                    collections.forEach(c => {
-                        if (c.isOwned && !c.pledgedLoanId && latestSnapshot && latestSnapshot.personalAccount && c.ownerAccountId === latestSnapshot.personalAccount.id) {
-                            eligible.push(c);
-                        }
-                    });
-                }
-                collateralSelect.innerHTML = '';
-                if (eligible.length === 0) {
-                    collateralSelect.innerHTML = '<option value="">Tidak ada koleksi yang dapat dijaminkan</option>';
-                    collateralInfo.textContent = 'Beli koleksi melalui Aset → Koleksi untuk dijadikan agunan.';
-                } else {
-                    collateralSelect.innerHTML = '<option value="">Pilih agunan</option>';
-                    eligible.forEach(c => {
-                        const opt = document.createElement('option');
-                        opt.value = c.id;
-                        const valuation = c.currentValuation ? formatMoney(c.currentValuation) : '';
-                        opt.textContent = (c.name || c.id) + (valuation ? ' (' + valuation + ')' : '');
-                        collateralSelect.append(opt);
-                    });
-                    collateralInfo.textContent = 'Koleksi yang dijaminkan tidak dapat dijual sampai pinjaman lunas.';
-                }
-            } catch (e) {
-                collateralSelect.innerHTML = '<option value="">Gagal memuat koleksi</option>';
-                collateralInfo.textContent = e.message || 'Error';
-            }
-        }
-
-        // Load kolateral saat buka dan saat ganti produk
-        loadCollateralOptions();
         pSelect.onchange = () => {
-            const isPersonalProduct = pSelect.value === 'LOAN-PERS-01';
-            collateralSection.style.display = isPersonalProduct ? '' : 'none';
+            const isCorp = pSelect.value === 'LOAN-CORP-01';
+            companySection.style.display = isCorp ? '' : 'none';
         };
-        collateralSection.style.display = (defaultProductId === 'LOAN-PERS-01' || !defaultProductId) ? '' : 'none';
 
         const submitBtn = document.createElement('button');
         submitBtn.className = 'btn-primary';
@@ -4132,9 +5662,8 @@
             try {
                 const amt = Number(amtInput.value);
                 if (amt < 1000000) throw new Error('Plafon minimal Rp 1.000.000');
-                const isPersonal = pSelect.value === 'LOAN-PERS-01';
-                const selectedCollateral = isPersonal ? (collateralSelect.value || null) : null;
-                if (isPersonal && !selectedCollateral) throw new Error('Pilih agunan koleksi untuk pinjaman pribadi');
+                const isPersonal = pSelect.value === 'LOAN-PERS-01' || pSelect.value === 'LOAN-PERS-02';
+                const selectedCollateral = null;
                 const quoteReq = {
                     productId: pSelect.value,
                     isPersonal: isPersonal,
@@ -4155,12 +5684,15 @@
                     reviewDiv.className = 'card';
                     reviewDiv.style.margin = '8px 0';
                     reviewDiv.innerHTML =
-                        '<strong>Review Pinjaman</strong><br>' +
-                        'Pokok: ' + formatMoney(quoteRes.principalRaw) + '<br>' +
-                        'Biaya pencairan: ' + formatMoney(quoteRes.feeRaw) + '<br>' +
-                        'Dana cair bersih: ' + formatMoney(quoteRes.netCashRaw) + '<br>' +
-                        'Tenor: ' + quoteRes.tenorDays + ' hari<br>' +
-                        'Aturan kelayakan: ' + quoteRes.eligibilityRule;
+                        '<strong>Rincian & Rekomendasi Pembiayaan</strong><br>' +
+                        'Pokok Pinjaman: ' + formatMoney(quoteRes.principalRaw) + '<br>' +
+                        'Biaya Provisi (0.5%): ' + formatMoney(quoteRes.feeRaw) + '<br>' +
+                        'Dana Bersih Diterima: ' + formatMoney(quoteRes.netCashRaw) + '<br>' +
+                        'Jangka Waktu (Tenor): ' + quoteRes.tenorDays + ' hari game<br>' +
+                        'Suku Bunga Harian: 0.05% atas sisa pokok<br>' +
+                        'Denda Keterlambatan: 5% sederhana per 24 jam nyata (non-majemuk)<br>' +
+                        'Agunan: Tanpa Agunan (A16)<br>' +
+                        'Aturan kelayakan: ' + (quoteRes.eligibilityRule || 'Rekomendasi disetujui');
                     statusMsg.append(reviewDiv);
 
                     const confirmBtn = document.createElement('button');
@@ -4173,7 +5705,7 @@
                         confirmBtn.disabled = true;
                         confirmBtn.textContent = 'Memproses...';
                         try {
-                            if (pSelect.value !== quoteReq.productId || String(Number(amtInput.value)) !== quoteReq.principal || Number(tenorSelect.value) !== quoteReq.tenorDays || (isPersonal && collateralSelect.value !== quoteReq.collateralItemId) || (!isPersonal && companySelect.value !== quoteReq.companyId)) throw new Error('Input berubah. Tinjau ulang quote sebelum konfirmasi.');
+                            if (pSelect.value !== quoteReq.productId || String(Number(amtInput.value)) !== quoteReq.principal || Number(tenorSelect.value) !== quoteReq.tenorDays || (!isPersonal && companySelect.value !== quoteReq.companyId)) throw new Error('Input berubah. Tinjau ulang quote sebelum konfirmasi.');
                             const disburseReq = Object.assign({}, quoteReq, {
                                 requestId: reviewedRequestId,
                                 expectedQuoteVersion: quoteRes.quoteVersion
@@ -4607,12 +6139,21 @@
     }
 
     function executeBailoutAction() {
-        if (!confirm('Ajukan penyelamatan darurat & restrukturisasi utang (Turnaround Specialist)? Anda akan menerima suntikan modal darurat Rp 25.000.000 untuk memulihkan likuiditas.')) return;
         try {
+            if (!bridge.previewTurnaroundBailout) throw new Error('Pratinjau fase pemulihan belum tersedia.');
+            const preview = JSON.parse(bridge.previewTurnaroundBailout());
+            if (!preview.eligible) {
+                alert(`Fase pemulihan belum tersedia. ${preview.reason}`);
+                return;
+            }
+            const auctionLines = (preview.auctionItems || []).map(item => `• ${item.name}: ${item.estimatedValue}`).join('\n');
+            const auctionSummary = auctionLines || '• Tidak ada koleksi layak lelang';
+            const confirmation = `Pratinjau pemulihan insolvensi\nKas: ${preview.cash}\nKekayaan bersih: ${preview.netWorth}\nUtang: ${preview.totalDebt}\nPerkiraan hasil lelang: ${preview.estimatedAuctionProceeds}\n\nKoleksi yang akan dilelang:\n${auctionSummary}\n\n${preview.warning}\nKonsultan menggunakan jadwal ulang 30 hari untuk pinjaman tenor dan aturan restrukturisasi margin yang berlaku. Lanjutkan?`;
+            if (!confirm(confirmation)) return;
             const reqId = 'BAILOUT-' + Date.now();
             const res = JSON.parse(bridge.executeTurnaroundBailout ? bridge.executeTurnaroundBailout(reqId) : '{"success":false,"message":"Layanan belum tersedia"}');
             if (res.success) {
-                alert(`Restrukturisasi berhasil! ${res.bailoutRelief} dana talangan darurat telah dikreditkan ke kas pribadi Anda.`);
+                alert(`Turnaround selesai. ${res.auctionedCollections} koleksi dilelang; hasil ${res.auctionProceeds} dipakai membayar utang. Tidak ada hibah kas. Reputasi turun ${res.reputationPenalty} poin.`);
                 refreshSnapshot();
                 if (currentTab === 'aset') loadAsetView();
             } else {
@@ -4892,16 +6433,6 @@
                 nameInput.className = 'input-field';
                 nameInput.value = p.playerName || '';
 
-                const textScaleLabel = document.createElement('label');
-                textScaleLabel.textContent = 'Ukuran teks tampilan';
-                const textScaleSelect = document.createElement('select');
-                textScaleSelect.id = 'player-text-size'; textScaleLabel.htmlFor = textScaleSelect.id;
-                textScaleSelect.className = 'input-field';
-                textScaleSelect.innerHTML = `
-                    <option value="100%" ${p.preferences && p.preferences.textSize === '100%' ? 'selected' : ''}>100%</option>
-                    <option value="200%" ${p.preferences && p.preferences.textSize === '200%' ? 'selected' : ''}>200%</option>
-                `;
-
                 const highContrastLabel = node('label', 'check-row');
                 const highContrast = node('input'); highContrast.type = 'checkbox';
                 highContrast.checked = Boolean(p.preferences && p.preferences.highContrast);
@@ -4911,6 +6442,8 @@
                 const reducedMotion = node('input'); reducedMotion.type = 'checkbox';
                 reducedMotion.checked = Boolean(p.preferences && p.preferences.reducedMotion);
                 reducedMotionLabel.append(reducedMotion, node('span', '', 'Kurangi gerakan'));
+
+                const fontNotice = node('p', 'notice', 'Ukuran teks otomatis mengikuti pengaturan sistem perangkat Anda.');
 
                 const profileStatus = node('p'); profileStatus.setAttribute('role', 'status');
                 const saveBtn = document.createElement('button');
@@ -4923,7 +6456,6 @@
                         const req = {
                             playerName: nameInput.value.trim(),
                             preferences: {
-                                textSize: textScaleSelect.value,
                                 highContrast: highContrast.checked,
                                 reducedMotion: reducedMotion.checked
                             }
@@ -4937,7 +6469,7 @@
                     }
                 };
 
-                prefCard.append(nameLabel, nameInput, textScaleLabel, textScaleSelect, highContrastLabel, reducedMotionLabel, saveBtn, profileStatus);
+                prefCard.append(nameLabel, nameInput, highContrastLabel, reducedMotionLabel, fontNotice, saveBtn, profileStatus);
                 contentBox.append(prefCard);
             }
 
@@ -4992,6 +6524,200 @@
         const gallery = document.createElement('div');
         panel.append(gallery);
         renderCollectionsGallery(gallery, true);
+    }
+
+    function openCollectionItemDetailModal(item) {
+        checkAndRecoverPendingCollectionIntent(item);
+        const panel = showFlow('Detail Koleksi: ' + item.name);
+        panel.setAttribute('data-collection-detail-id', item.id);
+
+        const categoryLabels = {
+            VEHICLE: 'Kendaraan mewah', REAL_ESTATE: 'Properti & vila',
+            JEWELRY: 'Perhiasan & berlian', ART_AND_WATCHES: 'Seni & jam tangan',
+            MOTOR: 'Motor & kendaraan roda dua', MOBIL: 'Mobil kolektor',
+            RUMAH: 'Hunian & properti', KOMERSIAL: 'Properti komersial & lahan',
+            JAM: 'Jam tangan', PERMATA: 'Perhiasan & batu mulia', SENI: 'Karya seni',
+            ANTIK: 'Barang antik', KAPAL: 'Yacht & kapal', PESAWAT: 'Jet & helikopter',
+            TEKNO: 'Teknologi & aset digital', MEMO: 'Memorabilia'
+        };
+        const rarityLabels = {
+            'STANDARD': 'Umum', 'UMUM': 'Umum', 'TIDAK_UMUM': 'Tidak Umum',
+            'RARE': 'Langka', 'LANGKA': 'Langka', 'EPIK': 'Epik',
+            'LEGENDARY': 'Legendaris', 'LEGENDARIS': 'Legendaris'
+        };
+
+        const isOwned = Boolean(item.isOwned || item.owned);
+        const isPledged = Boolean(item.isPledged || item.pledgedLoanId);
+        const personalCash = latestSnapshot?.personalAccount?.cash?.IDR?.available
+            ? (parseInt(String(latestSnapshot.personalAccount.cash.IDR.available).replace(/[^0-9]/g, ''), 10) || 0)
+            : 0;
+        const valuationPrice = Number(item.currentValuation != null ? item.currentValuation : (item.basePrice || 0));
+        const canAfford = personalCash >= valuationPrice;
+
+        const catIndo = categoryLabels[(item.category || '').toUpperCase()] || item.category || 'Aset Mewah';
+        const rarityIndo = rarityLabels[(item.rarity || '').toUpperCase()] || item.rarityLabel || item.rarity || 'Standar';
+
+        const card = node('section', 'card');
+        const meta = node('div', 'section-heading');
+        meta.append(node('span', 'eyebrow', `${catIndo} · ${rarityIndo}`));
+        if (isOwned && isPledged) meta.append(node('span', 'badge-pledged', 'Diagunkan'));
+        else if (isOwned) meta.append(node('span', 'badge-owned', '✓ Dimiliki'));
+        else if (canAfford) meta.append(node('span', 'badge-available', '○ Dapat Dibeli'));
+        else meta.append(node('span', 'badge-locked', '🔒 Kas Kurang'));
+
+        const detailImgWrap = node('div', 'collection-visual-frame');
+        detailImgWrap.style.background = 'radial-gradient(circle at center, #1e2d42 0%, #0d1522 100%)';
+        detailImgWrap.style.borderRadius = '12px';
+        detailImgWrap.style.overflow = 'hidden';
+        detailImgWrap.style.display = 'flex';
+        detailImgWrap.style.alignItems = 'center';
+        detailImgWrap.style.justifyContent = 'center';
+        detailImgWrap.style.minHeight = '180px';
+        detailImgWrap.style.margin = '10px 0';
+
+        const dImg = document.createElement('img');
+        dImg.src = `images/collections/${item.id}.webp`;
+        dImg.alt = item.name;
+        dImg.style.maxWidth = '100%';
+        dImg.style.maxHeight = '180px';
+        dImg.style.objectFit = 'contain';
+        dImg.onerror = () => { dImg.src = `images/collections/${item.id}.png`; };
+        detailImgWrap.appendChild(dImg);
+
+        card.append(meta, detailImgWrap, node('h2', 'card-title', item.name));
+
+        flowText(card, 'Status kepemilikan', isOwned ? (isPledged ? '✓ Dimiliki (Diagunkan pada pinjaman)' : '✓ Dimiliki Pemain') : (canAfford ? '○ Tersedia di Galeri' : '🔒 Belum Terbeli (Kas tidak cukup)'));
+        flowText(card, 'Valuasi terkini', formatMoney(item.currentValuation));
+        flowText(card, 'Harga beli dasar', formatMoney(item.basePrice));
+        flowText(card, 'Biaya pemeliharaan harian', item.dailyMaintenanceCost == null ? '-' : `${formatMoney(item.dailyMaintenanceCost)} / hari`);
+        flowText(card, 'Bonus reputasi karier', item.reputationBonus == null ? '-' : `+${item.reputationBonus} poin reputasi`);
+        flowText(card, 'Status agunan pinjaman', isPledged ? `Diagunkan pada pinjaman ${item.pledgedLoanId} (tidak dapat dijual)` : 'Bebas agunan (dapat dijual sewaktu-waktu)');
+        if (item.maintenanceArrears && Number(item.maintenanceArrears) > 0) {
+            flowText(card, 'Tunggakan pemeliharaan', formatMoney(item.maintenanceArrears));
+        }
+        flowText(card, 'Kas pribadi tersedia', formatMoney(personalCash));
+        panel.append(card);
+
+        const actions = node('section', 'card');
+        actions.append(node('h3', 'card-title', 'Tindakan Transaksi'));
+        if (!isOwned) {
+            if (canAfford) {
+                flowButton(actions, `Konfirmasi Beli Koleksi (${formatMoney(valuationPrice)})`, () => {
+                    let reqId = null;
+                    try {
+                        let actualPrice = valuationPrice;
+                        if (bridge.getCollections) {
+                            try {
+                                const freshRes = JSON.parse(bridge.getCollections());
+                                const list = Array.isArray(freshRes) ? freshRes : (freshRes.collections || freshRes.items || []);
+                                const fresh = list.find(x => x.id === item.id);
+                                if (fresh) {
+                                    const freshPrice = Number(fresh.currentValuation != null ? fresh.currentValuation : (fresh.basePrice || 0));
+                                    if (freshPrice !== actualPrice) {
+                                        clearCollectionIntent(item.id, true);
+                                        showGameToast('info', 'Valuasi Koleksi Berubah', `Harga saat ini telah diperbarui menjadi ${formatMoney(freshPrice)}. Tinjau kembali sebelum konfirmasi.`);
+                                        openCollectionItemDetailModal(fresh);
+                                        return;
+                                    }
+                                    actualPrice = freshPrice;
+                                }
+                            } catch(e) {}
+                        }
+                        reqId = getOrCreateCollectionRequestId(item.id, true, actualPrice);
+                        const res = JSON.parse(bridge.transactCollection(JSON.stringify({requestId: reqId, itemId: item.id, buy: true, expectedPrice: actualPrice})));
+                        if (!res.success) {
+                            if (res.status === 'STALE_VALUATION') {
+                                clearCollectionIntent(item.id, true);
+                                showGameToast('info', 'Valuasi Koleksi Berubah', res.message || 'Harga telah diperbarui. Tinjau kembali sebelum konfirmasi.');
+                                if (bridge.getCollections) {
+                                    try {
+                                        const freshRes = JSON.parse(bridge.getCollections());
+                                        const list = Array.isArray(freshRes) ? freshRes : (freshRes.collections || freshRes.items || []);
+                                        const fresh = list.find(x => x.id === item.id);
+                                        if (fresh) { openCollectionItemDetailModal(fresh); return; }
+                                    } catch(e) {}
+                                }
+                                refreshSnapshot();
+                                return;
+                            }
+                            if (/kas.*tidak mencukupi|bukan milik|diagunkan/i.test(res.message || '')) {
+                                clearCollectionIntent(item.id, true);
+                            }
+                            throw new Error(res.message);
+                        }
+                        clearCollectionIntent(item.id, true);
+                        const transAmount = res.amount ? formatMoney(res.amount) : formatMoney(actualPrice);
+                        showGameToast('success', 'Koleksi Berhasil Dibeli!', `${item.name} berhasil dibeli seharga ${transAmount}. Masuk ke galeri aset mewah.`);
+                        refreshSnapshot();
+                        closeFlow();
+                        loadFirmaView('koleksi');
+                    } catch(err) {
+                        showGameToast('info', 'Pembelian Gagal', err.message);
+                    }
+                });
+            } else {
+                actions.append(node('p', 'notice', `Kas pribadi Anda (${formatMoney(personalCash)}) belum mencukupi untuk membeli ${item.name} pada valuasi terkini (${formatMoney(valuationPrice)}). Tambah saldo kas dari hasil trading atau dividen usaha.`));
+            }
+        } else {
+            if (isPledged) {
+                actions.append(node('p', 'notice', `Barang koleksi ini sedang dijadikan agunan untuk pinjaman ${item.pledgedLoanId}. Lunasi pinjaman terlebih dahulu untuk melepaskan hak jual.`));
+            } else {
+                flowButton(actions, `Konfirmasi Jual Koleksi (Terima ${formatMoney(item.currentValuation)})`, () => {
+                    let reqId = null;
+                    try {
+                        let actualPrice = Number(item.currentValuation != null ? item.currentValuation : (item.basePrice || 0));
+                        if (bridge.getCollections) {
+                            try {
+                                const freshRes = JSON.parse(bridge.getCollections());
+                                const list = Array.isArray(freshRes) ? freshRes : (freshRes.collections || freshRes.items || []);
+                                const fresh = list.find(x => x.id === item.id);
+                                if (fresh) {
+                                    const freshPrice = Number(fresh.currentValuation != null ? fresh.currentValuation : (fresh.basePrice || 0));
+                                    if (freshPrice !== actualPrice) {
+                                        clearCollectionIntent(item.id, false);
+                                        showGameToast('info', 'Valuasi Koleksi Berubah', `Harga jual saat ini telah diperbarui menjadi ${formatMoney(freshPrice)}. Tinjau kembali sebelum konfirmasi.`);
+                                        openCollectionItemDetailModal(fresh);
+                                        return;
+                                    }
+                                    actualPrice = freshPrice;
+                                }
+                            } catch(e) {}
+                        }
+                        reqId = getOrCreateCollectionRequestId(item.id, false, actualPrice);
+                        const res = JSON.parse(bridge.transactCollection(JSON.stringify({requestId: reqId, itemId: item.id, buy: false, expectedPrice: actualPrice})));
+                        if (!res.success) {
+                            if (res.status === 'STALE_VALUATION') {
+                                clearCollectionIntent(item.id, false);
+                                showGameToast('info', 'Valuasi Koleksi Berubah', res.message || 'Harga telah diperbarui. Tinjau kembali sebelum konfirmasi.');
+                                if (bridge.getCollections) {
+                                    try {
+                                        const freshRes = JSON.parse(bridge.getCollections());
+                                        const list = Array.isArray(freshRes) ? freshRes : (freshRes.collections || freshRes.items || []);
+                                        const fresh = list.find(x => x.id === item.id);
+                                        if (fresh) { openCollectionItemDetailModal(fresh); return; }
+                                    } catch(e) {}
+                                }
+                                refreshSnapshot();
+                                return;
+                            }
+                            if (/bukan milik|diagunkan/i.test(res.message || '')) {
+                                clearCollectionIntent(item.id, false);
+                            }
+                            throw new Error(res.message);
+                        }
+                        clearCollectionIntent(item.id, false);
+                        const transAmount = res.amount ? formatMoney(res.amount) : formatMoney(actualPrice);
+                        showGameToast('success', 'Koleksi Berhasil Terjual!', `${item.name} berhasil dijual seharga ${transAmount}.`);
+                        refreshSnapshot();
+                        closeFlow();
+                        loadFirmaView('koleksi');
+                    } catch(err) {
+                        showGameToast('info', 'Penjualan Gagal', err.message);
+                    }
+                });
+            }
+        }
+        panel.append(actions);
     }
 
     function openRiskModal() {
@@ -5189,6 +6915,10 @@
     const inputOrderLimit = document.getElementById('order-limit-price');
     const estTotalDisplay = document.getElementById('order-est-total');
 
+    function selectedOrderType() {
+        return document.querySelector('input[name="order-type"]:checked')?.value || 'LIMIT';
+    }
+
     let ticketOpener = null;
     function openOrderTicket(stock, preselectedSide) {
         ticketOpener = document.activeElement;
@@ -5200,7 +6930,6 @@
         document.getElementById('modal-stock-price').textContent = stock.currentPrice;
         inputOrderLimit.value = stock.currentPriceRaw;
         inputOrderQty.value = 1;
-        updateOrderEstimate();
         orderModal.inert = false;
         orderModal.classList.add('active');
         document.querySelectorAll('body > :not(#order-modal):not(script):not(#toast-container)').forEach(node => node.inert = true);
@@ -5223,6 +6952,7 @@
                 const chosen = latestSnapshot.tradingAccounts.find(x => x.id === accSelect.value);
                 if (chosen) {
                     currentAccount = { id: chosen.id, name: chosen.name, type: chosen.type };
+                    showGameToast('info', 'Akun Aktif Beralih', `Sekarang mengelola ${chosen.name} (${chosen.type === 'CLIENT' ? 'Akun Klien' : 'Akun Pribadi'}).`);
                     updateOrderEstimate();
                 }
             };
@@ -5238,6 +6968,7 @@
             button.style.color = '';
         });
         document.getElementById('order-error').textContent = '';
+        updateOrderEstimate();
         btnCloseModal.focus();
     }
 
@@ -5270,6 +7001,7 @@
         if (orderModal.classList.contains('active')) { closeOrderTicket(); return true; }
         return closeFlow();
     };
+    window.showGameToast = showGameToast;
 
     btnCloseModal.addEventListener('click', closeOrderTicket);
 
@@ -5278,29 +7010,41 @@
             estTotalDisplay.textContent = 'Biaya dan perkiraan kas akan ditampilkan sebelum order dikirim.';
             return;
         }
-        const type = document.getElementById('order-type').value;
-        inputOrderLimit.disabled = type === 'MARKET';
-        document.getElementById('order-price-label').textContent =
-            `${type === 'STOP_LOSS' || type === 'TAKE_PROFIT' ? 'Harga pemicu' : 'Harga limit'} (${selectedInstrument.currency})`;
-
-        const selectedSide = document.querySelector('.side-btn.active');
-        const side = selectedSide ? selectedSide.dataset.side : 'BUY';
-        const qtyLots = Number(inputOrderQty.value) || 0;
-        const price = type === 'MARKET' ? (Number(selectedInstrument.currentPriceRaw) || 0) : (Number(inputOrderLimit.value) || 0);
-
-        if (qtyLots > 0 && price > 0) {
-            const lotSize = selectedInstrument.lotSize || 100;
-            const gross = price * qtyLots * lotSize;
-            const feeRate = 0.0015; // 0.15% komisi broker bursa
-            const brokerFee = gross * feeRate;
-            const total = side === 'BUY' ? gross + brokerFee : Math.max(0, gross - brokerFee);
+        const availEl = document.getElementById('order-cash-avail');
+        const reservedEl = document.getElementById('order-cash-reserved');
+        if (currentAccount && latestSnapshot?.personalAccount?.cash && selectedInstrument) {
             const cur = selectedInstrument.currency || 'IDR';
-            estTotalDisplay.innerHTML = `<strong>Total Estimasi: ${cur} ${total.toLocaleString('id-ID', {maximumFractionDigits:2})}</strong><br><small style="color:var(--text-muted);">(Nilai kotor: ${cur} ${gross.toLocaleString('id-ID')} · Komisi broker 0.15%: ${cur} ${brokerFee.toLocaleString('id-ID', {maximumFractionDigits:2})})</small>`;
-        } else {
-            estTotalDisplay.textContent = 'Biaya dan perkiraan kas akan ditampilkan sebelum order dikirim.';
+            const cashObj = latestSnapshot.personalAccount.cash[cur];
+            if (availEl && cashObj) availEl.textContent = cashObj.available || '-';
+            if (reservedEl && cashObj) reservedEl.textContent = cashObj.reserved || '-';
+        }
+        const type = selectedOrderType();
+        inputOrderLimit.disabled = type === 'MARKET';
+        inputOrderLimit.hidden = type === 'MARKET';
+        document.getElementById('order-price-label').hidden = type === 'MARKET';
+        const side = document.querySelector('.side-btn.active')?.dataset.side;
+        document.getElementById('order-price-label').textContent =
+            `${type === 'STOP_LOSS' || type === 'TAKE_PROFIT' ? 'Harga pemicu' : side === 'SELL' ? 'Harga jual minimal' : 'Harga beli maksimal'} (${selectedInstrument.currency})`;
+        const qtyLots = Number(inputOrderQty.value);
+        const price = type === 'MARKET' ? Number(selectedInstrument.currentPriceRaw) : Number(inputOrderLimit.value);
+        const reviewButton = document.getElementById('btn-submit-order');
+        reviewButton.textContent = side === 'SELL' ? 'Tinjau jual' : side === 'BUY' ? 'Tinjau beli' : 'Pilih beli atau jual';
+        reviewButton.disabled = !side || !currentAccount || !Number.isSafeInteger(qtyLots) || qtyLots <= 0 || !(price > 0);
+        if (reviewButton.disabled) { estTotalDisplay.textContent = 'Pilih sisi dan isi jumlah yang valid.'; return; }
+        const draft = {accountId: currentAccount.id, instrumentId: selectedInstrument.id, side, type,
+            quantity: qtyLots * selectedInstrument.lotSize, requestId: 'PREVIEW-TICKET'};
+        if (type === 'LIMIT') draft.limitPrice = inputOrderLimit.value;
+        if (type === 'STOP_LOSS' || type === 'TAKE_PROFIT') draft.triggerPrice = inputOrderLimit.value;
+        try {
+            const quote = bridgeResult('previewOrder', JSON.stringify(draft));
+            estTotalDisplay.replaceChildren(node('strong', '', `Estimasi kas ${side === 'BUY' ? 'keluar' : 'masuk'}: ${quote.estimatedCashImpact}`),
+                node('small', '', `Biaya ${quote.estimatedFee} · Kas tersedia ${quote.availableCash} · Perkiraan terisi ${quote.estimatedFillQuantity} saham`));
+        } catch (error) {
+            reviewButton.disabled = true;
+            estTotalDisplay.textContent = error.message || 'Estimasi belum dapat dimuat. Periksa input kembali.';
         }
     }
-    document.getElementById('order-type').addEventListener('change', updateOrderEstimate);
+    document.querySelectorAll('input[name="order-type"]').forEach(option => option.addEventListener('change', updateOrderEstimate));
 
     inputOrderQty.addEventListener('input', updateOrderEstimate);
     inputOrderLimit.addEventListener('input', updateOrderEstimate);
@@ -5311,34 +7055,15 @@
             if (!selectedInstrument) return;
             const pct = Number(btn.dataset.pct) || 100;
             const selectedSide = document.querySelector('.side-btn.active');
-            const side = selectedSide ? selectedSide.dataset.side : 'BUY';
-            const price = Number(inputOrderLimit.value) || Number(selectedInstrument.currentPriceRaw) || 1;
-            const lotSize = selectedInstrument.lotSize || 100;
-
-            if (side === 'BUY') {
-                let availCash = 0;
-                try {
-                    const snap = bridge.getSnapshot ? JSON.parse(bridge.getSnapshot()) : latestSnapshot;
-                    if (snap && snap.personalAccount) {
-                        availCash = Number(snap.personalAccount.cashBalanceRaw || snap.personalAccount.availableCashRaw || 50000000);
-                    }
-                } catch(e) { availCash = 50000000; }
-                const unitCost = price * lotSize * 1.0015;
-                const maxLots = Math.max(1, Math.floor(availCash / unitCost));
-                const targetLots = Math.max(1, Math.floor(maxLots * (pct / 100)));
-                inputOrderQty.value = targetLots;
-            } else {
-                let heldShares = 0;
-                try {
-                    const portRes = bridge.getPortfolio ? JSON.parse(bridge.getPortfolio(currentAccount ? currentAccount.id : '')) : null;
-                    if (portRes && portRes.positions) {
-                        const pos = portRes.positions.find(p => p.instrumentId === selectedInstrument.id || p.ticker === selectedInstrument.ticker);
-                        if (pos) heldShares = Number(pos.quantity) || 0;
-                    }
-                } catch(e) {}
-                const maxLots = Math.max(1, Math.floor(heldShares / lotSize));
-                const targetLots = Math.max(1, Math.floor(maxLots * (pct / 100)));
-                inputOrderQty.value = targetLots;
+            const side = selectedSide?.dataset.side;
+            if (!side || !currentAccount) { document.getElementById('order-error').textContent = 'Pilih akun dan sisi order terlebih dahulu.'; return; }
+            try {
+                const capacity = bridgeResult('getOrderCapacity', currentAccount.id, selectedInstrument.id, side, selectedOrderType(), inputOrderLimit.value);
+                inputOrderQty.value = Math.floor(Number(capacity.maxLots) * pct / 100);
+                document.getElementById('order-error').textContent = Number(inputOrderQty.value) === 0 ? 'Belum ada jumlah yang dapat dipesan untuk porsi ini.' : '';
+            } catch (error) {
+                inputOrderQty.value = 0;
+                document.getElementById('order-error').textContent = error.message;
             }
             updateOrderEstimate();
         });
@@ -5362,11 +7087,11 @@
         const qtyLots = Number(inputOrderQty.value);
         const limitP = inputOrderLimit.value;
         inputOrderQty.setCustomValidity(Number.isSafeInteger(qtyLots) && qtyLots > 0 ? '' : 'Sebutkan jumlah unit bulat yang positif.');
-        inputOrderLimit.setCustomValidity(Number(limitP) > 0 ? '' : 'Harga limit harus positif.');
+        inputOrderLimit.setCustomValidity(selectedOrderType() === 'MARKET' || Number(limitP) > 0 ? '' : 'Harga perlu positif.');
         if (!inputOrderQty.reportValidity() || !inputOrderLimit.reportValidity()) return;
         const totalShares = qtyLots * selectedInstrument.lotSize;
 
-        const type = document.getElementById('order-type').value;
+        const type = selectedOrderType();
         const payload = {
             accountId: currentAccount && currentAccount.id,
             instrumentId: selectedInstrument.id,
@@ -5382,10 +7107,17 @@
         }
         try {
             const preview = JSON.parse(bridge.previewOrder(JSON.stringify(payload)));
-            if (!preview.success) { errorDisplay.textContent = preview.message || 'Preview ditolak domain'; errorDisplay.focus(); return; }
+            if (!preview.success) {
+                errorDisplay.textContent = preview.message || 'Preview ditolak domain';
+                errorDisplay.focus();
+                showGameToast('error', 'Penempatan Order Ditolak', preview.message || 'Order ditolak oleh bursa / aturan risiko.');
+                return;
+            }
             showOrderReview(preview, payload);
         } catch (error) {
-            errorDisplay.textContent = 'Preview gagal: ' + error.message; errorDisplay.focus();
+            errorDisplay.textContent = 'Preview gagal: ' + error.message;
+            errorDisplay.focus();
+            showGameToast('error', 'Gagal Menyiapkan Order', error.message || 'Kesalahan komunikasi bridge.');
         }
     });
 
@@ -5408,57 +7140,7 @@
         openMultiAssets();
     });
 
-    document.getElementById('btn-order-history').addEventListener('click', () => {
-        refreshSnapshot();
-        if (latestSnapshot && latestSnapshot.recoveryRequired) return;
-        const panel = showFlow('Order aktif / riwayat');
-        flowText(panel, 'Akun', currentAccount ? `${currentAccount.name} (${currentAccount.id})` : 'Belum tersedia');
-        if (!bridge.getOrders || !currentAccount) { flowText(panel, 'Riwayat', 'Bridge riwayat domain belum tersedia.'); return; }
-        const label = document.createElement('label');
-        const activeOnly = document.createElement('input'); activeOnly.type = 'checkbox'; activeOnly.checked = true;
-        label.append(activeOnly, document.createTextNode('Tampilkan hanya order aktif')); panel.append(label);
-        const list = document.createElement('div'); panel.append(list);
-        const render = () => {
-            list.replaceChildren();
-            try {
-                const orders = JSON.parse(bridge.getOrders(currentAccount.id, activeOnly.checked));
-                if (!orders.length) flowText(list, 'Order', 'Belum ada order untuk filter ini.');
-                orders.forEach(order => flowButton(list,
-                    `${order.instrumentId} ${order.side} ${order.status} · ${order.filledQuantity}/${order.quantity} saham · ${order.requestId}`,
-                    () => { activeRequestId = order.requestId; orderDraft = null; orderPreview = null; showOrderReceipt(order); }));
-            } catch (error) { flowText(list, 'Riwayat gagal dimuat', error.message); }
-        };
-        activeOnly.addEventListener('change', render); render();
-    });
-
-    document.getElementById('btn-briefing').addEventListener('click', () => {
-        refreshSnapshot();
-        if (latestSnapshot && latestSnapshot.recoveryRequired) return;
-        const panel = showFlow('Jadwal & Sesi Bursa');
-        const clock = latestSnapshot && latestSnapshot.clock;
-        flowText(panel, 'Waktu game saat ini', clock ? `${clock.date} · ${clock.time}` : 'Belum tersedia');
-        flowText(panel, 'Mode waktu', clock && Number(clock.rate) > 0 ? `Laju aktif dasar: 1 hari game = ${(86400 / Number(clock.rate) / 60).toLocaleString('id-ID')} menit nyata.` : 'Laju aktif belum tersedia.');
-        flowText(panel, 'Sesi IDX (Indonesia)', '09:00 - 11:30 (Sesi 1) · 13:30 - 16:00 (Sesi 2)');
-        flowText(panel, 'Sesi US (Wall Street)', '21:30 - 04:00 WIB (Sesi Reguler)');
-        flowText(panel, 'Status sesi aktif', clock ? clock.sessionLabel : 'Belum tersedia');
-        flowText(panel, 'Keterangan waktu latar', 'Saat aplikasi ditutup, waktu berlanjut dengan rasio 1 hari game = 1 jam nyata.');
-        flowButton(panel, 'Pusat Misi & Kalender Bursa', () => openPeriodicMissionsModal());
-
-        if (bridge.closeDay) {
-            flowButton(panel, 'Tutup Hari Bursa & Evaluasi Sesi', () => {
-                const reqId = 'REQ-DAY-CLOSE-' + Date.now();
-                try {
-                    const res = JSON.parse(bridge.closeDay(reqId));
-                    if (!res.success) throw new Error(res.message || 'Penutupan hari gagal');
-                    flowText(panel, 'Rekapitulasi Sesi Berhasil',
-                        `Tanggal: ${res.date} | Starting Net Worth: ${res.startingNetWorth} | Ending Net Worth: ${res.endingNetWorth} | PnL Investasi: ${res.investmentPnL} | Gaji Pokok: ${res.salary} | Total Fee: ${res.fees} | Order Match: ${res.fills} | Evaluasi: ${res.note}`);
-                    refreshSnapshot();
-                } catch (err) {
-                    flowText(panel, 'Penutupan hari ditolak / gagal', err.message);
-                }
-            });
-        }
-    });
+    document.getElementById('btn-order-history').addEventListener('click', openPortfolioOrders);
 
     document.getElementById('btn-career').addEventListener('click', () => {
         refreshSnapshot();
@@ -5655,12 +7337,12 @@
 
         const steps = [
             {
-                step: '1. Siklus Sesi & Briefing Pasar',
-                desc: 'Setiap hari bursa dimulai dengan Market Briefing pada pukul 08:30 WIB. Periksa sentimen berita makro dan emiten sebelum bel pembukaan pasar 09:00 WIB.',
-                action: 'Buka Briefing Pasar',
+                step: '1. Dunia game berjalan otomatis',
+                desc: 'Waktu, pasar, dan bisnis terus berkembang. Saat aktif, 1 hari game berlangsung 5 menit nyata. Saat aplikasi ditutup, 1 hari game berlangsung 1 jam nyata dan hasil aktivitas diperbarui saat kamu kembali.',
+                action: 'Buka Pasar',
                 handler: () => {
                     closeFlow();
-                    document.getElementById('btn-briefing').click();
+                    switchTab('pasar');
                 }
             },
             {
@@ -5954,6 +7636,18 @@
 
                 panel.appendChild(card);
             });
+            if (bridge.getAlgorithmicMarketSignal) {
+                const signalCard = node('section', 'card');
+                flowText(signalCard, 'Sinyal algoritma sesi berjalan', 'Menggunakan perubahan harga sesi saat ini saja; tidak membaca data masa depan dan bukan rekomendasi investasi.');
+                flowButton(signalCard, 'Hitung sinyal BBCA', () => {
+                    try {
+                        const signal = JSON.parse(bridge.getAlgorithmicMarketSignal('IDX:BBCA'));
+                        if (!signal.available) throw new Error(signal.reason || 'Jalur algoritma belum terbuka');
+                        flowText(signalCard, `Arah: ${signal.direction}`, `Perubahan sesi ${Number(signal.observedChangePercent).toFixed(2)}% · bonus sinyal ${signal.signalBonusPercent}% · ambang ${Number(signal.triggerThresholdPercent).toFixed(2)}%`);
+                    } catch(error) { flowText(signalCard, 'Sinyal tidak tersedia', error.message); }
+                });
+                panel.append(signalCard);
+            }
         } catch(e) {
             flowText(panel, 'Galat', e.message);
         }
@@ -5994,10 +7688,12 @@
                     poachBtn.onclick = () => {
                         try {
                             const res = JSON.parse(bridge.poachStaffCandidate(c.candidateId));
-                            alert(`${res.name} berhasil dibajak ke firma Anda!`);
+                            showGameToast('success', 'Staf Berhasil Direkrut!', `${res.name} berhasil dibajak ke firma Anda.`);
                             refreshSnapshot();
                             openHeadhuntingModal();
-                        } catch(err) { alert('Gagal membajak staf: ' + err.message); }
+                        } catch(err) {
+                            showGameToast('info', 'Gagal Membajak Staf', err.message);
+                        }
                     };
                     card.appendChild(poachBtn);
                 }
@@ -6076,11 +7772,63 @@
             const isSelected = currentAccount && currentAccount.id === acc.id;
             flowButton(panel, `${acc.name} (${acc.type})${isSelected ? ' [Aktif]' : ''}`, () => {
                 currentAccount = { id: acc.id, name: acc.name, type: acc.type };
+                showGameToast('info', 'Akun Aktif Beralih', `Sekarang mengelola ${acc.name} (${acc.type === 'CLIENT' ? 'Akun Klien' : 'Akun Pribadi'}).`);
                 closeFlow();
                 refreshSnapshot();
                 if (currentTab === 'aset') loadAsetView();
             });
         });
+    }
+
+    function openReservedCashAllocationModal() {
+        refreshSnapshot();
+        const panel = showFlow('Rincian Dana Tertahan');
+        flowText(panel, 'Dana Tertahan', 'Kas atau efek yang sedang dicadangkan untuk order antrean aktif, penawaran korporasi, atau transaksi in-flight.');
+        const reservedTotal = latestSnapshot?.personalAccount?.cash?.IDR?.reserved || 'Rp 0';
+        flowText(panel, 'Total Kas Tertahan (IDR)', reservedTotal);
+
+        const listCard = node('section', 'card');
+        listCard.append(node('h2', 'card-title', 'Alokasi per Order Aktif'));
+        try {
+            if (bridge.getOrders && currentAccount) {
+                const orders = JSON.parse(bridge.getOrders(currentAccount.id, true));
+                const reservedOrders = orders.filter(o => o.side === 'BUY' && ['OPEN', 'PARTIALLY_FILLED', 'PENDING_TRIGGER'].includes(o.status));
+                if (!reservedOrders.length) {
+                    emptyState(listCard, 'Tidak ada alokasi tertahan', 'Saat ini tidak ada kas yang sedang dicadangkan untuk order.');
+                } else {
+                    reservedOrders.forEach(o => {
+                        const row = node('div', 'data-row');
+                        row.style.padding = '8px 0';
+                        const isTrigger = o.status === 'PENDING_TRIGGER';
+                        const statusTxt = isTrigger ? 'Menunggu Pemicu' : 'Mengantre di Bursa';
+                        const labelDiv = node('div');
+                        labelDiv.innerHTML = `<strong>${o.instrumentId} (Beli)</strong><br><small style="color:var(--text-secondary);">${o.remainingQuantity} saham · ${statusTxt}</small>`;
+                        const valDiv = node('div');
+                        valDiv.style.textAlign = 'right';
+                        const btn = node('button', 'btn-secondary', 'Lihat Tiket');
+                        btn.style.minHeight = '38px';
+                        btn.style.padding = '4px 10px';
+                        btn.style.fontSize = '0.75rem';
+                        btn.onclick = () => {
+                            activeRequestId = o.requestId;
+                            showOrderReceipt(o);
+                        };
+                        valDiv.append(btn);
+                        row.append(labelDiv, valDiv);
+                        listCard.append(row);
+                    });
+                }
+            }
+        } catch(e) {
+            flowText(listCard, 'Gagal memuat alokasi', e.message);
+        }
+        panel.append(listCard);
+    }
+
+    const resCashBtn = document.getElementById('home-reserved-cash-btn');
+    if (resCashBtn) {
+        resCashBtn.addEventListener('click', openReservedCashAllocationModal);
+        resCashBtn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openReservedCashAllocationModal(); } });
     }
 
     const achBtn = document.getElementById('btn-achievements');
@@ -6195,8 +7943,7 @@
                 refreshSnapshot();
             } catch (error) { flowText(panel, 'Load gagal', error.message); }
         });
-        flowButton(panel, 'Ukuran teks 200%', () => { try { persistPlayerPreferences({textSize:'200%'}); } catch(error) { flowText(panel,'Preferensi belum tersimpan',error.message); } });
-        flowButton(panel, 'Ukuran teks standar', () => { try { persistPlayerPreferences({textSize:'100%'}); } catch(error) { flowText(panel,'Preferensi belum tersimpan',error.message); } });
+        flowText(panel, 'Ukuran teks', 'Aplikasi mengikuti skala teks sistem bawaan perangkat Anda.');
 
         const isPowerSave = document.documentElement.classList.contains('power-save');
         const psBtn = flowButton(panel, isPowerSave ? 'Hemat daya: aktif' : 'Hemat daya: nonaktif', () => {
@@ -6223,7 +7970,8 @@
             document.documentElement.classList.add('power-save');
         }
     } catch(e) {}
-    refreshSnapshot(); loadHomeMarket();
+    if (bridge.beginClockSync) requestClockSync(!document.hidden).then(() => { refreshSnapshot(); loadHomeMarket(); }).catch(() => {});
+    else { if (bridge.onAppLifecycleChanged) bridge.onAppLifecycleChanged(!document.hidden); refreshSnapshot(); loadHomeMarket(); }
 
     window.showNativeSaveFailure = () => {
         if (document.getElementById('native-save-warning')) return;
@@ -6235,17 +7983,22 @@
     };
 
     // Force-close resilience: autosave on backgrounding, swipe-away, or pagehide
-    let lastClockSample = performance.now();
     const autoSaveOnExit = () => {
         try {
+            if (bridge && bridge.beginClockSync) { bridge.beginClockSync(false); return; }
+            if (bridge && bridge.onAppLifecycleChanged) bridge.onAppLifecycleChanged(false);
             if (bridge && bridge.saveGame) bridge.saveGame();
         } catch(e) {}
     };
     document.addEventListener('visibilitychange', () => {
-        lastClockSample = performance.now();
         if (document.hidden) {
             autoSaveOnExit();
         } else {
+            if (bridge.beginClockSync) {
+                requestClockSync(true).then(() => { refreshSnapshot(); loadHomeMarket(); }).catch(() => {});
+                return;
+            }
+            if (bridge && bridge.onAppLifecycleChanged) bridge.onAppLifecycleChanged(true);
             refreshSnapshot();
             if (['beranda', 'pasar'].includes(currentTab)) updateMarketQuotes();
             if (currentTab === 'aset') syncPortfolioLive();
@@ -6256,16 +8009,30 @@
     setInterval(() => {
         renderFlowingClock();
         updateSponsorCountdown();
+        updateNewsEffects();
     }, 250);
 
     setInterval(() => {
         try {
-            const now = performance.now();
-            if (document.hidden) { lastClockSample = now; return; }
-            const elapsed = Math.floor((now - lastClockSample) / 1000);
-            if (elapsed > 0 && bridge && bridge.tickClock) {
-                lastClockSample += elapsed * 1000;
-                const tick = JSON.parse(bridge.tickClock(elapsed));
+            if (document.hidden || clockSyncBlocked) return;
+            if (bridge.beginClockSync) {
+                requestClockSync(true).then(() => {
+                    document.getElementById('clock-error')?.remove();
+                    refreshSnapshot();
+                    if (currentTab === 'aset') syncPortfolioLive();
+                    if (activeReceiptRequestId) updateReceiptLive(activeReceiptRequestId);
+                    if (activeDetailStock) updateInstrumentDetailLive(activeDetailStock.id);
+                    if (['beranda', 'pasar'].includes(currentTab) && !flowPanel) updateMarketQuotes();
+                }).catch(cause => {
+                    const error = document.getElementById('clock-error') || node('p');
+                    error.id = 'clock-error'; error.setAttribute('role', 'alert');
+                    error.textContent = 'Penyelarasan waktu bursa otomatis terhenti: ' + (cause.message || 'Status gagal') + '. Data terakhir tetap ditampilkan.';
+                    if (!error.isConnected) document.querySelector('main')?.prepend(error);
+                });
+                return;
+            }
+            if (bridge && bridge.syncClock) {
+                const tick = JSON.parse(bridge.syncClock());
                 if (tick.success === false || tick.error) throw new Error(tick.error || tick.message || 'Proses hari perlu diperiksa.');
                 document.getElementById('clock-error')?.remove();
                 refreshSnapshot();
@@ -6283,4 +8050,10 @@
         }
     }, 1000);
 
+    window.__qaOrder = {
+        showOrderReceipt,
+        updateReceiptLive,
+        showOrderReview,
+        setActiveRequestId: id => { activeRequestId = id; }
+    };
 })();

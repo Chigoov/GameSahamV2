@@ -65,4 +65,28 @@ public final class DailyStreakService implements Serializable {
         obj.put("statusLabel", streakBroken ? "BROKEN STREAK (RESET)" : ("STREAK HARI KE-" + currentStreak));
         return obj;
     }
+
+    public synchronized void reset() {
+        currentStreak = 1;
+        longestStreak = 1;
+        lastLoginSession = 1;
+        streakBroken = false;
+    }
+
+    public synchronized JSONObject exportState() throws JSONException {
+        return new JSONObject().put("currentStreak", currentStreak).put("longestStreak", longestStreak)
+                .put("lastLoginSession", lastLoginSession).put("isStreakBroken", streakBroken);
+    }
+
+    public synchronized void restoreState(JSONObject state) throws JSONException {
+        int current = state.getInt("currentStreak");
+        int longest = state.getInt("longestStreak");
+        int last = state.getInt("lastLoginSession");
+        if (current < 1 || longest < current || last < 1)
+            throw new IllegalArgumentException("State daily streak tidak valid");
+        currentStreak = current;
+        longestStreak = longest;
+        lastLoginSession = last;
+        streakBroken = state.getBoolean("isStreakBroken");
+    }
 }

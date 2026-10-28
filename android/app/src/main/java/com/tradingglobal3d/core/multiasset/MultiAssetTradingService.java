@@ -171,6 +171,7 @@ public final class MultiAssetTradingService {
         BigDecimal fxRatio = rate.divide(referenceFx, 16, RoundingMode.HALF_UP);
         BigDecimal risk = basket.subtract(BigDecimal.ONE);
         for (CommodityInstrument gold : products.getAllCommodities()) {
+            if (!"COMM:GOLD".equals(gold.getId())) continue;
             BigDecimal value = new BigDecimal("1450000").multiply(fxRatio)
                     .multiply(BigDecimal.ONE.subtract(risk.multiply(new BigDecimal("0.25"))).max(new BigDecimal("0.2")));
             gold.updateSpotPrice(new Money(value.max(BigDecimal.ONE), Currency.IDR));

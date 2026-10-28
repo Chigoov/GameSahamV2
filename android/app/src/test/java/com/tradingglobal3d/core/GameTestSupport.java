@@ -13,4 +13,11 @@ public final class GameTestSupport {
             game.getCareerManager().restoreState(state);
         } catch (Exception error) { throw new AssertionError(error); }
     }
+
+    /** Unlocks only the IDX Level-4 gate for domain stress fixtures that are not career tests. */
+    public static void unlockIdxLevelFourForStressFixture(TradingFacade game) {
+        if (game.getProgressManager().getCurrentLevel() < 4
+                && !game.getProgressManager().awardMissionXp("TEST-IDX-LEVEL-4", 450, game.getGameTimestamp()))
+            throw new AssertionError("Could not provision Level-4 access for isolated stress fixture");
+    }
 }

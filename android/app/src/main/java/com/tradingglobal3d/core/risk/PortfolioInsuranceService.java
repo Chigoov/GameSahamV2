@@ -1,5 +1,6 @@
 package com.tradingglobal3d.core.risk;
 
+import com.tradingglobal3d.core.clock.GameClock;
 import com.tradingglobal3d.core.economy.EconomyLedger;
 import com.tradingglobal3d.core.economy.LedgerEntryType;
 import com.tradingglobal3d.core.model.Account;
@@ -64,6 +65,24 @@ public final class PortfolioInsuranceService {
             obj.put("remainingSessions", Math.max(0, expirySession - currentSession));
             return obj;
         }
+
+        private JSONObject exportState() throws JSONException {
+            return new JSONObject().put("policyId", policyId).put("purchasedSession", purchasedSession)
+                    .put("expirySession", expirySession).put("coveragePercentage", coveragePercentage)
+                    .put("premiumAmount", premiumPaid.getAmount().toPlainString())
+                    .put("premiumCurrency", premiumPaid.getCurrency().name()).put("isClaimed", isClaimed);
+        }
+
+        private static Policy fromState(JSONObject obj) throws JSONException {
+            Policy policy = new Policy(obj.getString("policyId"), obj.getInt("purchasedSession"),
+                    obj.getInt("expirySession"), obj.getDouble("coveragePercentage"),
+                    new Money(new BigDecimal(obj.getString("premiumAmount")), Currency.valueOf(obj.getString("premiumCurrency"))));
+            policy.isClaimed = obj.getBoolean("isClaimed");
+            if (policy.purchasedSession < 0 || policy.expirySession < policy.purchasedSession
+                    || policy.coveragePercentage <= 0 || policy.coveragePercentage > 100 || policy.premiumPaid.isNegative())
+                throw new IllegalArgumentException("State polis asuransi tidak valid");
+            return policy;
+        }
     }
 
     private Policy activePolicy = null;
@@ -72,10 +91,19 @@ public final class PortfolioInsuranceService {
         return activePolicy;
     }
 
+    public synchronized void reset() {
+        activePolicy = null;
+    }
+
     public synchronized Policy purchasePolicy(Account account, Money portfolioValue, int durationSessions,
                                               EconomyLedger ledger, long now, int currentSession) {
         Objects.requireNonNull(account);
         Objects.requireNonNull(portfolioValue);
+        GameClock sessionClock = new GameClock(java.time.Instant.ofEpochMilli(now)
+                .atOffset(java.time.ZoneOffset.ofHours(7)).toLocalDate(),
+                java.time.Instant.ofEpochMilli(now).atOffset(java.time.ZoneOffset.ofHours(7)).toLocalTime());
+        if (sessionClock.isAnyMarketOpen())
+            throw new IllegalStateException("Polis asuransi hanya dapat dibeli sebelum sesi pasar dibuka");
         int duration = Math.max(1, durationSessions);
 
         // Premi: 1.0% dari total nilai portofolio (minimal Rp 500.000)
@@ -112,7 +140,7 @@ public final class PortfolioInsuranceService {
         }
 
         // Syarat klaim: kejatuhan pasar ekstrem > 5.0% dan nilai kerugian positif
-        if (marketDropPercent >= 5.0 && lossAmount != null && lossAmount.isPositive()) {
+        if (marketDropPercent > 5.0 && lossAmount != null && lossAmount.isPositive()) {
             BigDecimal reimbVal = lossAmount.getAmount().multiply(new BigDecimal("0.80")).setScale(0, RoundingMode.HALF_UP);
             Money reimbursement = new Money(reimbVal, Currency.IDR);
 
@@ -138,5 +166,14 @@ public final class PortfolioInsuranceService {
         obj.put("hasActivePolicy", activePolicy != null && activePolicy.isValidAtSession(currentSession));
         obj.put("policy", activePolicy != null ? activePolicy.toJsonObject(currentSession) : JSONObject.NULL);
         return obj;
+    }
+
+    public synchronized JSONObject exportState() throws JSONException {
+        return new JSONObject().put("activePolicy", activePolicy == null ? JSONObject.NULL : activePolicy.exportState());
+    }
+
+    public synchronized void restoreState(JSONObject state) throws JSONException {
+        JSONObject savedPolicy = state.optJSONObject("activePolicy");
+        activePolicy = savedPolicy == null ? null : Policy.fromState(savedPolicy);
     }
 }

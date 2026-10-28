@@ -22,30 +22,9 @@ async function run() {
     // 1. Verifikasi R02: Hapus Atur Waktu manual & Verifikasi Jadwal Sesi
     // =========================================================================
     console.log("[1] Testing R02: Verifying absence of manual clock controls...");
-    const briefingBtn = page.locator('#btn-briefing');
-    await briefingBtn.click();
-    await page.waitForSelector('.flow-page[aria-label="Jadwal & Sesi Bursa"]', { timeout: 5000 });
-
-    // Pastikan tombol manual play/pause, speed dropdown, dan Skip Day TIDAK ADA
-    const pauseBtn = await page.locator('.flow-page button:has-text("Jeda waktu"), .flow-page button:has-text("Mulai / lanjutkan")').count();
-    const speedSelect = await page.locator('.flow-page select#briefing-speed').count();
-    const skipDayBtn = await page.locator('.flow-page button:has-text("Lewati 1 hari")').count();
-
-    console.log(`Manual controls count: pauseBtn=${pauseBtn}, speedSelect=${speedSelect}, skipDayBtn=${skipDayBtn}`);
-    if (pauseBtn !== 0 || speedSelect !== 0 || skipDayBtn !== 0) {
-        throw new Error("Kontrol manual play/pause, speed dropdown, atau Skip Day masih ditemukan di UI!");
-    }
-
-    // Pastikan deskripsi otomatis tampil
-    const modeDesc = await page.locator('.flow-page .data-row:has-text("Mode waktu") strong').textContent();
-    console.log("Mode waktu description:", modeDesc);
     const actualRate = await page.evaluate(() => JSON.parse(TradingNativeBridge.getSnapshot()).clock.rate);
-    const backgroundDesc = await page.locator('.flow-page .data-row:has-text("Keterangan waktu latar") strong').textContent();
-    if (!modeDesc.includes(`1 hari game = ${86400/actualRate/60} menit nyata`) || !backgroundDesc.includes('1 hari game = 1 jam nyata')) throw new Error('Keterangan UI harus sesuai laju Java yang aktif');
-
-    // Tutup panel briefing
-    await page.evaluate(() => window.closeActiveLayer());
-    await page.waitForTimeout(500);
+    if (await page.locator('#btn-briefing, .session-card, #briefing-speed').count()) throw new Error('Removed session controls returned');
+    if (await page.evaluate(() => JSON.parse(TradingNativeBridge.getSnapshot()).clock.isPaused)) throw new Error('World must start automatically');
 
     // =========================================================================
     // 2. Verifikasi R02: Clock mengalir otomatis di header

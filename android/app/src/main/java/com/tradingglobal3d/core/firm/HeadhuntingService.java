@@ -55,6 +55,10 @@ public final class HeadhuntingService {
             this.loyaltyScore = 100.0;
         }
 
+        private void setLoyaltyScore(double value) {
+            this.loyaltyScore = value;
+        }
+
         public JSONObject toJsonObject() throws JSONException {
             JSONObject obj = new JSONObject();
             obj.put("candidateId", candidateId);
@@ -127,5 +131,32 @@ public final class HeadhuntingService {
             arr.put(c.toJsonObject());
         }
         return arr;
+    }
+
+    public synchronized JSONArray exportState() throws JSONException {
+        JSONArray state = new JSONArray();
+        for (Candidate candidate : candidates.values()) state.put(new JSONObject()
+                .put("candidateId", candidate.getCandidateId()).put("isHired", candidate.isHired())
+                .put("loyaltyScore", candidate.getLoyaltyScore()));
+        return state;
+    }
+
+    public synchronized void restoreState(JSONArray state) throws JSONException {
+        Map<String, JSONObject> savedById = new HashMap<>();
+        for (int i = 0; i < state.length(); i++) {
+            JSONObject item = state.getJSONObject(i);
+            String id = item.getString("candidateId");
+            if (!candidates.containsKey(id) || savedById.put(id, item) != null)
+                throw new IllegalArgumentException("State headhunt tidak dikenal atau duplikat");
+            double loyalty = item.getDouble("loyaltyScore");
+            if (!Double.isFinite(loyalty) || loyalty < 0 || loyalty > 100)
+                throw new IllegalArgumentException("Loyalitas kandidat tidak valid");
+        }
+        for (Map.Entry<String, JSONObject> entry : savedById.entrySet()) {
+            Candidate candidate = candidates.get(entry.getKey());
+            JSONObject saved = entry.getValue();
+            if (saved.getBoolean("isHired")) candidate.hire();
+            else candidate.setLoyaltyScore(saved.getDouble("loyaltyScore"));
+        }
     }
 }

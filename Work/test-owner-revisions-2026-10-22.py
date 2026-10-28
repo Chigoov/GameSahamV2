@@ -69,30 +69,14 @@ def run_tests(output_dir=None):
             checks.append(f"T1 (Clock): Measured actual Java foreground 1x: 300 real seconds advances one game day: {pre_time_str} -> {post_time_str}")
 
             # -------------------------------------------------------------
-            # TEST 2: Briefing Renamed to 'Atur Waktu' & Account Context (T2)
+            # TEST 2: Automatic world without session controls and actual account context (T2)
             # -------------------------------------------------------------
-            btn_briefing = page.locator('#btn-briefing')
-            assert btn_briefing.text_content() == 'Jadwal Sesi', f"Button must say 'Jadwal Sesi', got {btn_briefing.text_content()}"
-            
-            # Verify account context header
+            assert page.locator('#btn-briefing, .session-card').count() == 0
             acc_btn_text = page.locator('#context-account-btn').text_content()
-            assert 'Akun' in acc_btn_text and 'Pribadi' in acc_btn_text, f"Account context must identify personal account, got {acc_btn_text}"
-
-            # Open Atur Waktu modal
-            btn_briefing.click()
-            page.wait_for_selector('.flow-page')
-            panel_title = page.locator('.flow-page h1').text_content()
-            assert panel_title == 'Jadwal & Sesi Bursa', f"Unexpected schedule title: {panel_title}"
-            
-            panel_text = page.locator('.flow-page').text_content()
-            assert '1 hari game = 5 menit nyata' in panel_text, "Schedule must state the owner's 5 minute rule"
-            assert 'Waktu game saat ini' in panel_text
-            assert 'Sesi IDX (Indonesia)' in panel_text and 'Sesi US (Wall Street)' in panel_text
-
-            page.screenshot(path=str(screenshot_dir / '01-atur-waktu-modal.png'))
-            checks.append("T2 (Briefing/Account): Jadwal Sesi and actual personal account context verified")
-            page.locator('.back-button').click()
-            page.wait_for_selector('.flow-page', state='detached')
+            assert 'Akun' in acc_btn_text and 'Pribadi' in acc_btn_text
+            assert not page.evaluate('JSON.parse(TradingNativeBridge.getSnapshot()).clock.isPaused')
+            page.screenshot(path=str(screenshot_dir / '01-automatic-world.png'))
+            checks.append("T2: Session controls removed; world starts automatically; personal account context verified")
 
             # -------------------------------------------------------------
             # TEST 3: Removal of Badge SIMULASI on Beranda Heading (T7)

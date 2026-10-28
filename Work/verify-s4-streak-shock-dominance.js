@@ -53,8 +53,15 @@ async function run() {
     if (secCount < 3) {
         throw new Error(`Minimal harus ada 3 sektor industri (aktual: ${secCount})!`);
     }
+    await sectorCards.last().scrollIntoViewIfNeeded();
+    await page.waitForTimeout(250);
+    if (!(await sectorCards.last().isVisible())) {
+        throw new Error("Kartu sektor terakhir harus dapat dijangkau melalui scroll tanpa tertutup navigasi");
+    }
+    console.log("Last sector card reachable by scroll:", await sectorCards.last().innerText());
 
     // 3. Uji Pemicu Guncangan Pasar Mendadak (Market Shock) via Bridge
+
     console.log("Triggering Black Swan Market Shock via bridge...");
     const shockRes = await page.evaluate(() => {
         return window.TradingNativeBridge && window.TradingNativeBridge.triggerMarketShockEvent
@@ -65,6 +72,15 @@ async function run() {
     if (!shockRes || !shockRes.success) {
         throw new Error("Pemicu guncangan pasar Black Swan harus berhasil!");
     }
+    if (shockRes.eventType !== 'BLACK_SWAN_SHOCK' || Number(shockRes.safeHavenGoldMovePercent) !== 5) {
+        throw new Error("Black Swan harus menyertakan kenaikan safe-haven emas yang terverifikasi.");
+    }
+    console.log("Safe-haven shock verified:", shockRes.safeHavenGoldMovePercent, "% gold repricing; held-gold gain:", shockRes.safeHavenGain);
+
+    const supplyRes = await page.evaluate(() => JSON.parse(window.TradingNativeBridge.triggerMarketShockEvent('SUPPLY_CHAIN_CRISIS')));
+    if (!supplyRes || !supplyRes.success || supplyRes.eventType !== 'SUPPLY_CHAIN_CRISIS')
+        throw new Error("Supply chain crisis bridge harus mengembalikan event yang benar.");
+    console.log("Supply-chain crisis response:", JSON.stringify(supplyRes));
 
     // Tangkap screenshot bukti Tahap S4
     const shotPath = path.join(evidenceDir, 'TahapS4-streak-dominance.png');

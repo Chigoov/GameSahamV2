@@ -66,7 +66,7 @@ public class OwnerAuditRegressionTest {
             java.time.LocalTime time = game.getClock().getCurrentTime();
             game.getClock().setSpeedMultiplier(speed);
             game.getClock().play();
-            assertTrue(game.tick(300/speed));
+            assertTrue(game.tick(3600)); // One real hour/day at 24x, independent of legacy speed.
             assertEquals(start.plusDays(1), game.getClock().getCurrentDate());
             assertEquals(time, game.getClock().getCurrentTime());
             assertEquals(1, game.getCareerManager().getSessionReports().size());
@@ -84,7 +84,7 @@ public class OwnerAuditRegressionTest {
         game.getClock().play();
         org.json.JSONObject receipt = game.skipDay("SKIP-ONE");
         assertTrue(receipt.toString(), receipt.getBoolean("success"));
-        assertTrue(game.getClock().isPaused());
+        assertFalse("skipDay tidak boleh menghentikan dunia game secara otomatis", game.getClock().isPaused());
         assertEquals(start.plusDays(1), game.getClock().getCurrentDate());
         assertEquals(time, game.getClock().getCurrentTime());
         int entries = game.getLedger().getEntries().size();

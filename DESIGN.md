@@ -1,5 +1,17 @@
 # Game Saham: arah UI/UX aktif
 
+## Keputusan aktif 24 Oktober 2026: revisi 2 disetujui
+
+Pemilik meninjau tiga contoh, meminta background gelap/UI terang/tab lama, lalu secara eksplisit menjawab “Setuju revisi 2; lanjutkan implementasi sesuai contoh”. Bukti dan riwayat ada di `Work/Master-Plan-Gabungan-2026-10-24/CHECKPOINT.md`; contoh di `Artifacts/Master-Plan-Gabungan-2026-10-24/design-prototype.html`. Bagian di bawah adalah sejarah, bukan pembatal kontrak ini.
+
+- Background navy `#101824`; panel putih `#FFFFFF`, konteks sekunder `#E8EEF5`. Teks panel `#162332`, pendukung `#526175`. Aksi biru `#165DCC`; untung `#087F5B`, rugi `#C22B43` disertai tanda/teks; bisnis `#6D40AF` terbatas; progres `#FFF5D9` dengan teks `#684300`. Tidak membuat toggle dua tema baru.
+- Lima tab tetap Beranda, Pasar, Portofolio, Bisnis, Lainnya. Portofolio kategori bertingkat, bukan accordion seluruh alat. Lainnya: Profil, Misi & Kompetisi, Riset, Pengaturan. Detail, review, receipt dan semua state mengikuti arah yang sama.
+- Trading ENERGY 2 / RHYTHM 2 / MOTION 1: harga, akun, jumlah dan status mendahului dekorasi. Progres ENERGY 3 / RHYTHM 2 / MOTION 3: respons singkat pencapaian/reward nyata, tidak loop, tunduk reduced motion. Motif: angka tabular, satu angka dominan dan kelompok kerja yang ringkas.
+- Plex lokal dipakai ulang karena angka/tabel dan narasi sama-sama perlu terbaca. Target sentuh 48, teks 200%, fokus/keyboard/Back, kontras dan safe area tetap wajib. Panel informasi tidak meniru tombol; menu baris berikon, judul, keterangan singkat dan tujuan nyata.
+- Grafik hanya empat rentang waktu game 6 jam/1 hari/7 hari/30 hari, default 1 hari; tidak tabel alternatif atau blok sumber teknis duplikat. Data Java nyata; dummy hanya pada prototipe berlabel. Posisi akun terpisah dari pemegang saham dunia game. UI lab/uji stres dihapus tanpa menghapus data lama/shared risk/replay historis.
+
+Pilihan background gelap dengan panel terang ini menggantikan usulan background terang menyeluruh di master plan. Tidak menyalin merek/aset broker. Empat blok Antislop produksi belum lulus hanya karena contoh disetujui.
+
 ## Keputusan aktif: UI klasik dengan isi Aset terbaru
 
 Pemilik pada 23 Oktober 2026 meminta kembali ke UI klasik sebelum redesain (`fc3cdd2`), kecuali isi bagian Aset yang dipertahankan. Shell, palet navy/ungu/hijau/emas, header, kartu dan lima tab Beranda/Pasar/Portofolio/Bisnis/Lainnya kembali memakai desain klasik; Portofolio memakai isi Aset versi `1c821af`: nilai bersih, komposisi aset, dompet IDR/USD, posisi, FX dan seluruh alat/investasi/kewajiban. Tidak membangun ulang domain atau membatalkan perbaikan logika/persistensi. [ASUMSI] Istilah “isi bagian aset” mencakup informasi dan jalur fitur Portofolio; seluruhnya mengikuti tema klasik di sekitarnya.

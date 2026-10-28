@@ -56,8 +56,10 @@ public class CareerAccessTest {
         game.setClockState(true, 1); game.tick((int)((untilOpen + rate - 1)/rate)); game.setClockState(false, 1);
         assertTrue(game.getClock().isTradingOpenFor(com.tradingglobal3d.core.market.MarketExchange.IDX));
         String account = game.getPersonalAccount().getId();
-        for (String instrument : new String[]{"IDX:BBCA", "IDX:TLKM"}) {
+        for (String instrument : new String[]{"IDX:BBCA", "IDX:UNVR"}) {
             com.tradingglobal3d.core.market.Instrument stock = game.getCatalog().getById(instrument);
+            assertTrue("Career access fixture must use stocks open at the starting rank",
+                    game.isSectorUnlocked(stock.getSector(), stock.getExchange()));
             OrderBook book = game.getMarketEngine().getOrCreateBook(stock);
             BigDecimal tick = stock.getExchange().getTickSize(stock.getCurrentPrice().getAmount());
             BigDecimal ask = stock.getCurrentPrice().getAmount().add(tick);

@@ -54,7 +54,7 @@ with sync_playwright() as p:
         assert platform['testFixture'] and not platform['nativeHost']
         report['platform'] = platform
         assert call('startNewGame', json.dumps({'initialCapital': 100000000}))['success']
-        assert call('setClockState', False, 1)['clock']['isPaused']
+        assert not call('setClockState', False, 1)['clock']['isPaused']
         page.reload()
         page.wait_for_load_state('networkidle')
 

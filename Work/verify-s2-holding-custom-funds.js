@@ -74,6 +74,80 @@ async function run() {
     await page.locator('.back-button').click();
     await page.waitForTimeout(300);
 
+    // 3. Dirikan empat anak usaha melalui domain API yang dipakai formulir UI, lalu kelola holding dari UI.
+    console.log("Creating four isolated operating companies for holding UI journey...");
+    const companySetup = await page.evaluate(() => {
+        const entries = [
+            ['H-FIN','QA Finansial','JASA'],
+            ['H-ENE','QA Energi','MANUFAKTUR'],
+            ['H-CONS','QA Konsumer','RITEL'],
+            ['H-TECH','QA Teknologi','JASA']
+        ];
+        return entries.map(([id,name,sector]) => JSON.parse(window.TradingNativeBridge.foundCompany(
+            JSON.stringify({id,name,sector,capital:'25000000'}))));
+    });
+    if (companySetup.some(item => item.success === false)) throw new Error(`Pendirian anak usaha QA gagal: ${JSON.stringify(companySetup)}`);
+    const shockCompanies = await page.evaluate(() => {
+        const entries = [
+            ['QA-SC-MANU','QA Supply Manufaktur','MANUFAKTUR'],
+            ['QA-SC-RETAIL','QA Supply Retail','RITEL'],
+            ['QA-SC-ENERGY','QA Supply Energi','ENERGI']
+        ];
+        return entries.map(([id,name,sector]) => JSON.parse(window.TradingNativeBridge.foundCompany(
+            JSON.stringify({id,name,sector,capital:'25000000'}))));
+    });
+    if (shockCompanies.some(item => item.success === false)) throw new Error(`Fixture sektor krisis QA gagal: ${JSON.stringify(shockCompanies)}`);
+    const beforeShock = await page.evaluate(() => JSON.parse(window.TradingNativeBridge.getCompanies()).companies);
+    const crisis = await page.evaluate(() => JSON.parse(window.TradingNativeBridge.triggerMarketShockEvent('SUPPLY_CHAIN_CRISIS')));
+    const afterShock = await page.evaluate(() => JSON.parse(window.TradingNativeBridge.getCompanies()).companies);
+    const beforeById = new Map(beforeShock.map(company => [company.id, company]));
+    const afterById = new Map(afterShock.map(company => [company.id, company]));
+    for (const id of ['QA-SC-MANU','QA-SC-RETAIL']) {
+        if (Number(afterById.get(id).dailyOperatingCost) <= Number(beforeById.get(id).dailyOperatingCost))
+            throw new Error(`${id} harus menanggung kenaikan biaya operasi setelah krisis rantai pasok`);
+    }
+    if (Number(afterById.get('QA-SC-ENERGY').dailyRevenue) <= Number(beforeById.get('QA-SC-ENERGY').dailyRevenue))
+        throw new Error('Perusahaan energi harus mendapat kenaikan permintaan selama krisis rantai pasok');
+    console.log('Supply-chain cost/revenue effects verified:', crisis.affectedCompanies);
+    await page.click('button.nav-item[data-tab="firma"]');
+    await page.waitForTimeout(250);
+    await page.click('button.nav-item[data-tab="beranda"]');
+    await page.waitForTimeout(200);
+    await page.click('button.nav-item[data-tab="firma"]');
+    await page.waitForSelector('#firma-subtab-usaha');
+    await page.locator('button:has-text("Bentuk Holding 4 Sektor")').click();
+    await page.waitForSelector('.flow-page[aria-label="Bentuk Holding Perusahaan"]');
+    const holdingFlow = page.locator('.flow-page[aria-label="Bentuk Holding Perusahaan"]');
+    const selectors = holdingFlow.locator('select');
+    await selectors.nth(0).selectOption('H-FIN');
+    await selectors.nth(1).selectOption('H-ENE');
+    await selectors.nth(2).selectOption('H-CONS');
+    await selectors.nth(3).selectOption('H-TECH');
+    await holdingFlow.getByRole('button', { name: 'Bentuk Holding' }).click();
+    await page.waitForTimeout(500);
+    await page.locator('.back-button').click();
+    await page.waitForTimeout(250);
+    await page.click('button.nav-item[data-tab="beranda"]');
+    await page.waitForTimeout(200);
+    await page.click('button.nav-item[data-tab="firma"]');
+    await page.waitForSelector('#firma-subtab-usaha');
+    const holdingCard = page.locator('#firma-subtab-content .card:has-text("Nusantara Konglomerasi")');
+    await page.waitForTimeout(300);
+    if (!(await holdingCard.count())) throw new Error('Holding yang dibentuk harus tampil pada daftar Usaha Saya.');
+    const holdingText = await holdingCard.first().textContent();
+    for (const sector of ['FINANCIAL','ENERGY','CONSUMER','TECHNOLOGY']) if (!holdingText.includes(sector))
+        throw new Error(`Holding tidak memuat anak usaha sektor ${sector}`);
+    await holdingCard.first().getByRole('button', { name: 'Injeksi modal / tarik dividen internal' }).click();
+    await page.waitForSelector('.flow-page[aria-label^="Transfer Internal"]');
+    const transferFlow = page.locator('.flow-page[aria-label^="Transfer Internal"]');
+    const transfers = transferFlow.locator('select');
+    await transfers.nth(0).selectOption('H-FIN');
+    await transfers.nth(1).selectOption('H-ENE');
+    await transfers.nth(2).selectOption('DIVIDEND');
+    await transferFlow.getByRole('button', { name: 'Tinjau & kirim transfer internal' }).click();
+    await page.waitForFunction(() => document.querySelector('.flow-page[aria-label^="Transfer Internal"]')?.innerText.includes('Receipt'));
+    console.log('Holding UI shows four sectors and completes internal dividend transfer.');
+
     // Tangkap screenshot bukti Tahap S2
     const shotPath = path.join(evidenceDir, 'TahapS2-holding-custom-funds.png');
     await page.screenshot({ path: shotPath });

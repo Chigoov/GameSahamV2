@@ -122,7 +122,7 @@ public class WireIntegrationDomainTest {
         long seconds = java.time.temporal.ChronoUnit.DAYS.between(game.getClock().getCurrentDate(), last) * 86400 + 6 * 3600 + 59 * 60;
         game.getClock().advanceGameSeconds(seconds); game.getReplayEngine().synchronizeToDate(last);
         game.getClock().play();
-        game.advanceRealMs(1000, true);
+        game.advanceRealMs(3000, true); // 72 game seconds crosses 15:59 -> dataset cutoff16:00 at24x.
         assertEquals(java.time.LocalTime.of(16, 0), game.getClock().getCurrentTime());
         assertTrue(call(game.getSnapshotJson()).getJSONObject("replay").getBoolean("completed"));
         JSONObject skipped = game.skipDay("AT-END"); assertFalse(skipped.getBoolean("success"));

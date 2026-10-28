@@ -18,7 +18,9 @@ async function run() {
     const context = await browser.newContext({ viewport: { width: 412, height: 860 } });
     const page = await context.newPage();
 
+    const dialogs = [];
     page.on('dialog', async dialog => {
+        dialogs.push({ type: dialog.type(), message: dialog.message() });
         console.log(`Dialog: [${dialog.type()}] ${dialog.message()}`);
         await dialog.accept();
     });
@@ -59,6 +61,12 @@ async function run() {
     console.log("Testing Restrukturisasi Darurat (Turnaround)...");
     await page.locator('#asset-tools button:has-text("Restrukturisasi Darurat (Turnaround)")').click();
     await page.waitForTimeout(500);
+    const bailoutDialog = dialogs.find(d => d.type === 'alert' && d.message.includes('Fase pemulihan belum tersedia'));
+    if (!bailoutDialog || dialogs.some(d => d.message.includes('suntikan modal darurat Rp 25.000.000'))) {
+        throw new Error('Akun sehat harus ditolak sebelum lelang/restrukturisasi dan tidak boleh dijanjikan hibah kas.');
+    }
+    console.log('Healthy account bailout gate verified; no free-cash promise.');
+    dialogs.length = 0;
 
     // 4. Buka Katalog Multi-Aset untuk cek Deposito Tenor
     console.log("Opening Multi-Aset modal for Tenor Deposits...");
@@ -69,18 +77,24 @@ async function run() {
     }
     await page.locator('#asset-tools button:has-text("Multi-aset")').click();
     await page.waitForSelector('.flow-page[aria-label="Katalog multi-aset"]', { timeout: 5000 });
-
     const depSection = page.locator('.flow-page[aria-label="Katalog multi-aset"] section:has-text("Deposito Berjangka Perbankan")');
     const depText = await depSection.textContent();
     console.log("Deposit section snippet:", depText.substring(0, 160));
-    if (!depText.includes("Tenor 10 Sesi") && !depText.includes("Bonus")) {
-        throw new Error("Katalog deposito harus memuat opsi Tenor Sesi dengan bonus bunga!");
+    for (const label of ['Tenor 10 Sesi (+10% Bonus)', 'Tenor 25 Sesi (+25% Bonus)', 'Tenor 50 Sesi (+50% Bonus)']) {
+        if (!depText.includes(label)) throw new Error(`Katalog deposito tidak menampilkan ${label}`);
     }
-
-    // Tangkap screenshot bukti Tahap S1
-    const shotPath = path.join(evidenceDir, 'TahapS1-deposits-insurance.png');
-    await page.screenshot({ path: shotPath });
-    console.log("Captured screenshot:", shotPath);
+    const opened = await page.evaluate(() => JSON.parse(window.TradingNativeBridge.openTimeDeposit(
+        JSON.stringify({ productId: 'DEP-TENOR-10', amount: '10000000' }))));
+    if (!opened.success) throw new Error(`Deposito QA gagal ditempatkan: ${opened.message}`);
+    await page.locator('.back-button').click();
+    await page.waitForTimeout(250);
+    await page.locator('#asset-tools button:has-text("Multi-aset")').click();
+    await page.waitForSelector('.flow-page[aria-label="Katalog multi-aset"]', { timeout: 5000 });
+    const activeDeposit = page.locator('.flow-page[aria-label="Katalog multi-aset"] article.card:has-text("Deposito Tenor 10 Sesi")').first();
+    if (!(await activeDeposit.textContent()).includes('Seluruh bunga hangus'))
+        throw new Error('Label pencairan dini harus menyebut seluruh bunga hangus');
+    await page.screenshot({ path: path.join(evidenceDir, 'TahapS1-deposits-insurance.png') });
+    console.log("Captured screenshot:", path.join(evidenceDir, 'TahapS1-deposits-insurance.png'));
 
     await browser.close();
     console.log("=== TAHAP S1 VERIFICATION SUCCEEDED (ALL PASS) ===");
@@ -90,3 +104,4 @@ run().catch(err => {
     console.error("Test failed:", err);
     process.exit(1);
 });
+

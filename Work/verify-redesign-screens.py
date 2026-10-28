@@ -60,7 +60,7 @@ ROUTES += [(f'profile-{tab.lower()}', f"q.openPlayerProfileModal('{tab}')") for 
 ROUTES += [(f'missions-{tab.lower()}', f"q.openPeriodicMissionsModal('{tab}')") for tab in ['DAILY', 'WEEKLY', 'CAREER']]
 ROUTES += [(f'league-{mode.lower()}', f"q.openLeagueAndRivalModal('{mode}')") for mode in ['NET_WORTH', 'WEEKLY_RETURN']]
 ROUTES += [(f'click-{name}', f"document.getElementById('{element}').click()") for name, element in [
-    ('settings', 'btn-settings'), ('briefing', 'btn-briefing'), ('career', 'btn-career'),
+    ('settings', 'btn-settings'), ('career', 'btn-career'),
     ('reports', 'btn-reports'), ('order-history', 'btn-order-history'),
 ]]
 ROUTES += [(f'terminal-{kind}', f"q.openResearchTerminal();document.getElementById('terminal-kind').value='{kind}';document.getElementById('terminal-kind').dispatchEvent(new Event('change'));Array.from(document.querySelectorAll('.flow-page button')).find(b=>b.textContent.includes('Tampilkan riset')).click()") for kind in ['inbox', 'consensus', 'comparison', 'alternative']]

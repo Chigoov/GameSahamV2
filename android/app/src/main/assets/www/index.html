@@ -12,13 +12,13 @@
     <a class="skip-link" href="#main-content">Lewati ke konten</a>
     <div class="app-scroll">
     <header class="app-header">
-        <button id="btn-settings" class="brand-button" aria-label="Buka pengaturan dan simpan permainan"><span class="brand-mark">G<span>↗</span></span></button>
+        <button id="btn-settings" class="brand-button" aria-label="Buka Profil" style="border-radius:50%;"><span class="brand-mark" style="border-radius:50%; padding:0; display:flex; align-items:center; justify-content:center;"><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="currentColor" opacity=".18"/><circle cx="16" cy="12" r="5" fill="currentColor"/><path d="M7 26c.5-6 4-9 9-9s8.5 3 9 9" fill="currentColor"/></svg></span></button>
         <div class="header-identity"><span class="eyebrow">GLOBAL TRADER</span><strong id="header-title">Beranda</strong></div>
         <button id="header-wealth-chip" class="wealth-chip" aria-label="Kas tersedia pribadi, buka portofolio"><small>Kas Tersedia ↗</small><strong id="header-net-worth">Memuat…</strong></button>
     </header>
     <div class="context-strip">
         <div class="session-indicator"><span id="session-dot" class="status-dot"></span><span id="session-label">Memuat sesi</span><time id="clock-display"></time></div>
-        <button id="context-account-btn" class="context-account" aria-label="Pilih akun transaksi"><span class="context-account-prefix" style="color:var(--text-muted); font-weight:normal;">Akun:</span> <span id="context-account-name">Pribadi</span><span aria-hidden="true">⌄</span></button>
+        <button id="context-account-btn" class="context-account" aria-label="Pilih akun transaksi" style="display:none !important;"><span class="context-account-prefix" style="color:var(--text-muted); font-weight:normal;">Akun:</span> <span id="context-account-name">Pribadi</span><span aria-hidden="true">⌄</span></button>
         <span id="mode-label" class="sr-only">Pasar Internal Game</span>
     </div>
 
@@ -42,7 +42,7 @@
                 <div class="hero-cash">
                     <div><small>Kas IDR Total</small><strong id="home-total-cash">Memuat…</strong></div>
                     <div><small>Tersedia</small><strong id="home-avail-cash">Memuat…</strong></div>
-                    <div><small>Tertahan</small><strong id="home-reserved-cash">Memuat…</strong></div>
+                    <div id="home-reserved-cash-btn" role="button" tabindex="0" style="cursor:pointer;" aria-label="Lihat rincian dana tertahan"><small style="display:block;">Tertahan</small><strong id="home-reserved-cash">Memuat…</strong></div>
                     <div><small>Kewajiban / Utang</small><strong id="home-liabilities" style="color:var(--text-muted);">Memuat…</strong></div>
                 </div>
             </section>
@@ -89,7 +89,6 @@
                 <div class="section-heading"><span id="home-mission-progress" class="metric-sub">Memuat misi</span><button id="btn-career" class="text-button">Lihat misi <span aria-hidden="true">→</span></button></div>
             </section>
             <div class="section-heading"><h2>Langkah berikutnya</h2><span class="eyebrow">HARI INI</span></div>
-            <section class="card session-card" aria-labelledby="trading-agenda-title"><span class="icon-tile" aria-hidden="true">◷</span><div><h2 id="trading-agenda-title">Sesi pasar otomatis</h2><p id="home-clock-state">Memuat waktu game…</p></div><button id="btn-briefing" class="btn-secondary">Jadwal Sesi</button></section>
             <div class="quick-grid">
                 <button id="btn-reports" class="shortcut"><span aria-hidden="true">▤</span><strong>Laporan harian</strong><small>Hasil & aktivitas <span aria-hidden="true">↗</span></small></button>
                 <button id="btn-achievements" class="shortcut"><span aria-hidden="true">◇</span><strong>Pencapaian</strong><small id="home-achievement-count">Progres & badge ↗</small></button>
@@ -153,45 +152,48 @@
 
             <div class="section-heading"><h2>Pantauan pasar</h2><button id="btn-home-market" class="text-button">Semua <span aria-hidden="true">→</span></button></div>
             <div id="home-market-list" class="compact-market"></div>
-            <button id="btn-entry-game" class="text-button">Permainan & panduan <span aria-hidden="true">↗</span></button>
+            <button id="btn-entry-game" class="text-button">Panduan & Mekanisme <span aria-hidden="true">↗</span></button>
         </section>
 
         <!-- 2. VIEW: PASAR (S06) -->
         <section id="view-pasar" class="screen-view">
-            <div class="page-heading"><div><span class="eyebrow" id="market-session-eyebrow">IDX · US</span><h1>Pasar</h1></div><span class="live-badge">Harga game</span></div>
+            <div class="page-heading"><div><span class="eyebrow" id="market-session-eyebrow">IDX · US</span><h1>Pasar</h1></div><span class="live-badge">Pasar Realtime</span></div>
             <!-- Indeks Gabungan -->
-            <h2 class="card-title">Indeks simulasi game</h2>
+            <h2 class="card-title">Indeks Pasar Utama</h2>
             <div id="indices-row" class="market-ribbon table-scroll" tabindex="0" role="region" aria-label="Daftar indeks pasar, geser untuk melihat lainnya"></div>
             <div class="market-highlights" id="market-highlights"></div>
             <div class="market-tools"><button id="btn-order-history" class="shortcut"><span aria-hidden="true">≡</span><strong>Order</strong></button><button id="btn-ipo-center" class="shortcut"><span aria-hidden="true">↗</span><strong>IPO</strong></button><button id="btn-reksa-dana" class="shortcut"><span aria-hidden="true">📊</span><strong>Reksa Dana</strong></button><button id="btn-multiasset" class="shortcut"><span aria-hidden="true">◈</span><strong>Multi-aset</strong></button></div>
 
             <!-- Search & Filter Controls -->
-            <div style="margin-bottom:12px; display:flex; flex-wrap:wrap; gap:8px;">
-                <div style="flex:2 1 160px; min-width:0;">
-                    <label for="search-stock-input">Cari emiten saham</label>
-                    <input id="search-stock-input" class="input-field" style="margin:0;" type="text" placeholder="Ticker / nama emiten">
+            <div class="card market-filter-card" style="margin-bottom:12px; padding:14px 16px;">
+                <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+                    <div style="flex:2 1 160px; min-width:0;">
+                        <label for="search-stock-input">Cari emiten saham</label>
+                        <input id="search-stock-input" class="input-field" style="margin:0;" type="text" placeholder="Ticker / nama emiten">
+                    </div>
+                    <div style="flex:1 1 120px; min-width:0;">
+                        <label for="filter-exchange-select">Bursa</label>
+                        <select id="filter-exchange-select" class="input-field" style="margin:0;">
+                            <option value="">Semua</option>
+                            <option value="IDX">IDX (Indonesia)</option>
+                            <option value="US">US (Wall St)</option>
+                        </select>
+                    </div>
+                    <div style="flex:1 1 160px; min-width:0;">
+                        <label for="filter-sector-select">Kategori / sektor</label>
+                        <select id="filter-sector-select" class="input-field" style="margin:0;">
+                            <option value="">Semua kategori</option>
+                        </select>
+                    </div>
                 </div>
-                <div style="flex:1 1 120px; min-width:0;">
-                    <label for="filter-exchange-select">Bursa</label>
-                    <select id="filter-exchange-select" class="input-field" style="margin:0;">
-                        <option value="">Semua</option>
-                        <option value="IDX">IDX (Indonesia)</option>
-                        <option value="US">US (Wall St)</option>
-                    </select>
-                </div>
-                <div style="flex:1 1 160px; min-width:0;">
-                    <label for="filter-sector-select">Kategori / sektor</label>
-                    <select id="filter-sector-select" class="input-field" style="margin:0;">
-                        <option value="">Semua kategori</option>
+                <div>
+                    <label for="filter-list-select">Daftar emiten</label>
+                    <select id="filter-list-select" class="input-field" style="margin:0;">
+                        <option value="all">Semua emiten aktif</option>
+                        <option value="watchlist">Watchlist</option>
                     </select>
                 </div>
             </div>
-
-            <label for="filter-list-select">Daftar emiten</label>
-            <select id="filter-list-select" class="input-field">
-                <option value="all">Semua emiten aktif</option>
-                <option value="watchlist">Watchlist</option>
-            </select>
             <p id="stock-list-status" role="status"></p>
             <!-- Stock List -->
             <div id="stock-list-container"></div>
@@ -229,12 +231,11 @@
             </div>
         </section>
 
-        <!-- 5. VIEW: RISET & TERMINAL (S25) -->
+        <!-- 5. VIEW: LAINNYA & RISET (S25) -->
         <section id="view-riset" class="screen-view">
             <div class="card">
-                <h2 class="card-title">Riset belum terhubung</h2>
-                <p>Feed dengan waktu game dan asal konten yang tervalidasi belum terhubung ke layar ini. Tidak menampilkan berita contoh sebagai peristiwa aktual.</p>
-                <p>Berita, analis, kalender, paket terminal, dan replay tetap fitur wajib yang belum lengkap.</p>
+                <h2 class="card-title">Memuat Lainnya & Riset…</h2>
+                <p>Menyiapkan profil, misi, riset pasar, dan pengaturan sistem.</p>
             </div>
         </section>
 
@@ -271,17 +272,23 @@
                 <button id="btn-close-modal" aria-label="Tutup tiket order" style="background:transparent; border:none; color:var(--text-muted); font-size:1.4rem; padding:4px 8px; cursor:pointer;">✕</button>
             </div>
 
+            <div id="order-cash-summary" style="background:var(--surface-raised); border-radius:8px; padding:8px 12px; margin-bottom:12px; display:flex; justify-content:space-between; font-size:0.82rem;">
+                <span style="color:var(--text-secondary);">Kas Tersedia: <strong id="order-cash-avail" style="color:var(--text);">-</strong></span>
+                <span style="color:var(--text-secondary);">Tertahan: <strong id="order-cash-reserved" style="color:var(--text);">-</strong></span>
+            </div>
+
             <div style="display:flex; gap:8px; margin-bottom:12px;">
                 <button class="btn-secondary side-btn" data-side="BUY" aria-pressed="false">BELI</button>
                 <button class="btn-secondary side-btn" data-side="SELL" aria-pressed="false">JUAL</button>
             </div>
 
-            <label for="order-type">Jenis order</label>
-            <select id="order-type" class="input-field">
-                <option value="LIMIT">Limit</option><option value="MARKET">Market</option>
-                <option value="STOP_LOSS">Stop-loss (market setelah pemicu)</option>
-                <option value="TAKE_PROFIT">Take-profit (market setelah pemicu)</option>
-            </select>
+            <fieldset id="order-type" class="order-type-options">
+                <legend>Jenis order</legend>
+                <label><input type="radio" name="order-type" value="MARKET"><span><strong>Market</strong><small>Harga antrean saat ini</small></span></label>
+                <label><input type="radio" name="order-type" value="LIMIT" checked><span><strong>Limit</strong><small>Tentukan batas harga</small></span></label>
+                <label><input type="radio" name="order-type" value="STOP_LOSS"><span><strong>Stop Loss</strong><small>Aktif saat menyentuh pemicu</small></span></label>
+                <label><input type="radio" name="order-type" value="TAKE_PROFIT"><span><strong>Take Profit</strong><small>Aktif saat mencapai target</small></span></label>
+            </fieldset>
             <div id="order-account-context"></div>
             <label id="order-unit-label" for="order-qty" style="font-size:0.85rem; color:var(--text-secondary);">Jumlah unit</label>
             <input id="order-qty" class="input-field" type="number" min="1" value="1">
