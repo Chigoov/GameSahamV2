@@ -1,0 +1,23 @@
+{
+  "width": 1254,
+  "height": 1254,
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "alpha_bbox": [
+    107,
+    473,
+    1175,
+    884
+  ],
+  "raw_alpha_bbox": [
+    0,
+    161,
+    1194,
+    1230
+  ],
+  "crop_threshold": 16,
+  "transparent_pixels": 1244891,
+  "visual_review": "PASS after new imagegen design: distinct flowing rounded long-tail architecture, oval lights, smooth nose and integrated aero, emerald paint/silver wheels; entire silhouette uncut, adequate approximately 10 percent asymmetric margin (minimum 6.3 percent), genuine alpha and sharp navy/light card views inspected. Earlier variants preserved."
+}

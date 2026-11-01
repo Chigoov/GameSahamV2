@@ -1,0 +1,23 @@
+{
+  "width": 1254,
+  "height": 1254,
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "alpha_bbox": [
+    182,
+    339,
+    1158,
+    952
+  ],
+  "raw_alpha_bbox": [
+    25,
+    53,
+    1224,
+    1228
+  ],
+  "crop_threshold": 16,
+  "transparent_pixels": 1365398,
+  "visual_review": "PASS: native aircraft identity, complete wings/propellers/tail, genuine alpha, readable navy/light previews and appropriate rarity presentation individually inspected."
+}

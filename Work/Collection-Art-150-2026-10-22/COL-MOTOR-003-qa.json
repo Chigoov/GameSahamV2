@@ -1,0 +1,23 @@
+{
+  "width": 1254,
+  "height": 1254,
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "alpha_bbox": [
+    165,
+    266,
+    1144,
+    1050
+  ],
+  "raw_alpha_bbox": [
+    0,
+    17,
+    1232,
+    1232
+  ],
+  "crop_threshold": 16,
+  "transparent_pixels": 1161356,
+  "visual_review": "PASS: individual native subject/rarity, whole silhouette/crop, real alpha, sharp navy/light card-size previews inspected. Raw RGB specks in near-transparent pixels are not visible in alpha composites; native detail crops confirm this. Some originals have asymmetric padding, all visible parts uncut."
+}

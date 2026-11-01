@@ -14,6 +14,37 @@ import java.util.Objects;
 public final class SaveManager {
     private final File baseDir;
     private final String filename;
+    private java.util.function.Consumer<SaveState> stateValidator = state -> {};
+    private byte[] validatedPrimaryDigest;
+
+    public void setStateValidator(java.util.function.Consumer<SaveState> validator) {
+        Objects.requireNonNull(validator);
+        if (stateValidator != validator) invalidateValidatedPrimary();
+        stateValidator = validator;
+    }
+
+    public void invalidateValidatedPrimary() { validatedPrimaryDigest = null; }
+
+    private static byte[] digest(String content) {
+        try { return java.security.MessageDigest.getInstance("SHA-256").digest(content.getBytes(StandardCharsets.UTF_8)); }
+        catch (java.security.NoSuchAlgorithmException unavailable) { throw new IllegalStateException(unavailable); }
+    }
+
+    public SaveState readValidatedState(String content) throws JSONException {
+        SaveState state = SaveState.fromJsonString(content);
+        validateState(state);
+        return state;
+    }
+
+    private void validateState(SaveState state) throws JSONException {
+        if (state.getSchemaVersion() != SaveState.SCHEMA_VERSION) throw new IllegalArgumentException("Versi save belum didukung");
+        if (state.getAccounts().isEmpty()) throw new IllegalArgumentException("Save tidak memiliki akun");
+        Objects.requireNonNull(state.getGameMode());
+        Objects.requireNonNull(state.getGameDate());
+        Objects.requireNonNull(state.getGameTime());
+        if (state.getGameMsRemainder() < 0 || state.getGameMsRemainder() > 999) throw new IllegalArgumentException("Remainder harus 0..999");
+        stateValidator.accept(state.detachedCopy());
+    }
 
     public SaveManager(File baseDir, String filename) {
         this.baseDir = Objects.requireNonNull(baseDir);
@@ -48,6 +79,7 @@ public final class SaveManager {
             throw new IOException("Gagal membuat direktori save: " + baseDir.getAbsolutePath());
         }
 
+        validateState(state);
         String jsonStr = state.toJsonString();
         File tempFile = getTempFile();
         File targetFile = getSaveFile();
@@ -65,9 +97,11 @@ public final class SaveManager {
         // 2. Rotasi backup dari file lama jika ada dan valid
         if (targetFile.exists() && targetFile.length() > 0) {
             boolean isTargetValid = false;
+            String existingContent = null;
             try {
-                String existingContent = readFileToString(targetFile);
-                SaveState.fromJsonString(existingContent);
+                existingContent = readFileToString(targetFile);
+                // ponytail: reuse validation only for identical bytes under the same domain validator; changed files are fully revalidated.
+                if (!java.util.Arrays.equals(validatedPrimaryDigest, digest(existingContent))) readValidatedState(existingContent);
                 isTargetValid = true;
             } catch (Exception invalidTarget) {
                 // Primary rusak (>10 byte, truncated, atau JSON tidak valid):
@@ -78,7 +112,7 @@ public final class SaveManager {
             if (isTargetValid) {
                 Path tempBackup = Files.createTempFile(baseDir.toPath(), "bak-", ".tmp");
                 try {
-                    Files.copy(targetFile.toPath(), tempBackup, StandardCopyOption.REPLACE_EXISTING);
+                    Files.write(tempBackup, existingContent.getBytes(StandardCharsets.UTF_8));
                     try (FileOutputStream bfos = new FileOutputStream(tempBackup.toFile(), true)) {
                         bfos.getFD().sync();
                     }
@@ -86,9 +120,8 @@ public final class SaveManager {
                         Files.move(tempBackup, backupFile.toPath(),
                                 StandardCopyOption.REPLACE_EXISTING,
                                 StandardCopyOption.ATOMIC_MOVE);
-                    } catch (AtomicMoveNotSupportedException e) {
-                        Files.move(tempBackup, backupFile.toPath(),
-                                StandardCopyOption.REPLACE_EXISTING);
+                    } catch (java.nio.file.FileSystemException e) {
+                        robustMove(tempBackup, backupFile.toPath());
                     }
                 } finally {
                     Files.deleteIfExists(tempBackup);
@@ -98,19 +131,34 @@ public final class SaveManager {
 
         // 3. Verifikasi tempFile dan Atomic replace temp ke target file
         try {
-            String tempContent = readFileToString(tempFile);
-            SaveState.fromJsonString(tempContent);
+            if (!tempFile.exists() || tempFile.length() == 0) {
+                throw new IOException("Temp save file kosong atau tidak ditemukan");
+            }
             try {
                 Files.move(tempFile.toPath(), targetFile.toPath(),
                         StandardCopyOption.REPLACE_EXISTING,
                         StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(tempFile.toPath(), targetFile.toPath(),
-                        StandardCopyOption.REPLACE_EXISTING);
+            } catch (java.nio.file.FileSystemException e) {
+                robustMove(tempFile.toPath(), targetFile.toPath());
             }
+            validatedPrimaryDigest = digest(jsonStr);
         } finally {
             Files.deleteIfExists(tempFile.toPath());
         }
+    }
+
+    private static void robustMove(Path source, Path target) throws IOException {
+        IOException lastError = null;
+        for (int attempt = 0; attempt < 10; attempt++) {
+            try {
+                Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+                return;
+            } catch (IOException ex) {
+                lastError = ex;
+                try { Thread.sleep(20); } catch (InterruptedException ignored) {}
+            }
+        }
+        if (lastError != null) throw lastError;
     }
 
     /**
@@ -129,7 +177,8 @@ public final class SaveManager {
         if (targetFile.exists()) {
             try {
                 String content = readFileToString(targetFile);
-                SaveState state = SaveState.fromJsonString(content);
+                SaveState state = readValidatedState(content);
+                validatedPrimaryDigest = digest(content);
                 return new LoadResult(state, LoadSource.PRIMARY, "Berhasil memuat save utama");
             } catch (Exception e) {
                 // File utama korup, coba beralih ke backup
@@ -141,7 +190,7 @@ public final class SaveManager {
         if (backupFile.exists()) {
             try {
                 String content = readFileToString(backupFile);
-                SaveState state = SaveState.fromJsonString(content);
+                SaveState state = readValidatedState(content);
                 return new LoadResult(state, LoadSource.BACKUP_RECOVERED, "Berhasil dipulihkan dari backup (.bak)");
             } catch (Exception e) {
                 return new LoadResult(null, LoadSource.CORRUPTED_ALL, "Save utama dan backup keduanya rusak: " + e.getMessage());
@@ -161,20 +210,20 @@ public final class SaveManager {
         Path target = directory.resolve(requestId + ".json");
         if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
             validatePrestigePath(target.toString());
-            SaveState.fromJsonString(readFileToString(target.toFile()));
+            readValidatedState(readFileToString(target.toFile()));
             return target.toAbsolutePath().toString();
         }
         Path primary = getSaveFile().toPath();
         if (Files.isSymbolicLink(primary) || !Files.isRegularFile(primary)) throw new IOException("Save utama valid wajib tersedia");
         byte[] bytes = Files.readAllBytes(primary);
-        SaveState.fromJsonString(new String(bytes, StandardCharsets.UTF_8));
+        readValidatedState(new String(bytes, StandardCharsets.UTF_8));
         Path temporary = Files.createTempFile(directory, "prestige-", ".tmp");
         try {
             try (FileOutputStream output = new FileOutputStream(temporary.toFile())) {
                 output.write(bytes); output.getFD().sync();
             }
             if (!java.util.Arrays.equals(bytes, Files.readAllBytes(temporary))) throw new IOException("Verifikasi backup gagal");
-            SaveState.fromJsonString(readFileToString(temporary.toFile()));
+            readValidatedState(readFileToString(temporary.toFile()));
             // ponytail: refuse unsupported atomic backup rather than acknowledge a partial recovery point.
             Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE);
             return target.toAbsolutePath().toString();
@@ -183,7 +232,7 @@ public final class SaveManager {
 
     public synchronized SaveState restorePrestigeBackup(String backupPath) throws IOException, JSONException {
         Path backup = validatePrestigePath(backupPath);
-        SaveState state = SaveState.fromJsonString(readFileToString(backup.toFile()));
+        SaveState state = readValidatedState(readFileToString(backup.toFile()));
         save(state);
         return state;
     }
@@ -208,9 +257,52 @@ public final class SaveManager {
         return path;
     }
 
+    public synchronized org.json.JSONObject getSaveMetadata() throws org.json.JSONException {
+        File primary = getSaveFile();
+        File backup = getBackupFile();
+        boolean primaryExists = primary.exists() && primary.length() > 0;
+        boolean backupExists = backup.exists() && backup.length() > 0;
+        org.json.JSONObject meta = new org.json.JSONObject();
+        meta.put("format", "JSON Standar (Skema V2, UTF-8)");
+        meta.put("primaryExists", primaryExists);
+        meta.put("primaryLastModified", primaryExists ? primary.lastModified() : org.json.JSONObject.NULL);
+        meta.put("primarySizeBytes", primaryExists ? primary.length() : 0);
+        meta.put("backupRotationSupported", true);
+        meta.put("backupFileExists", backupExists);
+        meta.put("backupLastModified", backupExists ? backup.lastModified() : org.json.JSONObject.NULL);
+        meta.put("backupSizeBytes", backupExists ? backup.length() : 0);
+        meta.put("backupStatusLabel", backupExists ? "Tersedia (" + backup.length() + " bytes)" : "Belum tersedia (dibuat pada penyimpanan berikutnya)");
+        return meta;
+    }
+
+    public static boolean validateSaveIntegrity(String content) {
+        if (content == null || content.trim().isEmpty()) return false;
+        try {
+            org.json.JSONObject root = new org.json.JSONObject(content);
+            if (root.getInt("schemaVersion") != SaveState.SCHEMA_VERSION) return false;
+            com.tradingglobal3d.core.model.GameMode.valueOf(root.getString("gameMode"));
+            root.getLong("savedTimestamp");
+            java.time.LocalDate.parse(root.getString("gameDate"));
+            java.time.LocalTime.parse(root.getString("gameTime"));
+            SaveState state = SaveState.fromJsonString(content);
+            if (state == null || state.getAccounts() == null || state.getAccounts().isEmpty()) return false;
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public String readBackupContent() throws IOException {
+        return readFileToString(getBackupFile());
+    }
+
+    public String readPrimaryContent() throws IOException {
+        return readFileToString(getSaveFile());
+    }
+
     private String readFileToString(File file) throws IOException {
         byte[] bytes = Files.readAllBytes(file.toPath());
-        return new String(bytes, StandardCharsets.UTF_8);
+        return StandardCharsets.UTF_8.newDecoder().decode(java.nio.ByteBuffer.wrap(bytes)).toString();
     }
 
     public enum LoadSource {

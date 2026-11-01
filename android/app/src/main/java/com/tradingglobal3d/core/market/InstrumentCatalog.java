@@ -123,7 +123,11 @@ public final class InstrumentCatalog {
                 .put("id", inst.getId()).put("price", inst.getCurrentPrice().getAmount().toPlainString())
                 .put("previous", inst.getPreviousClosePrice().getAmount().toPlainString())
                 .put("high", inst.getDayHigh().getAmount().toPlainString())
-                .put("low", inst.getDayLow().getAmount().toPlainString()).put("volume", inst.getDayVolume()));
+                .put("low", inst.getDayLow().getAmount().toPlainString()).put("volume", inst.getDayVolume())
+                .put("intrinsicValue", inst.getIntrinsicValue().toPlainString())
+                .put("trailingEps", inst.getTrailingEps().toPlainString())
+                .put("sectorAvgPer", inst.getSectorAvgPer())
+                .put("shareSupply", inst.exportShareSupply()));
         return new JSONObject().put("catalogVersion", STATE_VERSION).put("instruments", instruments).put("watchlist", new JSONArray(watchlistIds));
     }
 
@@ -137,11 +141,18 @@ public final class InstrumentCatalog {
             if (source == null || !ids.add(source.getId())) throw new IllegalArgumentException("Instrumen save tidak dikenal atau duplikat");
             Currency c = source.getCurrency();
             Instrument copy = new Instrument(source.getId(), source.getTicker(), source.getName(), source.getExchange(),
-                    source.getSector(), c, source.getLotSize(), source.getSharesOutstanding(), source.isActiveTrading(), source.getCurrentPrice());
+                    source.getSector(), c, source.getLotSize(), source.getCatalogIssuedShares(), source.isActiveTrading(), source.getCurrentPrice());
+            copy.restoreShareSupply(item.optJSONObject("shareSupply"));
             copy.restoreMarketState(new Money(new BigDecimal(item.getString("price")), c),
                     new Money(new BigDecimal(item.getString("previous")), c),
                     new Money(new BigDecimal(item.getString("high")), c),
                     new Money(new BigDecimal(item.getString("low")), c), item.getLong("volume"));
+            if (item.has("intrinsicValue") || item.has("trailingEps")) {
+                BigDecimal intrinsic = item.has("intrinsicValue") ? new BigDecimal(item.getString("intrinsicValue")) : null;
+                BigDecimal eps = item.has("trailingEps") ? new BigDecimal(item.getString("trailingEps")) : null;
+                double per = item.optDouble("sectorAvgPer", 15.0);
+                copy.restoreFundamentalState(intrinsic, eps, per);
+            }
             staged.add(copy);
         }
         return staged;
@@ -174,8 +185,12 @@ public final class InstrumentCatalog {
     public synchronized void restoreState(JSONObject state) throws JSONException {
         List<Instrument> staged = parseMarketState(state.getJSONArray("instruments"));
         Set<String> watchlist = parseWatchlist(state.getJSONArray("watchlist"));
-        for (Instrument saved : staged) instrumentsById.get(saved.getId()).restoreMarketState(saved.getCurrentPrice(),
-                saved.getPreviousClosePrice(), saved.getDayHigh(), saved.getDayLow(), saved.getDayVolume());
+        for (Instrument saved : staged) {
+            Instrument target = instrumentsById.get(saved.getId());
+            target.restoreShareSupply(saved.exportShareSupply());
+            target.restoreMarketState(saved.getCurrentPrice(), saved.getPreviousClosePrice(), saved.getDayHigh(), saved.getDayLow(), saved.getDayVolume());
+            target.restoreFundamentalState(saved.getIntrinsicValue(), saved.getTrailingEps(), saved.getSectorAvgPer());
+        }
         watchlistIds.clear(); watchlistIds.addAll(watchlist);
         recalculateAllIndices();
     }

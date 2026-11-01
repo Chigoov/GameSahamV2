@@ -1,11 +1,16 @@
 package com.tradingglobal3d.mobile;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebChromeClient;
+import android.webkit.ConsoleMessage;
+import android.webkit.JsResult;
+import android.webkit.JsPromptResult;
 import android.webkit.WebResourceRequest;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -22,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 public class MainActivity extends Activity {
     private WebView webView;
     private TradingFacade facade;
+    private TradingWebBridge bridge;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,6 +50,7 @@ public class MainActivity extends Activity {
             }
             InstrumentCatalog catalog = InstrumentCatalog.fromJsonString(jsonUniverse);
             facade.setCatalog(catalog);
+            facade.setDynamicDailyNewsEnabled(true);
         } catch (Exception e) {
             TextView error = new TextView(this);
             error.setText("Data game gagal dimuat. Tutup lalu buka kembali aplikasi. Progres tersimpan tidak diubah.");
@@ -53,23 +60,53 @@ public class MainActivity extends Activity {
             return;
         }
 
-        // Save yang gagal divalidasi tidak boleh digantikan permainan baru.
-        facade.startOrResume();
+        // Startup/load runs on the same clock worker as resume, never on the UI thread.
+        bridge = new TradingWebBridge(facade, this);
+        bridge.beginClockSync(true);
+        if ((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            Thread diagnostic = new Thread(() -> {
+                try { Thread.sleep(10000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
+                if (bridge.isClockSyncPending()) {
+                    for (java.util.Map.Entry<Thread, StackTraceElement[]> entry : Thread.getAllStackTraces().entrySet()) {
+                        String name = entry.getKey().getName();
+                        if (name.equals("world-clock-reconciliation") || name.contains("JavaBridge") || name.equals("main")) {
+                            android.util.Log.d("GameClockDiag", name + " " + entry.getKey().getState() + " " + java.util.Arrays.toString(entry.getValue()));
+                        }
+                    }
+                }
+            }, "clock-diagnostic");
+            diagnostic.setDaemon(true);
+            diagnostic.start();
+        }
 
-        // 2. Setup WebView dengan orientasi portrait dan tema navy (#0F1720)
+        // 2. Setup WebView dengan orientasi portrait dan akselerasi hardware
         setupNotificationChannel();
+        getWindow().setFlags(
+                android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+                android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
+
         webView = new WebView(this);
         webView.setBackgroundColor(Color.parseColor("#0F1720"));
-        setContentView(webView);
+        webView.setLayerType(android.view.View.LAYER_TYPE_NONE, null); // Mencegah GPU RenderThread crash pada Android WebView (Bug #31)
+        webView.setVerticalScrollBarEnabled(false);
+        webView.setHorizontalScrollBarEnabled(false);
+        webView.setOverScrollMode(android.view.View.OVER_SCROLL_NEVER);
+        android.widget.FrameLayout content = new android.widget.FrameLayout(this);
+        content.setBackgroundColor(Color.parseColor("#070b14"));
+        content.addView(webView, new android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT));
+        setContentView(content);
         if (android.os.Build.VERSION.SDK_INT >= 30) {
-            webView.setOnApplyWindowInsetsListener((view, insets) -> {
-                android.graphics.Insets safe = insets.getInsets(android.view.WindowInsets.Type.systemBars()
-                        | android.view.WindowInsets.Type.displayCutout() | android.view.WindowInsets.Type.ime());
+            content.setOnApplyWindowInsetsListener((view, insets) -> {
+                int types = android.view.WindowInsets.Type.systemBars()
+                        | android.view.WindowInsets.Type.displayCutout() | android.view.WindowInsets.Type.ime();
+                android.graphics.Insets safe = insets.getInsets(types);
                 view.setPadding(safe.left, safe.top, safe.right, safe.bottom);
-                return insets;
+                return new android.view.WindowInsets.Builder(insets)
+                        .setInsets(types, android.graphics.Insets.NONE).setDisplayCutout(null).build();
             });
         } else if (android.os.Build.VERSION.SDK_INT >= 28) {
-            webView.setOnApplyWindowInsetsListener((view, insets) -> {
+            content.setOnApplyWindowInsetsListener((view, insets) -> {
                 int left = insets.getSystemWindowInsetLeft();
                 int top = insets.getSystemWindowInsetTop();
                 int right = insets.getSystemWindowInsetRight();
@@ -82,17 +119,18 @@ public class MainActivity extends Activity {
                     bottom = Math.max(bottom, cutout.getSafeInsetBottom());
                 }
                 view.setPadding(left, top, right, bottom);
-                return insets;
+                return insets.consumeDisplayCutout().replaceSystemWindowInsets(0, 0, 0, 0);
             });
         } else {
-            webView.setOnApplyWindowInsetsListener((view, insets) -> {
+            content.setOnApplyWindowInsetsListener((view, insets) -> {
                 view.setPadding(insets.getSystemWindowInsetLeft(),
                         insets.getSystemWindowInsetTop(),
                         insets.getSystemWindowInsetRight(),
                         insets.getSystemWindowInsetBottom());
-                return insets;
+                return insets.replaceSystemWindowInsets(0, 0, 0, 0);
             });
         }
+        content.requestApplyInsets();
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -101,8 +139,56 @@ public class MainActivity extends Activity {
         settings.setLoadsImagesAutomatically(true);
 
         // Pasang Native Bridge ke domain ekonomi
-        TradingWebBridge bridge = new TradingWebBridge(facade, this);
         webView.addJavascriptInterface(bridge, "TradingNativeBridge");
+
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onConsoleMessage(ConsoleMessage message) {
+                if (message.messageLevel() == ConsoleMessage.MessageLevel.ERROR) {
+                    android.util.Log.e("GameWebView", message.sourceId() + ":" + message.lineNumber() + " " + message.message());
+                }
+                return true;
+            }
+
+            @Override
+            public boolean onJsAlert(WebView view, String url, String message, JsResult result) {
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Game Saham")
+                        .setMessage(message)
+                        .setPositiveButton(android.R.string.ok, (dialog, which) -> result.confirm())
+                        .setCancelable(false)
+                        .show();
+                return true;
+            }
+
+            @Override
+            public boolean onJsConfirm(WebView view, String url, String message, JsResult result) {
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Konfirmasi")
+                        .setMessage(message)
+                        .setPositiveButton("Lanjutkan", (dialog, which) -> result.confirm())
+                        .setNegativeButton("Batal", (dialog, which) -> result.cancel())
+                        .setCancelable(false)
+                        .show();
+                return true;
+            }
+
+            @Override
+            public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, JsPromptResult result) {
+                final android.widget.EditText input = new android.widget.EditText(MainActivity.this);
+                input.setText(defaultValue);
+                input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Input Angka")
+                        .setMessage(message)
+                        .setView(input)
+                        .setPositiveButton("Lanjut", (dialog, which) -> result.confirm(input.getText().toString()))
+                        .setNegativeButton("Batal", (dialog, which) -> result.cancel())
+                        .setCancelable(false)
+                        .show();
+                return true;
+            }
+        });
 
         // The Java bridge is available only to packaged application content.
         settings.setAllowContentAccess(false);
@@ -123,35 +209,45 @@ public class MainActivity extends Activity {
     protected void onPause() {
         super.onPause();
         // Rekonsiliasi transisi lifecycle ke background pada rasio tidak aktif 24x (1 jam nyata = 1 hari game)
-        if (facade != null) {
-            facade.onAppLifecycleChanged(false);
-            try {
-                facade.save();
-                saveFailed = false;
-            } catch (Exception error) {
-                saveFailed = true;
-            }
-        }
+        if (bridge != null) bridge.beginClockSync(false);
     }
 
     @Override
     protected void onStop() {
         super.onStop();
         // Fail-safe autosave saat aplikasi diminimalkan / diswipe keluar
-        if (facade != null) {
-            try {
-                facade.save();
-            } catch (Exception ignored) {}
+        if (bridge != null) bridge.beginClockSync(false);
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (bridge != null) {
+            bridge.destroy();
         }
+        if (webView != null) {
+            webView.stopLoading();
+            webView.clearHistory();
+            webView.removeAllViews();
+            webView.destroy();
+            webView = null;
+        }
+        super.onDestroy();
     }
 
     private boolean saveFailed;
 
+    public void notifySaveFailed(boolean failed) {
+        this.saveFailed = failed;
+        if (failed) {
+            runOnUiThread(this::showSaveFailure);
+        } else if (webView != null) {
+            runOnUiThread(() -> webView.evaluateJavascript("document.getElementById('native-save-warning')?.remove();", null));
+        }
+    }
+
     @Override protected void onResume() {
         super.onResume();
-        if (facade != null) {
-            facade.onAppLifecycleChanged(true);
-        }
+        if (bridge != null) bridge.beginClockSync(true);
         showSaveFailure();
     }
 

@@ -1,0 +1,23 @@
+{
+  "width": 1254,
+  "height": 1254,
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "alpha_bbox": [
+    389,
+    309,
+    933,
+    997
+  ],
+  "raw_alpha_bbox": [
+    35,
+    36,
+    1226,
+    1220
+  ],
+  "crop_threshold": 16,
+  "transparent_pixels": 1285217,
+  "visual_review": "PASS: native watch identity/rarity details, complete case and strap/chain, real alpha, generous margin and sharp navy/light card-size views individually inspected."
+}

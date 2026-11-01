@@ -12,8 +12,8 @@ import java.util.Objects;
  * Mengontrol tanggal bursa, waktu sesi (WIB / UTC+7), percepatan, dan pause.
  */
 public final class GameClock {
-    public static final long FOREGROUND_GAME_SECONDS_PER_REAL_SECOND = 96L;
-    public static final long INACTIVE_GAME_SECONDS_PER_REAL_SECOND = 24L;
+    public static final long FOREGROUND_GAME_SECONDS_PER_REAL_SECOND = 48L; // 1 Hari Game = 30 Menit Nyata (48x)
+    public static final long INACTIVE_GAME_SECONDS_PER_REAL_SECOND = 48L;
     public static final long SECONDS_PER_GAME_DAY = 86400L;
     public static final long MS_PER_GAME_DAY = 86400000L;
 
@@ -27,7 +27,7 @@ public final class GameClock {
     public GameClock(LocalDate startDate, LocalTime startTime) {
         this.currentDate = Objects.requireNonNull(startDate);
         this.currentTime = Objects.requireNonNull(startTime);
-        this.isPaused = true;
+        this.isPaused = false;
         this.speedMultiplier = 1;
         this.gameMsRemainder = 0;
         this.isForeground = true;
@@ -62,17 +62,15 @@ public final class GameClock {
     }
 
     /**
-     * Konversi eksak real millisecond ke game millisecond sesuai kontrak TIME-ACCEPTANCE.
-     * Foreground 1x: 96 game ms / real ms (900 detik nyata = 1 hari game / 86400 detik game).
-     * Foreground 2x: 192 game ms / real ms.
-     * Foreground 5x: 480 game ms / real ms.
-     * Inactive (background / ditutup): 24 game ms / real ms (3600 detik nyata = 1 hari game, mengabaikan speedMultiplier).
+     * Satu kalender dunia: 24 game ms per real ms pada semua lifecycle.
+     * Parameter lama dipertahankan untuk membaca save/caller lama, bukan kontrol laju pemain.
      */
     public static long convertRealMsToGameMs(long realMs, boolean foreground, int speedMultiplier) {
         if (realMs < 0) throw new IllegalArgumentException("Waktu tidak boleh negatif");
-        long rate = foreground ? (FOREGROUND_GAME_SECONDS_PER_REAL_SECOND * (long) speedMultiplier)
-                               : INACTIVE_GAME_SECONDS_PER_REAL_SECOND;
-        return Math.multiplyExact(realMs, rate);
+        // Speed multiplier dinonaktifkan: pemain tidak memiliki kontrol percepatan.
+        // Foreground dan inactive selalu pada rate dasar masing-masing.
+        long baseRate = foreground ? FOREGROUND_GAME_SECONDS_PER_REAL_SECOND : INACTIVE_GAME_SECONDS_PER_REAL_SECOND;
+        return Math.multiplyExact(realMs, baseRate);
     }
 
     /**
@@ -140,28 +138,28 @@ public final class GameClock {
             return MarketSession.CLOSED;
         }
 
-        // Default IDX (WIB)
-        // 08:45 - 08:59: Pre-opening
+        // IDX (WIB) — Sesi perdagangan reguler
+        // 08:45 - 08:59: Pra-Pembukaan
         if (totalMinutes >= 525 && totalMinutes < 540) {
             return MarketSession.PRE_OPENING;
         }
-        // 09:00 - 11:30: Sesi 1
-        if (totalMinutes >= 540 && totalMinutes <= 690) {
+        // 09:00 - 11:59: Sesi I
+        if (totalMinutes >= 540 && totalMinutes < 720) {
             return MarketSession.SESSION_1;
         }
-        // 11:31 - 13:29: Break
-        if (totalMinutes > 690 && totalMinutes < 810) {
+        // 12:00 - 13:29: Istirahat Siang
+        if (totalMinutes >= 720 && totalMinutes < 810) {
             return MarketSession.BREAK;
         }
-        // 13:30 - 15:49: Sesi 2
-        if (totalMinutes >= 810 && totalMinutes < 950) {
+        // 13:30 - 15:59: Sesi II
+        if (totalMinutes >= 810 && totalMinutes < 960) {
             return MarketSession.SESSION_2;
         }
-        // 15:50 - 16:00: Post-closing
-        if (totalMinutes >= 950 && totalMinutes <= 960) {
+        // 16:00 - 16:15: Pra-Penutupan
+        if (totalMinutes >= 960 && totalMinutes <= 975) {
             return MarketSession.POST_CLOSING;
         }
-
+        // Luar jam perdagangan: Tutup
         return MarketSession.CLOSED;
     }
 

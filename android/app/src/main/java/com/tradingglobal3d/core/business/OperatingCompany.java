@@ -42,6 +42,7 @@ public final class OperatingCompany {
     private int workHours; // 6, 8, 10
     private BenefitTier benefitTier;
     private int morale; // 0 - 100
+    private boolean supplyChainCrisisActive;
     private Money payrollArrears = Money.zero(Currency.IDR);
     private long lastOperationsDay = Long.MIN_VALUE;
     private Money lastRevenue = Money.zero(Currency.IDR);
@@ -75,6 +76,21 @@ public final class OperatingCompany {
     public int getMorale() { return morale; }
     public Collection<Employee> getEmployees() { return Collections.unmodifiableCollection(employees.values()); }
     public long getStaffVersion() { return staffVersion; }
+
+    /**
+     * SINTESA MODUL 3: Skor Daya Saing Perusahaan (Market Competitiveness Score).
+     * Memperhitungkan Level Perusahaan, Fasilitas (Benefit Tier), Jam Kerja, Moral Pegawai, dan Produktivitas Staf/CEO.
+     */
+    public double getMarketCompetitivenessScore() {
+        double moraleWeight = (double) this.morale / 100.0;
+        double benefitBonus = this.benefitTier != null ? this.benefitTier.getMoraleBonus() * 0.5 : 0.0;
+        double productivity = (this.workHours == 10) ? 1.25 : (this.workHours == 6) ? 0.85 : 1.0;
+        for (Employee e : employees.values()) {
+            productivity += (e.getProductivityMultiplier() - 1.0);
+        }
+        double baseScore = (this.level * 20.0) + benefitBonus;
+        return Math.max(5.0, baseScore * moraleWeight * productivity);
+    }
 
     public void setWorkPolicy(int workHours, BenefitTier benefitTier) {
         if (workHours != 6 && workHours != 8 && workHours != 10) {
@@ -126,6 +142,7 @@ public final class OperatingCompany {
             int target = targetMorale();
             morale += Math.max(-5, Math.min(5, target - morale));
         }
+        supplyChainCrisisActive = false;
     }
 
     private int targetMorale() {
@@ -151,15 +168,21 @@ public final class OperatingCompany {
     // ponytail: legacy free-text sectors map to Jasa; canonical new sectors need no registry.
     public String getSectorModel() {
         String normalized = sector.toLowerCase(Locale.ROOT);
+        if (normalized.contains("energi") || normalized.contains("energy")) return "ENERGY";
         if (normalized.contains("manufaktur")) return "MANUFAKTUR";
         if (normalized.contains("ritel")) return "RITEL";
         return "JASA";
     }
 
+    public void applySupplyChainCrisis() { supplyChainCrisisActive = true; }
+
     public Money calculateDailyOperatingCost() {
         long base = getSectorModel().equals("MANUFAKTUR") ? 15_000_000L
                 : getSectorModel().equals("RITEL") ? 5_000_000L : 1_000_000L;
-        return Money.of(base, Currency.IDR).multiply(BigDecimal.valueOf(level));
+        Money cost = Money.of(base, Currency.IDR).multiply(BigDecimal.valueOf(level));
+        if (supplyChainCrisisActive && (getSectorModel().equals("MANUFAKTUR") || getSectorModel().equals("RITEL")))
+            cost = cost.multiply(new BigDecimal("1.50"));
+        return cost;
     }
 
     public Money calculateDailyCapacity() {
@@ -183,12 +206,23 @@ public final class OperatingCompany {
     }
 
     public Money calculateDailyRevenue(long day) {
+        return calculateDailyRevenue(day, 1.0);
+    }
+
+    public Money calculateDailyRevenue(long day, double macroMultiplier) {
         // Demand caps sales, so hiring beyond available demand cannot create unlimited revenue.
         long base = getSectorModel().equals("MANUFAKTUR") ? 50_000_000L
                 : getSectorModel().equals("RITEL") ? 20_000_000L : 8_000_000L;
         Money demand = Money.of(base, Currency.IDR).multiply(BigDecimal.valueOf(level)).multiply(getDemandFactor(day));
         Money capacity = calculateDailyCapacity();
-        return capacity.isLessThan(demand) ? capacity : demand;
+        Money sales = capacity.isLessThan(demand) ? capacity : demand;
+        if (supplyChainCrisisActive && getSectorModel().equals("ENERGY")) sales = sales.multiply(new BigDecimal("1.10"));
+
+        // Integrasi Skor Daya Saing Sintesa & Pengali Makro
+        double compRatio = getMarketCompetitivenessScore() / 50.0;
+        double effectiveMultiplier = compRatio * (macroMultiplier > 0 ? macroMultiplier : 1.0);
+        Money rev = sales.multiply(BigDecimal.valueOf(effectiveMultiplier).setScale(4, java.math.RoundingMode.HALF_UP));
+        return rev.isNegative() ? Money.zero(Currency.IDR) : rev;
     }
 
     public Money calculateDailyRevenue() {
@@ -221,6 +255,7 @@ public final class OperatingCompany {
         obj.put("workHours", workHours);
         obj.put("benefitTier", benefitTier.name());
         obj.put("morale", morale);
+        obj.put("supplyChainCrisisActive", supplyChainCrisisActive);
         obj.put("sectorModel", getSectorModel());
         obj.put("payrollArrears", payrollArrears.getAmount().toPlainString());
         obj.put("lastOperationsDay", lastOperationsDay);
@@ -264,6 +299,7 @@ public final class OperatingCompany {
         comp.setWorkPolicy(obj.optInt("workHours", 8),
                 BenefitTier.valueOf(obj.optString("benefitTier", BenefitTier.STANDARD.name())));
         comp.morale = Math.max(0, Math.min(100, obj.optInt("morale", 75)));
+        comp.supplyChainCrisisActive = obj.optBoolean("supplyChainCrisisActive", false);
         comp.payrollArrears = new Money(new BigDecimal(obj.optString("payrollArrears", "0")), Currency.IDR);
         if (comp.payrollArrears.isNegative()) throw new IllegalArgumentException("Tunggakan gaji tidak boleh negatif");
         comp.lastOperationsDay = obj.optLong("lastOperationsDay", Long.MIN_VALUE);

@@ -33,6 +33,15 @@ public final class NewsArticle {
     private final double sentimentImpact; // -1.0 s/d +1.0
     private final long announcedAt;       // Waktu pengumuman jadwal awal
     private final long publishedAt;       // Timestamp rilis resmi dalam waktu game
+    private long effectStartsRealAt = -1L;
+    private int effectDurationMinutes = 60;
+
+    public NewsArticle(String id, String headline, String content, Category category,
+                       String relatedTicker, double sentimentImpact, long publishedAt, int durationMinutes) {
+        this(id, headline, content, category, relatedTicker, sentimentImpact, publishedAt);
+        if (durationMinutes != 60 && durationMinutes != 120) throw new IllegalArgumentException("Durasi berita harus 60 atau 120 menit nyata");
+        this.effectDurationMinutes = durationMinutes;
+    }
 
     public NewsArticle(String id, String headline, String content, Category category,
                        String relatedTicker, double sentimentImpact, long publishedAt) {
@@ -89,6 +98,59 @@ public final class NewsArticle {
         return currentTimestamp >= publishedAt && currentTimestamp <= expiresAt;
     }
 
+    public void startRealEffect(long realAt) {
+        if (realAt < 0) throw new IllegalArgumentException("Waktu rilis nyata tidak valid");
+        if (effectStartsRealAt < 0) effectStartsRealAt = realAt;
+    }
+
+    public boolean isRealEffectActive(long realNow) {
+        return effectStartsRealAt >= 0 && realNow >= effectStartsRealAt
+                && realNow < Math.addExact(effectStartsRealAt, effectDurationMinutes * 60000L);
+    }
+
+    public JSONObject exportEffect() throws JSONException {
+        return new JSONObject().put("id", id).put("startsRealAt", effectStartsRealAt)
+                .put("durationMinutes", effectDurationMinutes);
+    }
+
+    public void restoreEffect(JSONObject state) throws JSONException {
+        long start = state.getLong("startsRealAt");
+        int duration = state.getInt("durationMinutes");
+        if (!id.equals(state.getString("id")) || start < -1 || (duration != 60 && duration != 120))
+            throw new IllegalArgumentException("Deadline berita tidak valid");
+        effectStartsRealAt = start;
+        effectDurationMinutes = duration;
+    }
+
+    public JSONObject exportState() throws JSONException {
+        return toJsonObject(publishedAt).put("announcedAt", announcedAt).put("effect", exportEffect());
+    }
+
+    public static NewsArticle fromState(JSONObject state) throws JSONException {
+        NewsArticle article = new NewsArticle(state.getString("id"), state.getString("headline"), state.getString("content"),
+                Category.valueOf(state.getString("category")), state.isNull("relatedTicker") ? null : state.getString("relatedTicker"),
+                state.getString("affectedSector"), state.getString("direction"), state.getString("estimatedRange"),
+                state.getInt("horizonDays"), state.getString("confidence"), state.getDouble("sentimentImpact"),
+                state.getLong("announcedAt"), state.getLong("publishedAt"));
+        article.restoreEffect(state.getJSONObject("effect"));
+        return article;
+    }
+
+    public JSONObject toJsonObject(long gameNow, long realNow, boolean replay) throws JSONException {
+        JSONObject obj = toJsonObject(gameNow);
+        if (!isPublished(gameNow)) {
+            obj.put("headline", "[Jadwal Rilis] " + affectedSector + ": " + direction);
+        }
+        long ends = effectStartsRealAt < 0 ? -1 : Math.addExact(effectStartsRealAt, effectDurationMinutes * 60000L);
+        long remaining = ends < 0 ? 0 : Math.max(0, ends - realNow);
+        boolean active = !replay && isPublished(gameNow) && isRealEffectActive(realNow);
+        return obj.put("effectStartsRealAt", effectStartsRealAt).put("effectEndsRealAt", ends)
+                .put("effectDurationRealMs", effectDurationMinutes * 60000L)
+                .put("effectRemainingRealMs", remaining).put("effectAsOfRealAt", realNow)
+                .put("effectActive", active).put("effectStatus", replay ? "NOT_APPLICABLE_REPLAY"
+                        : !isPublished(gameNow) ? "SCHEDULED" : active ? "ACTIVE" : "ENDED");
+    }
+
     public String getCountdownLabel(long currentTimestamp) {
         if (currentTimestamp < publishedAt) {
             long remainingMs = publishedAt - currentTimestamp;
@@ -114,24 +176,30 @@ public final class NewsArticle {
         obj.put("id", id);
         obj.put("category", category.name());
         obj.put("categoryLabel", category.getLabel());
-        obj.put("relatedTicker", relatedTicker == null ? JSONObject.NULL : relatedTicker);
-        obj.put("affectedSector", affectedSector);
-        obj.put("direction", direction);
-        obj.put("estimatedRange", estimatedRange);
         obj.put("horizonDays", horizonDays);
-        obj.put("confidence", confidence);
         obj.put("publishedAt", publishedAt);
-        obj.put("isPublished", isPublished(currentTimestamp));
+        boolean published = isPublished(currentTimestamp);
+        obj.put("isPublished", published);
         obj.put("countdownLabel", getCountdownLabel(currentTimestamp));
 
-        if (isPublished(currentTimestamp)) {
+        if (published) {
             obj.put("headline", headline);
             obj.put("content", content);
+            obj.put("relatedTicker", relatedTicker == null ? JSONObject.NULL : relatedTicker);
+            obj.put("affectedSector", affectedSector);
+            obj.put("direction", direction);
+            obj.put("estimatedRange", estimatedRange);
+            obj.put("confidence", confidence);
             obj.put("sentimentImpact", sentimentImpact);
         } else {
-            // Anti-future leak: isi lengkap dirahasiakan sebelum terbit, hanya clue yang tampil
-            obj.put("headline", "[Jadwal Rilis] " + affectedSector + ": " + direction);
+            // Anti-future leak: rahasiakan emiten, arah, rentang & sentimen dari feed umum sebelum terbit
+            obj.put("headline", "[Agenda Rilis] Kalender Berita " + category.getLabel());
             obj.put("content", "Informasi resmi sedang dalam proses persiapan publikasi keterbukaan.");
+            obj.put("relatedTicker", JSONObject.NULL);
+            obj.put("affectedSector", "Sektor " + category.getLabel());
+            obj.put("direction", "Terjadwal");
+            obj.put("estimatedRange", "");
+            obj.put("confidence", "Menunggu Rilis");
             obj.put("sentimentImpact", 0.0);
         }
         return obj;

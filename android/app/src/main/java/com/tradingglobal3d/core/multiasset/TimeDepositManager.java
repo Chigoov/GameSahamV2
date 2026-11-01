@@ -23,13 +23,16 @@ public final class TimeDepositManager {
         public final String bankName;
         public final int tenorDays;
         public final double annualInterestRate;
+        public final double bonusInterestPercent;
         public final Money minPlacement;
 
-        public DepositProduct(String id, String bankName, int tenorDays, double annualInterestRate, Money minPlacement) {
+        public DepositProduct(String id, String bankName, int tenorDays, double annualInterestRate,
+                              double bonusInterestPercent, Money minPlacement) {
             this.id = id;
             this.bankName = bankName;
             this.tenorDays = tenorDays;
             this.annualInterestRate = annualInterestRate;
+            this.bonusInterestPercent = bonusInterestPercent;
             this.minPlacement = minPlacement;
         }
 
@@ -38,7 +41,11 @@ public final class TimeDepositManager {
             obj.put("id", id);
             obj.put("bankName", bankName);
             obj.put("tenorDays", tenorDays);
+            obj.put("tenorSessions", tenorDays);
             obj.put("annualInterestRate", String.format(Locale.ROOT, "%.2f%%", annualInterestRate * 100));
+            obj.put("bonusInterestPercent", bonusInterestPercent);
+            obj.put("effectiveAnnualInterestRate", String.format(Locale.ROOT, "%.2f%%",
+                    annualInterestRate * (1.0 + bonusInterestPercent / 100.0) * 100.0));
             obj.put("minPlacement", minPlacement.format());
             obj.put("minPlacementRaw", minPlacement.getAmount().toPlainString());
             return obj;
@@ -54,9 +61,13 @@ public final class TimeDepositManager {
     }
 
     private void initializeProducts() {
-        products.put("DEP-BCA-1M", new DepositProduct("DEP-BCA-1M", "PT Bank Central Asia Tbk", 30, 0.035, Money.of(10_000_000, Currency.IDR)));
-        products.put("DEP-BMRI-3M", new DepositProduct("DEP-BMRI-3M", "PT Bank Mandiri (Persero) Tbk", 90, 0.0425, Money.of(10_000_000, Currency.IDR)));
-        products.put("DEP-BBRI-6M", new DepositProduct("DEP-BBRI-6M", "PT Bank Rakyat Indonesia Tbk", 180, 0.050, Money.of(10_000_000, Currency.IDR)));
+        products.put("DEP-BCA-1M", new DepositProduct("DEP-BCA-1M", "PT Bank Central Asia Tbk", 30, 0.035, 0.0, Money.of(10_000_000, Currency.IDR)));
+        products.put("DEP-BMRI-3M", new DepositProduct("DEP-BMRI-3M", "PT Bank Mandiri (Persero) Tbk", 90, 0.0425, 0.0, Money.of(10_000_000, Currency.IDR)));
+        products.put("DEP-BBRI-6M", new DepositProduct("DEP-BBRI-6M", "PT Bank Rakyat Indonesia Tbk", 180, 0.050, 0.0, Money.of(10_000_000, Currency.IDR)));
+        // Produk Tenor Sesi Khusus Fase 3 (Fitur 1)
+        products.put("DEP-TENOR-10", new DepositProduct("DEP-TENOR-10", "Deposito Tenor 10 Sesi (+10% Bonus)", 10, 0.045, 10.0, Money.of(10_000_000, Currency.IDR)));
+        products.put("DEP-TENOR-25", new DepositProduct("DEP-TENOR-25", "Deposito Tenor 25 Sesi (+25% Bonus)", 25, 0.060, 25.0, Money.of(25_000_000, Currency.IDR)));
+        products.put("DEP-TENOR-50", new DepositProduct("DEP-TENOR-50", "Deposito Tenor 50 Sesi (+50% Bonus)", 50, 0.080, 50.0, Money.of(50_000_000, Currency.IDR)));
     }
 
     public synchronized void reset() {
@@ -68,6 +79,32 @@ public final class TimeDepositManager {
 
     public List<DepositProduct> getProducts() {
         return new ArrayList<>(products.values());
+    }
+
+    public synchronized Money calculateTotalActivePrincipal() {
+        Money total = Money.zero(Currency.IDR);
+        for (TimeDeposit d : activeDeposits.values()) {
+            if ("ACTIVE".equals(d.getStatus())) {
+                total = total.add(d.getPrincipal());
+            }
+        }
+        return total;
+    }
+
+    public synchronized void updateMacroRates(double baseDepositRateAnnualPercent) {
+        double rateDecimal = (baseDepositRateAnnualPercent / 100.0);
+        DepositProduct bca = products.get("DEP-BCA-1M");
+        if (bca != null) products.put("DEP-BCA-1M", new DepositProduct("DEP-BCA-1M", bca.bankName, bca.tenorDays, rateDecimal * 0.80, bca.bonusInterestPercent, bca.minPlacement));
+        DepositProduct bmri = products.get("DEP-BMRI-3M");
+        if (bmri != null) products.put("DEP-BMRI-3M", new DepositProduct("DEP-BMRI-3M", bmri.bankName, bmri.tenorDays, rateDecimal * 0.95, bmri.bonusInterestPercent, bmri.minPlacement));
+        DepositProduct bbri = products.get("DEP-BBRI-6M");
+        if (bbri != null) products.put("DEP-BBRI-6M", new DepositProduct("DEP-BBRI-6M", bbri.bankName, bbri.tenorDays, rateDecimal * 1.10, bbri.bonusInterestPercent, bbri.minPlacement));
+        DepositProduct t10 = products.get("DEP-TENOR-10");
+        if (t10 != null) products.put("DEP-TENOR-10", new DepositProduct("DEP-TENOR-10", t10.bankName, t10.tenorDays, rateDecimal * 1.00, t10.bonusInterestPercent, t10.minPlacement));
+        DepositProduct t25 = products.get("DEP-TENOR-25");
+        if (t25 != null) products.put("DEP-TENOR-25", new DepositProduct("DEP-TENOR-25", t25.bankName, t25.tenorDays, rateDecimal * 1.25, t25.bonusInterestPercent, t25.minPlacement));
+        DepositProduct t50 = products.get("DEP-TENOR-50");
+        if (t50 != null) products.put("DEP-TENOR-50", new DepositProduct("DEP-TENOR-50", t50.bankName, t50.tenorDays, rateDecimal * 1.50, t50.bonusInterestPercent, t50.minPlacement));
     }
 
     public synchronized TimeDeposit openDeposit(Account account, String productId, Money principal, long now, EconomyLedger ledger) {
@@ -93,7 +130,8 @@ public final class TimeDepositManager {
                 "Penempatan " + prod.bankName + " (" + prod.tenorDays + " Hari)"
         );
 
-        TimeDeposit dep = new TimeDeposit(depositId, prod.id, prod.bankName, principal, prod.annualInterestRate, prod.tenorDays, now);
+        TimeDeposit dep = new TimeDeposit(depositId, prod.id, prod.bankName, principal, prod.annualInterestRate,
+                prod.bonusInterestPercent, prod.tenorDays, now);
         activeDeposits.put(depositId, dep);
         return dep;
     }
@@ -117,25 +155,26 @@ public final class TimeDepositManager {
                     now,
                     "Pencairan Pokok Deposito " + dep.getBankName()
             );
-            // Kredit Bunga
+            // Kredit Bunga Bersih (PPh Final 20% Sesuai Regulasi Perbankan - Bug #210)
             if (interest.isPositive()) {
+                Money tax = interest.multiply(0.20);
+                Money netInterest = interest.subtract(tax);
                 ledger.recordMutation(
                         "DEP-MATURITY-INT-" + depositId,
                         account,
                         LedgerEntryType.TIME_DEPOSIT_INTEREST,
-                        interest,
+                        netInterest,
                         true,
                         now,
-                        "Bunga Jatuh Tempo Deposito " + dep.getBankName()
+                        "Bunga Bersih Deposito " + dep.getBankName() + " (PPh Final 20% Dipotong: " + tax.format() + ")"
                 );
             }
             dep.markMatured(interest);
         } else {
-            // Pencairan Dini: Penalti 50% bunga yang sudah berjalan
+            // Pencairan Dini: Penalti Bunga Hangus (Lost Interest Penalty - Fase 3 Fitur 1)
             Money accrued = dep.calculateAccruedInterest(now);
-            BigDecimal penaltyAmt = accrued.getAmount().multiply(new BigDecimal("0.50")).setScale(0, RoundingMode.HALF_UP);
-            Money netInterest = accrued.subtract(new Money(penaltyAmt, accrued.getCurrency()));
-            Money penalty = new Money(penaltyAmt, accrued.getCurrency());
+            Money netInterest = Money.zero(principal.getCurrency());
+            Money penalty = accrued;
 
             ledger.recordMutation(
                     "DEP-EARLY-PRIN-" + depositId,
@@ -144,19 +183,8 @@ public final class TimeDepositManager {
                     principal,
                     true,
                     now,
-                    "Pencairan Dini Pokok Deposito " + dep.getBankName()
+                    "Pencairan Dini Pokok Deposito " + dep.getBankName() + " (Bunga Akrual Hangus)"
             );
-            if (netInterest.isPositive()) {
-                ledger.recordMutation(
-                        "DEP-EARLY-INT-" + depositId,
-                        account,
-                        LedgerEntryType.TIME_DEPOSIT_INTEREST,
-                        netInterest,
-                        true,
-                        now,
-                        "Bunga Bersih Pencairan Dini Deposito " + dep.getBankName()
-                );
-            }
             dep.markEarlyWithdrawn(netInterest, penalty);
         }
 
@@ -191,5 +219,33 @@ public final class TimeDepositManager {
             arr.put(p.toJsonObject());
         }
         return arr;
+    }
+
+    public synchronized JSONObject exportState() throws JSONException {
+        JSONArray active = new JSONArray();
+        for (TimeDeposit deposit : activeDeposits.values()) active.put(deposit.exportState());
+        JSONArray history = new JSONArray();
+        for (TimeDeposit deposit : depositHistory) history.put(deposit.exportState());
+        return new JSONObject().put("active", active).put("history", history);
+    }
+
+    public synchronized void restoreState(JSONObject state) throws JSONException {
+        Map<String, TimeDeposit> stagedActive = new LinkedHashMap<>();
+        List<TimeDeposit> stagedHistory = new ArrayList<>();
+        JSONArray active = state.optJSONArray("active");
+        JSONArray history = state.optJSONArray("history");
+        if (active != null) for (int i = 0; i < active.length(); i++) {
+            TimeDeposit deposit = TimeDeposit.fromState(active.getJSONObject(i));
+            if (!"ACTIVE".equals(deposit.getStatus()) || stagedActive.put(deposit.getId(), deposit) != null)
+                throw new IllegalArgumentException("Deposito aktif save duplikat atau status tidak valid");
+        }
+        if (history != null) for (int i = 0; i < history.length(); i++) {
+            TimeDeposit deposit = TimeDeposit.fromState(history.getJSONObject(i));
+            if ("ACTIVE".equals(deposit.getStatus()) || stagedActive.containsKey(deposit.getId()))
+                throw new IllegalArgumentException("Riwayat deposito save tidak valid");
+            stagedHistory.add(deposit);
+        }
+        activeDeposits.clear(); activeDeposits.putAll(stagedActive);
+        depositHistory.clear(); depositHistory.addAll(stagedHistory);
     }
 }

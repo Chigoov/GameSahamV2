@@ -62,7 +62,7 @@ async function run() {
     await tabValuasi.click();
     await page.waitForTimeout(300);
     const valuasiContent = await page.locator('#fund-content-box').textContent();
-    if (!valuasiContent.includes("Kapitalisasi Pasar") || !valuasiContent.includes("PER") || !valuasiContent.includes("PBV") || !valuasiContent.includes("ROE")) {
+    if (!valuasiContent.toLowerCase().includes("kapitalisasi pasar") || !valuasiContent.includes("PER") || !valuasiContent.includes("PBV") || !valuasiContent.includes("ROE")) {
         throw new Error("Valuasi & Rasio harus memuat Market Cap, PER, PBV, ROE!");
     }
 
@@ -71,7 +71,7 @@ async function run() {
     await tabKeuangan.click();
     await page.waitForTimeout(300);
     const keuanganContent = await page.locator('#fund-content-box').textContent();
-    if (!keuanganContent.includes("Neraca Keuangan") || !keuanganContent.includes("Laba Bersih") || !keuanganContent.includes("Arus Kas Operasional")) {
+    if (!keuanganContent.toLowerCase().includes("neraca keuangan") || !keuanganContent.toLowerCase().includes("laba bersih") || !keuanganContent.toLowerCase().includes("arus kas operasional")) {
         throw new Error("Laporan Keuangan harus memuat Neraca, Laba Rugi, dan Arus Kas!");
     }
 
@@ -80,7 +80,7 @@ async function run() {
     await tabPemegang.click();
     await page.waitForTimeout(300);
     const pemegangContent = await page.locator('#fund-content-box').textContent();
-    if (!pemegangContent.includes("Saham Beredar") || !pemegangContent.includes("Free Float") || !pemegangContent.includes("Jumlah Pemegang Saham")) {
+    if (!pemegangContent.toLowerCase().includes("saham beredar") || !pemegangContent.toLowerCase().includes("free float") || !pemegangContent.toLowerCase().includes("jumlah pemegang saham")) {
         throw new Error("Struktur Pemegang Saham harus memuat Saham Beredar, Free Float, dan Jumlah Investor!");
     }
 

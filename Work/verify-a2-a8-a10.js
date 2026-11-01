@@ -45,12 +45,11 @@ async function run() {
     // 2. Verifikasi A2 & A8: Menu Lainnya & Riwayat Transaksi
     // =========================================================================
     console.log("[2] Testing A2 & A8: Menu Lainnya & Riwayat Transaksi...");
-    await page.click('button.nav-item[data-tab="riset"]');
-    await page.waitForSelector('#view-riset', { timeout: 5000 });
+    await page.locator('#asset-tools > summary').click();
 
     // Verifikasi tombol shortcut Riwayat Transaksi
-    const historyBtn = page.locator('#view-riset button.shortcut:has-text("Riwayat Transaksi")');
-    if (await historyBtn.count() !== 1) throw new Error("Tombol shortcut 'Riwayat Transaksi' harus ada di menu Lainnya");
+    const historyBtn = page.locator('#asset-tools button:has-text("Riwayat Transaksi")');
+    if (await historyBtn.count() !== 1) throw new Error("Riwayat Transaksi harus terjangkau dari alat Aset");
 
     // Buka Riwayat Transaksi
     await historyBtn.click();
@@ -67,10 +66,9 @@ async function run() {
     await page.waitForTimeout(500);
 
     // Verifikasi A8: Liga & Peringkat di Lainnya berupa ringkasan proporsional
-    const lbCard = page.locator('#view-riset section.card:has-text("Liga & Peringkat")');
-    if (await lbCard.count() !== 1) throw new Error("Card ringkasan 'Liga & Peringkat' harus ada di menu Lainnya");
-    const seeRankBtn = lbCard.locator('button:has-text("Lihat Peringkat Lengkap & Rival")');
-    if (await seeRankBtn.count() !== 1) throw new Error("Tombol 'Lihat Peringkat Lengkap & Rival' harus ada di kartu Liga");
+    await page.click('button.nav-item[data-tab="riset"]');
+    const seeRankBtn = page.locator('#view-riset').getByRole('button', {name: 'Liga & Rival', exact: true});
+    if (await seeRankBtn.count() !== 1) throw new Error("Liga & Rival harus terjangkau dari menu Lainnya");
 
     // Klik buka modal Liga lengkap
     await seeRankBtn.click();
@@ -91,20 +89,22 @@ async function run() {
     // =========================================================================
     console.log("[3] Testing A10: Halaman Profil Saya...");
     // Buka dari shortcut menu Lainnya
-    await page.locator('#view-riset button.shortcut:has-text("Profil Saya")').click();
+    await page.locator('#view-riset').getByRole('button', {name: 'Profil Saya', exact: true}).click();
     await page.waitForSelector('.flow-page[aria-label="Profil Saya"]', { timeout: 5000 });
 
-    // Periksa keberadaan 5 seksi
-    const sec1 = await page.locator('.flow-page h2:has-text("1. Identitas & Karier")').count();
-    const sec2 = await page.locator('.flow-page h2:has-text("2. Ringkasan Keuangan")').count();
-    const sec3 = await page.locator('.flow-page h2:has-text("3. Statistik Trading")').count();
-    const sec4 = await page.locator('.flow-page h2:has-text("4. Performa & Pencapaian")').count();
-    const sec5 = await page.locator('.flow-page h2:has-text("5. Pengaturan Identitas & Aksesibilitas")').count();
-
-    console.log(`Profil Sections: Sec1=${sec1}, Sec2=${sec2}, Sec3=${sec3}, Sec4=${sec4}, Sec5=${sec5}`);
-    if (sec1 !== 1 || sec2 !== 1 || sec3 !== 1 || sec4 !== 1 || sec5 !== 1) {
-        throw new Error("Semua 5 seksi Profil Saya harus tampil lengkap!");
+    const profile = await page.evaluate(() => JSON.parse(TradingNativeBridge.getPlayerProfile()));
+    if ((await page.locator('.flow-page .wealth-hero h2').textContent()).trim() !== profile.playerName) throw new Error('Identitas profil berbeda dari domain');
+    for (const [tab, title, metrics] of [
+        ['Kinerja', 'Statistik Trading & Return', ['Total order terealisasi', 'Transaksi untung / rugi', 'Rasio menang', 'Transaksi terbaik', 'Transaksi terburuk', 'ROI mingguan']],
+        ['Keuangan', 'Portofolio & Struktur Aset/Utang', ['Kas pribadi IDR', 'Kas pribadi USD', 'Portofolio saham', 'Koleksi aset mewah', 'Reksa dana NAB', 'Kewajiban utang margin', 'Dana kelolaan klien']],
+        ['Pencapaian', 'Pencapaian & Peringkat Liga', ['Puncak kekayaan tertinggi', 'Hari perjalanan era aktif', 'Total hari bermain', 'Peringkat liga saat ini']]
+    ]) {
+        await page.locator('.profile-subtabs-nav').getByRole('button', {name: tab, exact: true}).click();
+        if (await page.locator('.flow-page').getByRole('heading', {name: title, exact: true}).count() !== 1) throw new Error(`Seksi profil ${title} hilang`);
+        const text = await page.locator('.flow-page').innerText();
+        for (const metric of metrics) if (!text.includes(metric)) throw new Error(`Metric profil hilang: ${metric}`);
     }
+    if (await page.locator('#player-text-size').count() !== 1 || await page.getByRole('button', {name: 'Simpan Profil & Preferensi', exact: true}).count() !== 1) throw new Error('Pengaturan identitas dan aksesibilitas harus tetap tersedia');
 
     // Ambil screenshot Profil Saya
     const profScreenshot = path.join(evidenceDir, 'A10-profile-modal.png');

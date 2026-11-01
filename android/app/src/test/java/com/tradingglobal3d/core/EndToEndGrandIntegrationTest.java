@@ -4,6 +4,7 @@ import com.tradingglobal3d.core.career.CareerRank;
 import com.tradingglobal3d.core.corporate.CorporateAction;
 import com.tradingglobal3d.core.corporate.CorporateActionType;
 import com.tradingglobal3d.core.corporate.IpoSubscription;
+import com.tradingglobal3d.core.corporate.IpoOffering;
 import com.tradingglobal3d.core.corporate.ShareholderMeetingAgenda;
 import com.tradingglobal3d.core.economy.FxQuote;
 import com.tradingglobal3d.core.facade.TradingFacade;
@@ -109,6 +110,7 @@ public class EndToEndGrandIntegrationTest {
         assertTrue(clientAcc.getTotalCash(Currency.IDR).isPositive());
 
         // 4. [FR-09] Berlangganan Terminal Riset Profesional
+        facade.deposit("E2E-FEE-USD", personal.getId(), Money.of(250_000, Currency.USD), "Biaya terminal Pro");
         boolean subTerminal = facade.subscribeTerminal(TerminalTier.PRO);
         assertTrue(subTerminal);
 
@@ -131,11 +133,15 @@ public class EndToEndGrandIntegrationTest {
         assertTrue(divCount >= 1);
 
         // 7. [FR-13] Pemesanan Saham IPO dan Penjatahan
-        IpoSubscription ipoSub = facade.orderIpo("IPO-CLOUD", 50);
+        IpoOffering ipo = facade.getCorporateService().getIpoOfferings().stream()
+                .filter(i -> !i.isAllotted() && !i.getListingDate().isBefore(facade.getClock().getCurrentDate()))
+                .findFirst().orElseThrow(() -> new AssertionError("Katalog harus memuat IPO terbuka"));
+        IpoSubscription ipoSub = facade.orderIpo(ipo.getId(), 50);
         assertNotNull(ipoSub);
-        facade.allotIpo("IPO-CLOUD", 0.50);
+        facade.allotIpo(ipo.getId(), 0.50);
         assertEquals(IpoSubscription.SubscriptionStatus.ALLOTTED, ipoSub.getStatus());
-        assertEquals(25, ipoSub.getAllottedLots());
+        // Sesuai REV-03: Pada penawaran undersubscribed, alokasi 100% (50 lot)
+        assertEquals(50, ipoSub.getAllottedLots());
 
         // 8. [FR-14] Voting RUPS Pemegang Saham Idempoten
         // Maju 1 hari agar recordingDate RUPS-BBCA-01 (gameBase+1) tercapai

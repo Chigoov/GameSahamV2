@@ -1,0 +1,51 @@
+{
+  "loadLatency": {
+    "p95_ms": 121.014,
+    "min_ms": 84.016,
+    "p99_ms": 121.014,
+    "p50_ms": 104.087,
+    "mean_ms": 104.487,
+    "samples": 8,
+    "max_ms": 121.014
+  },
+  "soakCyclesCompleted": 200,
+  "leaderboardLatency": {
+    "p95_ms": 7.781,
+    "min_ms": 1.631,
+    "p99_ms": 14.145,
+    "p50_ms": 2.417,
+    "mean_ms": 3.442,
+    "samples": 200,
+    "max_ms": 39.117
+  },
+  "saveLatency": {
+    "p95_ms": 115.302,
+    "min_ms": 58.831,
+    "p99_ms": 115.302,
+    "p50_ms": 99.942,
+    "mean_ms": 91.702,
+    "samples": 20,
+    "max_ms": 115.302
+  },
+  "memory": {
+    "heapPeakMB": 230.2,
+    "heapInitialMB": 30.7,
+    "memoryLeakDetected": false,
+    "heapFinalMB": 10.3
+  },
+  "milestone": "M6",
+  "orderLatency": {
+    "p95_ms": 0.67,
+    "min_ms": 0.036,
+    "p99_ms": 3.01,
+    "p50_ms": 0.154,
+    "mean_ms": 0.266,
+    "samples": 200,
+    "max_ms": 8.969
+  },
+  "totalDurationMs": 4153,
+  "startupTimeAvgMs": 63,
+  "saveSizeBytes": 3960875,
+  "saveSizeKB": 3868,
+  "status": "SUCCESS"
+}

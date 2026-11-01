@@ -22,7 +22,7 @@ public class PrestigeRecoveryRegressionTest {
     private SaveState state(int day) {
         return SaveState.capture(GameMode.INTERNAL_MARKET,
                 new GameClock(LocalDate.of(2026, 10, 20).plusDays(day), LocalTime.of(8, 30)),
-                Collections.emptyList(), new EconomyLedger());
+                Collections.singletonList(new Account("QA-PERSONAL", "QA sintetis", AccountType.PERSONAL, null)), new EconomyLedger());
     }
     @Test public void backupIsExactImmutableAndRecoveryUsesValidatedSave() throws Exception {
         SaveManager saves = SaveManager.forDirectory(temporary.newFolder());

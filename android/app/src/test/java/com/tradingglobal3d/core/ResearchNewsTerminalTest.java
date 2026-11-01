@@ -123,19 +123,19 @@ public class ResearchNewsTerminalTest {
         assertFalse("Langganan harus ditolak jika saldo USD tidak mencukupi", subFail);
         assertEquals(TerminalTier.BASIC, service.getCurrentTier());
 
-        // 3. Berikan modal USD $1,000 ke akun pemain melalui deposit ledger resmi
-        facade.deposit("REQ-DEP-USD-TEST", personal.getId(), Money.of(1000.0, Currency.USD), "Deposit modal USD");
-        assertEquals(Money.of(1000.0, Currency.USD), personal.getTotalCash(Currency.USD));
+        // 3. Berikan modal USD $500,000 ke akun pemain melalui deposit ledger resmi
+        facade.deposit("REQ-DEP-USD-TEST", personal.getId(), Money.of(500_000.0, Currency.USD), "Deposit modal USD");
+        assertEquals(Money.of(500_000.0, Currency.USD), personal.getTotalCash(Currency.USD));
 
-        // Langganan PRO seharga $500 USD
+        // Langganan PRO seharga $250.000 USD (A05)
         boolean subOk = facade.subscribeTerminal(TerminalTier.PRO);
         assertTrue("Langganan PRO harus sukses setelah ada kas USD", subOk);
         assertEquals(TerminalTier.PRO, service.getCurrentTier());
         assertTrue("Tier PRO harus terbuka", service.hasAccess(TerminalTier.PRO, now));
         assertFalse("Tier ENTERPRISE tetap terkunci", service.hasAccess(TerminalTier.ENTERPRISE, now));
 
-        // Kas USD terpotong $500 menjadi $500
-        assertEquals(Money.of(500.0, Currency.USD), personal.getTotalCash(Currency.USD));
+        // Kas USD terpotong $250.000 menjadi $250.000
+        assertEquals(Money.of(250_000.0, Currency.USD), personal.getTotalCash(Currency.USD));
 
         // 4. Uji Kedaluwarsa Langganan (setelah 31 hari ke masa depan)
         long after31Days = now + ResearchService.THIRTY_DAYS_MS + 86400_000L;

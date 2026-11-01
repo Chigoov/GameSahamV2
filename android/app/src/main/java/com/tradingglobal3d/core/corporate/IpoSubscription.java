@@ -11,7 +11,8 @@ public final class IpoSubscription {
     public enum SubscriptionStatus {
         PENDING("Menunggu Penjatahan"),
         ALLOTTED("Mendapat Jatah Saham"),
-        REFUNDED("Dana Dikembalikan");
+        REFUNDED("Dana Dikembalikan"),
+        CANCELLED("Dibatalkan");
 
         private final String label;
         SubscriptionStatus(String label) { this.label = label; }

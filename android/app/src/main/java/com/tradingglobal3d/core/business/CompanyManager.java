@@ -10,6 +10,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.math.BigDecimal;
 import java.util.*;
 
 /**
@@ -19,6 +20,16 @@ import java.util.*;
  */
 public final class CompanyManager {
     private final Map<String, OperatingCompany> companies = new LinkedHashMap<>();
+    private static final Set<String> HOLDING_SECTORS = new LinkedHashSet<>(Arrays.asList("FINANCIAL", "ENERGY", "CONSUMER", "TECHNOLOGY"));
+    private static final class HoldingGroup {
+        final String id, name;
+        final Map<String, String> subsidiaries;
+        HoldingGroup(String id, String name, Map<String, String> subsidiaries) {
+            this.id = id; this.name = name; this.subsidiaries = new LinkedHashMap<>(subsidiaries);
+        }
+    }
+    private final Map<String, HoldingGroup> holdings = new LinkedHashMap<>();
+    private final Map<String, String> holdingByCompany = new HashMap<>();
 
     public Collection<OperatingCompany> getAllCompanies() {
         return Collections.unmodifiableCollection(companies.values());
@@ -28,8 +39,22 @@ public final class CompanyManager {
         return companies.get(companyId);
     }
 
+    public synchronized int applySupplyChainCrisis() {
+        int affected = 0;
+        for (OperatingCompany company : companies.values()) {
+            String sector = company.getSectorModel();
+            if (sector.equals("MANUFAKTUR") || sector.equals("RITEL") || sector.equals("ENERGY")) {
+                company.applySupplyChainCrisis();
+                affected++;
+            }
+        }
+        return affected;
+    }
+
     public synchronized void reset() {
         companies.clear();
+        holdings.clear();
+        holdingByCompany.clear();
     }
 
     public synchronized OperatingCompany foundCompany(
@@ -154,11 +179,144 @@ public final class CompanyManager {
         }
     }
 
+    public synchronized JSONObject createHoldingCompany(String holdingId, String holdingName, JSONArray subsidiaries)
+            throws JSONException {
+        if (holdingId == null || holdingId.trim().isEmpty() || holdingName == null || holdingName.trim().isEmpty())
+            throw new IllegalArgumentException("Identitas holding wajib diisi");
+        if (holdings.containsKey(holdingId)) throw new IllegalArgumentException("Holding sudah ada");
+        if (subsidiaries == null || subsidiaries.length() != HOLDING_SECTORS.size())
+            throw new IllegalArgumentException("Holding wajib membawahi empat anak usaha dari sektor yang berbeda");
+        Map<String, String> staged = new LinkedHashMap<>();
+        Set<String> seenCompanies = new HashSet<>();
+        for (int i = 0; i < subsidiaries.length(); i++) {
+            JSONObject entry = subsidiaries.getJSONObject(i);
+            String sector = entry.getString("sector").trim().toUpperCase(Locale.ROOT);
+            String companyId = entry.getString("companyId").trim();
+            if (!HOLDING_SECTORS.contains(sector) || staged.containsKey(sector))
+                throw new IllegalArgumentException("Sektor holding tidak valid atau berulang: " + sector);
+            if (!companies.containsKey(companyId) || !seenCompanies.add(companyId) || holdingByCompany.containsKey(companyId))
+                throw new IllegalArgumentException("Anak usaha holding tidak dikenal, duplikat, atau sudah berada dalam holding");
+            staged.put(sector, companyId);
+        }
+        HoldingGroup group = new HoldingGroup(holdingId, holdingName.trim(), staged);
+        holdings.put(holdingId, group);
+        for (String companyId : staged.values()) holdingByCompany.put(companyId, holdingId);
+        return toHoldingJson(group);
+    }
+
+    public synchronized JSONObject transferHoldingCapital(String holdingId, String fromCompanyId, String toCompanyId,
+            Money amount, String transferType, Map<String, Account> allAccounts, EconomyLedger ledger,
+            long timestamp, String requestId) throws JSONException {
+        HoldingGroup group = holdings.get(holdingId);
+        if (group == null) throw new IllegalArgumentException("Holding tidak ditemukan");
+        if (fromCompanyId == null || toCompanyId == null || fromCompanyId.equals(toCompanyId)
+                || !group.subsidiaries.containsValue(fromCompanyId) || !group.subsidiaries.containsValue(toCompanyId))
+            throw new IllegalArgumentException("Kedua perusahaan harus anak usaha berbeda dalam holding yang sama");
+        if (!"CAPITAL_INJECTION".equals(transferType) && !"DIVIDEND".equals(transferType))
+            throw new IllegalArgumentException("Jenis transfer holding tidak dikenal");
+        if (requestId == null || requestId.trim().isEmpty() || requestId.length() > 120)
+            throw new IllegalArgumentException("ID transfer holding tidak valid");
+        if (amount == null || amount.getCurrency() != Currency.IDR || !amount.isPositive())
+            throw new IllegalArgumentException("Transfer holding wajib IDR positif");
+        String debitId = "HOLDING-" + requestId + "-DEBIT";
+        String creditId = "HOLDING-" + requestId + "-CREDIT";
+        boolean debitDone = ledger.isRequestProcessed(debitId);
+        boolean creditDone = ledger.isRequestProcessed(creditId);
+        if (debitDone || creditDone) {
+            if (debitDone && creditDone) return new JSONObject().put("success", true).put("alreadyProcessed", true)
+                    .put("holdingId", holdingId).put("amount", amount.format()).put("transferType", transferType);
+            throw new IllegalStateException("Receipt transfer holding tidak lengkap; perlu rekonsiliasi sebelum retry");
+        }
+        OperatingCompany from = companies.get(fromCompanyId), to = companies.get(toCompanyId);
+        Account fromAccount = allAccounts.get(from.getAccountId()), toAccount = allAccounts.get(to.getAccountId());
+        if (fromAccount == null || toAccount == null) throw new IllegalStateException("Akun anak usaha holding tidak tersedia");
+        Money reserve = from.getPayrollArrears().add(from.calculateDailyPayroll()).add(from.calculateDailyOperatingCost());
+        if (fromAccount.getAvailableCash(Currency.IDR).subtract(amount).isLessThan(reserve))
+            throw new IllegalStateException("Transfer akan mengurangi cadangan payroll atau biaya operasi satu hari");
+        LedgerEntryType type = "DIVIDEND".equals(transferType)
+                ? LedgerEntryType.COMPANY_CAPITAL_WITHDRAWAL : LedgerEntryType.COMPANY_CAPITAL_INJECTION;
+        String movement = "DIVIDEND".equals(transferType) ? "dividen" : "injeksi modal";
+        ledger.recordMutation(debitId, fromAccount, type, amount, false, timestamp,
+                movement + " internal dari " + from.getName() + " ke " + to.getName() + " tanpa pajak bursa");
+        ledger.recordMutation(creditId, toAccount, type, amount, true, timestamp,
+                "Penerimaan " + movement + " internal ke " + to.getName() + " dari " + from.getName() + " tanpa pajak bursa");
+        return new JSONObject().put("success", true).put("alreadyProcessed", false).put("holdingId", holdingId)
+                .put("amount", amount.format()).put("transferType", transferType)
+                .put("fromCompanyId", fromCompanyId).put("toCompanyId", toCompanyId);
+    }
+
+    public synchronized JSONArray getHoldingCompaniesJson() throws JSONException {
+        JSONArray result = new JSONArray();
+        for (HoldingGroup group : holdings.values()) result.put(toHoldingJson(group));
+        return result;
+    }
+
+    public synchronized JSONArray exportHoldingState() throws JSONException {
+        JSONArray result = new JSONArray();
+        for (HoldingGroup group : holdings.values()) result.put(toHoldingJson(group));
+        return result;
+    }
+
+    public synchronized void restoreHoldingState(JSONArray saved) throws JSONException {
+        Map<String, HoldingGroup> stagedHoldings = new LinkedHashMap<>();
+        Map<String, String> stagedMembership = new HashMap<>();
+        if (saved != null) for (int i = 0; i < saved.length(); i++) {
+            JSONObject item = saved.getJSONObject(i);
+            String id = item.getString("holdingId"), name = item.getString("holdingName");
+            JSONArray subs = item.getJSONArray("subsidiaries");
+            if (id.trim().isEmpty() || stagedHoldings.containsKey(id) || subs.length() != HOLDING_SECTORS.size())
+                throw new IllegalArgumentException("State holding tidak valid atau duplikat");
+            Map<String, String> members = new LinkedHashMap<>();
+            for (int j = 0; j < subs.length(); j++) {
+                JSONObject sub = subs.getJSONObject(j);
+                String sector = sub.getString("sector"), companyId = sub.getString("companyId");
+                if (!HOLDING_SECTORS.contains(sector) || !companies.containsKey(companyId)
+                        || members.put(sector, companyId) != null || stagedMembership.put(companyId, id) != null)
+                    throw new IllegalArgumentException("Keanggotaan anak usaha holding save tidak valid");
+            }
+            if (members.size() != HOLDING_SECTORS.size()) throw new IllegalArgumentException("Holding tidak terdiversifikasi");
+            stagedHoldings.put(id, new HoldingGroup(id, name, members));
+        }
+        holdings.clear(); holdings.putAll(stagedHoldings);
+        holdingByCompany.clear(); holdingByCompany.putAll(stagedMembership);
+    }
+
+    private JSONObject toHoldingJson(HoldingGroup group) throws JSONException {
+        JSONArray subsidiaries = new JSONArray();
+        for (Map.Entry<String, String> entry : group.subsidiaries.entrySet()) {
+            OperatingCompany company = companies.get(entry.getValue());
+            subsidiaries.put(new JSONObject().put("sector", entry.getKey()).put("companyId", company.getId())
+                    .put("companyName", company.getName()).put("accountId", company.getAccountId()));
+        }
+        return new JSONObject().put("holdingId", group.id).put("holdingName", group.name).put("subsidiaries", subsidiaries);
+    }
+
+    public static Money getMonthlySectorPie(String sectorModel, int macroIndex) {
+        long base = 20_000_000_000_000L;
+        if ("ENERGY".equalsIgnoreCase(sectorModel) || "ENERGI".equalsIgnoreCase(sectorModel)) base = 25_000_000_000_000L;
+        else if ("MANUFAKTUR".equalsIgnoreCase(sectorModel)) base = 20_000_000_000_000L;
+        else if ("RITEL".equalsIgnoreCase(sectorModel)) base = 15_000_000_000_000L;
+        else if ("JASA".equalsIgnoreCase(sectorModel)) base = 30_000_000_000_000L;
+
+        double mult = 1.0 + (macroIndex - 5) * 0.075;
+        BigDecimal amount = BigDecimal.valueOf(base).multiply(BigDecimal.valueOf(mult)).setScale(0, java.math.RoundingMode.HALF_UP);
+        return new Money(amount, Currency.IDR);
+    }
+
     public synchronized void processDailyOperations(
             Account companyAccount,
             OperatingCompany company,
             EconomyLedger ledger,
             long timestamp) {
+        processDailyOperations(companyAccount, company, ledger, timestamp, 1.0);
+    }
+
+    public synchronized void processDailyOperations(
+            Account companyAccount,
+            OperatingCompany company,
+            EconomyLedger ledger,
+            long timestamp,
+            double macroMultiplier) {
 
         if (companies.get(company.getId()) != company || !company.getAccountId().equals(companyAccount.getId()))
             throw new IllegalArgumentException("Perusahaan/akun operasional tidak sesuai");
@@ -173,7 +331,7 @@ public final class CompanyManager {
         if (paidCost.isPositive()) ledger.recordMutation("COMP-OPS-" + company.getId() + "-" + day,
                 companyAccount, LedgerEntryType.TRANSACTION_FEE, paidCost, false, timestamp,
                 "Biaya operasional perusahaan " + company.getName());
-        Money revenue = company.calculateDailyRevenue(day);
+        Money revenue = company.calculateDailyRevenue(day, macroMultiplier);
         if (company.getPayrollArrears().isPositive()) revenue = revenue.multiply(0.5);
         // Unfunded operations stop; partial funding only produces its paid fraction, without hidden free costs.
         revenue = revenue.multiply(paidCost.getAmount().divide(requiredCost.getAmount(), 12, java.math.RoundingMode.DOWN));
@@ -409,6 +567,12 @@ public final class CompanyManager {
                 .put("dailyCapacityAfter", projected.calculateDailyCapacity().getAmount().toPlainString())
                 .put("dailyOperatingCostBefore", company.calculateDailyOperatingCost().getAmount().toPlainString())
                 .put("dailyOperatingCostAfter", projected.calculateDailyOperatingCost().getAmount().toPlainString())
+                .put("projectedDailyRevenueBefore", company.calculateDailyCapacity().getAmount().toPlainString())
+                .put("projectedDailyRevenueAfter", projected.calculateDailyCapacity().getAmount().toPlainString())
+                .put("projectedDailyCostBefore", company.calculateDailyPayroll().add(company.calculateDailyOperatingCost()).getAmount().toPlainString())
+                .put("projectedDailyCostAfter", projected.calculateDailyPayroll().add(projected.calculateDailyOperatingCost()).getAmount().toPlainString())
+                .put("projectedDailyProfitBefore", company.calculateDailyCapacity().subtract(company.calculateDailyPayroll().add(company.calculateDailyOperatingCost())).getAmount().toPlainString())
+                .put("projectedDailyProfitAfter", projected.calculateDailyCapacity().subtract(projected.calculateDailyPayroll().add(projected.calculateDailyOperatingCost())).getAmount().toPlainString())
                 .put("durationGameSeconds", 0).put("effectiveRule", "NEXT_DAILY_SETTLEMENT");
     }
 

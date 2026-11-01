@@ -1,0 +1,6 @@
+{
+  "recovered_from": "C:\\Users\\HYPE AMD\\.codex\\sessions\\2026\\10\\22\\rollout-2026-10-22T20-42-27-01a163d9-4ced-7142-8401-0b627884b78a.jsonl",
+  "call_id": "call_a484c317545146a78c652e39bd5e59cb",
+  "timestamp": "2026-10-22T13:44:25.942Z",
+  "reason": "Original prompt file contained undefined; exact tool-call text restored"
+}

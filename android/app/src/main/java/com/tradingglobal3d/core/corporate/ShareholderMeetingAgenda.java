@@ -51,20 +51,33 @@ public final class ShareholderMeetingAgenda {
     public LocalDate getRecordingDate() { return recordingDate; }
     public LocalDate getDeadline() { return recordingDate.plusDays(3); }
     public boolean isClosed() { return closed; }
-    public String getResult() { return !closed ? "OPEN" : totalVotesFor > totalVotesAgainst ? "APPROVED" : "REJECTED"; }
+    public String getResult() { return !closed ? "OPEN" : (totalVotesFor > totalVotesAgainst && totalVotesFor > 0) ? "APPROVED" : "REJECTED"; }
     public String getConsequence() { return !closed ? "Menunggu tenggat" : "APPROVED".equals(getResult()) ? "Resolusi disetujui; aksi terkait mengikuti jadwal eksekusi" : "Resolusi ditolak; aksi yang mensyaratkan persetujuan dibatalkan"; }
     public boolean isRecorded() { return recorded; }
     public long getEntitledShares(String accountId) { return entitlementShares.getOrDefault(accountId, 0L); }
+    private Position findPosition(Account account) {
+        if (account == null) return null;
+        Position p = account.getPosition(ticker);
+        if (p != null) return p;
+        if (ticker.contains(":")) {
+            p = account.getPosition(ticker.substring(ticker.indexOf(':') + 1));
+            if (p != null) return p;
+        }
+        p = account.getPosition("IDX:" + ticker);
+        if (p != null) return p;
+        return account.getPosition("US:" + ticker);
+    }
+
     public void captureEntitlements(Collection<Account> accounts) {
         if (recorded) return;
         for (Account account : accounts) {
-            Position position = account.getPosition(ticker.contains(":") ? ticker : "IDX:" + ticker);
+            Position position = findPosition(account);
             entitlementShares.put(account.getId(), position == null ? 0 : Math.max(0, position.getQuantity()));
         }
         recorded = true;
     }
     public void captureAccountEntitlement(Account account) {
-        Position position = account.getPosition(ticker.contains(":") ? ticker : "IDX:" + ticker);
+        Position position = findPosition(account);
         entitlementShares.put(account.getId(), position == null ? 0 : Math.max(0, position.getQuantity()));
     }
     public void close() { closed = true; }

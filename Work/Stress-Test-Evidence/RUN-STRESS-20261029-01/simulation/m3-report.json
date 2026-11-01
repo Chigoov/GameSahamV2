@@ -1,0 +1,13 @@
+{
+  "totalTradingDaysSimulated": 3650,
+  "totalProNewsScheduled": 7300,
+  "totalFollowUpRumorsScheduled": 260,
+  "totalTargetEvaluationsPassed": 3650,
+  "total1000NpcLeaderboardPasses": 10,
+  "subAgentId": "AGENT-SUB-SIMULASI",
+  "milestone": "M3",
+  "totalWhaleCatalystsScheduled": 520,
+  "totalSeedsTested": 10,
+  "elapsedMs": 2558,
+  "status": "SUCCESS"
+}

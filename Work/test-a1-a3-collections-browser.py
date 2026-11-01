@@ -47,12 +47,16 @@ try:
 
         print("Navigating to http://127.0.0.1:8794/...")
         page.goto('http://127.0.0.1:8794/')
-        page.wait_for_selector('#btn-home-collections', timeout=10000)
+        page.wait_for_selector('#btn-home-collections', state='attached', timeout=10000)
 
         # 1. Buka Modal Galeri Koleksi
         print("Opening Collections Gallery modal...")
         page.click('#btn-home-collections')
         page.wait_for_selector('.collections-gallery-wrap', timeout=5000)
+        catalog = page.evaluate('() => JSON.parse(TradingNativeBridge.getCollections()).collections')
+        total_items = len(catalog)
+        initial_owned = sum(bool(item.get('isOwned')) for item in catalog)
+        assert total_items > 0 and initial_owned == 0, 'Fresh isolated collection fixture is required'
 
         # 2. Verifikasi A1: Dua bagian berjudul Belum Dimiliki dan Sudah Dimiliki
         unowned_sec = page.locator('.collection-section-group:has-text("Belum Dimiliki")')
@@ -61,19 +65,23 @@ try:
         assert owned_sec.count() == 1, "Seksi Sudah Dimiliki harus ada di tampilan Semua Status"
 
         unowned_badge = unowned_sec.locator('.badge').text_content().strip()
-        owned_badge = owned_sec.locator('.badge').text_content().strip()
+        owned_badge = owned_sec.locator('h2 .badge-owned').text_content().strip()
         print(f"Initial counts - Belum Dimiliki: {unowned_badge}, Sudah Dimiliki: {owned_badge}")
-        assert unowned_badge == '12', f"Awalnya harus 12 belum dimiliki, aktual: {unowned_badge}"
+        assert int(unowned_badge) == total_items, f"Unowned count must match domain catalog {total_items}, actual {unowned_badge}"
         assert owned_badge == '0', f"Awalnya harus 0 sudah dimiliki, aktual: {owned_badge}"
 
         # 3. Verifikasi Filter Kategori
-        page.click('button:has-text("🚗 Kendaraan")')
+        categories = list(dict.fromkeys(item['category'].upper() for item in catalog))
+        assert page.locator('.category-pills button').count() == len(categories) + 1
+        page.locator('.category-pills button').nth(1).click()
         time.sleep(0.5)
         unowned_cards = page.locator('.collection-item-card')
-        assert unowned_cards.count() == 3, f"Kendaraan harus ada 3 item, aktual: {unowned_cards.count()}"
+        category_ids = {item['id'] for item in catalog if item['category'].upper() == categories[0]}
+        rendered_ids = set(unowned_cards.evaluate_all('(els)=>els.map(el=>el.dataset.collectionId)'))
+        assert rendered_ids == category_ids, (rendered_ids, category_ids)
 
         # Kembali ke Semua Kategori
-        page.click('button:has-text("Semua")')
+        page.locator('.category-pills button').first.click()
         time.sleep(0.5)
 
         # 4. Beli satu koleksi (A3 verification)
@@ -84,22 +92,22 @@ try:
 
         print(f"Buying item: {item_title}...")
         buy_btn.click()
-        page.wait_for_selector('.toast-msg:has-text("Koleksi Berhasil Dibeli")', timeout=5000)
+        page.wait_for_selector('.toast-body strong:has-text("Koleksi Berhasil Dibeli")', timeout=5000)
         time.sleep(1)
 
         # Verifikasi setelah beli: card berpindah ke Sudah Dimiliki
         unowned_sec_after = page.locator('.collection-section-group:has-text("Belum Dimiliki")')
         owned_sec_after = page.locator('.collection-section-group:has-text("Sudah Dimiliki")')
         unowned_cnt = unowned_sec_after.locator('.badge').text_content().strip()
-        owned_cnt = owned_sec_after.locator('.badge').text_content().strip()
+        owned_cnt = owned_sec_after.locator('h2 .badge-owned').text_content().strip()
         print(f"After buy counts - Belum Dimiliki: {unowned_cnt}, Sudah Dimiliki: {owned_cnt}")
-        assert unowned_cnt == '11', f"Harus tersisa 11 belum dimiliki, aktual: {unowned_cnt}"
+        assert int(unowned_cnt) == total_items - 1, f"Purchase must remove exactly one unowned item, actual {unowned_cnt}"
         assert owned_cnt == '1', f"Harus ada 1 sudah dimiliki, aktual: {owned_cnt}"
 
         # Periksa kartu di Sudah Dimiliki memiliki badge ✓ Dimiliki dan tombol Jual Koleksi
         owned_card = owned_sec_after.locator('.collection-item-card.owned-luxury')
         assert owned_card.count() == 1, "Harus ada 1 kartu dengan class owned-luxury"
-        assert owned_card.locator('.badge-owned:has-text("✓ Dimiliki")').count() == 1, "Harus memiliki badge ✓ Dimiliki"
+        assert owned_card.locator('.badge-owned:has-text("Dimiliki")').count() == 1, "Harus memiliki badge Dimiliki"
         sell_btn = owned_card.locator('button.btn-secondary:has-text("Jual Koleksi")')
         assert sell_btn.count() == 1, "Harus ada tombol Jual Koleksi"
 
@@ -120,7 +128,7 @@ try:
         page.click('button:has-text("○ Belum Dimiliki")')
         time.sleep(0.5)
         filtered_unowned = page.locator('.collection-item-card')
-        assert filtered_unowned.count() == 11, f"Filter Belum Dimiliki harus tampil tepat 11 item, aktual: {filtered_unowned.count()}"
+        assert filtered_unowned.count() == total_items - 1, f"Unowned filter must match remaining catalog, actual {filtered_unowned.count()}"
 
         # 7. Kembalikan ke Semua Status dan Jual kembali
         print("Selling item back...")
@@ -129,14 +137,14 @@ try:
         owned_card = page.locator('.collection-section-group:has-text("Sudah Dimiliki") .collection-item-card.owned-luxury')
         sell_btn = owned_card.locator('button.btn-secondary:has-text("Jual Koleksi")')
         sell_btn.click()
-        page.wait_for_selector('.toast-msg:has-text("Koleksi Berhasil Terjual")', timeout=5000)
+        page.wait_for_selector('.toast-body strong:has-text("Koleksi Berhasil Terjual")', timeout=5000)
         time.sleep(1)
 
-        # Verifikasi kembali ke 12 belum dimiliki dan 0 sudah dimiliki
+        # Sale restores every catalog item to unowned and leaves no owned item.
         final_unowned_cnt = page.locator('.collection-section-group:has-text("Belum Dimiliki") .badge').text_content().strip()
-        final_owned_cnt = page.locator('.collection-section-group:has-text("Sudah Dimiliki") .badge').text_content().strip()
+        final_owned_cnt = page.locator('.collection-section-group:has-text("Sudah Dimiliki") h2 .badge-owned').text_content().strip()
         print(f"After sell counts - Belum Dimiliki: {final_unowned_cnt}, Sudah Dimiliki: {final_owned_cnt}")
-        assert final_unowned_cnt == '12', "Setelah jual harus kembali 12 belum dimiliki"
+        assert int(final_unowned_cnt) == total_items, "Sale must restore the exact unowned domain catalog count"
         assert final_owned_cnt == '0', "Setelah jual harus kembali 0 sudah dimiliki"
 
         browser.close()

@@ -1,0 +1,12 @@
+{
+  "totalAonChecksPassed": 1000,
+  "subAgentId": "AGENT-SUB-EKONOMI",
+  "totalIpoRoundsPassed": 50,
+  "totalTransactionsExecuted": 1000,
+  "milestone": "M2",
+  "totalBusinessCyclesPassed": 250,
+  "totalLedgerReconciliationsPassed": 50,
+  "totalSeedsTested": 50,
+  "elapsedMs": 6411,
+  "status": "SUCCESS"
+}

@@ -1,0 +1,23 @@
+{
+  "width": 1254,
+  "height": 1254,
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "alpha_bbox": [
+    357,
+    212,
+    897,
+    1052
+  ],
+  "raw_alpha_bbox": [
+    47,
+    31,
+    1224,
+    1212
+  ],
+  "crop_threshold": 16,
+  "transparent_pixels": 1355208,
+  "visual_review": "PASS: catalog artwork/sculpture identity, rarity craftsmanship, complete frame/pedestal and silhouette, true alpha, clean margin and sharp navy/light card-size previews individually inspected."
+}

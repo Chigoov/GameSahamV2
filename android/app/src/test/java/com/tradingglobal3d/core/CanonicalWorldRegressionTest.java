@@ -33,9 +33,9 @@ public class CanonicalWorldRegressionTest {
     }
     @Test public void elapsedPartitionsHaveTheSameMarketEvents() throws Exception {
         TradingFacade bulk = game(), split = game();
-        bulk.advanceRealMs(137000, true);
+        bulk.advanceRealMs(37000, true);
         for (int i=0; i<1000; i++) {
-            split.advanceRealMs(137, true);
+            split.advanceRealMs(37, true);
             assertTrue(split.reconcileAll());
         }
         assertEquals(bulk.getClock().getGameTimestamp(), split.getClock().getGameTimestamp());

@@ -1,14 +1,14 @@
 """
 Automated Behavioral Acceptance Tests for Owner Revisions (T1-T11 / M2-M7).
 Validates:
-1. (T1/Clock) Clock ratio 96x (1s real = 96s game, 900s real = 1 game day, 300s real = 8 game hours).
+1. (T1/Clock) Owner contract: 300 real seconds = one complete game day at foreground 1x.
 2. (T2/Briefing) Button 'Atur Waktu' and account context 'Akun: Pribadi / Klien' with time explanations.
 3. (T7/SimulasiBadge) Removal of badge SIMULASI on Beranda heading.
 4. (T5/News) 'Kabar Pasar Hari Ini' on Beranda with filtering (Semua, Kabar Baik, Kabar Buruk) and article reading.
-5. (T3/Business) Bisnis subnav ('Usaha Saya', 'Koleksi', 'Kelola Dana') and 5-category Koleksi filtering (Semua, Kendaraan, Properti, Perhiasan, Seni & Jam Tangan) with Dimiliki/Belum Dimiliki.
+5. (T3/Business) Career areas and all categories from the real collection catalog, with owned/unowned filtering.
 6. (T8/Chart) Immediate chart rendering on D1 (no empty box), candle & line switching, timeframe switching, OHLCV table toggle.
 7. (T9/Profile) 'Tentang Perusahaan' section in Detail Saham with description, website, and provenance.
-8. (T10/Universe) Audit 100 verified real companies + 101st instrument (IDX:NCLD in-game IPO).
+8. (T10/Universe) Preserve the canonical 100-company universe; any listed additions must come from published in-game IPOs.
 9. (T11/FixedFx) Fixed rate 1 USD = Rp 15.800 and hidden 'Kurs valuasi USD/IDR' row on portfolio and firm summaries.
 10. (T4/Language) System codes cleaned and Indonesian order status ('Mengantre', 'Terisi penuh', 'Dibatalkan').
 """
@@ -17,6 +17,7 @@ import json
 import uuid
 import sys
 import subprocess
+import os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
@@ -51,43 +52,31 @@ def run_tests(output_dir=None):
             account_id = page.evaluate('() => JSON.parse(TradingNativeBridge.getSnapshot()).personalAccount.id')
 
             # -------------------------------------------------------------
-            # TEST 1: Clock Ratio 96x & 15 Minutes / Day Contract (T1)
+            # TEST 1: Actual foreground 5 Minutes / Day Contract (T1)
             # -------------------------------------------------------------
             page.evaluate('() => TradingNativeBridge.setClockState(true, 1)')
-            pre_tick_snap = page.evaluate('() => JSON.parse(TradingNativeBridge.getSnapshot())')
+            tick = page.evaluate('''() => {
+                const before=JSON.parse(TradingNativeBridge.getSnapshot());
+                const after=JSON.parse(TradingNativeBridge.tickClock(300));
+                return {before,after};
+            }''')
+            pre_tick_snap, post_tick_snap = tick['before'], tick['after']
             pre_time_str = f"{pre_tick_snap['clock']['date']} {pre_tick_snap['clock']['time']}"
-            
-            # Advancing 300s real at 96x = 28,800s game (8 hours)
-            post_tick_snap = page.evaluate('() => JSON.parse(TradingNativeBridge.tickClock(28800))')
             post_time_str = f"{post_tick_snap['clock']['date']} {post_tick_snap['clock']['time']}"
-            assert pre_time_str != post_time_str, f"Clock must advance: {pre_time_str} -> {post_time_str}"
-            checks.append(f"T1 (Clock): 15m/day contract verified: 300s real advances 28,800s game (8 hours game), 1s real = 96s game: {pre_time_str} -> {post_time_str}")
+            elapsed_game_ms = post_tick_snap['clock']['timestamp'] - pre_tick_snap['clock']['timestamp']
+            assert elapsed_game_ms == 86400000, f"300 real seconds must advance 86400 game seconds, actual {elapsed_game_ms / 1000}"
+            assert post_tick_snap['clock']['rate'] == 288, post_tick_snap['clock']
+            checks.append(f"T1 (Clock): Measured actual Java foreground 1x: 300 real seconds advances one game day: {pre_time_str} -> {post_time_str}")
 
             # -------------------------------------------------------------
-            # TEST 2: Briefing Renamed to 'Atur Waktu' & Account Context (T2)
+            # TEST 2: Automatic world without session controls and actual account context (T2)
             # -------------------------------------------------------------
-            btn_briefing = page.locator('#btn-briefing')
-            assert btn_briefing.text_content() == 'Atur Waktu', f"Button must say 'Atur Waktu', got {btn_briefing.text_content()}"
-            
-            # Verify account context header
+            assert page.locator('#btn-briefing, .session-card').count() == 0
             acc_btn_text = page.locator('#context-account-btn').text_content()
-            assert 'Akun:' in acc_btn_text and 'Pribadi' in acc_btn_text, f"Account context must say 'Akun: Pribadi', got {acc_btn_text}"
-
-            # Open Atur Waktu modal
-            btn_briefing.click()
-            page.wait_for_selector('.flow-page')
-            panel_title = page.locator('.flow-page h1').text_content()
-            assert panel_title == 'Atur Waktu', f"Modal title must be 'Atur Waktu', got {panel_title}"
-            
-            panel_text = page.locator('.flow-page').text_content()
-            assert 'Kecepatan normal: 1 hari game = 15 menit nyata' in panel_text, "Modal must state 15 menit nyata rule"
-            assert 'Tanggal & sesi pasar' in panel_text
-            assert 'Akun transaksi' in panel_text
-
-            page.screenshot(path=str(screenshot_dir / '01-atur-waktu-modal.png'))
-            checks.append("T2 (Briefing/Account): 'Atur Waktu' flow modal and 'Akun: Pribadi' context verified")
-            page.locator('.back-button').click()
-            page.wait_for_selector('.flow-page', state='detached')
+            assert 'Akun' in acc_btn_text and 'Pribadi' in acc_btn_text
+            assert not page.evaluate('JSON.parse(TradingNativeBridge.getSnapshot()).clock.isPaused')
+            page.screenshot(path=str(screenshot_dir / '01-automatic-world.png'))
+            checks.append("T2: Session controls removed; world starts automatically; personal account context verified")
 
             # -------------------------------------------------------------
             # TEST 3: Removal of Badge SIMULASI on Beranda Heading (T7)
@@ -160,28 +149,19 @@ def run_tests(output_dir=None):
             time.sleep(0.3)
             page.screenshot(path=str(screenshot_dir / '07-bisnis-subtab-koleksi-all.png'))
             
-            # Verify 5 category pills
+            catalog = page.evaluate('() => JSON.parse(TradingNativeBridge.getCollections()).collections')
+            categories = list(dict.fromkeys(item['category'].upper() for item in catalog))
+            assert categories, 'Domain collection catalog must have categories'
             cat_pills = page.locator('.category-pills button')
-            assert cat_pills.count() == 5, f"Expected 5 category pills, got {cat_pills.count()}"
+            assert cat_pills.count() == len(categories) + 1, f"Every real category needs one filter plus All: {cat_pills.count()} vs {len(categories) + 1}"
             cat_labels = [b.text_content() for b in cat_pills.all()]
             assert any('Semua' in l for l in cat_labels)
-            assert any('Kendaraan' in l for l in cat_labels)
-            assert any('Properti' in l for l in cat_labels)
-            assert any('Perhiasan' in l for l in cat_labels)
-            assert any('Seni & Jam Tangan' in l for l in cat_labels)
-
-            # Filter by Kendaraan (VEHICLE)
-            page.locator('.category-pills button:has-text("Kendaraan")').click()
-            time.sleep(0.2)
-            page.screenshot(path=str(screenshot_dir / '08-bisnis-koleksi-kendaraan.png'))
-            vehicle_cards = page.locator('#collections-card-list article')
-            assert vehicle_cards.count() == 3, f"Expected 3 vehicle collection items, got {vehicle_cards.count()}"
-
-            # Filter by Properti (REAL_ESTATE)
-            page.locator('.category-pills button:has-text("Properti")').click()
-            time.sleep(0.2)
-            property_cards = page.locator('#collections-card-list article')
-            assert property_cards.count() == 3, f"Expected 3 property collection items, got {property_cards.count()}"
+            for index, category in enumerate(categories, 1):
+                page.locator('.category-pills button').nth(index).click()
+                expected_ids = {item['id'] for item in catalog if item['category'].upper() == category}
+                rendered_ids = set(page.locator('#collections-card-list article').evaluate_all('(els)=>els.map(el=>el.dataset.collectionId)'))
+                assert rendered_ids == expected_ids, (category, rendered_ids, expected_ids)
+            page.screenshot(path=str(screenshot_dir / '08-bisnis-koleksi-category.png'))
 
             # 5c. Kelola Dana Subtab
             sub_dana.click()
@@ -191,7 +171,7 @@ def run_tests(output_dir=None):
             # Ensure Kurs valuasi is hidden on dana
             assert page.locator('#firma-subtab-content .data-row:has(span:text("Kurs valuasi USD/IDR"))').count() == 0, "Kurs valuasi row must be hidden"
 
-            checks.append("T5 (T3): Bisnis tab 3 subtabs (Usaha, Koleksi, Dana) & 5-category Koleksi filtering verified")
+            checks.append(f"T5 (T3): Three career area subtabs and all {len(categories)} real collection categories verified")
 
             # -------------------------------------------------------------
             # TEST 6: Immediate Chart Rendering & OHLCV Controls on D1 (T8)
@@ -205,7 +185,7 @@ def run_tests(output_dir=None):
 
             # Verify D1 active by default
             btn_d1 = page.locator('.timeframe-buttons button[data-timeframe="D1"]')
-            assert 'active' in btn_d1.get_attribute('class'), "Timeframe D1 must be active by default"
+            assert btn_d1.get_attribute('aria-pressed') == 'true', "Timeframe D1 must be selected by default"
 
             # Chart SVG must be rendered with non-zero geometry
             svg_chart = page.locator('.candle-svg')
@@ -234,12 +214,11 @@ def run_tests(output_dir=None):
             # -------------------------------------------------------------
             # TEST 7: 'Tentang Perusahaan' Section in Detail Saham (T9)
             # -------------------------------------------------------------
-            profile_sec = page.locator('#detail-company-profile')
-            assert profile_sec.is_visible(), "'Tentang Perusahaan' section must be rendered"
-            prof_title = profile_sec.locator('h3').text_content()
-            assert prof_title == 'Tentang Perusahaan'
+            page.locator('[data-tab-id="ringkasan"]').click()
+            profile_sec = page.locator('#fund-content-box')
+            assert profile_sec.is_visible(), 'Ringkasan profil perusahaan harus terlihat'
             
-            prof_desc = profile_sec.locator('p').first.text_content()
+            prof_desc = profile_sec.locator('p.article-copy').text_content()
             assert len(prof_desc) > 30, f"Company description must be substantive: {prof_desc}"
 
             website_link = profile_sec.locator('a[href^="http"]')
@@ -251,14 +230,18 @@ def run_tests(output_dir=None):
             page.wait_for_selector('.flow-page', state='detached')
 
             # -------------------------------------------------------------
-            # TEST 8: Reconcile 100 Real Companies + 101st Instrument (T10)
+            # TEST 8: Reconcile canonical companies and actual published IPO listings (T10).
             # -------------------------------------------------------------
             all_insts = page.evaluate('() => JSON.parse(TradingNativeBridge.getInstruments("", "", null, false))')
-            assert len(all_insts) == 101, f"Expected 101 instruments in catalog (100 real + 1 IPO), got {len(all_insts)}"
-            ncld_item = [i for i in all_insts if i['id'] == 'IDX:NCLD']
-            assert len(ncld_item) == 1, "IDX:NCLD must be present as the 101st instrument"
-            assert ncld_item[0]['sector'] == 'IPO', f"IDX:NCLD must be labeled as IPO sector, got {ncld_item[0]['sector']}"
-            checks.append(f"T8 (T10): Reconciled 101 instruments: 100 verified real companies (50 IDX, 50 US across 12 sectors) + 1 in-game IPO (IDX:NCLD)")
+            canonical_path=Path(os.environ.get('QA_ASSETS',str(ROOT/'android/app/src/main/assets')))/'data/market_universe.json'
+            canonical=json.loads(canonical_path.read_text(encoding='utf-8'))['instruments']
+            canonical_ids={item['id'] for item in canonical}
+            assert len(canonical_ids)==100 and {item['id'] for item in all_insts}>=canonical_ids
+            published=page.evaluate('JSON.parse(TradingNativeBridge.getIpoOfferings())')
+            ipo_ids={('US:' if item['currency']=='USD' else 'IDX:')+item['ticker'] for item in published}
+            additions=[item for item in all_insts if item['id'] not in canonical_ids]
+            assert all(item['id'] in ipo_ids and item['sector']=='IPO' for item in additions),additions
+            checks.append(f"T8 (T10): Seluruh {len(canonical_ids)} emiten kanonis tersedia; {len(additions)} penambahan berasal dari IPO game yang dipublikasikan")
 
             # -------------------------------------------------------------
             # TEST 9: Fixed Exchange Rate Rp 15.800 & Hidden Rate Row (T11)
@@ -273,7 +256,7 @@ def run_tests(output_dir=None):
 
             # Verify fixed rate in FX conversion modal: mid-rate = 15800.00
             fx_preview = page.evaluate(f'''() => JSON.parse(TradingNativeBridge.previewFx(JSON.stringify({{
-                "accountId": "{account_id}", "from": "USD", "to": "IDR", "amount": "100"
+                "accountId": "{account_id}", "from": "IDR", "to": "USD", "amount": "1000000"
             }})))''')
             assert fx_preview.get('success') is True, fx_preview
             bid_val = float(fx_preview['bid'])
@@ -301,9 +284,11 @@ def run_tests(output_dir=None):
             page.locator('button:has-text("Kirim order")').click()
             time.sleep(0.5)
 
-            # Receipt status must be in clean Indonesian ('Terisi penuh')
-            receipt_status_text = page.locator('.flow-page .data-row:has(span:text("Status")) strong').text_content()
-            assert 'Terisi penuh' in receipt_status_text or 'FILLED' in receipt_status_text, f"Status must be translated (got {receipt_status_text})"
+            # Check the displayed translation against the actual domain outcome, including no-fill cancellations.
+            status_element=page.locator('.flow-page .data-row:has(span:text("Status")) strong')
+            receipt_status_text=status_element.text_content()
+            translations={'FILLED':'Terisi penuh','PARTIALLY_FILLED':'Terisi sebagian','OPEN':'Mengantre','CANCELLED':'Dibatalkan','REJECTED':'Ditolak','PENDING_TRIGGER':'Menunggu pemicu','EXPIRED':'Kedaluwarsa'}
+            assert receipt_status_text==translations.get(status_element.get_attribute('data-status')),f"Status must be translated from domain (got {receipt_status_text})"
             page.screenshot(path=str(screenshot_dir / '15-clean-receipt-indonesian.png'))
             checks.append(f"T10 (T4): Clean language verified: order receipt displays '{receipt_status_text}' without system codes")
             page.locator('.back-button').click()

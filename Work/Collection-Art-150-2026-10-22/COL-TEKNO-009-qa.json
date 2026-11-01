@@ -1,0 +1,23 @@
+{
+  "width": 1254,
+  "height": 1254,
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "alpha_bbox": [
+    231,
+    300,
+    1041,
+    1027
+  ],
+  "raw_alpha_bbox": [
+    0,
+    0,
+    1234,
+    1214
+  ],
+  "crop_threshold": 16,
+  "transparent_pixels": 1160763,
+  "visual_review": "PASS: native equipment/diorama identity, rarity craft and materials, complete silhouette, alpha, wide margins and navy/light card views individually inspected."
+}

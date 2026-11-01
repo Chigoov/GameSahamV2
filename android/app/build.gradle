@@ -43,7 +43,12 @@ android {
     applicationVariants.all { variant ->
         variant.mergeAssetsProvider.configure {
             doLast {
-                delete fileTree(dir: outputDir, includes: ['**/idx_bbca_daily.csv', '**/us_aapl_daily.csv'])
+                delete fileTree(dir: outputDir, includes: [
+                    '**/idx_bbca_daily.csv',
+                    '**/us_aapl_daily.csv',
+                    '**/dashboard-*.html',
+                    '**/preview-before-after.html'
+                ])
             }
         }
     }

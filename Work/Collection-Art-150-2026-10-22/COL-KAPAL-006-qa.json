@@ -1,0 +1,23 @@
+{
+  "width": 1254,
+  "height": 1254,
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "alpha_bbox": [
+    176,
+    285,
+    1137,
+    975
+  ],
+  "raw_alpha_bbox": [
+    25,
+    23,
+    1232,
+    1205
+  ],
+  "crop_threshold": 16,
+  "transparent_pixels": 1261816,
+  "visual_review": "PASS: native vessel identity, appropriate rarity craftsmanship, complete hull/masts/sails and alpha; navy/light card previews individually inspected with clear silhouette."
+}

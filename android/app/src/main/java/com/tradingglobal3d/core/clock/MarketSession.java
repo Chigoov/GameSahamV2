@@ -3,7 +3,7 @@ package com.tradingglobal3d.core.clock;
 public enum MarketSession {
     CLOSED("Pasar Tutup", false),
     PRE_OPENING("Pra-Pembukaan", false),
-    SESSION_1("Sesi I (Pagi)", true),
+    SESSION_1("Perdagangan Aktif", true),
     BREAK("Istirahat Siang", false),
     SESSION_2("Sesi II (Siang)", true),
     POST_CLOSING("Pra-Penutupan", false);

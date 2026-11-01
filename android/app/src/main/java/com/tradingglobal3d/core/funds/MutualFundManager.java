@@ -29,14 +29,13 @@ public final class MutualFundManager {
 
     private void initializeDefaultFunds() {
         funds.clear();
-        java.io.File jsonFile = new java.io.File("src/main/assets/data/katalog_reksadana_24.json");
-        if (!jsonFile.exists()) {
-            jsonFile = new java.io.File("android/app/src/main/assets/data/katalog_reksadana_24.json");
-        }
-        if (jsonFile.exists()) {
-            try {
-                byte[] bytes = java.nio.file.Files.readAllBytes(jsonFile.toPath());
-                String content = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+        try (java.io.InputStream stream = com.tradingglobal3d.core.market.HistoricalDatasetLoader.openAssetStream("data/katalog_reksadana_24.json")) {
+            if (stream != null) {
+                java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = stream.read(buf)) != -1) out.write(buf, 0, n);
+                String content = out.toString(java.nio.charset.StandardCharsets.UTF_8.name());
                 JSONArray arr = new JSONArray(content);
                 for (int i = 0; i < arr.length(); i++) {
                     JSONObject obj = arr.getJSONObject(i);
@@ -47,8 +46,8 @@ public final class MutualFundManager {
                     funds.put(id, new MutualFund(id, name, type, manager));
                 }
                 if (funds.size() >= 24) return;
-            } catch (Exception ignored) {}
-        }
+            }
+        } catch (Exception ignored) {}
         funds.put("FUND-MM-01", new MutualFund(
                 "FUND-MM-01",
                 "Nusantara Kas Lancar",

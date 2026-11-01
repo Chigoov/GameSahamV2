@@ -16,11 +16,13 @@ public final class Order {
     private final String instrumentId;
     private final OrderSide side;
     private final OrderType type;
-    private final Money limitPrice;          // Null untuk market order
+    private Money limitPrice;                // Null untuk market order saat dibuat
     private final Money triggerPrice;        // Pemicu untuk stop-loss/take-profit
     private final long totalQuantity;        // Lembar saham yang dipesan
     private final long createdAt;
     private Money reservedMoney;             // Kas tertahan (untuk BUY)
+    private double feeDiscountPercent;
+    private boolean awaitingMarketOpen;
 
     private long filledQuantity;
     private OrderStatus status;
@@ -45,6 +47,9 @@ public final class Order {
                 ? OrderStatus.PENDING_TRIGGER
                 : OrderStatus.OPEN;
     }
+
+    public boolean isAwaitingMarketOpen() { return awaitingMarketOpen; }
+    public void setAwaitingMarketOpen(boolean waiting) { awaitingMarketOpen = waiting; }
 
     public String getId() { return id; }
     public String getRequestId() { return requestId; }
@@ -84,11 +89,31 @@ public final class Order {
     }
 
     public void setStatus(OrderStatus newStatus) {
+        if (this.status != null && this.status.isFinal() && newStatus != this.status) {
+            return;
+        }
         this.status = newStatus;
     }
 
     public void setReservedMoney(Money reserved) {
         this.reservedMoney = reserved;
+    }
+
+    public void setLimitPrice(Money limitPrice) {
+        this.limitPrice = limitPrice;
+    }
+
+    public double getFeeDiscountPercent() { return feeDiscountPercent; }
+
+    public void setFeeDiscountPercent(double discountPercent) {
+        if (!Double.isFinite(discountPercent) || discountPercent < 0.0)
+            throw new IllegalArgumentException("Diskon komisi order tidak valid");
+        feeDiscountPercent = Math.min(75.0, discountPercent); // Maksimal diskon 75% (Bug #332)
+    }
+
+    public java.math.BigDecimal getEffectiveFeeRate(java.math.BigDecimal baseRate) {
+        return baseRate.multiply(java.math.BigDecimal.ONE.subtract(java.math.BigDecimal.valueOf(feeDiscountPercent)
+                .movePointLeft(2)));
     }
 
     public static Order createLimit(String id, String instrumentId, String accountId, OrderSide side, Money price, long quantity, long timestamp) {

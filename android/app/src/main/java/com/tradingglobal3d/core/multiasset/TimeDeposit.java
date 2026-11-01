@@ -18,6 +18,7 @@ public final class TimeDeposit {
     private final String bankName;
     private final Money principal;
     private final double annualInterestRate;
+    private final double bonusInterestPercent;
     private final int tenorDays;
     private final long placedTimestamp;
     private final long maturityTimestamp;
@@ -28,11 +29,19 @@ public final class TimeDeposit {
 
     public TimeDeposit(String id, String productId, String bankName, Money principal,
                        double annualInterestRate, int tenorDays, long placedTimestamp) {
+        this(id, productId, bankName, principal, annualInterestRate, 0.0, tenorDays, placedTimestamp);
+    }
+
+    public TimeDeposit(String id, String productId, String bankName, Money principal,
+                       double annualInterestRate, double bonusInterestPercent, int tenorDays, long placedTimestamp) {
         this.id = Objects.requireNonNull(id);
         this.productId = Objects.requireNonNull(productId);
         this.bankName = Objects.requireNonNull(bankName);
         this.principal = Objects.requireNonNull(principal);
         this.annualInterestRate = annualInterestRate;
+        if (!Double.isFinite(bonusInterestPercent) || bonusInterestPercent < 0.0)
+            throw new IllegalArgumentException("Bonus bunga deposito tidak valid");
+        this.bonusInterestPercent = bonusInterestPercent;
         this.tenorDays = Math.max(1, tenorDays);
         this.placedTimestamp = placedTimestamp;
         // 1 hari game = 86400 detik = 86400_000 ms
@@ -61,7 +70,9 @@ public final class TimeDeposit {
     public Money calculateAccruedInterest(long currentTimestamp) {
         long elapsedMs = Math.max(0L, Math.min(maturityTimestamp, currentTimestamp) - placedTimestamp);
         double elapsedDays = (double) elapsedMs / 86_400_000.0;
-        BigDecimal annualReturn = principal.getAmount().multiply(BigDecimal.valueOf(annualInterestRate));
+        BigDecimal effectiveAnnualRate = BigDecimal.valueOf(annualInterestRate)
+                .multiply(BigDecimal.ONE.add(BigDecimal.valueOf(bonusInterestPercent).movePointLeft(2)));
+        BigDecimal annualReturn = principal.getAmount().multiply(effectiveAnnualRate);
         BigDecimal accrued = annualReturn.multiply(BigDecimal.valueOf(elapsedDays / 365.0)).setScale(0, RoundingMode.HALF_UP);
         return new Money(accrued, principal.getCurrency());
     }
@@ -85,6 +96,9 @@ public final class TimeDeposit {
         obj.put("principal", principal.format());
         obj.put("principalRaw", principal.getAmount().toPlainString());
         obj.put("annualInterestRate", String.format(java.util.Locale.ROOT, "%.2f%%", annualInterestRate * 100));
+        obj.put("bonusInterestPercent", bonusInterestPercent);
+        obj.put("effectiveAnnualInterestRate", String.format(java.util.Locale.ROOT, "%.2f%%",
+                annualInterestRate * (1.0 + bonusInterestPercent / 100.0) * 100.0));
         obj.put("tenorDays", tenorDays);
         obj.put("placedTimestamp", placedTimestamp);
         obj.put("maturityTimestamp", maturityTimestamp);
@@ -94,5 +108,35 @@ public final class TimeDeposit {
         obj.put("interestPaid", interestPaid.format());
         obj.put("penaltyPaid", penaltyPaid.format());
         return obj;
+    }
+
+    public JSONObject exportState() throws JSONException {
+        JSONObject obj = new JSONObject();
+        obj.put("id", id).put("productId", productId).put("bankName", bankName)
+                .put("principal", principal.getAmount().toPlainString()).put("currency", principal.getCurrency().name())
+                .put("annualInterestRate", annualInterestRate).put("bonusInterestPercent", bonusInterestPercent)
+                .put("tenorDays", tenorDays).put("placedTimestamp", placedTimestamp)
+                .put("status", status).put("interestPaid", interestPaid.getAmount().toPlainString())
+                .put("penaltyPaid", penaltyPaid.getAmount().toPlainString());
+        return obj;
+    }
+
+    public static TimeDeposit fromState(JSONObject obj) throws JSONException {
+        Currency currency = Currency.valueOf(obj.getString("currency"));
+        TimeDeposit deposit = new TimeDeposit(obj.getString("id"), obj.getString("productId"), obj.getString("bankName"),
+                new Money(new BigDecimal(obj.getString("principal")), currency), obj.getDouble("annualInterestRate"),
+                obj.optDouble("bonusInterestPercent", 0.0), obj.getInt("tenorDays"), obj.getLong("placedTimestamp"));
+        String status = obj.getString("status");
+        if ("ACTIVE".equals(status)) {
+            deposit.status = status;
+        } else if ("MATURED".equals(status)) {
+            deposit.markMatured(new Money(new BigDecimal(obj.getString("interestPaid")), currency));
+        } else if ("WITHDRAWN_EARLY".equals(status)) {
+            deposit.markEarlyWithdrawn(new Money(new BigDecimal(obj.getString("interestPaid")), currency),
+                    new Money(new BigDecimal(obj.getString("penaltyPaid")), currency));
+        } else {
+            throw new IllegalArgumentException("Status deposito save tidak dikenal");
+        }
+        return deposit;
     }
 }

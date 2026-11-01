@@ -16,6 +16,7 @@ public final class Account {
     private final Map<Currency, BigDecimal> totalCash = new EnumMap<>(Currency.class);
     private final Map<Currency, BigDecimal> reservedCash = new EnumMap<>(Currency.class);
     private final Map<String, Position> positions = new HashMap<>();
+    private boolean frozen = false;
 
     public Account(String id, String name, AccountType type, String clientMandateId) {
         this.id = Objects.requireNonNull(id, "Account ID cannot be null");
@@ -28,6 +29,22 @@ public final class Account {
             reservedCash.put(c, BigDecimal.ZERO);
         }
     }
+
+    public Account copy() {
+        Account copy = new Account(this.id, this.name, this.type, this.clientMandateId);
+        for (Currency c : Currency.values()) {
+            copy.totalCash.put(c, this.totalCash.getOrDefault(c, BigDecimal.ZERO));
+            copy.reservedCash.put(c, this.reservedCash.getOrDefault(c, BigDecimal.ZERO));
+        }
+        for (Map.Entry<String, Position> entry : this.positions.entrySet()) {
+            copy.positions.put(entry.getKey(), entry.getValue() != null ? entry.getValue().copy() : null);
+        }
+        copy.setFrozen(this.frozen);
+        return copy;
+    }
+
+    public boolean isFrozen() { return frozen; }
+    public void setFrozen(boolean frozen) { this.frozen = frozen; }
 
     public String getId() { return id; }
     public String getName() { return name; }
@@ -82,7 +99,8 @@ public final class Account {
         Currency c = money.getCurrency();
         BigDecimal current = reservedCash.getOrDefault(c, BigDecimal.ZERO);
         if (current.compareTo(money.getAmount()) < 0) {
-            throw new IllegalStateException("Kas tertahan yang di-release melebihi saldo reserved saat ini");
+            reservedCash.put(c, BigDecimal.ZERO);
+            return;
         }
         reservedCash.put(c, current.subtract(money.getAmount()));
     }

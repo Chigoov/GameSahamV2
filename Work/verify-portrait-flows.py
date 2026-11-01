@@ -13,7 +13,8 @@ with sync_playwright() as p:
     assert page.evaluate('JSON.parse(TradingNativeBridge.getPlatformInfo()).testFixture')
     def call(m,*a):
         return json.loads(page.evaluate('([m,a])=>TradingNativeBridge[m](...a)',[m,list(a)]))
-    def tab(name): page.locator('[data-tab='+name+']').click()
+    def tab(name):
+        page.locator('[data-tab='+name+']').click()
     def back(): page.get_by_role('button',name='Kembali',exact=True).click()
     def opened(name, marker):
         layer=page.locator('.flow-page')
@@ -38,7 +39,7 @@ with sync_playwright() as p:
     page.get_by_role('button',name='Konfirmasi konversi',exact=True).click();opened('fx-receipt','Debit / kredit bersih');back()
     tab('aset');page.locator('#asset-tools > summary').click()
     page.get_by_role('button',name='Fasilitas margin & risiko',exact=True).click();opened('risk-locked','Ekuitas bersih')
-    assert page.get_by_role('button',name='Tarik pinjaman margin — Portfolio Manager',exact=True).is_disabled()
+    assert page.get_by_role('button',name='Tarik pinjaman margin · Portfolio Manager',exact=True).is_disabled()
     back();tab('aset');page.locator('#asset-tools > summary').click()
     page.get_by_role('button',name='Aksi korporasi & voting RUPS',exact=True).click();opened('corporate-voting','Agenda voting');back()
     tab('aset');page.locator('#asset-tools > summary').click()
@@ -47,11 +48,15 @@ with sync_playwright() as p:
     tab('aset');page.locator('#asset-tools > summary').click()
     page.get_by_role('button',name='Lab strategi & sandbox what-if',exact=True).click()
     before = call('getSnapshot')['personalAccount']
-    page.get_by_role('button',name='Eksekusi transaksi lab',exact=True).click();opened('lab-result','Total trade lab')
+    page.get_by_role('button',name='Eksekusi transaksi lab',exact=True).click();opened('lab-result','Transaksi lab')
     assert before == call('getSnapshot')['personalAccount']
     back();tab('aset');page.locator('#asset-tools > summary').click()
-    page.get_by_role('button',name='Replay historis',exact=True).click();opened('replay-unavailable','belum tersedia');back()
-    tab('beranda');page.locator('#btn-briefing').click();opened('briefing','24 jam game = 5 menit nyata');back()
+    page.get_by_role('button',name='Replay historis',exact=True).click();opened('replay-datasets','Dataset')
+    datasets=call('getHistoricalDatasets').get('datasets',[])
+    assert page.locator('#replay-dataset option').count()==len(datasets)
+    assert page.get_by_role('button',name='Mulai replay baru',exact=True).is_enabled()==bool(datasets)
+    back()
+    tab('beranda');assert page.locator('#btn-briefing, .session-card').count() == 0
     page.locator('#btn-reports').click();opened('reports-empty','Belum ada hari');back()
     page.locator('#btn-entry-game').click();opened('entry-checkpoint','Portofolio Pribadi')
     page.get_by_role('button',name='Konfigurasi permainan baru',exact=True).click();opened('newgame-config','mereset');back()
@@ -60,10 +65,12 @@ with sync_playwright() as p:
     page.locator('#context-account-btn').click();opened('account-picker','Portofolio Pribadi');back()
 
     # Earn the rank using real fills, claims and daily salary, without fixture money/rank.
-    call('setClockState',True,1);call('tickClock',7);call('setClockState',False,1)
-    for ticker,price in [('BBCA','10300'),('TLKM','3200')]:
-        payload={'requestId':'UI-FLOWS-'+ticker,'instrumentId':'IDX:'+ticker,'side':'BUY','type':'LIMIT','quantity':100,'limitPrice':price}
-        assert call('submitOrder',json.dumps(payload))['success']
+    clock=call('getSnapshot')['clock']
+    page.evaluate('''clock=>{const d=new Date(clock.timestamp+7*3600000),seconds=d.getUTCHours()*3600+d.getUTCMinutes()*60+d.getUTCSeconds();TradingNativeBridge.setClockState(true,1);TradingNativeBridge.tickClock(Math.ceil(((9*3600+30*60-seconds+86400)%86400)/clock.rate));TradingNativeBridge.setClockState(false,1);}''',clock)
+    for ticker in ['BBCA','TLKM']:
+        payload={'requestId':'UI-FLOWS-'+ticker,'instrumentId':'IDX:'+ticker,'side':'BUY','type':'MARKET','quantity':100}
+        result=call('submitOrder',json.dumps(payload))
+        assert result['status']=='FILLED',result
     assert call('claimMission','MIS-01')['success']
     assert call('claimMission','MIS-02')['success']
     for i in range(45):
@@ -71,11 +78,12 @@ with sync_playwright() as p:
         assert call('skipDay','UI-FLOWS-DAY-'+str(i))['success']
     assert call('getSnapshot')['career']['rank']=='PORTFOLIO_MANAGER'
     tab('firma')
+    page.locator('#firma-subtab-dana').click()
     page.get_by_role('button',name='Fund Builder & alokasi portofolio',exact=True).click();opened('fund-builder','Rencana tersimpan');back()
-    tab('firma');page.get_by_role('button',name='Yayasan Dana Sejahtera — Tawaran Tersedia',exact=True).click();opened('mandate-offer','High-water mark')
+    tab('firma');page.locator('#firma-subtab-dana').click();page.get_by_role('button',name='Yayasan Dana Sejahtera · Tawaran Tersedia',exact=True).click();opened('mandate-offer','High-water mark')
     page.get_by_role('button',name='Terima Mandat Kelolaan Klien',exact=True).click()
     assert any(a['type']=='CLIENT' for a in call('getSnapshot')['tradingAccounts'])
-    back();tab('firma');page.get_by_role('button',name='Laporan klien & fee mandat',exact=True).click();opened('client-reports','Trust');back()
+    back();tab('firma');page.locator('#firma-subtab-dana').click();page.get_by_role('button',name='Laporan klien & fee mandat',exact=True).click();opened('client-reports','Trust');back()
     tab('riset');page.get_by_role('button',name='Lihat paket & opsi langganan',exact=True).click();opened('research-tiers','Basic');back()
     assert not errors,errors
     browser.close()

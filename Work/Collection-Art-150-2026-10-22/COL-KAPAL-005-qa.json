@@ -1,0 +1,23 @@
+{
+  "width": 1254,
+  "height": 1254,
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "alpha_bbox": [
+    181,
+    354,
+    1096,
+    924
+  ],
+  "raw_alpha_bbox": [
+    0,
+    55,
+    1222,
+    1182
+  ],
+  "crop_threshold": 16,
+  "transparent_pixels": 1301557,
+  "visual_review": "PASS after imagegen reframe: native identity/materials preserved, whole wheels/mirrors/hull/antenna as applicable, improved approximately 10 percent or wider border, real alpha and clear navy/light card views individually inspected."
+}

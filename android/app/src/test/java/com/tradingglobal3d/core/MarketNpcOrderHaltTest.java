@@ -1,5 +1,6 @@
 package com.tradingglobal3d.core;
 
+import com.tradingglobal3d.core.economy.LedgerEntryType;
 import com.tradingglobal3d.core.facade.TradingFacade;
 import com.tradingglobal3d.core.market.Instrument;
 import com.tradingglobal3d.core.market.InstrumentCatalog;
@@ -44,6 +45,7 @@ public class MarketNpcOrderHaltTest {
         facade.setCatalog(catalog);
         facade.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(50_000_000));
         GameTestSupport.unlockManager(facade);
+        facade.getClock().advanceGameSeconds(1800); // 09:00 WIB (Bursa buka)
 
         bbca = catalog.getById("IDX:BBCA");
         assertNotNull(bbca);
@@ -130,14 +132,15 @@ public class MarketNpcOrderHaltTest {
 
     @Test
     public void testPartialFillAndRemainingQuantityQueue() {
+        facade.getMarketEngine().reset();
         OrderBook book = facade.getMarketEngine().getOrCreateBook(bbca);
-        Account personal = facade.getPersonalAccount();
+        Account buyer = new Account("ACC-FIRM-PARTIAL", "Pembeli Parsial Firm", AccountType.FIRM, null);
+        facade.getLedger().recordMutation("INIT-FIRM-BUYER", buyer, LedgerEntryType.INITIAL_CAPITAL, Money.of(10_000_000, Currency.IDR), true, System.currentTimeMillis(), "Modal awal firm");
 
         // Siapkan seller penjual dengan hanya 100 lembar pada harga 10.300
-        Account seller = new Account("ACC-SELLER-PARTIAL", "Penjual Parsial", AccountType.PERSONAL, null);
+        Account seller = new Account("ACC-SELLER-PARTIAL", "Penjual Parsial", AccountType.FIRM, null);
         seller.creditCash(Money.of(10_000_000, Currency.IDR));
         seller.addPosition(new Position("BBCA", "IDX", Currency.IDR, 100, BigDecimal.valueOf(10000), BigDecimal.valueOf(10300)));
-        facade.getAllAccounts(); // memastikan terdaftar
 
         Order sellOrder = new Order(
                 "ORD-SELL-100", "REQ-SELL-100",
@@ -148,19 +151,19 @@ public class MarketNpcOrderHaltTest {
         facade.getMarketEngine().submitOrder(sellOrder, seller, bbca, facade.getLedger(), java.util.Collections.singletonMap(seller.getId(), seller), System.currentTimeMillis());
         assertEquals(OrderStatus.OPEN, sellOrder.getStatus());
 
-        // Pemain beli 300 lembar pada harga 10.300
+        // Akun firm beli 300 lembar pada harga 10.300 (non-pemain mendukung partial fill)
         Order buyOrder = new Order(
                 "ORD-BUY-300", "REQ-BUY-300",
-                personal.getId(), bbca.getId(),
+                buyer.getId(), bbca.getId(),
                 OrderSide.BUY, OrderType.LIMIT,
                 Money.of(10300, Currency.IDR), null, 300, System.currentTimeMillis(), null
         );
 
         java.util.Map<String, Account> mapAcc = new java.util.HashMap<>();
-        mapAcc.put(personal.getId(), personal);
+        mapAcc.put(buyer.getId(), buyer);
         mapAcc.put(seller.getId(), seller);
 
-        facade.getMarketEngine().submitOrder(buyOrder, personal, bbca, facade.getLedger(), mapAcc, System.currentTimeMillis());
+        facade.getMarketEngine().submitOrder(buyOrder, buyer, bbca, facade.getLedger(), mapAcc, System.currentTimeMillis());
 
         // Harus terisi sebagian (100 lembar), sisa 200 lembar masuk antrean bids
         assertEquals(OrderStatus.PARTIALLY_FILLED, buyOrder.getStatus());
@@ -209,6 +212,7 @@ public class MarketNpcOrderHaltTest {
     @Test
     public void testAuctionInvalidLaterSellerCannotPartiallySettleOrReopen() {
         MarketEngine engine = facade.getMarketEngine();
+        engine.reset();
         engine.haltTrading(bbca.getId());
         Account buyer = facade.getPersonalAccount();
         Account first = facade.createClientAccount("First auction seller", null, Money.of(1000000, Currency.IDR));
@@ -264,6 +268,7 @@ public class MarketNpcOrderHaltTest {
     @Test
     public void testCircuitBreakerHaltAndCallAuctionReopening() {
         MarketEngine engine = facade.getMarketEngine();
+        engine.reset();
         OrderBook book = engine.getOrCreateBook(bbca);
         Account personal = facade.getPersonalAccount();
 

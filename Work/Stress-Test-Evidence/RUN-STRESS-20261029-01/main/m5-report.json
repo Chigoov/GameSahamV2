@@ -1,0 +1,10 @@
+{
+  "totalJourneysExecuted": 20,
+  "milestone": "M5",
+  "totalBridgeApiCallsTested": 20,
+  "totalJourneyStepsExecuted": 2000,
+  "totalPairwiseChecksPassed": 500,
+  "leadAgentId": "AGENT-MAIN-COORD",
+  "elapsedMs": 104493,
+  "status": "SUCCESS"
+}

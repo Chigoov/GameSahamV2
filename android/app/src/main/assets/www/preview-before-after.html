@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Perbandingan Before vs After — Pembersihan UI & Konten Game Saham</title>
+<style>
+:root {
+  --bg-primary: #151515;
+  --bg-panel: #29251F;
+  --bg-hero: #38322A;
+  --accent: #E3BD7F;
+  --text-main: #FFF4E1;
+  --text-secondary: #DFD0B5;
+  --border-subtle: rgba(227, 189, 127, 0.2);
+  --positive: #14F195;
+  --negative: #FF5252;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+body { background: #0d1117; color: #c9d1d9; padding: 20px; line-height: 1.5; }
+.container { max-width: 1040px; margin: 0 auto; }
+.header-box { background: #161b22; border: 1px solid #30363d; border-radius: 14px; padding: 20px 24px; margin-bottom: 28px; }
+.badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; background: #E3BD7F; color: #151515; margin-bottom: 8px; }
+h1 { font-size: 1.6rem; color: #fff; margin-bottom: 6px; }
+p { color: #8b949e; font-size: 0.9rem; }
+
+.section-block { margin-bottom: 36px; }
+.section-title { font-size: 1.2rem; color: #fff; border-bottom: 2px solid #30363d; padding-bottom: 8px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+.section-title span { font-size: 0.85rem; color: #E3BD7F; font-weight: normal; }
+
+.comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 768px) { .comparison-grid { grid-template-columns: 1fr; } }
+
+.card-column { background: #161b22; border-radius: 16px; overflow: hidden; border: 1px solid #30363d; display: flex; flex-direction: column; }
+.col-header { padding: 12px 16px; font-size: 0.88rem; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+.col-header.before { background: rgba(255, 82, 82, 0.15); color: #FF7B72; border-bottom: 1px solid rgba(255, 82, 82, 0.3); }
+.col-header.after { background: rgba(20, 241, 149, 0.15); color: #14F195; border-bottom: 1px solid rgba(20, 241, 149, 0.3); }
+
+.phone-view { background: var(--bg-primary); padding: 16px; min-height: 480px; font-size: 0.82rem; color: var(--text-main); position: relative; }
+
+/* Mockup Elements */
+.m-card { background: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+.m-hero { background: var(--bg-hero); border: 1px solid var(--accent); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+.m-title { font-size: 0.95rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px; }
+.m-caption { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 8px; }
+.m-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.78rem; }
+.m-row span { color: var(--text-secondary); }
+.m-row strong { color: var(--text-main); font-variant-numeric: tabular-nums; }
+.m-tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.68rem; font-weight: 700; }
+.m-tag.pos { background: rgba(20, 241, 149, 0.15); color: var(--positive); }
+.m-tag.neg { background: rgba(255, 82, 82, 0.15); color: var(--negative); }
+.m-tag.neutral { background: rgba(255, 255, 255, 0.1); color: var(--text-secondary); }
+
+/* Quick Action Circle Buttons (Before) */
+.circle-bar { display: flex; gap: 8px; justify-content: space-between; margin-bottom: 12px; }
+.circle-item { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 0.68rem; color: var(--text-secondary); }
+.circle-btn { width: 44px; height: 44px; border-radius: 50%; background: var(--bg-panel); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+
+/* Clean Compact Row (After) */
+.compact-stock-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr 16px; align-items: center; padding: 8px 10px; background: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 8px; margin-bottom: 6px; }
+
+/* Filter Bar */
+.filter-chips-bar { display: flex; gap: 6px; margin-bottom: 10px; overflow-x: auto; padding-bottom: 2px; }
+.chip-btn { padding: 4px 10px; border-radius: 16px; border: 1px solid var(--border-subtle); background: var(--bg-panel); color: var(--text-main); font-size: 0.72rem; font-weight: 600; cursor: pointer; }
+.chip-btn.active { background: var(--accent); color: #151515; border-color: var(--accent); }
+
+.strike { text-decoration: line-through; opacity: 0.6; }
+.highlight-add { border: 1px dashed var(--positive); padding: 4px; border-radius: 6px; }
+.summary-points { padding: 12px 16px; background: #0d1117; font-size: 0.8rem; border-top: 1px solid #30363d; }
+.summary-points li { margin-left: 18px; margin-bottom: 4px; color: #8b949e; }
+.summary-points strong { color: #e2e8f0; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="header-box">
+    <span class="badge">AUDIT UI & KONTEN · BEFORE VS AFTER</span>
+    <h1>Pratinjau Perbandingan Pembersihan Antarmuka</h1>
+    <p>Di bawah ini disajikan perbandingan langsung antara tampilan sebelum (*Before*) yang memuat elemen duplikat, slogan kosong, dan kode teknis internal, dibandingkan tampilan baru (*After*) yang jauh lebih bersih, ringkas, dan ramah jempol pemain ponsel.</p>
+  </div>
+
+  <!-- 1. BERANDA -->
+  <div class="section-block">
+    <div class="section-title">
+      <strong>1. Layar Beranda (Home Dashboard)</strong>
+      <span>Fokus: Eliminasi Slogan Kosong, Bar Aksi Duplikat & Tumpukan Shortcut</span>
+    </div>
+
+    <div class="comparison-grid">
+      <!-- BEFORE -->
+      <div class="card-column">
+        <div class="col-header before">
+          <span>❌ SEBELUM (BEFORE)</span>
+          <span>Banyak Duplikasi & Sesak</span>
+        </div>
+        <div class="phone-view">
+          <!-- Slogan Kosong -->
+          <div style="margin-bottom:8px;">
+            <small style="color:var(--text-secondary); text-transform:uppercase;">HARI PERDAGANGAN</small>
+            <h2 style="font-size:1.15rem; color:#fff;" class="strike">Bangun langkahmu.</h2>
+          </div>
+          <!-- Hero Card dengan Duplikasi Kas -->
+          <div class="m-hero">
+            <small style="color:var(--text-secondary);">TOTAL KEKAYAAN BERSIH</small>
+            <div style="font-size:1.25rem; font-weight:700; margin-bottom:8px;">Rp 75.000.000</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:0.75rem;">
+              <div class="strike">Kas Total: Rp 75 Jt</div>
+              <div class="strike">Tersedia: Rp 75 Jt</div>
+              <div>Tertahan: Rp 0</div>
+              <div>Utang: Rp 0</div>
+            </div>
+          </div>
+          <!-- Bar 5 Lingkaran yang Menduplikasi Navigasi Bawah -->
+          <div class="circle-bar strike" style="opacity:0.6;">
+            <div class="circle-item"><div class="circle-btn">🛒</div><span>Beli Saham</span></div>
+            <div class="circle-item"><div class="circle-btn">💼</div><span>Portofolio</span></div>
+            <div class="circle-item"><div class="circle-btn">🏢</div><span>Bisnis</span></div>
+            <div class="circle-item"><div class="circle-btn">🎁</div><span>Klaim Hibah</span></div>
+            <div class="circle-item"><div class="circle-btn">💳</div><span>Pinjaman</span></div>
+          </div>
+          <!-- Kartu Sponsor 3x Nominal -->
+          <div class="m-card" style="border-color:rgba(20,241,149,0.3);">
+            <div style="display:flex; justify-content:space-between;">
+              <strong>Sponsor Ventura</strong>
+              <span class="m-tag pos">+Rp 25.000.000</span>
+            </div>
+            <p style="font-size:0.7rem; color:var(--text-secondary); margin:4px 0;" class="strike">Suntikan modal ventura tanpa bunga 1x per hari...</p>
+            <button style="width:100%; padding:6px; background:#14F195; color:#000; font-weight:700; border:none; border-radius:6px; font-size:0.75rem;">Klaim Hibah Rp 25 Juta</button>
+          </div>
+          <!-- Tumpukan 10 Shortcut Grid -->
+          <p style="font-size:0.72rem; color:#FF7B72; text-align:center; padding:8px; border:1px dashed #FF7B72; border-radius:6px;">
+            ⚠️ 10 Tombol Shortcut Bertumpuk Memenuhi Layar (Duel Bos, Galeri, DNA, Streak, Dominasi, Asuransi, dll. mendorong warta pasar ratusan piksel ke bawah)
+          </p>
+        </div>
+        <ul class="summary-points">
+          <li><strong>Slogan "Bangun langkahmu"</strong> memakan ruang vertikal tanpa fungsi.</li>
+          <li><strong>Bar 5 tombol lingkaran</strong> 80% duplikat dengan tab bawah & tombol sponsor.</li>
+          <li><strong>Tumpukan 10 tombol shortcut</strong> menenggelamkan warta dan pergerakan pasar saham.</li>
+        </ul>
+      </div>
+
+      <!-- AFTER -->
+      <div class="card-column">
+        <div class="col-header after">
+          <span>✨ SESUDAH (AFTER)</span>
+          <span>Bersih, Ramping & Pasar Langsung Terlihat</span>
+        </div>
+        <div class="phone-view">
+          <!-- Header Berguna -->
+          <div style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <span class="m-tag pos">● Sesi II (14:30 WIB)</span>
+              <h2 style="font-size:1.1rem; color:#fff; margin-top:2px;">Hari 41 · 28 Nov 2026</h2>
+            </div>
+            <span style="font-size:0.75rem; color:var(--accent);">Karier: Novice Trader (Lv.3)</span>
+          </div>
+          <!-- Hero Card Ramping -->
+          <div class="m-hero" style="padding:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <small style="color:var(--text-secondary);">TOTAL KEKAYAAN BERSIH</small>
+                <div style="font-size:1.35rem; font-weight:700; color:#fff;">Rp 75.000.000</div>
+              </div>
+              <div style="text-align:right;">
+                <small style="color:var(--text-secondary);">Kas Tersedia</small>
+                <div style="font-size:0.95rem; font-weight:700; color:var(--positive);">Rp 75.000.000</div>
+              </div>
+            </div>
+          </div>
+          <!-- Sponsor Ringkas 1 Baris -->
+          <div class="m-card" style="display:flex; justify-content:space-between; align-items:center; border-color:var(--positive); padding:10px;">
+            <div>
+              <strong style="color:#fff; font-size:0.85rem;">Dana Hibah Harian</strong>
+              <small style="display:block; color:var(--text-secondary);">+Rp 25.000.000 (Tersedia 1x per hari)</small>
+            </div>
+            <button style="padding:6px 14px; background:var(--accent); color:#151515; font-weight:700; border:none; border-radius:6px; cursor:pointer;">Klaim</button>
+          </div>
+          <!-- Warta Pasar & Pantauan Saham Langsung Muncul di Atas! -->
+          <div class="m-card">
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <strong style="color:var(--accent);">Sentimen Pasar Hari Ini</strong>
+              <small style="color:var(--text-secondary);">2 Warta Aktif</small>
+            </div>
+            <div style="font-size:0.75rem; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:4px; margin-bottom:4px;">
+              <strong>BBCA:</strong> Laba Bersih Lampaui Ekspektasi Konsensus (+2.5% target)
+            </div>
+            <div style="font-size:0.75rem;">
+              <strong>BMRI:</strong> Ekspansi Kredit Korporasi Dorong Kinerja (+3.1% target)
+            </div>
+          </div>
+          <p style="font-size:0.72rem; color:var(--positive); text-align:center;">
+            ✅ Pintasan sekunder (Duel Bos, Galeri, Asuransi, dll.) dipindahkan rapi ke Tab "Lainnya" (Hub Fitur).
+          </p>
+        </div>
+        <ul class="summary-points">
+          <li><strong>Header informatif:</strong> Langsung menampilkan hari, tanggal kalender, dan jam bursa.</li>
+          <li><strong>Eliminasi bar lingkaran duplikat:</strong> Menghemat 90px tinggi layar.</li>
+          <li><strong>Warta & pantauan pasar</strong> langsung terlihat di layar pertama (*above the fold*).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. PASAR -->
+  <div class="section-block">
+    <div class="section-title">
+      <strong>2. Layar Pasar (Stock Market)</strong>
+      <span>Fokus: Pembersihan Metadisclaimer "Model", Form Filter Ramping & Penambahan Harga Mover</span>
+    </div>
+
+    <div class="comparison-grid">
+      <!-- BEFORE -->
+      <div class="card-column">
+        <div class="col-header before">
+          <span>❌ SEBELUM (BEFORE)</span>
+          <span>Bocoran Teks "Model" & Form Menumpuk</span>
+        </div>
+        <div class="phone-view">
+          <!-- Indeks dengan label Model -->
+          <div style="display:flex; gap:6px; margin-bottom:10px;">
+            <div class="m-card" style="flex:1;">
+              <div style="display:flex; justify-content:space-between;"><strong style="font-size:0.8rem;">IHSG</strong> <span class="m-tag neutral strike">Model</span></div>
+              <strong>7700.00</strong> <span class="m-tag pos">+0.00%</span>
+              <small style="display:block; font-size:0.65rem;" class="strike">Model simulasi game (10 anggota)</small>
+            </div>
+            <div class="m-card" style="flex:1;">
+              <div style="display:flex; justify-content:space-between;"><strong style="font-size:0.8rem;">LQ45</strong> <span class="m-tag neutral strike">Model</span></div>
+              <strong>960.00</strong> <span class="m-tag pos">+0.00%</span>
+              <small style="display:block; font-size:0.65rem;" class="strike">Model simulasi game (10 anggota)</small>
+            </div>
+          </div>
+          <!-- 3 Penguat tanpa nominal harga -->
+          <div class="m-card strike">
+            <strong style="font-size:0.8rem;">3 Penguat:</strong>
+            <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-top:2px;">
+              <span>1. V <strong style="color:var(--positive);">+0,2%</strong> (Harga: ???)</span>
+              <span>2. MS <strong style="color:var(--positive);">+0,18%</strong> (Harga: ???)</span>
+            </div>
+            <small style="color:var(--negative); display:block; margin-top:4px;">"Belum ada pelemah di daftar ini."</small>
+          </div>
+          <!-- Form filter 4 baris -->
+          <div class="m-card strike" style="font-size:0.72rem;">
+            <div>Label: Cari emiten saham [Input]</div>
+            <div>Label: Bursa [Select: Semua]</div>
+            <div>Label: Kategori / sektor [Select]</div>
+            <div>Label: Daftar emiten [Select]</div>
+            <div style="color:var(--text-secondary); margin-top:4px;">"20 emiten pada daftar ini."</div>
+          </div>
+        </div>
+        <ul class="summary-points">
+          <li><strong>Label "Model simulasi game"</strong> melanggar arahan K04 pemilik.</li>
+          <li><strong>Top Movers</strong> tidak menampilkan harga saham, hanya persentase.</li>
+          <li><strong>Filter pasar</strong> memakan 4 baris bertumpuk dan ada kalimat "20 emiten...".</li>
+        </ul>
+      </div>
+
+      <!-- AFTER -->
+      <div class="card-column">
+        <div class="col-header after">
+          <span>✨ SESUDAH (AFTER)</span>
+          <span>Bursa Resmi, Filter 1-Baris & Movers Berharga</span>
+        </div>
+        <div class="phone-view">
+          <!-- Indeks Bersih -->
+          <div style="display:flex; gap:6px; margin-bottom:10px;">
+            <div class="m-card" style="flex:1;">
+              <div style="display:flex; justify-content:space-between;"><strong style="font-size:0.85rem;">IHSG</strong> <span class="m-tag pos">+0.48%</span></div>
+              <strong style="font-size:1.05rem;">7.736,90</strong>
+              <small style="display:block; font-size:0.68rem; color:var(--text-secondary);">Bursa Efek Indonesia</small>
+            </div>
+            <div class="m-card" style="flex:1;">
+              <div style="display:flex; justify-content:space-between;"><strong style="font-size:0.85rem;">LQ45</strong> <span class="m-tag pos">+0.62%</span></div>
+              <strong style="font-size:1.05rem;">965,95</strong>
+              <small style="display:block; font-size:0.68rem; color:var(--text-secondary);">45 Emiten Terlikuid</small>
+            </div>
+          </div>
+          <!-- Top Movers Lengkap dengan Harga -->
+          <div class="m-card" style="padding:10px;">
+            <strong style="font-size:0.82rem; color:var(--accent);">Top Movers Hari Ini:</strong>
+            <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-top:4px;">
+              <span>BBCA · Rp 10.425 <strong style="color:var(--positive);">+0.48%</strong></span>
+              <span>BMRI · Rp 7.175 <strong style="color:var(--positive);">+0.70%</strong></span>
+            </div>
+          </div>
+          <!-- Filter 1 Baris Ramping -->
+          <div style="margin-bottom:8px;">
+            <input type="text" placeholder="🔍 Cari ticker / nama saham..." style="width:100%; padding:8px 12px; background:var(--bg-panel); border:1px solid var(--border-subtle); border-radius:8px; color:#fff; font-size:0.8rem; margin-bottom:6px;">
+            <div class="filter-chips-bar">
+              <button class="chip-btn active">Semua</button>
+              <button class="chip-btn">IDX (Indonesia)</button>
+              <button class="chip-btn">US (Wall St)</button>
+              <button class="chip-btn">Watchlist ★</button>
+            </div>
+          </div>
+          <p style="font-size:0.72rem; color:var(--positive); text-align:center;">
+            ✅ Form menghemat 120px ruang vertikal; daftar saham langsung terlihat jelas di layar utama!
+          </p>
+        </div>
+        <ul class="summary-points">
+          <li><strong>Kartu indeks bersih:</strong> Menampilkan nama bursa resmi tanpa kata "Model simulasi".</li>
+          <li><strong>Movers berharga:</strong> Menyajikan ticker, nominal harga, dan persentase perubahan.</li>
+          <li><strong>Filter chips horizontal:</strong> Akses 1-sentuhan cepat dan menghemat ruang.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. PORTOFOLIO & DETAIL SAHAM -->
+  <div class="section-block">
+    <div class="section-title">
+      <strong>3. Layar Portofolio & Detail Saham</strong>
+      <span>Fokus: Pembersihan Kode Dev (A20/A21), Accordion Dompet & Ringkasan Rasio</span>
+    </div>
+
+    <div class="comparison-grid">
+      <!-- BEFORE -->
+      <div class="card-column">
+        <div class="col-header before">
+          <span>❌ SEBELUM (BEFORE)</span>
+          <span>Kode Dev "(A21)", "(A20)" & Rasio Menumpuk</span>
+        </div>
+        <div class="phone-view">
+          <div class="m-card">
+            <strong style="color:var(--negative);" class="strike">Total Kekayaan Bersih Konsolidasi (A21)</strong>
+            <small style="display:block; color:#888;">Rp 75.000.000</small>
+            <div style="margin-top:6px;" class="strike">Total Valuasi Seluruh Kas: Rp 75.000.000</div>
+            <button class="strike" style="width:100%; padding:6px; margin-top:8px; background:#333; color:#aaa; border:1px solid #555; font-size:0.7rem;">
+              Lihat Rincian Alokasi Dana Tertahan (A20)
+            </button>
+          </div>
+          <!-- Detail Saham: 20 Rasio Berjejer -->
+          <div class="m-card strike" style="font-size:0.72rem;">
+            <strong style="color:#fff;">Profil & Rasio Emiten:</strong>
+            <div>Nama resmi: Bank Central Asia Tbk (Duplikat 1)</div>
+            <div>Bursa: IDX (Duplikat 2)</div>
+            <div>Sektor: Keuangan (Duplikat 3)</div>
+            <div style="color:#aaa;">EPS, PER, PBV, ROE, ROA, DER, DPS, DPR, Div Yield, Total Aset, Total Liabilitas, Ekuitas, Pendapatan, Laba Usaha, Laba Bersih, CFO, CFI, CFF, Net Cashflow (20 baris teks mentah tanpa lipatan)...</div>
+            <button style="margin-top:4px;">Perbarui harga & antrean (Redundan)</button>
+          </div>
+        </div>
+        <ul class="summary-points">
+          <li><strong>Kode tiket developer `(A20)` dan `(A21)`</strong> terpampang di antarmuka pemain.</li>
+          <li><strong>Duplikasi nama/sektor 3x</strong> di detail saham.</li>
+          <li><strong>20 rasio keuangan mentah</strong> memanjangkan halaman hingga 400px.</li>
+        </ul>
+      </div>
+
+      <!-- AFTER -->
+      <div class="card-column">
+        <div class="col-header after">
+          <span>✨ SESUDAH (AFTER)</span>
+          <span>Teks Profesional, Bersih & Rasio Terkelompok</span>
+        </div>
+        <div class="phone-view">
+          <div class="m-card">
+            <strong style="color:var(--text-main);">Kekayaan Bersih Konsolidasi</strong>
+            <div style="font-size:1.15rem; font-weight:700; color:#fff;">Rp 75.000.000</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px; font-size:0.75rem;">
+              <div>IDR: <strong>Rp 75.000.000</strong></div>
+              <div>USD: <strong>$0.00</strong></div>
+            </div>
+            <button style="width:100%; padding:6px; margin-top:8px; background:var(--bg-hero); color:var(--accent); border:1px solid var(--accent); border-radius:6px; font-size:0.75rem; cursor:pointer;">
+              Lihat Rincian Dana Tertahan
+            </button>
+          </div>
+          <!-- Detail Saham: 4 Rasio Utama + Accordion -->
+          <div class="m-card" style="padding:10px;">
+            <strong style="color:var(--accent); font-size:0.82rem;">Rasio Fundamental Utama:</strong>
+            <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin:6px 0; font-size:0.75rem; text-align:center;">
+              <div style="background:var(--bg-hero); padding:4px; border-radius:6px;"><strong>PER</strong><br>18.4x</div>
+              <div style="background:var(--bg-hero); padding:4px; border-radius:6px;"><strong>PBV</strong><br>4.2x</div>
+              <div style="background:var(--bg-hero); padding:4px; border-radius:6px;"><strong>ROE</strong><br>21.8%</div>
+              <div style="background:var(--bg-hero); padding:4px; border-radius:6px;"><strong>Yield</strong><br>2.6%</div>
+            </div>
+            <details style="font-size:0.72rem; color:var(--text-secondary); cursor:pointer;">
+              <summary style="font-weight:600; color:var(--accent);">▶ Lihat Laporan Keuangan Lengkap (Neraca & Arus Kas)</summary>
+              <div style="padding-top:6px; font-size:0.7rem; color:#aaa;">(Total Aset, Liabilitas, Ekuitas, Pendapatan, Laba Bersih, Arus Kas CFO/CFI/CFF tersimpan rapi di sini)</div>
+            </details>
+          </div>
+          <p style="font-size:0.72rem; color:var(--positive); text-align:center;">
+            ✅ Bebas dari kode developer; rasio teknis tersimpan rapi tanpa menenggelamkan grafik!
+          </p>
+        </div>
+        <ul class="summary-points">
+          <li><strong>Pembersihan kode sprint:</strong> Teks resmi tanpa kode "(A20)" atau "(A21)".</li>
+          <li><strong>Rasio terstruktur:</strong> 4 metrik kunci di depan, detail teknis dalam menu lipat.</li>
+          <li><strong>Eliminasi tombol refresh manual:</strong> Karena quote harga sudah auto-sync real-time.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. MODAL DIALOG -->
+  <div class="section-block">
+    <div class="section-title">
+      <strong>4. Modal Dialog & Pop-up Alur</strong>
+      <span>Fokus: Pangkas Paragraf Esai Pembuka (100–180 Karakter) Menjadi To-the-Point</span>
+    </div>
+
+    <div class="comparison-grid">
+      <!-- BEFORE -->
+      <div class="card-column">
+        <div class="col-header before">
+          <span>❌ SEBELUM (BEFORE)</span>
+          <span>Paragraf Esai Menenggelamkan Tombol Aksi</span>
+        </div>
+        <div class="phone-view">
+          <div class="m-card strike">
+            <strong style="color:#FF7B72;">Spesifikasi D05</strong>
+            <p style="font-size:0.72rem; color:#aaa; margin:4px 0;">
+              "Fasilitas pinjaman tenor 7/14/30 hari game dengan bunga harian 0.05% atas sisa pokok dan provisi cair 0.5%."
+            </p>
+          </div>
+          <div class="m-card strike">
+            <strong style="color:#FF7B72;">Ketentuan Pembiayaan (A16)</strong>
+            <p style="font-size:0.72rem; color:#aaa; margin:4px 0;">
+              "Game merekomendasikan opsi terbaik berdasarkan profil Anda. Tanpa agunan barang mewah, suku bunga harian..."
+            </p>
+          </div>
+          <p style="font-size:0.72rem; color:#FF7B72; text-align:center;">
+            ⚠️ Di layar ponsel portrait, 40% area layar modal terbuang untuk membaca esai peraturan yang sama berulang kali sebelum tombol aksi muncul.
+          </p>
+        </div>
+        <ul class="summary-points">
+          <li><strong>Kode spesifikasi dev:</strong> "Spesifikasi D05", "(A16)" terlihat di layar pemain.</li>
+          <li><strong>Paragraf esai 100-180 karakter</strong> menghambat alur transaksi cepat.</li>
+        </ul>
+      </div>
+
+      <!-- AFTER -->
+      <div class="card-column">
+        <div class="col-header after">
+          <span>✨ SESUDAH (AFTER)</span>
+          <span>Ringkas, Langsung ke Kontrol & Ramah Jempol</span>
+        </div>
+        <div class="phone-view">
+          <div class="m-card" style="border-color:var(--accent);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="color:#fff; font-size:0.9rem;">Fasilitas Pinjaman Modal</strong>
+              <span class="m-tag neutral">Bunga 0.05%/hari</span>
+            </div>
+            <p style="font-size:0.75rem; color:var(--text-secondary); margin:4px 0;">Tenor fleksibel 7, 14, atau 30 hari game.</p>
+          </div>
+          <!-- Kontrol Aksi Langsung Muncul di Depan! -->
+          <div class="m-card">
+            <small style="color:var(--text-secondary);">Sisa Pokok Utang Saat Ini</small>
+            <div style="font-size:1.2rem; font-weight:700; color:#fff; margin-bottom:8px;">Rp 0 (Bebas Utang)</div>
+            <button style="width:100%; padding:10px; background:var(--accent); color:#151515; font-weight:700; border:none; border-radius:8px; font-size:0.85rem; cursor:pointer;">
+              + Ajukan Pinjaman Modal Kerja
+            </button>
+          </div>
+          <p style="font-size:0.72rem; color:var(--positive); text-align:center;">
+            ✅ Judul header modal bersih ("Terminal Riset Pasar" tanpa teks "(Satu Pintu)"). Pemain langsung melihat tombol aksi tanpa perlu scroll!
+          </p>
+        </div>
+        <ul class="summary-points">
+          <li><strong>Subjudul ringkas (maks 40 karakter):</strong> Menghemat 35% ruang vertikal modal.</li>
+          <li><strong>Pembersihan kode dev:</strong> Istilah "Spesifikasi D05" dan "(A16)" dieliminasi.</li>
+          <li><strong>Kontrol interaktif</strong> langsung berada di jangkauan jempol pemain.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

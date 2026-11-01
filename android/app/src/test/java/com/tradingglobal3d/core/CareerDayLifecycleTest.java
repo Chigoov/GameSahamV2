@@ -218,7 +218,7 @@ public class CareerDayLifecycleTest {
             facade.requestBailoutRecovery();
             fail("Bailout harus ditolak saat modal masih banyak");
         } catch (IllegalStateException expected) {
-            assertTrue(expected.getMessage().contains("hanya dapat diajukan jika modal kas di bawah"));
+            assertTrue(expected.getMessage().contains("benar-benar bangkrut"));
         }
 
         // Kondisi 2: Simulasikan kerugian telak / modal habis (debit kas sampai tersisa Rp 100.000)
@@ -228,16 +228,20 @@ public class CareerDayLifecycleTest {
 
         int repBefore = facade.getCareerManager().getReputationScore();
 
-        // Ajukan dana pemulihan modal darurat (Bailout)
+        try { facade.requestBailoutRecovery(); fail("Kas Rp100.000 masih merupakan kekayaan positif"); }
+        catch (IllegalStateException expected) { assertTrue(expected.getMessage().contains("benar-benar bangkrut")); }
+        facade.withdraw("REQ-SIM-LOSS-REMAINDER", personal.getId(), Money.of(100_000, Currency.IDR), "QA insolvensi");
+        // Bailout hanya sesudah kekayaan bersih tidak positif dan kas tidak mencukupi.
         Money bailout = facade.requestBailoutRecovery();
         assertEquals(Money.of(10_000_000, Currency.IDR), bailout);
 
-        // Saldo pulih ke Rp 10.100.000
-        assertEquals(Money.of(10_100_000, Currency.IDR), personal.getTotalCash(Currency.IDR));
+        // Saldo pulih ke Rp10.000.000 dari kondisi nol.
+        assertEquals(Money.of(10_000_000, Currency.IDR), personal.getTotalCash(Currency.IDR));
         assertTrue(facade.getCareerManager().isBailoutUsed());
         assertTrue(facade.getCareerManager().getReputationScore() < repBefore); // Penalti reputasi tercatat
 
-        // Kondisi 3: Coba ajukan bailout kedua kali -> harus ditolak karena hanya berlaku sekali per karier
+        // Bangkrut lagi tetap tidak membuka bailout kedua.
+        facade.withdraw("REQ-SIM-LOSS-SECOND", personal.getId(), personal.getTotalCash(Currency.IDR), "QA insolvensi kedua");
         try {
             facade.requestBailoutRecovery();
             fail("Bailout kedua kali harus ditolak");

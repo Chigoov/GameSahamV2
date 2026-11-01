@@ -1,0 +1,15 @@
+ID,Subbutir,Status,Sumber,CaraVerifikasi,BuktiKonkret
+K01,Terminal Riset Satu Pintu & Perbaikan ReferenceError,TERBUKTI_DAN_SELESAI,"Plan 13 Bagian 3, app.js",Audit Scope JS & Live Browser,app.js:3232-3250 (membaca feed bridge aktual jujur tanpa menebak Basic)
+K02,Harga USD 250k & 1M per 30 Hari Game,TERBUKTI_DAN_SELESAI,"Plan 13 Bagian 3, TerminalTier.java",Unit Test & Ledger Debit,TerminalTier.java:PRO=250k;ENTERPRISE=1M; Plan13FixesAndAuditsTest PASS
+K02-B,Proteksi Auto-Renewal Lintas Export/Restore Save,TERBUKTI_DAN_SELESAI,"Plan 13 Bagian 2, ResearchService.java",Unit Test Lifecycle & Reload,ResearchService:enrolledTier disimpan di exportState & restoreState; testAutoRenewalSurvivesExportAndRestoreState PASS
+K03,Penyelarasan Teks Tutorial Waktu 24x & Bursa 09:00-16:00 Otomatis,TERBUKTI_DAN_SELESAI,"Plan 13 Bagian 3, app.js",Persetujuan Pemilik & Teks Aktual,Disetujui Pemilik via clarify (Setuju); app.js:7659-7667 (Langkah 5 bergulir otomatis 24x tanpa tutup manual)
+K04-A,Validasi NPC 1.000 Portofolio Saham Riil & Ledger,TERBUKTI_DAN_SELESAI,"Plan 13 Bagian 3, LeagueManager.java",Audit Ledger & Test Suite,Top 20 disemai portofolio riil ADRO/BBCA/dll; reconcileAll=true (100% seimbang)
+K04-B,Jendela Waktu Pemesanan IPO 3 Hari Game,TERBUKTI_DAN_SELESAI,"Plan 13 Bagian 3, CorporateActionService.java",Unit Test Boundary,Pemesanan sebelum buka atau setelah tutup ditolak; Plan13FixesAndAuditsTest PASS
+K04-C,Proteksi AON Multi-Lawan & Seleksi Antrean (Satuan Lembar vs Lot),TERBUKTI_DAN_SELESAI,"Plan 13 Bagian 3, MatchingEngine.java",Unit Test Multi-Opponent,Order 300 lembar (3 lot) lewati lawan 100 lembar (1 lot) ke lawan 300 lembar; terisi utuh 300 lembar
+K05,Peringkat Ganda Terpisah Net Worth vs Weekly Return,TERBUKTI_DAN_SELESAI,"Plan 13 Bagian 3, TradingFacade.java",Bridge Audit & Unit Test,TradingFacade:getNpcProfile mengembalikan netWorthRank & weeklyReturnRank konsisten
+UI-01,Tema Tycoon Sinematik Obsidian Bronze Gold,TERBUKTI_DAN_SELESAI,"Plan 13 Bagian 4, style.css",Live Browser & Vision Analyze,style.css:root tokens gelap; 01-beranda-live.png & 03-portofolio-full-scroll.png verified
+UI-02,Perbaikan Empty-State Putih Menjadi Dark Bronze,TERBUKTI_DAN_SELESAI,"User Comment, style.css",Live Browser & Vision Analyze,style.css:1900-1915; background var(--surface-raised); 03-portofolio-full-scroll.png verified
+UI-03,Penerapan Galeri Opsi 1 (Luxury Showcase Grid 2-Kolom),TERBUKTI_DAN_SELESAI,"Persetujuan Pemilik, style.css",Persetujuan Pemilik & Live CSS,Disetujui Pemilik (Opsi 1 Grid 2-Kolom); style.css:#collections-card-list grid 2-kolom 150 aset riil
+UI-04,Kebijakan Saldo Kurang Saat Auto-Renewal,MENUNGGU_KEPUTUSAN,"Plan 13 Bagian 3",Catatan Produk,Saat ini turun ke BASIC tanpa minus; menunggu keputusan masa tenggang 1-2 hari game
+UI-05,Frekuensi & Kuota Warta Berita Pro dan Whale,MENUNGGU_KEPUTUSAN,"Plan 13 Bagian 3",Catatan Produk,Saat ini tersedia tiap buka pasar; menunggu kuota artikel harian pasti
+UI-06,Investigasi & Resolusi Potongan Kanan Portofolio,TERBUKTI_DAN_SELESAI,"Plan 13 Bagian 6, style.css",Vision Analyze 06-portofolio-480w,06-portofolio-480w.png terbukti 100% utuh tanpa horizontal clipping

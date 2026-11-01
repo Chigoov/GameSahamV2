@@ -1,0 +1,23 @@
+{
+  "width": 1254,
+  "height": 1254,
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "alpha_bbox": [
+    200,
+    232,
+    1057,
+    999
+  ],
+  "raw_alpha_bbox": [
+    0,
+    17,
+    1240,
+    1254
+  ],
+  "crop_threshold": 16,
+  "transparent_pixels": 987575,
+  "visual_review": "PASS: native framed artwork, full silhouette, alpha, margin and navy/light preview inspected. Illustrative interpretation of catalog item; no specific authentic Raden Saleh painting title or reproduction reference was supplied."
+}

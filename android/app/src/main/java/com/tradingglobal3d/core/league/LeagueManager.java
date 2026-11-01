@@ -42,50 +42,49 @@ public final class LeagueManager {
         public String getDescription() { return description; }
     }
 
+    public static final int TARGET_NPC_COUNT = 1000;
+
     private static final String[] DEFAULT_NAMES = {
-        "Arunika Bara",
-        "Banyu Karang",
-        "Cakra Nirmala",
-        "Damar Kencana",
-        "Embun Lazuardi",
-        "Fajar Sembada",
-        "Genta Pradipta",
-        "Harsa Wanatirta",
-        "Intan Rimbani",
-        "Jati Wisesa",
-        "Kirana Wanaraya",
-        "Lintang Serat",
-        "Mega Sandiwara",
-        "Nara Bumikarsa",
-        "Ombak Medika",
-        "Pijar Angkasa",
-        "Ranu Sumberjati",
-        "Sagara Susumerta",
-        "Tirta Minyaksa",
-        "Wira Lentera"
+        "Arunika Bara", "Banyu Karang", "Cakra Nirmala", "Damar Kencana", "Embun Lazuardi",
+        "Fajar Sembada", "Genta Pradipta", "Harsa Wanatirta", "Intan Rimbani", "Jati Wisesa",
+        "Kirana Wanaraya", "Lintang Serat", "Mega Sandiwara", "Nara Bumikarsa", "Ombak Medika",
+        "Pijar Angkasa", "Ranu Sumberjati", "Sagara Susumerta", "Tirta Minyaksa", "Wira Lentera"
     };
+
+    private static final String[] FIRST_NAMES = {
+        "Aditya", "Bagas", "Citra", "Dimas", "Eko", "Fajar", "Gilang", "Hesti", "Indra", "Joko",
+        "Kartika", "Lestari", "Mega", "Nur", "Oki", "Prasetyo", "Rian", "Surya", "Tri", "Utami",
+        "Wahyu", "Yuda", "Zainal", "Dewi", "Rahmat",
+        "Alexander", "Arthur", "Benjamin", "Charles", "David", "Edward", "Felix", "Gabriel", "Henry", "Ian",
+        "James", "Kenneth", "Liam", "Michael", "Oliver", "Patrick", "Robert", "Samuel", "Thomas", "Victor",
+        "William", "Lucas", "Ethan", "Daniel", "Sebastian"
+    };
+
+    private static final String[] LAST_NAMES = {
+        "Wijaya", "Pratama", "Saputra", "Kusuma", "Setiawan", "Santoso", "Wibowo", "Hidayat", "Nugroho", "Utomo",
+        "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Wilson", "Taylor"
+    };
+
+    private static final String[] TITLES = {
+        "Trader Saham Fundamental",
+        "Manajer Investasi Mandiri",
+        "Pengusaha Ritel Regional",
+        "Investor Dividen Konservatif",
+        "Trader Momentum Harian",
+        "Analis Riset Pasar Swasta",
+        "Pengusaha Komoditas & Aset",
+        "Trader Portofolio Dinamis"
+    };
+
+    private static final String[] STYLES = {"KONSERVATIF", "SEIMBANG", "AGRESIF"};
+
     // ponytail: exact ID/name pairs migrate shipped defaults; custom names stay untouched.
     private static final String[] LEGACY_NAMES = {
-        "Prajogo Pangestu",
-        "Low Tuck Kwong",
-        "Robert Budi Hartono",
-        "Michael Bambang Hartono",
-        "Sri Prakash Lohia",
-        "Chairul Tanjung",
-        "Tahir Perkasa",
-        "Lim Hariyanto",
-        "Djoko Susanto",
-        "Theodore Rachmat",
-        "Martua Sitorus",
-        "Sukanto Tanoto",
-        "Eddy Kusnadi Sariaatmadja",
-        "Ciputra Nusantara",
-        "Mochtar Riady",
-        "Hary Tanoesoedibjo",
-        "Hashim Djojohadikusumo",
-        "Bambang Sutantio",
-        "Arifin Panigoro Junior",
-        "Hendra Sukanto"
+        "Prajogo Pangestu", "Low Tuck Kwong", "Robert Budi Hartono", "Michael Bambang Hartono",
+        "Sri Prakash Lohia", "Chairul Tanjung", "Tahir Perkasa", "Lim Hariyanto",
+        "Djoko Susanto", "Theodore Rachmat", "Martua Sitorus", "Sukanto Tanoto",
+        "Eddy Kusnadi Sariaatmadja", "Ciputra Nusantara", "Mochtar Riady", "Hary Tanoesoedibjo",
+        "Hashim Djojohadikusumo", "Bambang Sutantio", "Arifin Panigoro Junior", "Hendra Sukanto"
     };
 
     private LeagueTier currentTier = LeagueTier.BRONZE;
@@ -97,6 +96,7 @@ public final class LeagueManager {
     private InstrumentCatalog catalog;
     private final Map<String, BigDecimal> npcPeriodOpening = new LinkedHashMap<>();
     private final List<JSONObject> periodHistory = new ArrayList<>();
+    private int rebalanceOffset = 0;
 
     public LeagueManager() {
         initializeNpcRoster();
@@ -106,13 +106,13 @@ public final class LeagueManager {
         currentTier = LeagueTier.BRONZE;
         seasonWeekNumber = 1;
         canonicalNpcAccounts = false; accounts = null; catalog = null;
-        npcPeriodOpening.clear(); periodHistory.clear();
+        npcPeriodOpening.clear(); periodHistory.clear(); rebalanceOffset = 0;
         initializeNpcRoster();
     }
 
     private void initializeNpcRoster() {
         npcCompetitors.clear();
-        // 20 Konglomerat dan Trader NPC Fiktif (D09)
+        // 20 Konglomerat dan Taipan NPC Utama (D09 / Canonical)
         addNpc("NPC-01", DEFAULT_NAMES[0], "Taipan Energi & Petrokimia", "AGRESIF", 550_000_000_000L, 4.25);
         addNpc("NPC-02", DEFAULT_NAMES[1], "Raja Pertambangan Batubara", "SEIMBANG", 380_000_000_000L, 3.80);
         addNpc("NPC-03", DEFAULT_NAMES[2], "Pemilik Konglomerasi Finansial", "KONSERVATIF", 350_000_000_000L, 2.10);
@@ -134,6 +134,18 @@ public final class LeagueManager {
         addNpc("NPC-19", DEFAULT_NAMES[18], "Eksplorasi Migas Mandiri", "AGRESIF", 500_000_000L, 4.80);
         addNpc("NPC-RIV-01", DEFAULT_NAMES[19], "Trader Ambisius Rival", "AGRESIF", 45_000_000L, 2.75);
 
+        // Tambahkan 980 NPC tambahan hingga tepat 1.000 NPC unik (NPC01 / 28 Okt 2026)
+        for (int i = 20; i < TARGET_NPC_COUNT; i++) {
+            String id = String.format(Locale.ROOT, "NPC-%04d", i + 1);
+            int firstIdx = i % FIRST_NAMES.length;
+            int lastIdx = (i / FIRST_NAMES.length) % LAST_NAMES.length;
+            String name = FIRST_NAMES[firstIdx] + " " + LAST_NAMES[lastIdx];
+            String title = TITLES[i % TITLES.length];
+            String style = STYLES[i % STYLES.length];
+            long baseWealth = 50_000_000L + (long) ((Math.sin(i * 13.0) + 1.0) * 150_000_000L) + (long) (i * 1_000_000L);
+            addNpc(id, name, title, style, baseWealth, 0.0);
+        }
+
         this.currentRivalId = "NPC-RIV-01";
     }
 
@@ -150,17 +162,87 @@ public final class LeagueManager {
             String accountId = accountIdForNpc(npc.getId());
             Account account = canonicalAccounts.get(accountId);
             if (account == null) {
-                if (canonicalNpcAccounts) throw new IllegalArgumentException("Akun NPC liga hilang: " + accountId);
+                // Migrasi aman save canonical lama: jika NPC baru belum memiliki akun pada roster yang diperluas,
+                // buat akun baru dan catat modal awal secara idempoten ke ledger tanpa melempar exception.
                 account = new Account(accountId, npc.getName(), AccountType.FIRM, null);
                 canonicalAccounts.put(accountId, account);
-                ledger.recordMutation("LEAGUE-SEED:" + npc.getId(), account, LedgerEntryType.INITIAL_CAPITAL,
-                        npc.getNetWorth(), true, now, "Modal awal NPC liga, bukan profit periode");
+                seedInitialNpcPortfolio(npc, account, market, ledger, now);
             }
             if (account.getType() != AccountType.FIRM) throw new IllegalArgumentException("Jenis akun NPC liga tidak sah");
             if (!npcPeriodOpening.containsKey(npc.getId())) npcPeriodOpening.put(npc.getId(), npc.getNetWorth().getAmount());
         }
         accounts = canonicalAccounts; catalog = market; canonicalNpcAccounts = true;
         refreshNpcValuations();
+    }
+
+    private void seedInitialNpcPortfolio(LeagueCompetitor npc, Account account, InstrumentCatalog market, EconomyLedger ledger, long now) {
+        ledger.recordMutation("LEAGUE-SEED:" + npc.getId(), account, LedgerEntryType.INITIAL_CAPITAL,
+                npc.getNetWorth(), true, now, "Modal awal NPC liga: " + npc.getName());
+
+        if (market == null || market.getActiveUniverse().isEmpty()) {
+            return;
+        }
+
+        // Top 20 NPC konglomerat disemai portofolio saham awal melalui transaksi resmi di ledger
+        int npcNum = 999;
+        if (npc.getId().startsWith("NPC-") && !npc.getId().startsWith("NPC-RIV")) {
+            try {
+                npcNum = Integer.parseInt(npc.getId().substring(4));
+            } catch (Exception ignored) {}
+        }
+        if (npcNum <= 20) {
+            double allocPct = npc.getStyle().equals("AGRESIF") ? 0.75 : npc.getStyle().equals("KONSERVATIF") ? 0.40 : 0.60;
+            String targetTicker = getPreferredTickerForNpc(npc.getId());
+            Instrument inst = market.getById("IDX:" + targetTicker);
+            if (inst == null) inst = market.getById(targetTicker);
+            if (inst == null) {
+                for (Instrument i : market.getActiveUniverse()) {
+                    if (i.getCurrency() == Currency.IDR && i.isTradable() && i.getCurrentPrice().isPositive()) {
+                        inst = i; break;
+                    }
+                }
+            }
+
+            if (inst != null && inst.getCurrentPrice().isPositive() && inst.getLotSize() > 0) {
+                BigDecimal price = inst.getCurrentPrice().getAmount();
+                BigDecimal targetStockNominal = npc.getNetWorth().getAmount().multiply(BigDecimal.valueOf(allocPct));
+                long lot = inst.getLotSize();
+                long lots = targetStockNominal.divide(price.multiply(BigDecimal.valueOf(lot)), 0, java.math.RoundingMode.DOWN).longValue();
+                if (lots > 0) {
+                    long shares = lots * lot;
+                    BigDecimal stockVal = price.multiply(BigDecimal.valueOf(shares));
+                    ledger.recordMutation("LEAGUE-BUY:" + npc.getId(), account, LedgerEntryType.TRADE_BUY,
+                            new Money(stockVal, Currency.IDR), false, now, "Portofolio saham awal: " + inst.getTicker());
+                    account.addPosition(new Position(inst.getTicker(), inst.getExchange().name(), Currency.IDR, shares, price, price));
+                }
+            }
+        }
+    }
+
+    private static String getPreferredTickerForNpc(String npcId) {
+        switch (npcId) {
+            case "NPC-01": return "ADRO";
+            case "NPC-02": return "ADRO";
+            case "NPC-03": return "BBCA";
+            case "NPC-04": return "BMRI";
+            case "NPC-05": return "ASII";
+            case "NPC-06": return "TLKM";
+            case "NPC-07": return "BBCA";
+            case "NPC-08": return "UNTR";
+            case "NPC-09": return "ICBP";
+            case "NPC-10": return "ASII";
+            case "NPC-11": return "CPIN";
+            case "NPC-12": return "INKP";
+            case "NPC-13": return "GOTO";
+            case "NPC-14": return "BSDE";
+            case "NPC-15": return "KLBF";
+            case "NPC-16": return "MNCN";
+            case "NPC-17": return "ANTM";
+            case "NPC-18": return "ICBP";
+            case "NPC-19": return "MEDC";
+            case "NPC-RIV-01": return "BBCA";
+            default: return "BBCA";
+        }
     }
 
     public synchronized void refreshNpcValuations() {
@@ -195,8 +277,14 @@ public final class LeagueManager {
         instruments.sort(Comparator.comparing(Instrument::getId));
         if (instruments.isEmpty()) return result;
         int index = 0;
-        for (LeagueCompetitor npc : npcCompetitors.values()) {
+        List<LeagueCompetitor> allNpc = new ArrayList<>(npcCompetitors.values());
+        int batchSize = Math.min(50, allNpc.size());
+        long intervalBucket = now / 1_800_000L;
+        int start = (int) Math.floorMod(intervalBucket * batchSize, (long) allNpc.size());
+        for (int b = 0; b < batchSize; b++) {
+            LeagueCompetitor npc = allNpc.get((start + b) % allNpc.size());
             Account account = accounts.get(accountIdForNpc(npc.getId()));
+            if (account == null) continue;
             Instrument instrument = instruments.get(index++ % instruments.size());
             BigDecimal allocation = new BigDecimal(npc.getStyle().equals("AGRESIF") ? "0.85" :
                     npc.getStyle().equals("KONSERVATIF") ? "0.4" : "0.65");
@@ -223,6 +311,10 @@ public final class LeagueManager {
 
     public synchronized LeagueTier getCurrentTier() {
         return currentTier;
+    }
+
+    public synchronized Map<String, LeagueCompetitor> getNpcCompetitors() {
+        return Collections.unmodifiableMap(npcCompetitors);
     }
 
     public synchronized int getSeasonWeekNumber() {
@@ -358,6 +450,19 @@ public final class LeagueManager {
         refreshNpcValuations();
         try {
             JSONObject archived = getLeaderboardByWeeklyReturn(playerWeeklyReturn, playerNetWorth, "Pemain", "Trader");
+            // Rampingkan arsip riwayat liga ke top 20 + player agar tidak membengkak 16MB pada 1.000 NPC
+            JSONArray fullBoard = archived.getJSONArray("leaderboard");
+            JSONArray trimmedBoard = new JSONArray();
+            boolean hasPlayer = false;
+            for (int i = 0; i < Math.min(20, fullBoard.length()); i++) {
+                JSONObject item = fullBoard.getJSONObject(i);
+                if (item.optBoolean("isPlayer", false)) hasPlayer = true;
+                trimmedBoard.put(item);
+            }
+            if (!hasPlayer && fullBoard.length() > 0) {
+                trimmedBoard.put(fullBoard.getJSONObject(fullBoard.length() - 1));
+            }
+            archived.put("leaderboard", trimmedBoard);
             periodHistory.add(new JSONObject(archived.toString()));
             if (periodHistory.size() > 52) periodHistory.remove(0);
         } catch (JSONException error) { throw new IllegalStateException("Arsip liga gagal", error); }
@@ -419,29 +524,40 @@ public final class LeagueManager {
         Map<String, BigDecimal> openings = new LinkedHashMap<>();
         JSONObject savedOpenings = obj.optJSONObject("periodOpening");
         JSONArray arr = obj.getJSONArray("competitors");
-        if (arr.length() != DEFAULT_NAMES.length) throw new IllegalArgumentException("Roster liga tidak lengkap");
-            for (int i = 0; i < arr.length(); i++) {
-                LeagueCompetitor c = LeagueCompetitor.restoreFromState(arr.getJSONObject(i));
-                if (c != null) {
-                    if (!npcCompetitors.containsKey(c.getId()) || c.isPlayer() || restored.containsKey(c.getId())
-                            || !Double.isFinite(c.getWeeklyReturnPercent()) || c.getNetWorth().isNegative()
-                            || c.getName().trim().isEmpty()) throw new IllegalArgumentException("Peserta liga tidak sah");
-                    for (int n = 0; n < LEGACY_NAMES.length; n++) {
-                        String defaultId = n == 19 ? "NPC-RIV-01" : String.format(Locale.ROOT, "NPC-%02d", n + 1);
-                        if (!c.isPlayer() && defaultId.equals(c.getId()) && LEGACY_NAMES[n].equals(c.getName())) {
-                            c = new LeagueCompetitor(c.getId(), DEFAULT_NAMES[n], c.getTitle(), c.getStyle(),
-                                    c.getNetWorth(), c.getWeeklyReturnPercent(), false);
-                            break;
-                        }
-                    }
-                    restored.put(c.getId(), c);
-                    if (savedOpenings != null && savedOpenings.has(c.getId())) {
-                        BigDecimal opening = new BigDecimal(savedOpenings.getString(c.getId()));
-                        if (opening.signum() < 0) throw new IllegalArgumentException("Basis return NPC negatif");
-                        openings.put(c.getId(), opening);
+        if (arr.length() != DEFAULT_NAMES.length && arr.length() != TARGET_NPC_COUNT) {
+            throw new IllegalArgumentException("Roster liga tidak lengkap");
+        }
+        for (int i = 0; i < arr.length(); i++) {
+            LeagueCompetitor c = LeagueCompetitor.restoreFromState(arr.getJSONObject(i));
+            if (c != null) {
+                if (!npcCompetitors.containsKey(c.getId()) || c.isPlayer() || restored.containsKey(c.getId())
+                        || !Double.isFinite(c.getWeeklyReturnPercent()) || c.getNetWorth().isNegative()
+                        || c.getName().trim().isEmpty()) throw new IllegalArgumentException("Peserta liga tidak sah");
+                for (int n = 0; n < LEGACY_NAMES.length; n++) {
+                    String defaultId = n == 19 ? "NPC-RIV-01" : String.format(Locale.ROOT, "NPC-%02d", n + 1);
+                    if (!c.isPlayer() && defaultId.equals(c.getId()) && LEGACY_NAMES[n].equals(c.getName())) {
+                        c = new LeagueCompetitor(c.getId(), DEFAULT_NAMES[n], c.getTitle(), c.getStyle(),
+                                c.getNetWorth(), c.getWeeklyReturnPercent(), false);
+                        break;
                     }
                 }
+                restored.put(c.getId(), c);
+                if (savedOpenings != null && savedOpenings.has(c.getId())) {
+                    BigDecimal opening = new BigDecimal(savedOpenings.getString(c.getId()));
+                    if (opening.signum() < 0) throw new IllegalArgumentException("Basis return NPC negatif");
+                    openings.put(c.getId(), opening);
+                }
             }
+        }
+        // Migrasi seamless dari save lama 20 NPC ke 1.000 NPC unik
+        if (restored.size() < TARGET_NPC_COUNT) {
+            for (Map.Entry<String, LeagueCompetitor> entry : npcCompetitors.entrySet()) {
+                if (!restored.containsKey(entry.getKey())) {
+                    restored.put(entry.getKey(), entry.getValue());
+                    openings.put(entry.getKey(), entry.getValue().getNetWorth().getAmount());
+                }
+            }
+        }
         if (!restored.containsKey(rival)) throw new IllegalArgumentException("Rival liga tidak ditemukan");
         boolean canonical = obj.optBoolean("canonicalNpcAccounts", false);
         if (canonical && openings.size() != restored.size()) throw new IllegalArgumentException("Basis return canonical NPC tidak lengkap");

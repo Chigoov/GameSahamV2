@@ -1,0 +1,401 @@
+ID,Source,Number,Location,Title,Status
+BUG-A001,AUDIT_100,1,-,Kegagalan `crypto.randomUUID()` pada Tiket Order Beli & Jual,completed
+BUG-A002,AUDIT_100,2,-,Kegagalan Pembelian Reksa Dana (`FUND-SUB`),completed
+BUG-A003,AUDIT_100,3,-,Kegagalan Penjualan/Redemption Reksa Dana (`FUND-RED`),completed
+BUG-A004,AUDIT_100,4,-,Kegagalan Pelunasan Awal Pinjaman Bank (`LOAN-PREPAY`),completed
+BUG-A005,AUDIT_100,5,-,Kegagalan Pembayaran Angsuran Pinjaman Bank (`LOAN-PAY`),completed
+BUG-A006,AUDIT_100,6,-,Kegagalan Transfer Modal Holding Antar Anak Usaha (`HOLD-TRF`),completed
+BUG-A007,AUDIT_100,7,-,Kegagalan Pendaftaran Pendirian Anak Usaha Baru (`COMP-`),completed
+BUG-A008,AUDIT_100,8,-,Kegagalan Perubahan Susunan Pegawai Anak Usaha (`STAFF-`),completed
+BUG-A009,AUDIT_100,9,-,Kegagalan Konversi Valas IDR/USD di Menu Pasar (`FX-UI-`),completed
+BUG-A010,AUDIT_100,10,-,Kegagalan Pemesanan Saham Perdana IPO (`REQ-IPO-`),completed
+BUG-A011,AUDIT_100,11,-,Kegagalan Klaim Modal Harian / Hibah Investor (`REQ-BONUS-`),completed
+BUG-A012,AUDIT_100,12,-,Pembekuan Pembaruan Kuotasi Pasar saat Layar Detail Terbuka,completed
+BUG-A013,AUDIT_100,13,-,Grafik Candlestick Tidak Pernah Diperbarui Realtime di Detail Saham,completed
+BUG-A014,AUDIT_100,14,-,Re-render DOM Masif Setiap 1 Detik di `renderMarketHighlights`,completed
+BUG-A015,AUDIT_100,15,-,Penulisan Disk I/O Sinkron ke `localStorage` di Main Thread UI Setiap 1 Detik,completed
+BUG-A016,AUDIT_100,16,-,Polling Loop Agresif 50ms ke Bridge JNI Android,completed
+BUG-A017,AUDIT_100,17,-,Runaway Timer & Memory Leak pada Audio Synthesizer BGM,completed
+BUG-A018,AUDIT_100,18,-,Kegagalan Resume AudioContext Autoplay Policy di Android,completed
+BUG-A019,AUDIT_100,19,-,Unchecked Null Pointer Exception pada `currentAccount.id` di Tampilan Aset,completed
+BUG-A020,AUDIT_100,20,-,Degradasi Frame Rate Akibat CSS `backdrop-filter: blur(8px)`,completed
+BUG-A021,AUDIT_100,21,-,Kerentanan Input Notasi Ilmiah pada Form Jumlah Order Saham,completed
+BUG-A022,AUDIT_100,22,-,Tumpang Tindih Lapisan Z-Index Antara Flow Page dan Modal Order,completed
+BUG-A023,AUDIT_100,23,-,Status Bintang Watchlist Desinkronisasi Antara Layar Detail dan Daftar Pasar,completed
+BUG-A024,AUDIT_100,24,-,Order Book Menampilkan Tabel Kosong Tanpa Shimmer Saat Inisialisasi,completed
+BUG-A025,AUDIT_100,25,-,Benturan Frekuensi Detak Jam Antara Timer 250ms dan Timer 1000ms,completed
+BUG-A026,AUDIT_100,26,-,Thread Penyelarasan Jam Tertahan Disk I/O `facade.save()`,completed
+BUG-A027,AUDIT_100,27,-,Pemborosan Memori Heap JVM Akibat Double Serialization Snapshot,completed
+BUG-A028,AUDIT_100,28,-,Potensi Deadlock UI Thread pada Synchronized Block `TradingWebBridge.this`,completed
+BUG-A029,AUDIT_100,29,-,Ketiadaan Mekanisme Cache Respons pada `getChartData`,completed
+BUG-A030,AUDIT_100,30,-,Risiko Save Corrupt saat Aplikasi Diminimize Mendadak (`onPause`),completed
+BUG-A031,AUDIT_100,31,-,Bahaya Crash RenderThread GPU pada `LAYER_TYPE_HARDWARE`,completed
+BUG-A032,AUDIT_100,32,-,Penanganan Error `triggerMarketShockEvent` Tidak Mengembalikan State Bursa,completed
+BUG-A033,AUDIT_100,33,-,Pemrosesan Order Synchronous Memblokir JavaBridge Thread,completed
+BUG-A034,AUDIT_100,34,-,Deserialisasi Penuh Berkas Lama pada Setiap Operasi Penyimpanan (`SaveManager`),completed
+BUG-A035,AUDIT_100,35,-,Disk Flush `fos.getFD().sync()` Memperlambat Thread Penyimpan,completed
+BUG-A036,AUDIT_100,36,-,Context Activity Leak pada Constructor `TradingWebBridge`,completed
+BUG-A037,AUDIT_100,37,-,Ketiadaan Rate Limiting pada `@JavascriptInterface beginClockSync`,completed
+BUG-A038,AUDIT_100,38,-,Ketiadaan Skema Migrasi Versi Save Data (`SaveState`),completed
+BUG-A039,AUDIT_100,39,-,Korupsi String JSON pada Error Message `getChartData`,completed
+BUG-A040,AUDIT_100,40,-,Console Error WebView Tersembunyi pada Build Rilis,completed
+BUG-A041,AUDIT_100,41,-,Race Condition pada Variabel `clockSyncPending`,completed
+BUG-A042,AUDIT_100,42,-,Bahaya Truncate Berkas saat Disk Penuh di `robustMove`,completed
+BUG-A043,AUDIT_100,43,-,Pembengkakan Alokasi String Objek `PENDING` Berulang,completed
+BUG-A044,AUDIT_100,44,-,Payload Portofolio Membengkak Tanpa Filter Riwayat,completed
+BUG-A045,AUDIT_100,45,-,Ketiadaan Paginasi pada Endpoint Riwayat Dividen,completed
+BUG-A046,AUDIT_100,46,-,Kerentanan Batas Kuota Storage `QuotaExceededError` di WebView,completed
+BUG-A047,AUDIT_100,47,-,Hilangnya Presisi Desimal Nilai Finansial saat Format Float di JSON,completed
+BUG-A048,AUDIT_100,48,-,Karakter Kontrol Tak Terlihat pada Input Nama Pemain,completed
+BUG-A049,AUDIT_100,49,-,Pemborosan Memori RAM Akibat Duplikasi Offscreen Buffer,completed
+BUG-A050,AUDIT_100,50,-,Ketiadaan Endpoint Kuotasi Ringan Mikro (Micro Price Feed),completed
+BUG-A051,AUDIT_100,51,-,Kebijakan All-Or-None (AON) Membatalkan Market Order Pemain,completed
+BUG-A052,AUDIT_100,52,-,Pengecekan Saldo Market Order Beli Bernilai 0 saat Antrean Kosong,completed
+BUG-A053,AUDIT_100,53,-,Kehabisan Stok Saham Market Maker Membekukan Antrean Ask (*Inventory Depletion*),completed
+BUG-A054,AUDIT_100,54,-,Kehabisan Kas Market Maker Membekukan Antrean Bid,completed
+BUG-A055,AUDIT_100,55,-,Seluruh Bot Perdagangan Ritel Mati saat Jam Bursa Tutup Sementara,completed
+BUG-A056,AUDIT_100,56,-,Fluktuasi Pasar Acak Hanya Dihitung Sekali Sehari di Penutupan Hari,completed
+BUG-A057,AUDIT_100,57,-,Agregasi Lilin `R1D` Menggunakan Interval Lambat 15 Menit,completed
+BUG-A058,AUDIT_100,58,-,Fraksi Tick Tidak Valid pada Kalkulasi Batas ARA/ARB,completed
+BUG-A059,AUDIT_100,59,-,Pertumbuhan Memori Tak Terbatas pada Riwayat Transaksi OrderBook,completed
+BUG-A060,AUDIT_100,60,-,Nilai Tertinggi (High) dan Terendah (Low) Harian Tidak Diperbarui pada Call Auction,completed
+BUG-A061,AUDIT_100,61,-,Sinkronisasi Aksi Beli/Jual Bot Ritel Akibat Random Seed Identik,completed
+BUG-A062,AUDIT_100,62,-,Hardcoded Clock Multiplier 24L Membiaskan Waktu Berita Riset,completed
+BUG-A063,AUDIT_100,63,-,Penurunan Performa Matching Engine Akibat Loop O(N) Committed Shares,completed
+BUG-A064,AUDIT_100,64,-,Bahaya Tabrakan ID Order pada Lingkungan Multithreading,completed
+BUG-A065,AUDIT_100,65,-,Ketiadaan Indeks Sektor pada Katalog Instrumen Pasar,completed
+BUG-A066,AUDIT_100,66,-,Volume Lelang Call Auction Tidak Ditambahkan ke Volume Akumulasi Harian,completed
+BUG-A067,AUDIT_100,67,-,Kenaikan Squeeze Factor Melompati Batas Koridor ARA,completed
+BUG-A068,AUDIT_100,68,-,Order Terus Dipasang pada Harga ARA Meskipun Status Halt,completed
+BUG-A069,AUDIT_100,69,-,Memory Leak Node Key Kosong pada TreeMap OrderBook,completed
+BUG-A070,AUDIT_100,70,-,Rilis Kas Tertahan Tidak Sempurna pada Pembatalan Order Non-Limit,completed
+BUG-A071,AUDIT_100,71,-,Sesi Bursa IDX Berjalan 24 Jam Tanpa Istirahat Siang Realistis,completed
+BUG-A072,AUDIT_100,72,-,Ketiadaan Timeframe Chart Detik / Menit Intraday (M1 / S1),completed
+BUG-A073,AUDIT_100,73,-,Value Investor Menghasilkan Harga Target di Bawah Batas Bawah Bursa (Floor),completed
+BUG-A074,AUDIT_100,74,-,Selisih Pembulatan Kapitalisasi Pasar pada Stock Split Saham,completed
+BUG-A075,AUDIT_100,75,-,Pembatalan Order Limit Pemain di Penutupan Hari Tanpa Notifikasi Jelas,completed
+BUG-A076,AUDIT_100,76,-,Kegagalan Loading 21 Produk Reksa Dana dari File Asset di Android APK,completed
+BUG-A077,AUDIT_100,77,-,Risiko Pembagian Nol (*Division by Zero*) pada Perhitungan Kuota IPO,completed
+BUG-A078,AUDIT_100,78,-,Penarikan Modal Klien Mengacaukan High-Water Mark (HWM) Fee Mandat,completed
+BUG-A079,AUDIT_100,79,-,Penekanan Diam-Diam Kegagalan Rebalance Reksa Dana Indeks,completed
+BUG-A080,AUDIT_100,80,-,Integer Multiplication Overflow pada Form Pesanan Lot Ekstrem,completed
+BUG-A081,AUDIT_100,81,-,Race Condition Likuidasi Paksa Margin Call,completed
+BUG-A082,AUDIT_100,82,-,Bunga Pembiayaan Short & Margin Tetap Dikenakan di Hari Libur Bursa,completed
+BUG-A083,AUDIT_100,83,-,Pemotongan Gaji Anak Usaha Memicu Utang Korporasi Tak Terbatas,completed
+BUG-A084,AUDIT_100,84,-,Kebocoran Target Harga Berita yang Telah Kedaluwarsa,completed
+BUG-A085,AUDIT_100,85,-,Biaya Perawatan Barang Koleksi Menembus Saldo Kas Menjadi Negatif,completed
+BUG-A086,AUDIT_100,86,-,Akumulasi Fraksi Sen (*Penny Shaving*) pada Perhitungan NAB Unit Reksa Dana,completed
+BUG-A087,AUDIT_100,87,-,Ketiadaan Entri Buku Besar pada Settlement Order Reksa Dana,completed
+BUG-A088,AUDIT_100,88,-,Kerugian Fraksi Saham Reverse Split pada Kepemilikan Ritel Ganjil,completed
+BUG-A089,AUDIT_100,89,-,Pemutusan Sepihak Mandat Klien Tanpa Peringatan Dini,completed
+BUG-A090,AUDIT_100,90,-,Pengali Kue Sektor Bernilai Negatif pada Sektor yang Ambruk,completed
+BUG-A091,AUDIT_100,91,-,Hadiah Misi Harian Hangus saat Waktu Game Dipercepat (*Fast-Forward*),completed
+BUG-A092,AUDIT_100,92,-,Reset Streak Login Harian yang Tidak Adil Akibat Ketidaksinkronan Waktu,completed
+BUG-A093,AUDIT_100,93,-,Penjatahan IPO Menggantung pada Penawaran yang Sepi Peminat,completed
+BUG-A094,AUDIT_100,94,-,Asimetri Spread Kurs Valuta Asing IDR/USD Memicu Arbitrase Mikro,completed
+BUG-A095,AUDIT_100,95,-,Duplikasi Berulang Headline Berita Prosedural pada Game Jangka Panjang,completed
+BUG-A096,AUDIT_100,96,-,Efisiensi Staf Anak Usaha Tetap 100% Selamanya (*No Fatigue*),completed
+BUG-A097,AUDIT_100,97,-,Potensi NullPointerException pada Field `unknownLegacyShares`,completed
+BUG-A098,AUDIT_100,98,-,Ledakan Bunga Berbunga Pinjaman Tenor Bank (*Compound Interest Explosion*),completed
+BUG-A099,AUDIT_100,99,-,Deadlock Status Agenda RUPS saat Perolehan Suara Seimbang 50:50,completed
+BUG-A100,AUDIT_100,100,-,"Munculnya Dialog ""Pemulihan Save Diperlukan"" Palsu (*False Positive Alert*)",completed
+BUG-B001,AUDIT_300,1,Money.java:95,Pattern,completed
+BUG-B002,AUDIT_300,2,Account.java:39,Method,completed
+BUG-B003,AUDIT_300,3,Position.java:129,Saat seluruh saham dijual (,completed
+BUG-B004,AUDIT_300,4,Position.java:64,Method,completed
+BUG-B005,AUDIT_300,5,Money.java:30,Crash NumberFormatException pada,completed
+BUG-B006,AUDIT_300,6,Account.java:73,Method,completed
+BUG-B007,AUDIT_300,7,EconomyLedger.java:58,Format,completed
+BUG-B008,AUDIT_300,8,Position.java:84,Pembagian,completed
+BUG-B009,AUDIT_300,9,Account.java:112,Exception Ticker Ambigu Memblokir Multi-Exchange,completed
+BUG-B010,AUDIT_300,10,Money.java:55,Method,completed
+BUG-B011,AUDIT_300,11,EconomyLedger.java:45,Idempotency Map Tanpa Batas Kadaluwarsa,completed
+BUG-B012,AUDIT_300,12,Position.java:140,Method,completed
+BUG-B013,AUDIT_300,13,Account.java:96,Pelepasan Reserved Cash Melempar Exception,completed
+BUG-B014,AUDIT_300,14,Money.java:86,Operasi aritmatika beda mata uang langsung melempar exception kaku alih-alih meminta rate konversi.,completed
+BUG-B015,AUDIT_300,15,EconomyLedger.java:15,List,completed
+BUG-B016,AUDIT_300,16,Position.java:106,"Saham Indonesia diperdagangkan dalam satuan rupiah bulat; presisi 4 desimal menimbulkan angka pecahan seperti Rp 11.250,3333 yang tidak sesuai aturan fraksi BEI.",completed
+BUG-B017,AUDIT_300,17,Account.java:130,Method,completed
+BUG-B018,AUDIT_300,18,Money.java:121,HashCode Mengabaikan Skala Mata Uang,completed
+BUG-B019,AUDIT_300,19,EconomyLedger.java:51,Pemanggilan,completed
+BUG-B020,AUDIT_300,20,Position.java:78,Unrealized PnL Mengabaikan Biaya Penjualan,completed
+BUG-B021,AUDIT_300,21,Account.java:124,Penghapusan Posisi Menyisakan Entri di Riwayat Mutasi,completed
+BUG-B022,AUDIT_300,22,Money.java:22,Pembulatan uang senilai $0.005 ke atas secara kumulatif menghasilkan deviasi beberapa sen pada ribuan transaksi.,completed
+BUG-B023,AUDIT_300,23,EconomyLedger.java:36,Mutasi Kas Nol Diizinkan Masuk Buku Besar,completed
+BUG-B024,AUDIT_300,24,Position.java:133,Variabel,completed
+BUG-B025,AUDIT_300,25,Account.java:64,"Melempar ""Nominal mutasi kas tidak boleh negatif"" tanpa menyebutkan sumber modul pemanggil.",completed
+BUG-B026,AUDIT_300,26,Money.java:99,Format uang Dollar menampilkan titik pemisah ribuan saat dijalankan di lingkungan Android berbahasa Indonesia.,completed
+BUG-B027,AUDIT_300,27,EconomyLedger.java:21,String Empty Tidak Dianggap Null,completed
+BUG-B028,AUDIT_300,28,Position.java:40,"Jika data save lama memiliki fee quantity tidak selaras, objek posisi menolak dimuat.",completed
+BUG-B029,AUDIT_300,29,Account.java:27,Tidak ada validasi mata uang sekunder saat akun baru dibuat.,completed
+BUG-B030,AUDIT_300,30,Money.java:106,Membandingkan IDR dan USD di comparator koleksi memicu crash pengurutan Java.,completed
+BUG-B031,AUDIT_300,31,EconomyLedger.java:54,Akun entitas non-pemain dapat didebit hingga minus jika tidak dijaga guardrail.,completed
+BUG-B032,AUDIT_300,32,Position.java:148,Pengembalian Saham Pinjaman Memanipulasi Acquisition Quantity,completed
+BUG-B033,AUDIT_300,33,Account.java:119,Jika instrumen yang sama ditambahkan ulang via,completed
+BUG-B034,AUDIT_300,34,Money.java:46,Menjumlahkan,completed
+BUG-B035,AUDIT_300,35,EconomyLedger.java:33,Deskripsi panjang ribuan karakter dapat dimasukkan dan disimpan ke database tanpa pemotongan.,completed
+BUG-B036,AUDIT_300,36,Position.java:38,Menolak fee akuisisi dalam mata uang berbeda dari instrumen meskipun biaya pialang dibayar dalam mata uang lokal.,completed
+BUG-B037,AUDIT_300,37,Account.java:86,Menampilkan angka desimal panjang tanpa format mata uang manusia.,completed
+BUG-B038,AUDIT_300,38,Money.java:75,Menghentikan proses sorting multi-currency.,completed
+BUG-B039,AUDIT_300,39,EconomyLedger.java:17,Penggunaan HashMap default tanpa concurrency guard pada pemrosesan volume tinggi.,completed
+BUG-B040,AUDIT_300,40,Position.java:125,Menghasilkan selisih nilai persediaan akhir pada metode akuntansi average.,completed
+BUG-B041,AUDIT_300,41,Account.java:127,Menghentikan perhitungan kekayaan bersih saat rate server off.,completed
+BUG-B042,AUDIT_300,42,Money.java:63,Menimbulkan kebingungan logika pada kondisi batas.,completed
+BUG-B043,AUDIT_300,43,EconomyLedger.java:37,Parameter boolean mudah tertukar posisinya dibanding enum,completed
+BUG-B044,AUDIT_300,44,Position.java:18,Menyebabkan NullPointerException saat preview alokasi fee.,completed
+BUG-B045,AUDIT_300,45,Account.java:18,Pencarian key menggunakan kombinasi ticker dan ID bursa yang rawan salah format.,completed
+BUG-B046,AUDIT_300,46,Money.java:115,Equals Membandingkan BigDecimal dengan CompareTo,completed
+BUG-B047,AUDIT_300,47,EconomyLedger.java:24,Caller dapat memodifikasi isi entri yang sudah tercatat.,completed
+BUG-B048,AUDIT_300,48,Position.java:55,Penjualan tanpa validasi dapat menghasilkan kuantitas negatif di bawah nol.,completed
+BUG-B049,AUDIT_300,49,Account.java:46,Nilai enum diekspos mentah ke antarmuka.,completed
+BUG-B050,AUDIT_300,50,Money.java:15,Tidak ada jaminan finalitas penuh pada implementasi eksternal.,completed
+BUG-B051,AUDIT_300,51,Order.java:45,Konstruktor Order mengizinkan pembuatan order limit dengan harga null.,completed
+BUG-B052,AUDIT_300,52,OrderBook.java:95,Antrean Bid dan Ask rentan salah urut prioritas harga terbaik jika instrumen berganti.,completed
+BUG-B053,AUDIT_300,53,MatchingEngine.java:310,Order yang kedaluwarsa di akhir sesi bursa tidak merilis sisa uang tertahan di akun.,completed
+BUG-B054,AUDIT_300,54,OrderManager.java:80,"Pembatalan order yang sudah terisi penuh (FILLED) tidak melempar error, melainkan mengembalikan status sukses palsu.",completed
+BUG-B055,AUDIT_300,55,Order.java:78,Logika rollback order tidak memulihkan status kuantitas secara atomik.,completed
+BUG-B056,AUDIT_300,56,OrderBook.java:115,Queue kosong tetap tersimpan di dalam map buku order.,completed
+BUG-B057,AUDIT_300,57,MatchingEngine.java:440,Order yang diubah kuantitasnya tidak memperbarui stempel waktu antrean.,completed
+BUG-B058,AUDIT_300,58,OrderManager.java:120,Pendaftaran order tidak memeriksa apakah ID order sudah pernah terdaftar di sesi sebelumnya.,completed
+BUG-B059,AUDIT_300,59,Order.java:105,Biaya Transaksi Efektif Dihitung Menggunakan Double,completed
+BUG-B060,AUDIT_300,60,OrderBook.java:180,Buku order gagal menangani anomali harga bid negatif.,completed
+BUG-B061,AUDIT_300,61,MatchingEngine.java:520,Harga lelang tidak memilih harga yang meminimalkan sisa volume yang tidak match.,completed
+BUG-B062,AUDIT_300,62,OrderManager.java:160,Pencarian Order Berdasarkan Akun Berjalan Linier,completed
+BUG-B063,AUDIT_300,63,Order.java:135,State machine status order mengizinkan transisi ilegal dari,completed
+BUG-B064,AUDIT_300,64,OrderBook.java:210,Level harga dengan kuantitas 0 lot tetap muncul di tabel 5-Best Bid/Ask.,completed
+BUG-B065,AUDIT_300,65,MatchingEngine.java:610,Kalkulasi net proceed penjualan saham mengabaikan PPh Final 0.1%.,completed
+BUG-B066,AUDIT_300,66,OrderManager.java:200,Order berstatus FILLED dan CANCELLED menumpuk di memori hingga jutaan objek.,completed
+BUG-B067,AUDIT_300,67,Order.java:60,Order non-kelipatan 100 lembar (odd lot) diizinkan masuk ke pasar reguler BEI.,completed
+BUG-B068,AUDIT_300,68,OrderBook.java:250,"Jika harga Bid tertinggi lebih tinggi dari Ask terendah, buku tidak langsung mengeksekusi *crossing trade*.",completed
+BUG-B069,AUDIT_300,69,MatchingEngine.java:680,Stempel waktu transaksi diisi,completed
+BUG-B070,AUDIT_300,70,OrderManager.java:240,"Jika salah satu pembatalan order gagal, proses loop berhenti dan menyisakan order lainnya aktif.",completed
+BUG-B071,AUDIT_300,71,Order.java:90,Order proteksi kerugian dapat dikirim dengan harga pemicu Rp 0.,completed
+BUG-B072,AUDIT_300,72,OrderBook.java:280,JSON kuotasi pasar menyertakan identitas akun bot dan pemain lain.,completed
+BUG-B073,AUDIT_300,73,MatchingEngine.java:730,Kalkulasi average cost posisi meleset saat menggunakan margin.,completed
+BUG-B074,AUDIT_300,74,OrderManager.java:280,"Jika request ID tidak ditemukan, fungsi mengembalikan null tanpa penjelasan error.",completed
+BUG-B075,AUDIT_300,75,Order.java:115,Ketiadaan null guard pada enum,completed
+BUG-B076,AUDIT_300,76,OrderBook.java:310,Suspensi bursa tidak memblokir penambahan order limit baru.,completed
+BUG-B077,AUDIT_300,77,MatchingEngine.java:810,Order market menyapu seluruh level ask hingga harga ARA tanpa batas slippage maksimal.,completed
+BUG-B078,AUDIT_300,78,OrderManager.java:310,Satu akun dapat mengirimkan 10.000 order spam yang membekukan sistem matching.,completed
+BUG-B079,AUDIT_300,79,Order.java:140,Order limit dengan limit price 0 lolos jika tipe order diubah pasca-konstruksi.,completed
+BUG-B080,AUDIT_300,80,OrderBook.java:340,Akumulator total volume tidak di-decrement saat order dibatalkan.,completed
+BUG-B081,AUDIT_300,81,MatchingEngine.java:850,Selisih uang reservasi dan uang eksekusi riil tidak langsung dikembalikan ke saldo kas bebas.,completed
+BUG-B082,AUDIT_300,82,OrderManager.java:350,Riwayat order dikembalikan secara acak mengikuti hash map memory.,completed
+BUG-B083,AUDIT_300,83,Order.java:160,"JSON order tidak menyertakan currency ID, menyebabkan asumsi IDR otomatis.",completed
+BUG-B084,AUDIT_300,84,OrderBook.java:370,Menghapus order dari buku order berkinerja lambat,completed
+BUG-B085,AUDIT_300,85,MatchingEngine.java:890,Saham ganjil hasil hibah tidak dapat dicocokkan di papan reguler.,completed
+BUG-B086,AUDIT_300,86,OrderManager.java:390,Order yang gagal dibatalkan tetap tertahan selamanya.,completed
+BUG-B087,AUDIT_300,87,Order.java:175,Mengkloning order memicu penolakan idempotency di backend.,completed
+BUG-B088,AUDIT_300,88,OrderBook.java:400,Antrean jual Rp 10 lolos masuk antrean bursa normal.,completed
+BUG-B089,AUDIT_300,89,MatchingEngine.java:920,Kuantitas saham dipotong di awal sebelum konfirmasi fill diterima.,completed
+BUG-B090,AUDIT_300,90,OrderManager.java:420,Query order terbuka masih menyertakan order sesi kemarin.,completed
+BUG-B091,AUDIT_300,91,Order.java:190,Perbandingan tanggal kedaluwarsa rentan kesalahan format zona waktu.,completed
+BUG-B092,AUDIT_300,92,OrderBook.java:430,Pengosongan buku order tidak mengirimkan sinyal bahaya ke UI.,completed
+BUG-B093,AUDIT_300,93,MatchingEngine.java:950,Biaya minimum transaksi memotong persentase tidak wajar pada transaksi mikro.,completed
+BUG-B094,AUDIT_300,94,OrderManager.java:450,Data sensitif pesanan tersimpan mentah di file JSON.,completed
+BUG-B095,AUDIT_300,95,Order.java:210,Harga trailing stop statis dan tidak mengikuti kenaikan harga puncak baru.,completed
+BUG-B096,AUDIT_300,96,OrderBook.java:460,Node tree map tetap dialokasikan di memori.,completed
+BUG-B097,AUDIT_300,97,MatchingEngine.java:970,Tidak ada penolakan otomatis pada pesanan di luar rentang harga harian yang sah.,completed
+BUG-B098,AUDIT_300,98,OrderManager.java:480,Ketiadaan sanitasi input parameter pencarian order.,completed
+BUG-B099,AUDIT_300,99,Order.java:230,Kegagalan validasi batas akumulasi fill parsial.,completed
+BUG-B100,AUDIT_300,100,OrderBook.java:490,Tidak ada pengecekan selisih harga terbaik.,completed
+BUG-B101,AUDIT_300,101,Instrument.java:95,Emiten yang dilikuidasi tidak mengubah flag,completed
+BUG-B102,AUDIT_300,102,CorporateActionService.java:140,Harga teoritis bursa tidak disesuaikan pasca cum-date dividen saham.,completed
+BUG-B103,AUDIT_300,103,MarketIndex.java:65,"Indeks harga saham gabungan dihitung dari total lembar modal dasar, bukan saham beredar publik (*Market Cap Weighted vs Free-Float Weighted*).",completed
+BUG-B104,AUDIT_300,104,InstrumentCatalog.java:120,Saham baru otomatis masuk ke kategori unclassified.,completed
+BUG-B105,AUDIT_300,105,Instrument.java:135,Saham emiten rugi menghasilkan harga wajar negatif yang mengacaukan radar saham.,completed
+BUG-B106,AUDIT_300,106,CorporateActionService.java:210,Hak dividen jatuh pada hari Minggu di mana bursa efek tutup.,completed
+BUG-B107,AUDIT_300,107,MarketIndex.java:95,Pembagian indeks melempar error saat kapitalisasi sektor tidak aktif.,completed
+BUG-B108,AUDIT_300,108,InstrumentCatalog.java:160,Mengetik,completed
+BUG-B109,AUDIT_300,109,Instrument.java:165,Market cap emiten tidak sinkron dengan harga penutupan terakhir.,completed
+BUG-B110,AUDIT_300,110,CorporateActionService.java:280,Pembagian dividen mengabaikan status akun yang dibekukan.,completed
+BUG-B111,AUDIT_300,111,MarketIndex.java:130,Divisor indeks tidak pernah disesuaikan saat ada emiten baru yang listing.,completed
+BUG-B112,AUDIT_300,112,InstrumentCatalog.java:210,Reload universe menghapus relasi watchlist lokal pengguna.,completed
+BUG-B113,AUDIT_300,113,Instrument.java:195,Emiten tidak memiliki harga pembukaan lelang pre-opening tersendiri.,completed
+BUG-B114,AUDIT_300,114,CorporateActionService.java:340,Saham right langsung dikonversi tanpa opsi menjual bukti right.,completed
+BUG-B115,AUDIT_300,115,MarketIndex.java:170,Kriteria konstituen indeks unggulan tidak memperhitungkan frekuensi transaksi harian.,completed
+BUG-B116,AUDIT_300,116,InstrumentCatalog.java:250,Saham tanpa data laporan keuangan disembunyikan dari seluruh pencarian.,completed
+BUG-B117,AUDIT_300,117,Instrument.java:225,Kesalahan kalkulasi saham pengendali dan publik.,completed
+BUG-B118,AUDIT_300,118,CorporateActionService.java:410,Keputusan strategis korporasi disahkan meskipun kehadiran pemegang saham di bawah 50%.,completed
+BUG-B119,AUDIT_300,119,MarketIndex.java:210,Kesalahan pemformatan string selisih poin IHSG.,completed
+BUG-B120,AUDIT_300,120,InstrumentCatalog.java:290,Pembelian saham US dihitung dalam satuan lot 100 lembar alih-alih satuan 1 lembar (share).,completed
+BUG-B121,AUDIT_300,121,Instrument.java:255,Saham bursa Amerika (AAPL) dibulatkan ke kelipatan Rp 25 alih-alih $0.01 cent.,completed
+BUG-B122,AUDIT_300,122,CorporateActionService.java:470,Mengabaikan aturan pembebasan pajak dividen korporasi antar-anak usaha.,completed
+BUG-B123,AUDIT_300,123,MarketIndex.java:250,Menimbulkan selisih persentase dengan data tampilan bursa.,completed
+BUG-B124,AUDIT_300,124,InstrumentCatalog.java:330,Ketiadaan validasi keunikan ticker lokal.,completed
+BUG-B125,AUDIT_300,125,Instrument.java:285,Tidak mengikuti regulasi simetris bursa modern (-25%).,completed
+BUG-B126,AUDIT_300,126,CorporateActionService.java:530,Waran dapat disimpan selamanya tanpa risiko hangus.,completed
+BUG-B127,AUDIT_300,127,MarketIndex.java:290,Nilai HIGH indeks ter-reset di tengah hari perdagangan.,completed
+BUG-B128,AUDIT_300,128,InstrumentCatalog.java:370,Emiten berstatus *upcoming* muncul di pencarian pasar reguler.,completed
+BUG-B129,AUDIT_300,129,Instrument.java:315,Pemain tidak mengetahui alasan bursa menghentikan perdagangan saham.,completed
+BUG-B130,AUDIT_300,130,CorporateActionService.java:590,Buyback emiten tidak memengaruhi rasio *supply squeeze*.,completed
+BUG-B131,AUDIT_300,131,MarketIndex.java:330,Ketiadaan korelasi independen bursa global.,completed
+BUG-B132,AUDIT_300,132,InstrumentCatalog.java:410,Saham bernilai Rp 10 Triliun terurut di bawah Rp 2 Triliun karena perbandingan teks alfabet.,completed
+BUG-B133,AUDIT_300,133,Instrument.java:345,Rasio keuangan saham tetap menggunakan data masa lalu.,completed
+BUG-B134,AUDIT_300,134,CorporateActionService.java:650,Penawaran tender buy-out merugikan pemegang saham publik.,completed
+BUG-B135,AUDIT_300,135,MarketIndex.java:370,Nilai indeks menjadi null pada akhir pekan alih-alih menggunakan flat hold.,completed
+BUG-B136,AUDIT_300,136,InstrumentCatalog.java:450,Caller luar dapat menghapus saham dari universe aktif sistem.,completed
+BUG-B137,AUDIT_300,137,Instrument.java:375,Ketiadaan parameter *beta* risiko pada emiten lapis tiga.,completed
+BUG-B138,AUDIT_300,138,CorporateActionService.java:710,Kesalahan pengali harga tebusan waran.,completed
+BUG-B139,AUDIT_300,139,MarketIndex.java:410,Konstituen indeks syariah tidak memfilter saham berbasis riba.,completed
+BUG-B140,AUDIT_300,140,InstrumentCatalog.java:490,Profil dewan direksi kosong di halaman ringkasan emiten.,completed
+BUG-B141,AUDIT_300,141,Instrument.java:405,"Kemarin naik +10%, angka +10% tetap terbawa ke pembukaan pagi hari baru.",completed
+BUG-B142,AUDIT_300,142,CorporateActionService.java:770,Persentase kepemilikan pemain tidak terdilusi pasca penerbitan saham baru.,completed
+BUG-B143,AUDIT_300,143,MarketIndex.java:450,Volume transaksi pembeli dan penjual dijumlahkan dua kali lipat.,completed
+BUG-B144,AUDIT_300,144,InstrumentCatalog.java:530,Emiten bertato notasi khusus (seperti keterlambatan laporan atau ekuitas negatif) tidak memiliki tanda visual badge.,completed
+BUG-B145,AUDIT_300,145,Instrument.java:435,Ketiadaan proteksi harga minimum Rp 50 di pasar reguler.,completed
+BUG-B146,AUDIT_300,146,CorporateActionService.java:830,Investor menerima saham gratis tanpa penyesuaian nilai pasar per lembar.,completed
+BUG-B147,AUDIT_300,147,MarketIndex.java:490,Kesalahan pemetaan ID sektor pada rumus agregasi indeks.,completed
+BUG-B148,AUDIT_300,148,InstrumentCatalog.java:570,Informasi tanggal pencatatan perdana emiten hilang setelah IPO selesai.,completed
+BUG-B149,AUDIT_300,149,Instrument.java:465,Nilai buku saham emiten bermodal minus tidak dapat ditampilkan.,completed
+BUG-B150,AUDIT_300,150,CorporateActionService.java:890,Kegagalan rekonsiliasi saham pasca kuasi-reorganisasi.,completed
+BUG-B151,AUDIT_300,151,PlayerProgressManager.java:85,Kenaikan pangkat dari Ritel ke Manajer Investasi tidak memperluas limit fasilitas margin.,completed
+BUG-B152,AUDIT_300,152,BossRival.java:40,Portofolio bos rival dimanipulasi dengan generator angka acak tanpa portofolio saham fisik.,completed
+BUG-B153,AUDIT_300,153,PeriodicMissionManager.java:95,Pembelian berulang pada BBCA dianggap memenuhi kriteria diversifikasi 5 emiten.,completed
+BUG-B154,AUDIT_300,154,CareerManager.java:120,Gelar kehormatan dapat dibuka hanya dari akumulasi volume transaksi kotor.,completed
+BUG-B155,AUDIT_300,155,PlayerProgressManager.java:130,Kesalahan rumus penalti trading yang salah mendeteksi penjualan untung sebagai cut-loss.,completed
+BUG-B156,AUDIT_300,156,BossRival.java:75,Pertandingan duel kekayaan dengan rival berjalan selamanya tanpa akhir sesi.,completed
+BUG-B157,AUDIT_300,157,PeriodicMissionManager.java:150,Misi mingguan mengunci status completed permanen setelah minggu pertama.,completed
+BUG-B158,AUDIT_300,158,CareerManager.java:160,Pemain yang mengalami kebangkrutan total tetap menyandang pangkat Taipan Tertinggi.,completed
+BUG-B159,AUDIT_300,159,PlayerProgressManager.java:175,Pemain dapat mengelola dana pihak ketiga tanpa ujian kualifikasi kompetensi pasar modal.,completed
+BUG-B160,AUDIT_300,160,BossRival.java:110,Logika AI rival secara instan membeli saham yang baru saja dibeli pemain dalam detik yang sama.,completed
+BUG-B161,AUDIT_300,161,PeriodicMissionManager.java:205,Klaim hadiah misi menambah saldo rekening pemain secara siluman tanpa mutasi,completed
+BUG-B162,AUDIT_300,162,CareerManager.java:200,Pemain dapat memaksimalkan reputasi penuh hanya dalam 3 hari bermain aktif.,completed
+BUG-B163,AUDIT_300,163,PlayerProgressManager.java:220,Kriteria piala pencapaian mengabaikan status profitabilitas.,completed
+BUG-B164,AUDIT_300,164,BossRival.java:145,Menang duel melawan bos rival tidak menghasilkan hadiah dividen atau trofi portofolio.,completed
+BUG-B165,AUDIT_300,165,PeriodicMissionManager.java:260,Pengecekan hari mengasumsikan 7 hari kalender berturut-turut tanpa jeda akhir pekan.,completed
+BUG-B166,AUDIT_300,166,CareerManager.java:240,Tidak ada pencegahan benturan kepentingan.,completed
+BUG-B167,AUDIT_300,167,PlayerProgressManager.java:265,Mengganti avatar profil investor kembali ke avatar default saat aplikasi dibuka ulang.,completed
+BUG-B168,AUDIT_300,168,BossRival.java:180,Portofolio bos rival dapat bernilai negatif hingga miliaran rupiah tanpa dinyatakan kalah.,completed
+BUG-B169,AUDIT_300,169,PeriodicMissionManager.java:310,Laba transaksi dihitung sebelum potongan komisi broker dan pajak.,completed
+BUG-B170,AUDIT_300,170,CareerManager.java:280,Pemain yang memegang kas murni ditolak saat hendak menutup sesi harian.,completed
+BUG-B171,AUDIT_300,171,PlayerProgressManager.java:310,Rasio kemenangan salah hitung saat posisi masih mengambang.,completed
+BUG-B172,AUDIT_300,172,BossRival.java:215,Bos rival mengucapkan kalimat ejekan yang sama persis tanpa variasi dinamis.,completed
+BUG-B173,AUDIT_300,173,PeriodicMissionManager.java:360,Ketiadaan validasi nilai nominal pembelian minimum pada target misi.,completed
+BUG-B174,AUDIT_300,174,CareerManager.java:320,Pemain yang menjabat CEO tidak pernah menerima gaji bulanan ke rekening pribadi.,completed
+BUG-B175,AUDIT_300,175,PlayerProgressManager.java:355,Integer overflow pada perhitungan akumulasi EXP pemain veteran.,completed
+BUG-B176,AUDIT_300,176,BossRival.java:250,Bot bos rival dapat memperdagangkan saham yang dihentikan sementara oleh bursa efek.,completed
+BUG-B177,AUDIT_300,177,PeriodicMissionManager.java:410,Banner selamat misi selesai membanjiri layar HP tanpa henti.,completed
+BUG-B178,AUDIT_300,178,CareerManager.java:360,Kriteria misi menuntut kepemilikan saham yang belum terdaftar IPO.,completed
+BUG-B179,AUDIT_300,179,PlayerProgressManager.java:400,Leaderboard offline gagal memuat profil rival fiktif.,completed
+BUG-B180,AUDIT_300,180,BossRival.java:285,"Transaksi rival bebas biaya 100%, menciptakan persaingan yang tidak adil bagi pemain.",completed
+BUG-B181,AUDIT_300,181,PeriodicMissionManager.java:460,Misi harian menjadi mustahil diselesaikan pada bulan tanpa jadwal penawaran umum.,completed
+BUG-B182,AUDIT_300,182,CareerManager.java:400,Mengklaim gelar baru menimpa daftar penghargaan sebelumnya.,completed
+BUG-B183,AUDIT_300,183,PlayerProgressManager.java:445,Statistik jam terbang pemain tidak mencatat sesi permainan di latar belakang.,completed
+BUG-B184,AUDIT_300,184,BossRival.java:320,Pemain yang kalah duel tidak kehilangan reputasi atau uang taruhan.,completed
+BUG-B185,AUDIT_300,185,PeriodicMissionManager.java:510,Transaksi menggunakan uang nasabah klien dihitung sebagai pencapaian misi pribadi.,completed
+BUG-B186,AUDIT_300,186,CareerManager.java:440,Ketiadaan sanksi suspensi dari OJK/Bursa jika pemain melakukan goreng saham (*pump and dump*).,completed
+BUG-B187,AUDIT_300,187,PlayerProgressManager.java:490,Validasi kategori aset properti gagal mengenali ID barang koleksi properti.,completed
+BUG-B188,AUDIT_300,188,BossRival.java:355,Rival dapat membeli 50.000 lot saham gorengan dalam 1 detik meski antrean ask hanya 10 lot.,completed
+BUG-B189,AUDIT_300,189,PeriodicMissionManager.java:560,Potensi eksploitasi klaim hadiah berkali-kali jika koneksi antarmuka lambat.,completed
+BUG-B190,AUDIT_300,190,CareerManager.java:480,Kesalahan logika diskon yang memberikan harga beli saham lebih murah bagi pemain berpangkat tinggi (melanggar aturan harga pasar).,completed
+BUG-B191,AUDIT_300,191,PlayerProgressManager.java:535,Pemain tidak dapat meninjau rekam jejak hak suara voting yang pernah digunakan.,completed
+BUG-B192,AUDIT_300,192,BossRival.java:390,AI bos menyerah secara otomatis tanpa pertandingan duel formal.,completed
+BUG-B193,AUDIT_300,193,PeriodicMissionManager.java:610,Order yang dibatalkan tetap dihitung sebagai transaksi aktif.,completed
+BUG-B194,AUDIT_300,194,CareerManager.java:520,Biaya kursus sertifikasi analis keuangan tidak memberikan efek boost analitik di game.,completed
+BUG-B195,AUDIT_300,195,PlayerProgressManager.java:580,ATH kekayaan bersih dihitung dari aset kotor tanpa mengurangi kewajiban utang.,completed
+BUG-B196,AUDIT_300,196,BossRival.java:425,Tidak ada regenerasi bos rival baru setelah pemain berhasil mengalahkan ketiga bos awal.,completed
+BUG-B197,AUDIT_300,197,PeriodicMissionManager.java:660,Klaim reward tiket gratis tidak menambah saldo tiket di tab Keuangan.,completed
+BUG-B198,AUDIT_300,198,CareerManager.java:560,Ketiadaan opsi memulai game baru dengan bonus warisan kas.,completed
+BUG-B199,AUDIT_300,199,PlayerProgressManager.java:625,Satu transaksi spekulatif langsung mengubah arketipe gaya investasi pemain secara drastis.,completed
+BUG-B200,AUDIT_300,200,BossRival.java:460,Pengumuman hasil duel hanya berupa pop-up teks sederhana tanpa kurva pertumbuhan aset.,completed
+BUG-B201,AUDIT_300,201,MultiAssetTradingService.java:70,Pemain dapat mencairkan deposito tenor 12 bulan di hari ke-2 dengan bunga penuh tanpa denda penalti.,completed
+BUG-B202,AUDIT_300,202,TimeDepositProduct.java:45,Kesalahan konfigurasi suku bunga terbalik (*inverted yield curve*) yang tidak realistis.,completed
+BUG-B203,AUDIT_300,203,LoanProduct.java:80,Bank memberikan pinjaman tanpa jaminan kas atau aset jaminan (*unsecured lending risk*).,completed
+BUG-B204,AUDIT_300,204,FundBuilderService.java:60,Portofolio racikan pemain dapat disahkan dengan total alokasi hanya 70%.,completed
+BUG-B205,AUDIT_300,205,MultiAssetTradingService.java:115,Sistem tetap mentransfer bunga ke rekening yang berstatus sengketa.,completed
+BUG-B206,AUDIT_300,206,TimeDepositProduct.java:90,Tenor 3 hari diformat sebagai produk deposito berjangka resmi tanpa landasan perbankan riil.,completed
+BUG-B207,AUDIT_300,207,LoanProduct.java:125,Bunga pinjaman komersial berhenti berjalan saat akhir pekan kalender.,completed
+BUG-B208,AUDIT_300,208,FundBuilderService.java:110,Terjadi pemotongan ganda pada akun nasabah.,completed
+BUG-B209,AUDIT_300,209,MultiAssetTradingService.java:160,Pembelian emas fisik tidak memiliki selisih harga cetak (*minting fee*).,completed
+BUG-B210,AUDIT_300,210,TimeDepositProduct.java:135,Seluruh bunga deposito diterima utuh tanpa potongan PPh Final perbankan.,completed
+BUG-B211,AUDIT_300,211,LoanProduct.java:170,Rasio utang terhadap modal (DER) diabaikan oleh sistem perbankan.,completed
+BUG-B212,AUDIT_300,212,FundBuilderService.java:160,Input nama dengan emoji merusak format penyimpanan basis data SQLite.,completed
+BUG-B213,AUDIT_300,213,MultiAssetTradingService.java:205,Mengabaikan akad bagi hasil mudharabah/musyarakah syariah.,completed
+BUG-B214,AUDIT_300,214,TimeDepositProduct.java:180,Pemain tidak bisa mengambil kredit dengan jaminan bilyet deposito aktif (*back-to-back loan*).,completed
+BUG-B215,AUDIT_300,215,LoanProduct.java:215,Sisa pokok utang tidak dihitung ulang pasca pembayaran ekstra.,completed
+BUG-B216,AUDIT_300,216,FundBuilderService.java:210,Produk investasi pemain sepi peminat karena tidak ada agen AI yang melirik dana kelolaannya.,completed
+BUG-B217,AUDIT_300,217,MultiAssetTradingService.java:250,Kupon ORI anjlok ke 0% saat suku bunga acuan bank sentral turun drastis.,completed
+BUG-B218,AUDIT_300,218,TimeDepositProduct.java:225,Deposito lenyap dari antarmuka selama 24 jam saat perpanjangan otomatis berlangsung.,completed
+BUG-B219,AUDIT_300,219,LoanProduct.java:260,Ketiadaan simulasi skor kredit (*credit score checking*).,completed
+BUG-B220,AUDIT_300,220,FundBuilderService.java:260,Pemain dapat mendirikan produk reksa dana publik dengan modal Rp 0.,completed
+BUG-B221,AUDIT_300,221,MultiAssetTradingService.java:295,Pembelian saham fraksional Amerika terhambat batas nominal bulat.,completed
+BUG-B222,AUDIT_300,222,TimeDepositProduct.java:270,Deviasi kalkulasi bunga perbankan modern.,completed
+BUG-B223,AUDIT_300,223,LoanProduct.java:305,Bunga kredit komersial tidak pernah naik meski suku bunga acuan makro melonjak ke 12%.,completed
+BUG-B224,AUDIT_300,224,FundBuilderService.java:310,Nasabah tidak mendapatkan informasi alokasi efek pasar modal.,completed
+BUG-B225,AUDIT_300,225,MultiAssetTradingService.java:340,Investor tidak mendapatkan kepastian restrukturisasi utang obligasi swasta.,completed
+BUG-B226,AUDIT_300,226,TimeDepositProduct.java:315,Menutup akses diversifikasi bagi pemain pemula.,completed
+BUG-B227,AUDIT_300,227,LoanProduct.java:350,Pemain yang sudah melunasi seluruh utang tetap diblokir dari pengajuan kredit baru.,completed
+BUG-B228,AUDIT_300,228,FundBuilderService.java:360,Pelanggaran pedoman OJK terhadap instrumen aset dasar reksa dana.,completed
+BUG-B229,AUDIT_300,229,MultiAssetTradingService.java:385,Obligasi negara dapat dibeli setiap saat seperti saham reguler.,completed
+BUG-B230,AUDIT_300,230,TimeDepositProduct.java:360,Bunga harian ditarik lebih cepat sebelum periode 24 jam penuh terpenuhi.,completed
+BUG-B231,AUDIT_300,231,LoanProduct.java:395,Notifikasi peringatan bank bernada ancaman yang tidak profesional.,completed
+BUG-B232,AUDIT_300,232,FundBuilderService.java:410,Nilai NAB bergerak liar di akhir pekan.,completed
+BUG-B233,AUDIT_300,233,MultiAssetTradingService.java:430,Kontrak minyak fisik dapat disimpan tanpa biaya pergudangan.,completed
+BUG-B234,AUDIT_300,234,TimeDepositProduct.java:405,Kas terpotong permanen jika deposito dibatalkan di menit pertama.,completed
+BUG-B235,AUDIT_300,235,LoanProduct.java:440,Bank tidak memotong batas keamanan *haircut* (misal 50% untuk saham lapis dua).,completed
+BUG-B236,AUDIT_300,236,FundBuilderService.java:460,Ketiadaan identitas bank kustodian resmi.,completed
+BUG-B237,AUDIT_300,237,MultiAssetTradingService.java:475,Ketiadaan instrumen lindung nilai (*hedging*) formal bagi trader pro.,completed
+BUG-B238,AUDIT_300,238,TimeDepositProduct.java:450,Pemain melewatkan tanggal pencairan dana.,completed
+BUG-B239,AUDIT_300,239,LoanProduct.java:485,Perusahaan holding terpaksa mengambil kredit berjangka kaku.,completed
+BUG-B240,AUDIT_300,240,FundBuilderService.java:510,Ketiadaan algoritma pemeringkatan independen (seperti Morningstar / Infovesta).,completed
+BUG-B241,AUDIT_300,241,MultiAssetTradingService.java:520,Biaya administrasi transfer dipotong secara tidak wajar.,completed
+BUG-B242,AUDIT_300,242,TimeDepositProduct.java:495,Kesalahan konversi mata uang bunga simpanan valas.,completed
+BUG-B243,AUDIT_300,243,LoanProduct.java:530,Total pokok dan bunga tidak sinkron dengan tenor bulan.,completed
+BUG-B244,AUDIT_300,244,FundBuilderService.java:560,Sisa aset kelolaan lenyap saat produk dibubarkan.,completed
+BUG-B245,AUDIT_300,245,MultiAssetTradingService.java:565,Ketiadaan jadwal pembayaran diskonto surat berharga pasar uang.,completed
+BUG-B246,AUDIT_300,246,TimeDepositProduct.java:540,Pembedaan nasabah baru dan lama gagal terdeteksi sistem.,completed
+BUG-B247,AUDIT_300,247,LoanProduct.java:575,Bank menghapus seluruh kewajiban tanpa analisis restrukturisasi.,completed
+BUG-B248,AUDIT_300,248,FundBuilderService.java:610,Penyimpanan JSON reksa dana kustom tidak tersinkronisasi ke database save.,completed
+BUG-B249,AUDIT_300,249,MultiAssetTradingService.java:610,Kurva bunga obligasi daerah terdistorsi.,completed
+BUG-B250,AUDIT_300,250,LoanProduct.java:620,Ketiadaan fasilitas pinjaman bunga rendah (6%) bagi anak usaha rintisan.,completed
+BUG-B251,AUDIT_300,251,app.js:680,Event Listener Scroll Tab Beranda Mengalami Memory Leak,completed
+BUG-B252,AUDIT_300,252,style.css:320,Munculnya papan ketik Android merusak posisi tengah modal.,completed
+BUG-B253,AUDIT_300,253,index.html:150,Label Elemen Input Tidak Terhubung dengan Tag,completed
+BUG-B254,AUDIT_300,254,app.js:1420,Counter animasi nilai portofolio tidak menggunakan kurva easing kubik yang halus.,completed
+BUG-B255,AUDIT_300,255,style.css:590,Spasi horizontal antar-chip terlalu lebar pada ponsel berlayar panjang.,completed
+BUG-B256,AUDIT_300,256,index.html:280,Ketiadaan Tag,completed
+BUG-B257,AUDIT_300,257,app.js:2180,Pemain harus mengetik ulang angka untuk melihat kalkulasi nilai tukar terbaru.,completed
+BUG-B258,AUDIT_300,258,style.css:870,Jarak baris teks berita terlalu rapat dan sulit dibaca oleh mata lansia.,completed
+BUG-B259,AUDIT_300,259,index.html:410,Tag SVG Ikon Bintang Watchlist Tidak Memiliki Atribut,completed
+BUG-B260,AUDIT_300,260,app.js:3210,Pemain tidak menyadari kas habis sebelum order ditolak.,completed
+BUG-B261,AUDIT_300,261,style.css:1150,Ketiadaan dither noise halus pada gradasi warna gelap.,completed
+BUG-B262,AUDIT_300,262,index.html:530,Menggulir modal profil ikut menggeser halaman di belakangnya.,completed
+BUG-B263,AUDIT_300,263,app.js:4390,Bug status kelas CSS,completed
+BUG-B264,AUDIT_300,264,style.css:1410,Ketiadaan properti CSS,completed
+BUG-B265,AUDIT_300,265,index.html:670,Pemain dapat memasukkan 500 huruf yang merusak tata letak kartu identitas.,completed
+BUG-B266,AUDIT_300,266,app.js:5520,Logika pemetaan kelas CSS warna sentimen terbalik.,completed
+BUG-B267,AUDIT_300,267,style.css:1680,Efek compositing bayangan kartu bocor di atas tab bar.,completed
+BUG-B268,AUDIT_300,268,index.html:790,Ketiadaan Atribut,completed
+BUG-B269,AUDIT_300,269,app.js:6640,Mengetik,completed
+BUG-B270,AUDIT_300,270,style.css:1920,Teks angka poin IHSG sulit dibaca tanpa kaca pembesar di layar tablet.,completed
+BUG-B271,AUDIT_300,271,index.html:910,Tooltip hanya mendukung event hover mouse dan tidak ramah layar sentuh.,completed
+BUG-B272,AUDIT_300,272,app.js:7750,Pemain harus menutup paksa aplikasi jika koneksi WebView tersendat.,completed
+BUG-B273,AUDIT_300,273,style.css:2180,Efek kedip lilin bergetar terlalu kencang dan berisiko memicu pusing/kejang visual.,completed
+BUG-B274,AUDIT_300,274,index.html:1050,Tag,completed
+BUG-B275,AUDIT_300,275,app.js:8820,"Daftar perusahaan anak usaha tidak terurut alfabetik, membingungkan navigasi.",completed
+BUG-B276,AUDIT_300,276,style.css:2410,Garis pemisah kartu lenyap pada setelan tema aksesibilitas kontras tinggi.,completed
+BUG-B277,AUDIT_300,277,index.html:1180,Console browser mencatat error 404 pada request,completed
+BUG-B278,AUDIT_300,278,app.js:9910,"Beberapa modul menampilkan format gaya Amerika ($1,000.00) dan gaya Eropa (1.000,00) secara tidak seragam.",completed
+BUG-B279,AUDIT_300,279,style.css:2650,Rasio padding statis memboroskan 30% area pandang di layar sempit.,completed
+BUG-B280,AUDIT_300,280,index.html:1215,Memutar ponsel ke mode lanskap merusak tata letak antarmuka 2D portrait.,completed
+BUG-B281,AUDIT_300,281,app.js:10120,Panduan bermain muncul berulang kali setiap kali menu dibuka.,completed
+BUG-B282,AUDIT_300,282,style.css:2710,Warna seleksi teks terlalu gelap sehingga teks yang disorot menjadi tidak terbaca.,completed
+BUG-B283,AUDIT_300,283,index.html:1230,Tag,completed
+BUG-B284,AUDIT_300,284,app.js:10340,Menekan tombol minus dapat menurunkan kuantitas ke 0 lot atau nilai negatif.,completed
+BUG-B285,AUDIT_300,285,style.css:2735,Lebar scrollbar buatan menutupi area sentuh tombol aksi pojok.,completed
+BUG-B286,AUDIT_300,286,index.html:1245,Skrip Pustaka Eksternal Dimuat Tanpa Atribut,completed
+BUG-B287,AUDIT_300,287,app.js:10410,Transaksi saham di atas Rp 10 Juta tidak memperhitungkan bea materai regulasi bursa.,completed
+BUG-B288,AUDIT_300,288,style.css:2750,Beberapa perangkat Android lama menampilkan kotak tanda tanya pada simbol mata uang.,completed
+BUG-B289,AUDIT_300,289,index.html:1260,Struktur Dokumen Memiliki Dua Tag,completed
+BUG-B290,AUDIT_300,290,app.js:10460,Layar menjadi gelap dan terkunci permanen pasca penutupan paksa jendela modal.,completed
+BUG-B291,AUDIT_300,291,style.css:2765,Masalah *sticky hover* khas browser seluler yang membuat tombol terlihat selalu ditekan.,completed
+BUG-B292,AUDIT_300,292,index.html:1275,Elemen,completed
+BUG-B293,AUDIT_300,293,app.js:10480,Pengguna kehilangan isian data saat terjadi kegagalan jaringan mendadak.,completed
+BUG-B294,AUDIT_300,294,style.css:2780,Angka tanggal kalender bursa terpotong di tepi atas kontainer.,completed
+BUG-B295,AUDIT_300,295,index.html:1290,Ketiadaan Atribut,completed
+BUG-B296,AUDIT_300,296,app.js:10490,Tombol tab bar tetap menyorot tab Pasar meski pemain sedang berada di Tab Keuangan.,completed
+BUG-B297,AUDIT_300,297,style.css:2795,Penggunaan Properti CSS,completed
+BUG-B298,AUDIT_300,298,index.html:1305,Informasi biaya transaksi tidak transparan bagi pemain pemula.,completed
+BUG-B299,AUDIT_300,299,app.js:10493,Variabel global rentan tertimpa atau diakses oleh injeksi skrip eksternal.,completed
+BUG-B300,AUDIT_300,300,style.css:2810,CSS Media Query Breakpoint Menggunakan Satuan Pixel Statis Alih-alih,completed

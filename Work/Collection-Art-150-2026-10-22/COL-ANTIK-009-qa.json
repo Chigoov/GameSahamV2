@@ -1,0 +1,23 @@
+{
+  "width": 1254,
+  "height": 1254,
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "alpha_bbox": [
+    84,
+    258,
+    1174,
+    1019
+  ],
+  "raw_alpha_bbox": [
+    0,
+    21,
+    1244,
+    1238
+  ],
+  "crop_threshold": 16,
+  "transparent_pixels": 1033774,
+  "visual_review": "PASS: native antique identity and rarity materials/craft, complete silhouette and supports, real alpha, clear margin and sharp navy/light card-size views individually inspected."
+}

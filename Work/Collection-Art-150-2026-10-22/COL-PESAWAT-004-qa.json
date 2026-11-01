@@ -1,0 +1,23 @@
+{
+  "width": 1254,
+  "height": 1254,
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "alpha_bbox": [
+    195,
+    371,
+    1087,
+    941
+  ],
+  "raw_alpha_bbox": [
+    41,
+    53,
+    1216,
+    1238
+  ],
+  "crop_threshold": 16,
+  "transparent_pixels": 1329340,
+  "visual_review": "PASS after imagegen correction: native aircraft identity, whole wing/prop/tail/gear silhouette with wider clear margins, real alpha and sharp navy/light card views individually inspected."
+}

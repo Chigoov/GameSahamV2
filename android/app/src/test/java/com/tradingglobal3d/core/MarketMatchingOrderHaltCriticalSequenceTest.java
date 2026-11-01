@@ -90,6 +90,7 @@ public class MarketMatchingOrderHaltCriticalSequenceTest {
         if (catalog != null) facade.setCatalog(catalog);
         facade.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(100_000_000));
         GameTestSupport.unlockManager(facade);
+        GameTestSupport.unlockIdxLevelFourForStressFixture(facade);
 
         Instrument bbca = catalog.getById("IDX:BBCA");
         Instrument tlkm = catalog.getById("IDX:TLKM");

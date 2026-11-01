@@ -2,6 +2,7 @@ package com.tradingglobal3d.core.economy;
 
 public enum LedgerEntryType {
     INITIAL_CAPITAL("Modal Awal"),
+    LIQUIDITY_CAPITAL("Modal Eksternal Fasilitas Likuiditas"),
     DEPOSIT("Setoran Kas"),
     WITHDRAWAL("Penarikan Kas"),
     TRADE_BUY("Pembelian Saham"),

@@ -11,6 +11,7 @@ import com.tradingglobal3d.core.model.Money;
 import com.tradingglobal3d.core.model.Position;
 import com.tradingglobal3d.core.trading.TradeFill;
 import com.tradingglobal3d.core.collection.CollectionManager;
+import com.tradingglobal3d.core.collection.CollectibleItem;
 import com.tradingglobal3d.core.player.InvestorArchetypeService;
 import com.tradingglobal3d.core.player.PlayerProfileManager;
 import org.json.JSONArray;
@@ -160,10 +161,83 @@ public class FeatureCompletionBusinessTest {
         bulk.updateValuations(origin + 20 * day);
         for (int i = 1; i <= 20; i++) { chunks.updateValuations(origin + i * day); chunks.restoreState(new JSONArray(chunks.exportState().toString())); }
         assertEquals(bulk.exportState().toString(), chunks.exportState().toString());
-        assertTrue(bulk.getItem("COL-CAR-00").getCurrentValuation().isLessThan(original));
-        assertEquals("CATEGORY_CALENDAR_V1", bulk.getItem("COL-CAR-00").toJsonObject().getString("valuationRule"));
+        assertEquals(original.multiply(new BigDecimal("0.9980")), bulk.getItem("COL-CAR-00").getCurrentValuation());
+        assertEquals("CATEGORY_CALENDAR_V2", bulk.getItem("COL-CAR-00").toJsonObject().getString("valuationRule"));
+        for (CollectibleItem item : bulk.getAllItems()) {
+            if (item.getCategory() == CollectibleItem.Category.MOTOR || item.getCategory() == CollectibleItem.Category.MOBIL)
+                assertEquals(item.getBasePrice().multiply(new BigDecimal("0.9980")), item.getCurrentValuation());
+        }
         String before = bulk.exportState().toString();
         try { bulk.updateValuations(origin); fail(); } catch (IllegalArgumentException expected) { }
         assertEquals(before, bulk.exportState().toString());
+        bulk.updateValuations(origin + 1000 * day);
+        chunks.updateValuations(origin + 1000 * day);
+        assertEquals(bulk.exportState().toString(), chunks.exportState().toString());
+        bulk.updateValuations(origin + 2000 * day);
+        for (CollectibleItem item : bulk.getAllItems()) {
+            if (item.getCategory() == CollectibleItem.Category.MOTOR || item.getCategory() == CollectibleItem.Category.MOBIL)
+                assertEquals(item.getBasePrice().multiply(new BigDecimal("0.90")), item.getCurrentValuation());
+        }
+    }
+
+    @Test public void savedVehicleCycleMigratesWithoutChangingSavedValueOrAcceptingTampering() throws Exception {
+        long origin = 1_790_000_000_000L, day = 86_400_000L;
+        for (String id : new String[]{"COL-CAR-00", "COL-CAR-01"}) {
+            CollectionManager manager = new CollectionManager();
+            manager.updateValuations(origin);
+            manager.updateValuations(origin + 20 * day);
+            JSONObject legacy = manager.getItem(id).toJsonObject();
+            int direction = Math.floorMod(id.hashCode(), 2) == 0 ? 1 : -1;
+            Money oldValue = manager.getItem(id).getBasePrice().multiply(BigDecimal.ONE.add(new BigDecimal("0.02").multiply(BigDecimal.valueOf(direction))));
+            legacy.put("valuationRule", "CATEGORY_CALENDAR_V1").put("currentValuation", oldValue.getAmount().toPlainString());
+            manager.restoreState(new JSONArray().put(legacy));
+            assertEquals(oldValue, manager.getItem(id).getCurrentValuation());
+            JSONObject migrated = manager.getItem(id).toJsonObject();
+            assertEquals("CATEGORY_CALENDAR_V2", migrated.getString("valuationRule"));
+            assertEquals(migrated.getLong("valuationAsOfDay"), migrated.getLong("valuationAnchorDay"));
+            manager.restoreState(new JSONArray(manager.exportState().toString()));
+            manager.updateValuations(origin + 30 * day);
+            assertEquals(oldValue.multiply(new BigDecimal("0.9990")), manager.getItem(id).getCurrentValuation());
+            String before = manager.exportState().toString();
+            legacy.put("currentValuation", oldValue.add(Money.of(1, Currency.IDR)).getAmount().toPlainString());
+            try { manager.restoreState(new JSONArray().put(legacy)); fail(); }
+            catch (IllegalArgumentException expected) { }
+            assertEquals(before, manager.exportState().toString());
+            legacy.put("currentValuation", manager.getItem(id).getBasePrice().multiply(new BigDecimal("0.9980")).getAmount().toPlainString());
+            try { manager.restoreState(new JSONArray().put(legacy)); fail("V1 must reject values matching only the V2 formula"); }
+            catch (IllegalArgumentException expected) { }
+            assertEquals(before, manager.exportState().toString());
+            legacy.put("currentValuation", oldValue.getAmount().toPlainString()).put("valuationRule", "CATEGORY_CALENDAR_V2");
+            try { manager.restoreState(new JSONArray().put(legacy)); fail(); }
+            catch (IllegalArgumentException expected) { }
+            assertEquals(before, manager.exportState().toString());
+        }
+        CollectibleItem legacyVehicle = new CollectibleItem("OLD", "Legacy vehicle", CollectibleItem.Category.VEHICLE,
+                Money.of(1_000_000, Currency.IDR), Money.zero(Currency.IDR), 0);
+        JSONObject saved = legacyVehicle.toJsonObject().put("valuationRule", "CATEGORY_CALENDAR_V1")
+                .put("valuationAnchorDay", 0).put("valuationAsOfDay", 20).put("valuationAnchorPrice", "1000000")
+                .put("currentValuation", "998000");
+        assertEquals(Money.of(998000, Currency.IDR), CollectibleItem.fromJsonObject(saved).getCurrentValuation());
+    }
+
+    @Test public void savedVehicleCycleReanchorsEvenWhenOldAndNewFormulasCoincide() throws Exception {
+        long origin = 1_790_000_000_000L, day = 86_400_000L;
+        CollectionManager manager = new CollectionManager();
+        manager.updateValuations(origin);
+        manager.updateValuations(origin + 400 * day);
+        String id = "COL-CAR-00";
+        if (Math.floorMod(id.hashCode(), 2) == 0) id = "COL-CAR-01";
+        assertEquals(1, Math.floorMod(id.hashCode(), 2));
+        Money oldValue = manager.getItem(id).getBasePrice().multiply(new BigDecimal("0.96"));
+        JSONObject legacy = manager.getItem(id).toJsonObject().put("valuationRule", "CATEGORY_CALENDAR_V1");
+        assertEquals(oldValue.getAmount().toPlainString(), legacy.getString("currentValuation"));
+        manager.restoreState(new JSONArray().put(legacy));
+        JSONObject migrated = manager.getItem(id).toJsonObject();
+        assertEquals(oldValue, manager.getItem(id).getCurrentValuation());
+        assertEquals(migrated.getLong("valuationAsOfDay"), migrated.getLong("valuationAnchorDay"));
+        assertEquals("CATEGORY_CALENDAR_V2", migrated.getString("valuationRule"));
+        manager.restoreState(new JSONArray(manager.exportState().toString()));
+        manager.updateValuations(origin + 410 * day);
+        assertEquals(oldValue.multiply(new BigDecimal("0.9990")), manager.getItem(id).getCurrentValuation());
     }
 }

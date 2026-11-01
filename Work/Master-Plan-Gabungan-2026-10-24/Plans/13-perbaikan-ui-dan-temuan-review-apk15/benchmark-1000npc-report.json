@@ -1,0 +1,46 @@
+{
+  "tickOrderGenerationLatencyMicros": {
+    "p95_ms": 0.799,
+    "min_ms": 0.262,
+    "p50_ms": 0.633,
+    "mean_ms": 0.72,
+    "samples": 50,
+    "max_ms": 8.538
+  },
+  "environment": "Host JVM OpenJDK 21 x86_64, Windows 11",
+  "saveFileSizeKiloBytes": 844.25390625,
+  "leaderboardLatencyMicros": {
+    "p95_ms": 13.933,
+    "min_ms": 3.948,
+    "p50_ms": 9.55,
+    "mean_ms": 9.24,
+    "samples": 50,
+    "max_ms": 16.259
+  },
+  "saveSerializationLatencyMicros": {
+    "p95_ms": 65.84,
+    "min_ms": 30.955,
+    "p50_ms": 35.601,
+    "mean_ms": 41.48,
+    "samples": 30,
+    "max_ms": 71.53
+  },
+  "totalNpc": 1000,
+  "npcProfileLatencyMicros": {
+    "p95_ms": 1.131,
+    "min_ms": 0.342,
+    "p50_ms": 0.608,
+    "mean_ms": 0.72,
+    "samples": 50,
+    "max_ms": 5.331
+  },
+  "loadDeserializationLatencyMicros": {
+    "p95_ms": 78.288,
+    "min_ms": 47.743,
+    "p50_ms": 56.257,
+    "mean_ms": 58.45,
+    "samples": 30,
+    "max_ms": 81.717
+  },
+  "timestamp": 1793214848804
+}

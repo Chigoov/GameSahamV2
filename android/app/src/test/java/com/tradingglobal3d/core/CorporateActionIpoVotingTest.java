@@ -74,8 +74,10 @@ public class CorporateActionIpoVotingTest {
                 LocalDate.now(), LocalDate.now()
         );
 
+        long expectedBeneficiaries = facade.getAllAccounts().stream()
+                .filter(a -> a.getPosition("IDX:BBCA") != null && a.getPosition("IDX:BBCA").getQuantity() > 0).count();
         int beneficiaries = facade.executeCashDividend(divAction);
-        assertEquals(2, beneficiaries); // Pemain dan Market Maker NPC sama-sama pemegang saham yang sah
+        assertEquals(expectedBeneficiaries, beneficiaries);
         assertTrue(divAction.isExecuted());
 
         // Total dividen = 1000 lembar * Rp 250 = Rp 250.000
@@ -120,27 +122,31 @@ public class CorporateActionIpoVotingTest {
         Account personal = facade.getPersonalAccount();
         Money initialCash = personal.getTotalCash(Currency.IDR);
 
-        // Pesan 100 lot IPO NCLD (10.000 lembar @ Rp 500 = Rp 5.000.000)
-        IpoSubscription sub = facade.orderIpo("IPO-CLOUD", 100);
+        IpoOffering ipo = facade.getCorporateService().getIpoOfferings().stream()
+                .filter(i -> !i.isAllotted() && i.isOfferingPeriod(facade.getClock().getCurrentDate()))
+                .findFirst().orElseThrow(() -> new AssertionError("Katalog harus memuat IPO terbuka"));
+        Money reservation = ipo.getOfferingPrice().multiply(BigDecimal.valueOf(100L * ipo.getLotSize()));
+        Money allottedCost = ipo.getOfferingPrice().multiply(BigDecimal.valueOf(40L * ipo.getLotSize()));
+        IpoSubscription sub = facade.orderIpo(ipo.getId(), 100);
         assertNotNull(sub);
-        assertEquals(Money.of(5_000_000, Currency.IDR), sub.getReservedMoney());
+        assertEquals(reservation, sub.getReservedMoney());
 
-        // Saldo available berkurang Rp 5.000.000 karena di-reserve
-        assertEquals(initialCash.subtract(Money.of(5_000_000, Currency.IDR)), personal.getAvailableCash(Currency.IDR));
+        // Reservasi mengikuti harga dan lot pada penawaran aktif.
+        assertEquals(initialCash.subtract(reservation), personal.getAvailableCash(Currency.IDR));
 
-        // Penjatahan 40% (allotment ratio 0.40) -> dapat 40 lot (4.000 lembar = Rp 2.000.000)
-        facade.allotIpo("IPO-CLOUD", 0.40);
+        // Sesuai REV-03: jika pesanan sah tidak melebihi penawaran, 100% dipenuhi (100 lot)
+        facade.allotIpo(ipo.getId(), 0.40);
         assertEquals(IpoSubscription.SubscriptionStatus.ALLOTTED, sub.getStatus());
-        assertEquals(40, sub.getAllottedLots());
-        assertEquals(Money.of(3_000_000, Currency.IDR), sub.getRefundMoney()); // Refund Rp 3.000.000
+        assertEquals(100, sub.getAllottedLots());
+        assertEquals(Money.zero(Currency.IDR), sub.getRefundMoney());
 
-        // Saham IPO NCLD masuk ke portofolio pemain
-        Position ipoPos = personal.getPosition("NCLD");
+        // Saham dari penawaran yang dipilih masuk ke portofolio pemain.
+        Position ipoPos = personal.getPosition("IDX:" + ipo.getTicker());
         assertNotNull(ipoPos);
-        assertEquals(4000, ipoPos.getQuantity());
+        assertEquals(100L * ipo.getLotSize(), ipoPos.getQuantity());
 
-        // Total kas pemain sekarang = modal awal - 2.000.000 (refund 3jt kembali ke kas)
-        assertEquals(initialCash.subtract(Money.of(2_000_000, Currency.IDR)), personal.getTotalCash(Currency.IDR));
+        // Biaya seluruh lot mengurangi total kas
+        assertEquals(initialCash.subtract(reservation), personal.getTotalCash(Currency.IDR));
         assertEquals(Money.zero(Currency.IDR), personal.getReservedCash(Currency.IDR));
 
         assertTrue(facade.reconcileAll());
@@ -226,10 +232,10 @@ public class CorporateActionIpoVotingTest {
         // 6. Verifikasi IPO dialokasikan otomatis dan refund diproses
         assertTrue(ipo.isAllotted());
         assertEquals(IpoSubscription.SubscriptionStatus.ALLOTTED, sub.getStatus());
-        assertEquals(10, sub.getAllottedLots()); // 50% dari 20 lot = 10 lot
+        assertEquals(20, sub.getAllottedLots()); // Sesuai REV-03: 20 lot pesanan dipenuhi 100% karena penawaran jauh mencukupi
         Position ncldPos = personal.getPosition("NCLD");
         assertNotNull("Saham IPO harus masuk portofolio pemain", ncldPos);
-        assertEquals(1000, ncldPos.getQuantity());
+        assertEquals(2000, ncldPos.getQuantity());
 
         // Kas tertahan harus kembali 0
         assertEquals(Money.zero(Currency.IDR), personal.getReservedCash(Currency.IDR));

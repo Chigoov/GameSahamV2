@@ -62,7 +62,8 @@ public class PrestigeBlockerEraBaruTest {
 
     @Test
     public void testNpcOrdersAndReservationsDoNotBlockPlayer() throws Exception {
-        // Buat likuiditas NPC dan antrean order dari Market Maker & Retail
+        // Buat likuiditas pada sesi yang sah; NPC tidak boleh matching saat bursa tutup.
+        facade.advanceRealMs(37500, true);
         facade.generateNpcLiquidity();
         assertFalse("Market engine harus memiliki resting orders dari NPC",
                 facade.getMarketEngine().getRestingOrders().isEmpty());

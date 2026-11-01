@@ -1,0 +1,23 @@
+{
+  "width": 1254,
+  "height": 1254,
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "alpha_bbox": [
+    137,
+    408,
+    1147,
+    920
+  ],
+  "raw_alpha_bbox": [
+    130,
+    69,
+    1232,
+    1204
+  ],
+  "crop_threshold": 16,
+  "transparent_pixels": 1199240,
+  "visual_review": "PASS after imagegen revision: native complete vehicle or coherent collector set, catalog identity/materials, improved approximately 10 percent margin, real alpha and sharp navy/light card views individually inspected; original archived."
+}

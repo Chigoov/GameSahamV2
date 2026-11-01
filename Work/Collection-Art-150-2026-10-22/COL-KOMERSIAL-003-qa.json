@@ -1,0 +1,23 @@
+{
+  "width": 1254,
+  "height": 1254,
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "alpha_bbox": [
+    216,
+    287,
+    1050,
+    1011
+  ],
+  "raw_alpha_bbox": [
+    0,
+    38,
+    1234,
+    1230
+  ],
+  "crop_threshold": 16,
+  "transparent_pixels": 1164396,
+  "visual_review": "PASS: native identity and rarity detail, complete diorama, alpha, generous margins and sharp navy/light card-size views individually inspected."
+}

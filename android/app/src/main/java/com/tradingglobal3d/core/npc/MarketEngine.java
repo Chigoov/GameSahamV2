@@ -5,8 +5,10 @@ import com.tradingglobal3d.core.economy.EconomyLedger;
 import com.tradingglobal3d.core.market.Instrument;
 import com.tradingglobal3d.core.market.InstrumentCatalog;
 import com.tradingglobal3d.core.model.Account;
+import com.tradingglobal3d.core.model.Money;
 import com.tradingglobal3d.core.trading.*;
 
+import java.math.BigDecimal;
 import java.util.*;
 
 /**
@@ -60,7 +62,9 @@ public final class MarketEngine {
                     .put("id", fill.getFillId()).put("buyOrder", fill.getBuyOrderId()).put("sellOrder", fill.getSellOrderId())
                     .put("buyer", fill.getBuyAccountId()).put("seller", fill.getSellAccountId())
                     .put("price", fill.getPrice().getAmount().toPlainString()).put("quantity", fill.getQuantity()).put("timestamp", fill.getTimestamp())
-                    .put("sellerRealizedNet", fill.getSellerRealizedNetPnL() == null ? org.json.JSONObject.NULL : fill.getSellerRealizedNetPnL().getAmount().toPlainString()));
+                    .put("sellerRealizedNet", fill.getSellerRealizedNetPnL() == null ? org.json.JSONObject.NULL : fill.getSellerRealizedNetPnL().getAmount().toPlainString())
+                    .put("buyerFee", fill.getBuyerFee() == null ? org.json.JSONObject.NULL : fill.getBuyerFee().getAmount().toPlainString())
+                    .put("sellerFee", fill.getSellerFee() == null ? org.json.JSONObject.NULL : fill.getSellerFee().getAmount().toPlainString()));
             saved.put(item.put("fills", fills));
         }
         return saved;
@@ -84,6 +88,12 @@ public final class MarketEngine {
                 org.json.JSONArray queue = item.getJSONArray(side);
                 for (int j = 0; j < queue.length(); j++) {
                     Order order = orders.getOrderByRequest(queue.getString(j));
+                    // Legacy saves placed waiting MARKET orders in the limit book; preserve them in the opening queue instead.
+                    if (order != null && order.isAwaitingMarketOpen()) {
+                        if (!instrument.getId().equals(order.getInstrumentId()) || order.isBuy() != side.equals("bids") || !queued.add(order.getId()))
+                            throw new IllegalArgumentException("Antrean pembukaan save duplikat atau tidak cocok");
+                        continue;
+                    }
                     if (order == null || !queued.add(order.getId()) || !instrument.getId().equals(order.getInstrumentId())
                             || order.getStatus().isFinal() || order.getStatus() == OrderStatus.PENDING_TRIGGER
                             || order.getLimitPrice() == null || order.isBuy() != side.equals("bids"))
@@ -98,10 +108,19 @@ public final class MarketEngine {
                 com.tradingglobal3d.core.model.Money price = new com.tradingglobal3d.core.model.Money(new java.math.BigDecimal(fill.getString("price")), instrument.getCurrency());
                 if (!price.isPositive() || fill.getLong("quantity") <= 0 || !fillIds.add(fill.getString("id")))
                     throw new IllegalArgumentException("Fill save tidak valid");
-                book.recordFill(new TradeFill(fill.getString("id"), fill.getString("buyOrder"), fill.getString("sellOrder"),
+                TradeFill restored = new TradeFill(fill.getString("id"), fill.getString("buyOrder"), fill.getString("sellOrder"),
                         fill.getString("buyer"), fill.getString("seller"), instrument.getId(), price, fill.getLong("quantity"), fill.getLong("timestamp"))
                         .withSellerRealizedNetPnL(fill.isNull("sellerRealizedNet") ? null : new com.tradingglobal3d.core.model.Money(
-                                new java.math.BigDecimal(fill.getString("sellerRealizedNet")), instrument.getCurrency())));
+                                new java.math.BigDecimal(fill.getString("sellerRealizedNet")), instrument.getCurrency()));
+                boolean hasBuyerFee = fill.has("buyerFee") && !fill.isNull("buyerFee");
+                boolean hasSellerFee = fill.has("sellerFee") && !fill.isNull("sellerFee");
+                if (hasBuyerFee != hasSellerFee) throw new IllegalArgumentException("Fee fill save tidak lengkap");
+                if (hasBuyerFee) {
+                    restored.withTransactionFees(
+                            new com.tradingglobal3d.core.model.Money(new java.math.BigDecimal(fill.getString("buyerFee")), instrument.getCurrency()),
+                            new com.tradingglobal3d.core.model.Money(new java.math.BigDecimal(fill.getString("sellerFee")), instrument.getCurrency()));
+                }
+                book.recordFill(restored);
             }
             if (fills.length() > 0 && (item.isNull("last") || !book.getLastTradedPrice().getAmount().toPlainString().equals(item.getString("last"))))
                 throw new IllegalArgumentException("Harga terakhir dan fill save tidak konsisten");
@@ -149,6 +168,11 @@ public final class MarketEngine {
         OrderBook book = books.get(order.getInstrumentId());
         if (book == null) return false;
         return matchingEngine.cancelOrder(order, account, book);
+    }
+
+    public synchronized boolean expireOrder(Order order, Account account) {
+        OrderBook book = books.get(order.getInstrumentId());
+        return matchingEngine.expireOrder(order, account, book);
     }
 
     /**
@@ -211,6 +235,7 @@ public final class MarketEngine {
             com.tradingglobal3d.core.research.ResearchService researchService) {
 
         for (Instrument inst : catalog.getActiveUniverse()) {
+            if (clock != null && !clock.isTradingOpenFor(inst.getExchange())) continue;
             OrderBook book = getOrCreateBook(inst);
             if (book.getHaltState() != TradingHaltState.NORMAL) {
                 continue;
@@ -220,6 +245,53 @@ public final class MarketEngine {
                     ? researchService.getActiveNewsImpact(inst.getTicker(), inst.getSector(), gameTimestamp)
                     : 0.0;
 
+            // Dorongan transaksi pasar dari target berita Pro/Whale aktif (T04, T05)
+            if (researchService != null && researchService.hasActiveNewsTarget(inst.getTicker())) {
+                com.tradingglobal3d.core.research.NewsPriceTarget target = researchService.getActiveNewsTarget(inst.getTicker());
+                if (target != null && target.getStatus() == com.tradingglobal3d.core.research.NewsPriceTarget.TargetStatus.ACTIVE) {
+                    Money ceiling = inst.getDailyCeilingPrice();
+                    Money targetPrice = target.getTargetPrice();
+                    Money floor = inst.getDailyFloorPrice();
+                    Money dayStepTarget = (ceiling != null && targetPrice.compareTo(ceiling) > 0) ? ceiling : targetPrice;
+                    if (floor != null && dayStepTarget.compareTo(floor) < 0) dayStepTarget = floor;
+                    boolean downward = target.getTargetPercent() < 0;
+
+                    if (downward ? inst.getCurrentPrice().compareTo(dayStepTarget) > 0 : inst.getCurrentPrice().compareTo(dayStepTarget) < 0) {
+                        Account institutionalNpc = allAccounts.get("ACC-LEAGUE-NPC-01");
+                        if (institutionalNpc == null) institutionalNpc = allAccounts.get("ACC-NPC-MM-01");
+                        Account mm = allAccounts.get("ACC-NPC-MM-01");
+                        Account buyerNpc = downward ? mm : institutionalNpc;
+                        Account sellerNpc = downward ? institutionalNpc : mm;
+
+                        if (buyerNpc != null && sellerNpc != null && buyerNpc != sellerNpc) {
+                            long qty = inst.getLotSize() * 2L;
+                            Money reqCash = new Money(dayStepTarget.getAmount().multiply(BigDecimal.valueOf(qty)), inst.getCurrency());
+                            if (buyerNpc.getAvailableCash(inst.getCurrency()).isGreaterThanOrEqual(reqCash)) {
+                                Order sellerAsk = new Order(
+                                        "ORD-CATALYST-S-" + System.nanoTime(),
+                                        "REQ-CATALYST-S-" + System.nanoTime(),
+                                        sellerNpc.getId(), inst.getId(),
+                                        OrderSide.SELL, OrderType.LIMIT,
+                                        dayStepTarget, null, qty, gameTimestamp,
+                                        Money.zero(inst.getCurrency())
+                                );
+                                matchingEngine.submitOrder(sellerAsk, sellerNpc, inst, book, ledger, allAccounts, gameTimestamp);
+
+                                Order targetBuy = new Order(
+                                        "ORD-CATALYST-B-" + System.nanoTime(),
+                                        "REQ-CATALYST-B-" + System.nanoTime(),
+                                        buyerNpc.getId(), inst.getId(),
+                                        OrderSide.BUY, OrderType.LIMIT,
+                                        dayStepTarget, null, qty, gameTimestamp,
+                                        reqCash
+                                );
+                                matchingEngine.submitOrder(targetBuy, buyerNpc, inst, book, ledger, allAccounts, gameTimestamp);
+                            }
+                        }
+                    }
+                }
+            }
+
             for (NpcAgent npc : npcAgents) {
                 // Taker ritel hanya aktif bertransaksi saat bursa instrumen sedang buka
                 if (npc.getStrategy() == NpcStrategyType.RETAIL_NOISE) {
@@ -227,6 +299,8 @@ public final class MarketEngine {
                         continue;
                     }
                 }
+                npc.ensureLiquidity(inst, book, ledger, gameTimestamp, 0L, Money.zero(inst.getCurrency()),
+                        "BASE-" + inst.getId() + "-" + gameTimestamp + "-" + inst.getIssuedShares() + "-" + ledger.getEntries().size());
                 List<Order> npcOrders = npc.generateOrders(inst, book, gameTimestamp, newsImpact);
                 for (Order o : npcOrders) {
                     matchingEngine.submitOrder(o, npc.getAccount(), inst, book, ledger, allAccounts, gameTimestamp);

@@ -27,6 +27,7 @@ public final class Money implements Comparable<Money> {
     }
 
     public static Money of(double amount, Currency currency) {
+        if (!Double.isFinite(amount)) return zero(currency);
         return new Money(BigDecimal.valueOf(amount), currency);
     }
 
@@ -53,10 +54,12 @@ public final class Money implements Comparable<Money> {
     }
 
     public Money multiply(BigDecimal factor) {
+        if (factor == null) return this;
         return new Money(this.amount.multiply(factor), this.currency);
     }
 
     public Money multiply(double factor) {
+        if (!Double.isFinite(factor)) return this;
         return multiply(BigDecimal.valueOf(factor));
     }
 
@@ -92,7 +95,7 @@ public final class Money implements Comparable<Money> {
         DecimalFormatSymbols symbols = new DecimalFormatSymbols(new Locale("id", "ID"));
         if (currency == Currency.IDR) {
             symbols.setGroupingSeparator('.');
-            DecimalFormat df = new DecimalFormat("###,###", symbols);
+            DecimalFormat df = new DecimalFormat("#,##0", symbols);
             return currency.getSymbol() + " " + df.format(amount);
         } else {
             symbols.setGroupingSeparator(',');

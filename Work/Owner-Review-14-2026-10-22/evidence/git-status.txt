@@ -1,0 +1,80 @@
+ M Work/STATUS.json
+ M Work/verify-grand-journey-e2e.js
+ M android/app/src/main/AndroidManifest.xml
+ M android/app/src/main/assets/www/app.js
+ M android/app/src/main/assets/www/index.html
+ M android/app/src/main/assets/www/style.css
+ M android/app/src/main/java/com/tradingglobal3d/core/career/CareerManager.java
+ M android/app/src/main/java/com/tradingglobal3d/core/collection/CollectibleItem.java
+ M android/app/src/main/java/com/tradingglobal3d/core/collection/CollectionManager.java
+ M android/app/src/main/java/com/tradingglobal3d/core/corporate/CorporateActionService.java
+ M android/app/src/main/java/com/tradingglobal3d/core/economy/LedgerEntryType.java
+ M android/app/src/main/java/com/tradingglobal3d/core/facade/TradingFacade.java
+ M android/app/src/main/java/com/tradingglobal3d/core/funds/MutualFund.java
+ M android/app/src/main/java/com/tradingglobal3d/core/funds/MutualFundManager.java
+ M android/app/src/main/java/com/tradingglobal3d/core/npc/MarketEngine.java
+ M android/app/src/main/java/com/tradingglobal3d/core/npc/NpcAgent.java
+ M android/app/src/main/java/com/tradingglobal3d/core/player/InvestorArchetypeService.java
+ M android/app/src/main/java/com/tradingglobal3d/core/research/NewsArticle.java
+ M android/app/src/main/java/com/tradingglobal3d/core/research/ResearchService.java
+ M android/app/src/main/java/com/tradingglobal3d/core/storage/SaveManager.java
+ M android/app/src/main/java/com/tradingglobal3d/mobile/MainActivity.java
+ M android/app/src/main/java/com/tradingglobal3d/mobile/TradingWebBridge.java
+?? Prompts/Longtask-14-Revisi-Pemilik-2026-10-22.md
+?? Prompts/Longtask-8-Anotasi-Koleksi-Riwayat-Pasar-Progres-2026-10-22.md
+?? Prompts/Longtask-Kandidat-Layak-Uji-Bermain-2026-10-22.md
+?? Prompts/Longtask-Koreksi-Verifikasi-Final-2026-10-21.md
+?? Prompts/Longtask-Penutupan-Temuan-Remediasi-2026-10-22.md
+?? Prompts/Longtask-Remediasi-Audit-UX-Realtime-2026-10-21.md
+?? Prompts/Longtask-Revisi-Pemilik-Waktu-Briefing-Bisnis-Berita-Referensi-2026-10-22.md
+?? Prompts/Longtask-UX-Motion-Realtime-100-Perusahaan-2026-10-21.md
+?? Prompts/Prompt-Master-Lanjutan-Game-Saham-2026-10-22.md
+?? Work/CHECKPOINT-CATALOG-100-2026-10-21.md
+?? Work/CHECKPOINT-KANDIDAT-UJI-BERMAIN-2026-10-22.md
+?? Work/CHECKPOINT-MASTER-LANJUTAN-2026-10-22.md
+?? Work/CHECKPOINT-PENUTUPAN-REMEDIASI-2026-10-22.md
+?? Work/Collection-Art-150-2026-10-22/
+?? Work/NOTE-OWNER-UX-MOTION-REALTIME-2026-10-21.md
+?? Work/Owner-Review-14-2026-10-22/
+?? Work/Owner-Revision-14-2026-10-22/
+?? Work/PANDUAN-UJI-BERMAIN-ANDROID-2026-10-22.md
+?? Work/convert-collections-150.py
+?? Work/convert-funds-24.py
+?? Work/run-apk-build.py
+?? Work/run-col-test.py
+?? Work/run-dep-test.py
+?? Work/run-funds-test.py
+?? Work/run-ipo-test.py
+?? Work/run-news-test.py
+?? Work/run-verify-int.py
+?? Work/run-verify-r06.py
+?? Work/run-verify-r10.py
+?? Work/run-verify-r12.py
+?? Work/run-verify-r13.py
+?? Work/run-verify-r14.py
+?? Work/test-f03-negative-control.js
+?? Work/verify-f05-watchlist-touch.js
+?? Work/verify-int-viewports.js
+?? Work/verify-r01-r02-clock-sponsor.js
+?? Work/verify-r03-r04-r09.js
+?? Work/verify-r06-ipo.js
+?? Work/verify-r07-r08-fundamentals.js
+?? Work/verify-r10-multiasset.js
+?? Work/verify-r11-profile-tabs.js
+?? Work/verify-r12-news.js
+?? Work/verify-r13-collections.js
+?? Work/verify-r14-funds.js
+?? android/app/Artifacts/
+?? android/app/src/main/assets/data/katalog_koleksi_150.json
+?? android/app/src/main/assets/data/katalog_reksadana_24.json
+?? android/app/src/main/java/com/tradingglobal3d/core/market/IssuerFundamentals.java
+?? android/app/src/main/java/com/tradingglobal3d/core/multiasset/TimeDeposit.java
+?? android/app/src/main/java/com/tradingglobal3d/core/multiasset/TimeDepositManager.java
+?? android/app/src/test/java/com/tradingglobal3d/core/Collections150ConsistencyTest.java
+?? android/app/src/test/java/com/tradingglobal3d/core/CompanyProfileApiCompatibilityTest.java
+?? android/app/src/test/java/com/tradingglobal3d/core/IpoScheduleAndAllotmentTest.java
+?? android/app/src/test/java/com/tradingglobal3d/core/IssuerFundamentalsConsistencyTest.java
+?? android/app/src/test/java/com/tradingglobal3d/core/MutualFunds24ConsistencyTest.java
+?? android/app/src/test/java/com/tradingglobal3d/core/NewsAndMarketImpactTest.java
+?? android/app/src/test/java/com/tradingglobal3d/core/SaveBackupCorruptionTest.java
+?? android/app/src/test/java/com/tradingglobal3d/core/TimeDepositAndMultiAssetTest.java

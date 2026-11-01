@@ -47,6 +47,19 @@ public final class FundBuilderService {
                 Money.of(1_450_000, Currency.IDR)
         );
         commodities.put(gold.getId(), gold);
+
+        // Aset Kripto Digital Spot 24 Jam (Fase 3 Fitur 12)
+        CommodityInstrument btc = new CommodityInstrument(
+                "COMM:BTC", "BTC", "Bitcoin Digital Spot 24 Jam", "Koin", Currency.IDR,
+                Money.of(1_050_000_000L, Currency.IDR)
+        );
+        commodities.put(btc.getId(), btc);
+
+        CommodityInstrument eth = new CommodityInstrument(
+                "COMM:ETH", "ETH", "Ethereum Digital Spot 24 Jam", "Koin", Currency.IDR,
+                Money.of(42_000_000L, Currency.IDR)
+        );
+        commodities.put(eth.getId(), eth);
     }
 
     public synchronized void reset() {
@@ -90,6 +103,14 @@ public final class FundBuilderService {
             double cashWeight,
             ClientMandate clientMandate) {
 
+        double total = cashWeight;
+        if (targetWeights != null) {
+            for (double w : targetWeights.values()) total += w;
+        }
+        if (Math.abs(total - 1.0) > 0.01) {
+            throw new IllegalArgumentException("Total alokasi rencana portofolio harus 100%: " + String.format(Locale.US, "%.1f", total * 100) + "%");
+        }
+
         // Validasi terhadap mandat klien jika ada
         if (clientMandate != null) {
             if (cashWeight < clientMandate.getRiskProfile().getMinCashReserve()) {
@@ -104,7 +125,11 @@ public final class FundBuilderService {
             }
         }
 
-        FundAllocationPlan plan = new FundAllocationPlan(planId, accountId, planName, targetWeights, cashWeight);
+        // Sanitasi nama rencana dari karakter non-standar/emoji agar aman di SQLite (Bug #212)
+        String cleanPlanName = planName != null ? planName.replaceAll("[^\\p{L}\\p{N}\\p{P}\\p{Z}]", "").trim() : "Portofolio Kustom";
+        if (cleanPlanName.isEmpty()) cleanPlanName = "Portofolio Kustom";
+
+        FundAllocationPlan plan = new FundAllocationPlan(planId, accountId, cleanPlanName, targetWeights, cashWeight);
         plan.setStatus(FundAllocationPlan.PlanStatus.SAVED);
         savedPlans.put(planId, plan);
         return plan;

@@ -1,0 +1,4002 @@
+[
+  {
+    "id": "MILESTONE-B1-001",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 1,
+    "location": "Mobile Runtime & UI",
+    "title": "Kegagalan `crypto.randomUUID()` pada Tiket Order Beli & Jual",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-002",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 2,
+    "location": "Mobile Runtime & UI",
+    "title": "Kegagalan Pembelian Reksa Dana (`FUND-SUB`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-003",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 3,
+    "location": "Mobile Runtime & UI",
+    "title": "Kegagalan Penjualan/Redemption Reksa Dana (`FUND-RED`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-004",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 4,
+    "location": "Mobile Runtime & UI",
+    "title": "Kegagalan Pelunasan Awal Pinjaman Bank (`LOAN-PREPAY`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-005",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 5,
+    "location": "Mobile Runtime & UI",
+    "title": "Kegagalan Pembayaran Angsuran Pinjaman Bank (`LOAN-PAY`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-006",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 6,
+    "location": "Mobile Runtime & UI",
+    "title": "Kegagalan Transfer Modal Holding Antar Anak Usaha (`HOLD-TRF`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-007",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 7,
+    "location": "Mobile Runtime & UI",
+    "title": "Kegagalan Pendaftaran Pendirian Anak Usaha Baru (`COMP-`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-008",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 8,
+    "location": "Mobile Runtime & UI",
+    "title": "Kegagalan Perubahan Susunan Pegawai Anak Usaha (`STAFF-`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-009",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 9,
+    "location": "Mobile Runtime & UI",
+    "title": "Kegagalan Konversi Valas IDR/USD di Menu Pasar (`FX-UI-`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-010",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 10,
+    "location": "Mobile Runtime & UI",
+    "title": "Kegagalan Pemesanan Saham Perdana IPO (`REQ-IPO-`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-011",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 11,
+    "location": "Mobile Runtime & UI",
+    "title": "Kegagalan Klaim Modal Harian / Hibah Investor (`REQ-BONUS-`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-012",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 12,
+    "location": "Mobile Runtime & UI",
+    "title": "Pembekuan Pembaruan Kuotasi Pasar saat Layar Detail Terbuka",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-013",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 13,
+    "location": "Mobile Runtime & UI",
+    "title": "Grafik Candlestick Tidak Pernah Diperbarui Realtime di Detail Saham",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-014",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 14,
+    "location": "Mobile Runtime & UI",
+    "title": "Re-render DOM Masif Setiap 1 Detik di `renderMarketHighlights`",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-015",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 15,
+    "location": "Mobile Runtime & UI",
+    "title": "Penulisan Disk I/O Sinkron ke `localStorage` di Main Thread UI Setiap 1 Detik",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-016",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 16,
+    "location": "Mobile Runtime & UI",
+    "title": "Polling Loop Agresif 50ms ke Bridge JNI Android",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-017",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 17,
+    "location": "Mobile Runtime & UI",
+    "title": "Runaway Timer & Memory Leak pada Audio Synthesizer BGM",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-018",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 18,
+    "location": "Mobile Runtime & UI",
+    "title": "Kegagalan Resume AudioContext Autoplay Policy di Android",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-019",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 19,
+    "location": "Mobile Runtime & UI",
+    "title": "Unchecked Null Pointer Exception pada `currentAccount.id` di Tampilan Aset",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-020",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 20,
+    "location": "Mobile Runtime & UI",
+    "title": "Degradasi Frame Rate Akibat CSS `backdrop-filter: blur(8px)`",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-021",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 21,
+    "location": "Mobile Runtime & UI",
+    "title": "Kerentanan Input Notasi Ilmiah pada Form Jumlah Order Saham",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-022",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 22,
+    "location": "Mobile Runtime & UI",
+    "title": "Tumpang Tindih Lapisan Z-Index Antara Flow Page dan Modal Order",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-023",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 23,
+    "location": "Mobile Runtime & UI",
+    "title": "Status Bintang Watchlist Desinkronisasi Antara Layar Detail dan Daftar Pasar",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-024",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 24,
+    "location": "Mobile Runtime & UI",
+    "title": "Order Book Menampilkan Tabel Kosong Tanpa Shimmer Saat Inisialisasi",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-025",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 25,
+    "location": "Mobile Runtime & UI",
+    "title": "Benturan Frekuensi Detak Jam Antara Timer 250ms dan Timer 1000ms",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-026",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 26,
+    "location": "Mobile Runtime & UI",
+    "title": "Thread Penyelarasan Jam Tertahan Disk I/O `facade.save()`",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-027",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 27,
+    "location": "Mobile Runtime & UI",
+    "title": "Pemborosan Memori Heap JVM Akibat Double Serialization Snapshot",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-028",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 28,
+    "location": "Mobile Runtime & UI",
+    "title": "Potensi Deadlock UI Thread pada Synchronized Block `TradingWebBridge.this`",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-029",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 29,
+    "location": "Mobile Runtime & UI",
+    "title": "Ketiadaan Mekanisme Cache Respons pada `getChartData`",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-030",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 30,
+    "location": "Mobile Runtime & UI",
+    "title": "Risiko Save Corrupt saat Aplikasi Diminimize Mendadak (`onPause`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-031",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 31,
+    "location": "Mobile Runtime & UI",
+    "title": "Bahaya Crash RenderThread GPU pada `LAYER_TYPE_HARDWARE`",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-032",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 32,
+    "location": "Mobile Runtime & UI",
+    "title": "Penanganan Error `triggerMarketShockEvent` Tidak Mengembalikan State Bursa",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-033",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 33,
+    "location": "Mobile Runtime & UI",
+    "title": "Pemrosesan Order Synchronous Memblokir JavaBridge Thread",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-034",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 34,
+    "location": "Mobile Runtime & UI",
+    "title": "Deserialisasi Penuh Berkas Lama pada Setiap Operasi Penyimpanan (`SaveManager`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-035",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 35,
+    "location": "Mobile Runtime & UI",
+    "title": "Disk Flush `fos.getFD().sync()` Memperlambat Thread Penyimpan",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-036",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 36,
+    "location": "Mobile Runtime & UI",
+    "title": "Context Activity Leak pada Constructor `TradingWebBridge`",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-037",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 37,
+    "location": "Mobile Runtime & UI",
+    "title": "Ketiadaan Rate Limiting pada `@JavascriptInterface beginClockSync`",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-038",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 38,
+    "location": "Mobile Runtime & UI",
+    "title": "Ketiadaan Skema Migrasi Versi Save Data (`SaveState`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-039",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 39,
+    "location": "Mobile Runtime & UI",
+    "title": "Korupsi String JSON pada Error Message `getChartData`",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-040",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 40,
+    "location": "Mobile Runtime & UI",
+    "title": "Console Error WebView Tersembunyi pada Build Rilis",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-041",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 41,
+    "location": "Mobile Runtime & UI",
+    "title": "Race Condition pada Variabel `clockSyncPending`",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-042",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 42,
+    "location": "Mobile Runtime & UI",
+    "title": "Bahaya Truncate Berkas saat Disk Penuh di `robustMove`",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-043",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 43,
+    "location": "Mobile Runtime & UI",
+    "title": "Pembengkakan Alokasi String Objek `PENDING` Berulang",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-044",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 44,
+    "location": "Mobile Runtime & UI",
+    "title": "Payload Portofolio Membengkak Tanpa Filter Riwayat",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-045",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 45,
+    "location": "Mobile Runtime & UI",
+    "title": "Ketiadaan Paginasi pada Endpoint Riwayat Dividen",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-046",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 46,
+    "location": "Mobile Runtime & UI",
+    "title": "Kerentanan Batas Kuota Storage `QuotaExceededError` di WebView",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-047",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 47,
+    "location": "Mobile Runtime & UI",
+    "title": "Hilangnya Presisi Desimal Nilai Finansial saat Format Float di JSON",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-048",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 48,
+    "location": "Mobile Runtime & UI",
+    "title": "Karakter Kontrol Tak Terlihat pada Input Nama Pemain",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-049",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 49,
+    "location": "Mobile Runtime & UI",
+    "title": "Pemborosan Memori RAM Akibat Duplikasi Offscreen Buffer",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-050",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 50,
+    "location": "Mobile Runtime & UI",
+    "title": "Ketiadaan Endpoint Kuotasi Ringan Mikro (Micro Price Feed)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-051",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 51,
+    "location": "Mobile Runtime & UI",
+    "title": "Kebijakan All-Or-None (AON) Membatalkan Market Order Pemain",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-052",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 52,
+    "location": "Mobile Runtime & UI",
+    "title": "Pengecekan Saldo Market Order Beli Bernilai 0 saat Antrean Kosong",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-053",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 53,
+    "location": "Mobile Runtime & UI",
+    "title": "Kehabisan Stok Saham Market Maker Membekukan Antrean Ask (*Inventory Depletion*)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-054",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 54,
+    "location": "Mobile Runtime & UI",
+    "title": "Kehabisan Kas Market Maker Membekukan Antrean Bid",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-055",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 55,
+    "location": "Mobile Runtime & UI",
+    "title": "Seluruh Bot Perdagangan Ritel Mati saat Jam Bursa Tutup Sementara",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-056",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 56,
+    "location": "Mobile Runtime & UI",
+    "title": "Fluktuasi Pasar Acak Hanya Dihitung Sekali Sehari di Penutupan Hari",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-057",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 57,
+    "location": "Mobile Runtime & UI",
+    "title": "Agregasi Lilin `R1D` Menggunakan Interval Lambat 15 Menit",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-058",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 58,
+    "location": "Mobile Runtime & UI",
+    "title": "Fraksi Tick Tidak Valid pada Kalkulasi Batas ARA/ARB",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-059",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 59,
+    "location": "Mobile Runtime & UI",
+    "title": "Pertumbuhan Memori Tak Terbatas pada Riwayat Transaksi OrderBook",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-060",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 60,
+    "location": "Mobile Runtime & UI",
+    "title": "Nilai Tertinggi (High) dan Terendah (Low) Harian Tidak Diperbarui pada Call Auction",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-061",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 61,
+    "location": "Mobile Runtime & UI",
+    "title": "Sinkronisasi Aksi Beli/Jual Bot Ritel Akibat Random Seed Identik",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-062",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 62,
+    "location": "Mobile Runtime & UI",
+    "title": "Hardcoded Clock Multiplier 24L Membiaskan Waktu Berita Riset",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-063",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 63,
+    "location": "Mobile Runtime & UI",
+    "title": "Penurunan Performa Matching Engine Akibat Loop O(N) Committed Shares",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-064",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 64,
+    "location": "Mobile Runtime & UI",
+    "title": "Bahaya Tabrakan ID Order pada Lingkungan Multithreading",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-065",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 65,
+    "location": "Mobile Runtime & UI",
+    "title": "Ketiadaan Indeks Sektor pada Katalog Instrumen Pasar",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-066",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 66,
+    "location": "Mobile Runtime & UI",
+    "title": "Volume Lelang Call Auction Tidak Ditambahkan ke Volume Akumulasi Harian",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-067",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 67,
+    "location": "Mobile Runtime & UI",
+    "title": "Kenaikan Squeeze Factor Melompati Batas Koridor ARA",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-068",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 68,
+    "location": "Mobile Runtime & UI",
+    "title": "Order Terus Dipasang pada Harga ARA Meskipun Status Halt",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-069",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 69,
+    "location": "Mobile Runtime & UI",
+    "title": "Memory Leak Node Key Kosong pada TreeMap OrderBook",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-070",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 70,
+    "location": "Mobile Runtime & UI",
+    "title": "Rilis Kas Tertahan Tidak Sempurna pada Pembatalan Order Non-Limit",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-071",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 71,
+    "location": "Mobile Runtime & UI",
+    "title": "Sesi Bursa IDX Berjalan 24 Jam Tanpa Istirahat Siang Realistis",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-072",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 72,
+    "location": "Mobile Runtime & UI",
+    "title": "Ketiadaan Timeframe Chart Detik / Menit Intraday (M1 / S1)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-073",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 73,
+    "location": "Mobile Runtime & UI",
+    "title": "Value Investor Menghasilkan Harga Target di Bawah Batas Bawah Bursa (Floor)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-074",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 74,
+    "location": "Mobile Runtime & UI",
+    "title": "Selisih Pembulatan Kapitalisasi Pasar pada Stock Split Saham",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-075",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 75,
+    "location": "Mobile Runtime & UI",
+    "title": "Pembatalan Order Limit Pemain di Penutupan Hari Tanpa Notifikasi Jelas",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-076",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 76,
+    "location": "Mobile Runtime & UI",
+    "title": "Kegagalan Loading 21 Produk Reksa Dana dari File Asset di Android APK",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-077",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 77,
+    "location": "Mobile Runtime & UI",
+    "title": "Risiko Pembagian Nol (*Division by Zero*) pada Perhitungan Kuota IPO",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-078",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 78,
+    "location": "Mobile Runtime & UI",
+    "title": "Penarikan Modal Klien Mengacaukan High-Water Mark (HWM) Fee Mandat",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-079",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 79,
+    "location": "Mobile Runtime & UI",
+    "title": "Penekanan Diam-Diam Kegagalan Rebalance Reksa Dana Indeks",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-080",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 80,
+    "location": "Mobile Runtime & UI",
+    "title": "Integer Multiplication Overflow pada Form Pesanan Lot Ekstrem",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-081",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 81,
+    "location": "Mobile Runtime & UI",
+    "title": "Race Condition Likuidasi Paksa Margin Call",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-082",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 82,
+    "location": "Mobile Runtime & UI",
+    "title": "Bunga Pembiayaan Short & Margin Tetap Dikenakan di Hari Libur Bursa",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-083",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 83,
+    "location": "Mobile Runtime & UI",
+    "title": "Pemotongan Gaji Anak Usaha Memicu Utang Korporasi Tak Terbatas",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-084",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 84,
+    "location": "Mobile Runtime & UI",
+    "title": "Kebocoran Target Harga Berita yang Telah Kedaluwarsa",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-085",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 85,
+    "location": "Mobile Runtime & UI",
+    "title": "Biaya Perawatan Barang Koleksi Menembus Saldo Kas Menjadi Negatif",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-086",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 86,
+    "location": "Mobile Runtime & UI",
+    "title": "Akumulasi Fraksi Sen (*Penny Shaving*) pada Perhitungan NAB Unit Reksa Dana",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-087",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 87,
+    "location": "Mobile Runtime & UI",
+    "title": "Ketiadaan Entri Buku Besar pada Settlement Order Reksa Dana",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-088",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 88,
+    "location": "Mobile Runtime & UI",
+    "title": "Kerugian Fraksi Saham Reverse Split pada Kepemilikan Ritel Ganjil",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-089",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 89,
+    "location": "Mobile Runtime & UI",
+    "title": "Pemutusan Sepihak Mandat Klien Tanpa Peringatan Dini",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-090",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 90,
+    "location": "Mobile Runtime & UI",
+    "title": "Pengali Kue Sektor Bernilai Negatif pada Sektor yang Ambruk",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-091",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 91,
+    "location": "Mobile Runtime & UI",
+    "title": "Hadiah Misi Harian Hangus saat Waktu Game Dipercepat (*Fast-Forward*)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-092",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 92,
+    "location": "Mobile Runtime & UI",
+    "title": "Reset Streak Login Harian yang Tidak Adil Akibat Ketidaksinkronan Waktu",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-093",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 93,
+    "location": "Mobile Runtime & UI",
+    "title": "Penjatahan IPO Menggantung pada Penawaran yang Sepi Peminat",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-094",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 94,
+    "location": "Mobile Runtime & UI",
+    "title": "Asimetri Spread Kurs Valuta Asing IDR/USD Memicu Arbitrase Mikro",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-095",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 95,
+    "location": "Mobile Runtime & UI",
+    "title": "Duplikasi Berulang Headline Berita Prosedural pada Game Jangka Panjang",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-096",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 96,
+    "location": "Mobile Runtime & UI",
+    "title": "Efisiensi Staf Anak Usaha Tetap 100% Selamanya (*No Fatigue*)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-097",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 97,
+    "location": "Mobile Runtime & UI",
+    "title": "Potensi NullPointerException pada Field `unknownLegacyShares`",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-098",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 98,
+    "location": "Mobile Runtime & UI",
+    "title": "Ledakan Bunga Berbunga Pinjaman Tenor Bank (*Compound Interest Explosion*)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-099",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 99,
+    "location": "Mobile Runtime & UI",
+    "title": "Deadlock Status Agenda RUPS saat Perolehan Suara Seimbang 50:50",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B1-100",
+    "batch": "Batch 1 (AUDIT_100)",
+    "num": 100,
+    "location": "Mobile Runtime & UI",
+    "title": "Munculnya Dialog \"Pemulihan Save Diperlukan\" Palsu (*False Positive Alert*)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-001",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 1,
+    "location": "Money.java:95",
+    "title": "Pattern",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-002",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 2,
+    "location": "Account.java:39",
+    "title": "Method",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-003",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 3,
+    "location": "Position.java:129",
+    "title": "Saat seluruh saham dijual (",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-004",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 4,
+    "location": "Position.java:64",
+    "title": "Method",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-005",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 5,
+    "location": "Money.java:30",
+    "title": "Crash NumberFormatException pada",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-006",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 6,
+    "location": "Account.java:73",
+    "title": "Method",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-007",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 7,
+    "location": "EconomyLedger.java:58",
+    "title": "Format",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-008",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 8,
+    "location": "Position.java:84",
+    "title": "Pembagian",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-009",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 9,
+    "location": "Account.java:112",
+    "title": "Exception Ticker Ambigu Memblokir Multi-Exchange",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-010",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 10,
+    "location": "Money.java:55",
+    "title": "Method",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-011",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 11,
+    "location": "EconomyLedger.java:45",
+    "title": "Idempotency Map Tanpa Batas Kadaluwarsa",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-012",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 12,
+    "location": "Position.java:140",
+    "title": "Method",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-013",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 13,
+    "location": "Account.java:96",
+    "title": "Pelepasan Reserved Cash Melempar Exception",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-014",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 14,
+    "location": "Money.java:86",
+    "title": "Operasi aritmatika beda mata uang langsung melempar exception kaku alih-alih meminta rate konversi.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-015",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 15,
+    "location": "EconomyLedger.java:15",
+    "title": "List",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-016",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 16,
+    "location": "Position.java:106",
+    "title": "Saham Indonesia diperdagangkan dalam satuan rupiah bulat; presisi 4 desimal menimbulkan angka pecahan seperti Rp 11.250,3333 yang tidak sesuai aturan fraksi BEI.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-017",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 17,
+    "location": "Account.java:130",
+    "title": "Method",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-018",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 18,
+    "location": "Money.java:121",
+    "title": "HashCode Mengabaikan Skala Mata Uang",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-019",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 19,
+    "location": "EconomyLedger.java:51",
+    "title": "Pemanggilan",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-020",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 20,
+    "location": "Position.java:78",
+    "title": "Unrealized PnL Mengabaikan Biaya Penjualan",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-021",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 21,
+    "location": "Account.java:124",
+    "title": "Penghapusan Posisi Menyisakan Entri di Riwayat Mutasi",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-022",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 22,
+    "location": "Money.java:22",
+    "title": "Pembulatan uang senilai $0.005 ke atas secara kumulatif menghasilkan deviasi beberapa sen pada ribuan transaksi.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-023",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 23,
+    "location": "EconomyLedger.java:36",
+    "title": "Mutasi Kas Nol Diizinkan Masuk Buku Besar",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-024",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 24,
+    "location": "Position.java:133",
+    "title": "Variabel",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-025",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 25,
+    "location": "Account.java:64",
+    "title": "Melempar \"Nominal mutasi kas tidak boleh negatif\" tanpa menyebutkan sumber modul pemanggil.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-026",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 26,
+    "location": "Money.java:99",
+    "title": "Format uang Dollar menampilkan titik pemisah ribuan saat dijalankan di lingkungan Android berbahasa Indonesia.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-027",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 27,
+    "location": "EconomyLedger.java:21",
+    "title": "String Empty Tidak Dianggap Null",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-028",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 28,
+    "location": "Position.java:40",
+    "title": "Jika data save lama memiliki fee quantity tidak selaras, objek posisi menolak dimuat.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-029",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 29,
+    "location": "Account.java:27",
+    "title": "Tidak ada validasi mata uang sekunder saat akun baru dibuat.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-030",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 30,
+    "location": "Money.java:106",
+    "title": "Membandingkan IDR dan USD di comparator koleksi memicu crash pengurutan Java.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-031",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 31,
+    "location": "EconomyLedger.java:54",
+    "title": "Akun entitas non-pemain dapat didebit hingga minus jika tidak dijaga guardrail.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-032",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 32,
+    "location": "Position.java:148",
+    "title": "Pengembalian Saham Pinjaman Memanipulasi Acquisition Quantity",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-033",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 33,
+    "location": "Account.java:119",
+    "title": "Jika instrumen yang sama ditambahkan ulang via",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-034",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 34,
+    "location": "Money.java:46",
+    "title": "Menjumlahkan",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-035",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 35,
+    "location": "EconomyLedger.java:33",
+    "title": "Deskripsi panjang ribuan karakter dapat dimasukkan dan disimpan ke database tanpa pemotongan.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-036",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 36,
+    "location": "Position.java:38",
+    "title": "Menolak fee akuisisi dalam mata uang berbeda dari instrumen meskipun biaya pialang dibayar dalam mata uang lokal.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-037",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 37,
+    "location": "Account.java:86",
+    "title": "Menampilkan angka desimal panjang tanpa format mata uang manusia.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-038",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 38,
+    "location": "Money.java:75",
+    "title": "Menghentikan proses sorting multi-currency.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-039",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 39,
+    "location": "EconomyLedger.java:17",
+    "title": "Penggunaan HashMap default tanpa concurrency guard pada pemrosesan volume tinggi.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-040",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 40,
+    "location": "Position.java:125",
+    "title": "Menghasilkan selisih nilai persediaan akhir pada metode akuntansi average.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-041",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 41,
+    "location": "Account.java:127",
+    "title": "Menghentikan perhitungan kekayaan bersih saat rate server off.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-042",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 42,
+    "location": "Money.java:63",
+    "title": "Menimbulkan kebingungan logika pada kondisi batas.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-043",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 43,
+    "location": "EconomyLedger.java:37",
+    "title": "Parameter boolean mudah tertukar posisinya dibanding enum",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-044",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 44,
+    "location": "Position.java:18",
+    "title": "Menyebabkan NullPointerException saat preview alokasi fee.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-045",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 45,
+    "location": "Account.java:18",
+    "title": "Pencarian key menggunakan kombinasi ticker dan ID bursa yang rawan salah format.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-046",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 46,
+    "location": "Money.java:115",
+    "title": "Equals Membandingkan BigDecimal dengan CompareTo",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-047",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 47,
+    "location": "EconomyLedger.java:24",
+    "title": "Caller dapat memodifikasi isi entri yang sudah tercatat.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-048",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 48,
+    "location": "Position.java:55",
+    "title": "Penjualan tanpa validasi dapat menghasilkan kuantitas negatif di bawah nol.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-049",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 49,
+    "location": "Account.java:46",
+    "title": "Nilai enum diekspos mentah ke antarmuka.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-050",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 50,
+    "location": "Money.java:15",
+    "title": "Tidak ada jaminan finalitas penuh pada implementasi eksternal.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-051",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 51,
+    "location": "Order.java:45",
+    "title": "Konstruktor Order mengizinkan pembuatan order limit dengan harga null.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-052",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 52,
+    "location": "OrderBook.java:95",
+    "title": "Antrean Bid dan Ask rentan salah urut prioritas harga terbaik jika instrumen berganti.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-053",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 53,
+    "location": "MatchingEngine.java:310",
+    "title": "Order yang kedaluwarsa di akhir sesi bursa tidak merilis sisa uang tertahan di akun.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-054",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 54,
+    "location": "OrderManager.java:80",
+    "title": "Pembatalan order yang sudah terisi penuh (FILLED) tidak melempar error, melainkan mengembalikan status sukses palsu.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-055",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 55,
+    "location": "Order.java:78",
+    "title": "Logika rollback order tidak memulihkan status kuantitas secara atomik.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-056",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 56,
+    "location": "OrderBook.java:115",
+    "title": "Queue kosong tetap tersimpan di dalam map buku order.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-057",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 57,
+    "location": "MatchingEngine.java:440",
+    "title": "Order yang diubah kuantitasnya tidak memperbarui stempel waktu antrean.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-058",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 58,
+    "location": "OrderManager.java:120",
+    "title": "Pendaftaran order tidak memeriksa apakah ID order sudah pernah terdaftar di sesi sebelumnya.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-059",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 59,
+    "location": "Order.java:105",
+    "title": "Biaya Transaksi Efektif Dihitung Menggunakan Double",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-060",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 60,
+    "location": "OrderBook.java:180",
+    "title": "Buku order gagal menangani anomali harga bid negatif.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-061",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 61,
+    "location": "MatchingEngine.java:520",
+    "title": "Harga lelang tidak memilih harga yang meminimalkan sisa volume yang tidak match.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-062",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 62,
+    "location": "OrderManager.java:160",
+    "title": "Pencarian Order Berdasarkan Akun Berjalan Linier",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-063",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 63,
+    "location": "Order.java:135",
+    "title": "State machine status order mengizinkan transisi ilegal dari",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-064",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 64,
+    "location": "OrderBook.java:210",
+    "title": "Level harga dengan kuantitas 0 lot tetap muncul di tabel 5-Best Bid/Ask.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-065",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 65,
+    "location": "MatchingEngine.java:610",
+    "title": "Kalkulasi net proceed penjualan saham mengabaikan PPh Final 0.1%.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-066",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 66,
+    "location": "OrderManager.java:200",
+    "title": "Order berstatus FILLED dan CANCELLED menumpuk di memori hingga jutaan objek.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-067",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 67,
+    "location": "Order.java:60",
+    "title": "Order non-kelipatan 100 lembar (odd lot) diizinkan masuk ke pasar reguler BEI.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-068",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 68,
+    "location": "OrderBook.java:250",
+    "title": "Jika harga Bid tertinggi lebih tinggi dari Ask terendah, buku tidak langsung mengeksekusi *crossing trade*.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-069",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 69,
+    "location": "MatchingEngine.java:680",
+    "title": "Stempel waktu transaksi diisi",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-070",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 70,
+    "location": "OrderManager.java:240",
+    "title": "Jika salah satu pembatalan order gagal, proses loop berhenti dan menyisakan order lainnya aktif.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-071",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 71,
+    "location": "Order.java:90",
+    "title": "Order proteksi kerugian dapat dikirim dengan harga pemicu Rp 0.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-072",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 72,
+    "location": "OrderBook.java:280",
+    "title": "JSON kuotasi pasar menyertakan identitas akun bot dan pemain lain.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-073",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 73,
+    "location": "MatchingEngine.java:730",
+    "title": "Kalkulasi average cost posisi meleset saat menggunakan margin.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-074",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 74,
+    "location": "OrderManager.java:280",
+    "title": "Jika request ID tidak ditemukan, fungsi mengembalikan null tanpa penjelasan error.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-075",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 75,
+    "location": "Order.java:115",
+    "title": "Ketiadaan null guard pada enum",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-076",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 76,
+    "location": "OrderBook.java:310",
+    "title": "Suspensi bursa tidak memblokir penambahan order limit baru.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-077",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 77,
+    "location": "MatchingEngine.java:810",
+    "title": "Order market menyapu seluruh level ask hingga harga ARA tanpa batas slippage maksimal.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-078",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 78,
+    "location": "OrderManager.java:310",
+    "title": "Satu akun dapat mengirimkan 10.000 order spam yang membekukan sistem matching.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-079",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 79,
+    "location": "Order.java:140",
+    "title": "Order limit dengan limit price 0 lolos jika tipe order diubah pasca-konstruksi.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-080",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 80,
+    "location": "OrderBook.java:340",
+    "title": "Akumulator total volume tidak di-decrement saat order dibatalkan.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-081",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 81,
+    "location": "MatchingEngine.java:850",
+    "title": "Selisih uang reservasi dan uang eksekusi riil tidak langsung dikembalikan ke saldo kas bebas.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-082",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 82,
+    "location": "OrderManager.java:350",
+    "title": "Riwayat order dikembalikan secara acak mengikuti hash map memory.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-083",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 83,
+    "location": "Order.java:160",
+    "title": "JSON order tidak menyertakan currency ID, menyebabkan asumsi IDR otomatis.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-084",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 84,
+    "location": "OrderBook.java:370",
+    "title": "Menghapus order dari buku order berkinerja lambat",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-085",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 85,
+    "location": "MatchingEngine.java:890",
+    "title": "Saham ganjil hasil hibah tidak dapat dicocokkan di papan reguler.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-086",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 86,
+    "location": "OrderManager.java:390",
+    "title": "Order yang gagal dibatalkan tetap tertahan selamanya.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-087",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 87,
+    "location": "Order.java:175",
+    "title": "Mengkloning order memicu penolakan idempotency di backend.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-088",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 88,
+    "location": "OrderBook.java:400",
+    "title": "Antrean jual Rp 10 lolos masuk antrean bursa normal.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-089",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 89,
+    "location": "MatchingEngine.java:920",
+    "title": "Kuantitas saham dipotong di awal sebelum konfirmasi fill diterima.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-090",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 90,
+    "location": "OrderManager.java:420",
+    "title": "Query order terbuka masih menyertakan order sesi kemarin.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-091",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 91,
+    "location": "Order.java:190",
+    "title": "Perbandingan tanggal kedaluwarsa rentan kesalahan format zona waktu.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-092",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 92,
+    "location": "OrderBook.java:430",
+    "title": "Pengosongan buku order tidak mengirimkan sinyal bahaya ke UI.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-093",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 93,
+    "location": "MatchingEngine.java:950",
+    "title": "Biaya minimum transaksi memotong persentase tidak wajar pada transaksi mikro.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-094",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 94,
+    "location": "OrderManager.java:450",
+    "title": "Data sensitif pesanan tersimpan mentah di file JSON.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-095",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 95,
+    "location": "Order.java:210",
+    "title": "Harga trailing stop statis dan tidak mengikuti kenaikan harga puncak baru.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-096",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 96,
+    "location": "OrderBook.java:460",
+    "title": "Node tree map tetap dialokasikan di memori.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-097",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 97,
+    "location": "MatchingEngine.java:970",
+    "title": "Tidak ada penolakan otomatis pada pesanan di luar rentang harga harian yang sah.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-098",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 98,
+    "location": "OrderManager.java:480",
+    "title": "Ketiadaan sanitasi input parameter pencarian order.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-099",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 99,
+    "location": "Order.java:230",
+    "title": "Kegagalan validasi batas akumulasi fill parsial.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-100",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 100,
+    "location": "OrderBook.java:490",
+    "title": "Tidak ada pengecekan selisih harga terbaik.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-101",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 101,
+    "location": "Instrument.java:95",
+    "title": "Emiten yang dilikuidasi tidak mengubah flag",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-102",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 102,
+    "location": "CorporateActionService.java:140",
+    "title": "Harga teoritis bursa tidak disesuaikan pasca cum-date dividen saham.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-103",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 103,
+    "location": "MarketIndex.java:65",
+    "title": "Indeks harga saham gabungan dihitung dari total lembar modal dasar, bukan saham beredar publik (*Market Cap Weighted vs Free-Float Weighted*).",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-104",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 104,
+    "location": "InstrumentCatalog.java:120",
+    "title": "Saham baru otomatis masuk ke kategori unclassified.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-105",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 105,
+    "location": "Instrument.java:135",
+    "title": "Saham emiten rugi menghasilkan harga wajar negatif yang mengacaukan radar saham.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-106",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 106,
+    "location": "CorporateActionService.java:210",
+    "title": "Hak dividen jatuh pada hari Minggu di mana bursa efek tutup.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-107",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 107,
+    "location": "MarketIndex.java:95",
+    "title": "Pembagian indeks melempar error saat kapitalisasi sektor tidak aktif.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-108",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 108,
+    "location": "InstrumentCatalog.java:160",
+    "title": "Mengetik",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-109",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 109,
+    "location": "Instrument.java:165",
+    "title": "Market cap emiten tidak sinkron dengan harga penutupan terakhir.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-110",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 110,
+    "location": "CorporateActionService.java:280",
+    "title": "Pembagian dividen mengabaikan status akun yang dibekukan.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-111",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 111,
+    "location": "MarketIndex.java:130",
+    "title": "Divisor indeks tidak pernah disesuaikan saat ada emiten baru yang listing.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-112",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 112,
+    "location": "InstrumentCatalog.java:210",
+    "title": "Reload universe menghapus relasi watchlist lokal pengguna.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-113",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 113,
+    "location": "Instrument.java:195",
+    "title": "Emiten tidak memiliki harga pembukaan lelang pre-opening tersendiri.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-114",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 114,
+    "location": "CorporateActionService.java:340",
+    "title": "Saham right langsung dikonversi tanpa opsi menjual bukti right.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-115",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 115,
+    "location": "MarketIndex.java:170",
+    "title": "Kriteria konstituen indeks unggulan tidak memperhitungkan frekuensi transaksi harian.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-116",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 116,
+    "location": "InstrumentCatalog.java:250",
+    "title": "Saham tanpa data laporan keuangan disembunyikan dari seluruh pencarian.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-117",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 117,
+    "location": "Instrument.java:225",
+    "title": "Kesalahan kalkulasi saham pengendali dan publik.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-118",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 118,
+    "location": "CorporateActionService.java:410",
+    "title": "Keputusan strategis korporasi disahkan meskipun kehadiran pemegang saham di bawah 50%.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-119",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 119,
+    "location": "MarketIndex.java:210",
+    "title": "Kesalahan pemformatan string selisih poin IHSG.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-120",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 120,
+    "location": "InstrumentCatalog.java:290",
+    "title": "Pembelian saham US dihitung dalam satuan lot 100 lembar alih-alih satuan 1 lembar (share).",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-121",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 121,
+    "location": "Instrument.java:255",
+    "title": "Saham bursa Amerika (AAPL) dibulatkan ke kelipatan Rp 25 alih-alih $0.01 cent.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-122",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 122,
+    "location": "CorporateActionService.java:470",
+    "title": "Mengabaikan aturan pembebasan pajak dividen korporasi antar-anak usaha.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-123",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 123,
+    "location": "MarketIndex.java:250",
+    "title": "Menimbulkan selisih persentase dengan data tampilan bursa.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-124",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 124,
+    "location": "InstrumentCatalog.java:330",
+    "title": "Ketiadaan validasi keunikan ticker lokal.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-125",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 125,
+    "location": "Instrument.java:285",
+    "title": "Tidak mengikuti regulasi simetris bursa modern (-25%).",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-126",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 126,
+    "location": "CorporateActionService.java:530",
+    "title": "Waran dapat disimpan selamanya tanpa risiko hangus.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-127",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 127,
+    "location": "MarketIndex.java:290",
+    "title": "Nilai HIGH indeks ter-reset di tengah hari perdagangan.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-128",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 128,
+    "location": "InstrumentCatalog.java:370",
+    "title": "Emiten berstatus *upcoming* muncul di pencarian pasar reguler.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-129",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 129,
+    "location": "Instrument.java:315",
+    "title": "Pemain tidak mengetahui alasan bursa menghentikan perdagangan saham.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-130",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 130,
+    "location": "CorporateActionService.java:590",
+    "title": "Buyback emiten tidak memengaruhi rasio *supply squeeze*.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-131",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 131,
+    "location": "MarketIndex.java:330",
+    "title": "Ketiadaan korelasi independen bursa global.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-132",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 132,
+    "location": "InstrumentCatalog.java:410",
+    "title": "Saham bernilai Rp 10 Triliun terurut di bawah Rp 2 Triliun karena perbandingan teks alfabet.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-133",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 133,
+    "location": "Instrument.java:345",
+    "title": "Rasio keuangan saham tetap menggunakan data masa lalu.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-134",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 134,
+    "location": "CorporateActionService.java:650",
+    "title": "Penawaran tender buy-out merugikan pemegang saham publik.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-135",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 135,
+    "location": "MarketIndex.java:370",
+    "title": "Nilai indeks menjadi null pada akhir pekan alih-alih menggunakan flat hold.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-136",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 136,
+    "location": "InstrumentCatalog.java:450",
+    "title": "Caller luar dapat menghapus saham dari universe aktif sistem.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-137",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 137,
+    "location": "Instrument.java:375",
+    "title": "Ketiadaan parameter *beta* risiko pada emiten lapis tiga.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-138",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 138,
+    "location": "CorporateActionService.java:710",
+    "title": "Kesalahan pengali harga tebusan waran.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-139",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 139,
+    "location": "MarketIndex.java:410",
+    "title": "Konstituen indeks syariah tidak memfilter saham berbasis riba.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-140",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 140,
+    "location": "InstrumentCatalog.java:490",
+    "title": "Profil dewan direksi kosong di halaman ringkasan emiten.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-141",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 141,
+    "location": "Instrument.java:405",
+    "title": "Kemarin naik +10%, angka +10% tetap terbawa ke pembukaan pagi hari baru.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-142",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 142,
+    "location": "CorporateActionService.java:770",
+    "title": "Persentase kepemilikan pemain tidak terdilusi pasca penerbitan saham baru.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-143",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 143,
+    "location": "MarketIndex.java:450",
+    "title": "Volume transaksi pembeli dan penjual dijumlahkan dua kali lipat.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-144",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 144,
+    "location": "InstrumentCatalog.java:530",
+    "title": "Emiten bertato notasi khusus (seperti keterlambatan laporan atau ekuitas negatif) tidak memiliki tanda visual badge.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-145",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 145,
+    "location": "Instrument.java:435",
+    "title": "Ketiadaan proteksi harga minimum Rp 50 di pasar reguler.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-146",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 146,
+    "location": "CorporateActionService.java:830",
+    "title": "Investor menerima saham gratis tanpa penyesuaian nilai pasar per lembar.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-147",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 147,
+    "location": "MarketIndex.java:490",
+    "title": "Kesalahan pemetaan ID sektor pada rumus agregasi indeks.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-148",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 148,
+    "location": "InstrumentCatalog.java:570",
+    "title": "Informasi tanggal pencatatan perdana emiten hilang setelah IPO selesai.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-149",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 149,
+    "location": "Instrument.java:465",
+    "title": "Nilai buku saham emiten bermodal minus tidak dapat ditampilkan.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-150",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 150,
+    "location": "CorporateActionService.java:890",
+    "title": "Kegagalan rekonsiliasi saham pasca kuasi-reorganisasi.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-151",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 151,
+    "location": "PlayerProgressManager.java:85",
+    "title": "Kenaikan pangkat dari Ritel ke Manajer Investasi tidak memperluas limit fasilitas margin.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-152",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 152,
+    "location": "BossRival.java:40",
+    "title": "Portofolio bos rival dimanipulasi dengan generator angka acak tanpa portofolio saham fisik.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-153",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 153,
+    "location": "PeriodicMissionManager.java:95",
+    "title": "Pembelian berulang pada BBCA dianggap memenuhi kriteria diversifikasi 5 emiten.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-154",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 154,
+    "location": "CareerManager.java:120",
+    "title": "Gelar kehormatan dapat dibuka hanya dari akumulasi volume transaksi kotor.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-155",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 155,
+    "location": "PlayerProgressManager.java:130",
+    "title": "Kesalahan rumus penalti trading yang salah mendeteksi penjualan untung sebagai cut-loss.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-156",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 156,
+    "location": "BossRival.java:75",
+    "title": "Pertandingan duel kekayaan dengan rival berjalan selamanya tanpa akhir sesi.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-157",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 157,
+    "location": "PeriodicMissionManager.java:150",
+    "title": "Misi mingguan mengunci status completed permanen setelah minggu pertama.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-158",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 158,
+    "location": "CareerManager.java:160",
+    "title": "Pemain yang mengalami kebangkrutan total tetap menyandang pangkat Taipan Tertinggi.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-159",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 159,
+    "location": "PlayerProgressManager.java:175",
+    "title": "Pemain dapat mengelola dana pihak ketiga tanpa ujian kualifikasi kompetensi pasar modal.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-160",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 160,
+    "location": "BossRival.java:110",
+    "title": "Logika AI rival secara instan membeli saham yang baru saja dibeli pemain dalam detik yang sama.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-161",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 161,
+    "location": "PeriodicMissionManager.java:205",
+    "title": "Klaim hadiah misi menambah saldo rekening pemain secara siluman tanpa mutasi",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-162",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 162,
+    "location": "CareerManager.java:200",
+    "title": "Pemain dapat memaksimalkan reputasi penuh hanya dalam 3 hari bermain aktif.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-163",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 163,
+    "location": "PlayerProgressManager.java:220",
+    "title": "Kriteria piala pencapaian mengabaikan status profitabilitas.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-164",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 164,
+    "location": "BossRival.java:145",
+    "title": "Menang duel melawan bos rival tidak menghasilkan hadiah dividen atau trofi portofolio.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-165",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 165,
+    "location": "PeriodicMissionManager.java:260",
+    "title": "Pengecekan hari mengasumsikan 7 hari kalender berturut-turut tanpa jeda akhir pekan.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-166",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 166,
+    "location": "CareerManager.java:240",
+    "title": "Tidak ada pencegahan benturan kepentingan.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-167",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 167,
+    "location": "PlayerProgressManager.java:265",
+    "title": "Mengganti avatar profil investor kembali ke avatar default saat aplikasi dibuka ulang.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-168",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 168,
+    "location": "BossRival.java:180",
+    "title": "Portofolio bos rival dapat bernilai negatif hingga miliaran rupiah tanpa dinyatakan kalah.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-169",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 169,
+    "location": "PeriodicMissionManager.java:310",
+    "title": "Laba transaksi dihitung sebelum potongan komisi broker dan pajak.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-170",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 170,
+    "location": "CareerManager.java:280",
+    "title": "Pemain yang memegang kas murni ditolak saat hendak menutup sesi harian.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-171",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 171,
+    "location": "PlayerProgressManager.java:310",
+    "title": "Rasio kemenangan salah hitung saat posisi masih mengambang.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-172",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 172,
+    "location": "BossRival.java:215",
+    "title": "Bos rival mengucapkan kalimat ejekan yang sama persis tanpa variasi dinamis.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-173",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 173,
+    "location": "PeriodicMissionManager.java:360",
+    "title": "Ketiadaan validasi nilai nominal pembelian minimum pada target misi.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-174",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 174,
+    "location": "CareerManager.java:320",
+    "title": "Pemain yang menjabat CEO tidak pernah menerima gaji bulanan ke rekening pribadi.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-175",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 175,
+    "location": "PlayerProgressManager.java:355",
+    "title": "Integer overflow pada perhitungan akumulasi EXP pemain veteran.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-176",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 176,
+    "location": "BossRival.java:250",
+    "title": "Bot bos rival dapat memperdagangkan saham yang dihentikan sementara oleh bursa efek.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-177",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 177,
+    "location": "PeriodicMissionManager.java:410",
+    "title": "Banner selamat misi selesai membanjiri layar HP tanpa henti.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-178",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 178,
+    "location": "CareerManager.java:360",
+    "title": "Kriteria misi menuntut kepemilikan saham yang belum terdaftar IPO.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-179",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 179,
+    "location": "PlayerProgressManager.java:400",
+    "title": "Leaderboard offline gagal memuat profil rival fiktif.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-180",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 180,
+    "location": "BossRival.java:285",
+    "title": "Transaksi rival bebas biaya 100%, menciptakan persaingan yang tidak adil bagi pemain.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-181",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 181,
+    "location": "PeriodicMissionManager.java:460",
+    "title": "Misi harian menjadi mustahil diselesaikan pada bulan tanpa jadwal penawaran umum.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-182",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 182,
+    "location": "CareerManager.java:400",
+    "title": "Mengklaim gelar baru menimpa daftar penghargaan sebelumnya.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-183",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 183,
+    "location": "PlayerProgressManager.java:445",
+    "title": "Statistik jam terbang pemain tidak mencatat sesi permainan di latar belakang.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-184",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 184,
+    "location": "BossRival.java:320",
+    "title": "Pemain yang kalah duel tidak kehilangan reputasi atau uang taruhan.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-185",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 185,
+    "location": "PeriodicMissionManager.java:510",
+    "title": "Transaksi menggunakan uang nasabah klien dihitung sebagai pencapaian misi pribadi.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-186",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 186,
+    "location": "CareerManager.java:440",
+    "title": "Ketiadaan sanksi suspensi dari OJK/Bursa jika pemain melakukan goreng saham (*pump and dump*).",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-187",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 187,
+    "location": "PlayerProgressManager.java:490",
+    "title": "Validasi kategori aset properti gagal mengenali ID barang koleksi properti.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-188",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 188,
+    "location": "BossRival.java:355",
+    "title": "Rival dapat membeli 50.000 lot saham gorengan dalam 1 detik meski antrean ask hanya 10 lot.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-189",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 189,
+    "location": "PeriodicMissionManager.java:560",
+    "title": "Potensi eksploitasi klaim hadiah berkali-kali jika koneksi antarmuka lambat.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-190",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 190,
+    "location": "CareerManager.java:480",
+    "title": "Kesalahan logika diskon yang memberikan harga beli saham lebih murah bagi pemain berpangkat tinggi (melanggar aturan harga pasar).",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-191",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 191,
+    "location": "PlayerProgressManager.java:535",
+    "title": "Pemain tidak dapat meninjau rekam jejak hak suara voting yang pernah digunakan.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-192",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 192,
+    "location": "BossRival.java:390",
+    "title": "AI bos menyerah secara otomatis tanpa pertandingan duel formal.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-193",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 193,
+    "location": "PeriodicMissionManager.java:610",
+    "title": "Order yang dibatalkan tetap dihitung sebagai transaksi aktif.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-194",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 194,
+    "location": "CareerManager.java:520",
+    "title": "Biaya kursus sertifikasi analis keuangan tidak memberikan efek boost analitik di game.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-195",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 195,
+    "location": "PlayerProgressManager.java:580",
+    "title": "ATH kekayaan bersih dihitung dari aset kotor tanpa mengurangi kewajiban utang.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-196",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 196,
+    "location": "BossRival.java:425",
+    "title": "Tidak ada regenerasi bos rival baru setelah pemain berhasil mengalahkan ketiga bos awal.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-197",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 197,
+    "location": "PeriodicMissionManager.java:660",
+    "title": "Klaim reward tiket gratis tidak menambah saldo tiket di tab Keuangan.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-198",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 198,
+    "location": "CareerManager.java:560",
+    "title": "Ketiadaan opsi memulai game baru dengan bonus warisan kas.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-199",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 199,
+    "location": "PlayerProgressManager.java:625",
+    "title": "Satu transaksi spekulatif langsung mengubah arketipe gaya investasi pemain secara drastis.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-200",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 200,
+    "location": "BossRival.java:460",
+    "title": "Pengumuman hasil duel hanya berupa pop-up teks sederhana tanpa kurva pertumbuhan aset.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-201",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 201,
+    "location": "MultiAssetTradingService.java:70",
+    "title": "Pemain dapat mencairkan deposito tenor 12 bulan di hari ke-2 dengan bunga penuh tanpa denda penalti.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-202",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 202,
+    "location": "TimeDepositProduct.java:45",
+    "title": "Kesalahan konfigurasi suku bunga terbalik (*inverted yield curve*) yang tidak realistis.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-203",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 203,
+    "location": "LoanProduct.java:80",
+    "title": "Bank memberikan pinjaman tanpa jaminan kas atau aset jaminan (*unsecured lending risk*).",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-204",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 204,
+    "location": "FundBuilderService.java:60",
+    "title": "Portofolio racikan pemain dapat disahkan dengan total alokasi hanya 70%.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-205",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 205,
+    "location": "MultiAssetTradingService.java:115",
+    "title": "Sistem tetap mentransfer bunga ke rekening yang berstatus sengketa.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-206",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 206,
+    "location": "TimeDepositProduct.java:90",
+    "title": "Tenor 3 hari diformat sebagai produk deposito berjangka resmi tanpa landasan perbankan riil.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-207",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 207,
+    "location": "LoanProduct.java:125",
+    "title": "Bunga pinjaman komersial berhenti berjalan saat akhir pekan kalender.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-208",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 208,
+    "location": "FundBuilderService.java:110",
+    "title": "Terjadi pemotongan ganda pada akun nasabah.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-209",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 209,
+    "location": "MultiAssetTradingService.java:160",
+    "title": "Pembelian emas fisik tidak memiliki selisih harga cetak (*minting fee*).",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-210",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 210,
+    "location": "TimeDepositProduct.java:135",
+    "title": "Seluruh bunga deposito diterima utuh tanpa potongan PPh Final perbankan.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-211",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 211,
+    "location": "LoanProduct.java:170",
+    "title": "Rasio utang terhadap modal (DER) diabaikan oleh sistem perbankan.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-212",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 212,
+    "location": "FundBuilderService.java:160",
+    "title": "Input nama dengan emoji merusak format penyimpanan basis data SQLite.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-213",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 213,
+    "location": "MultiAssetTradingService.java:205",
+    "title": "Mengabaikan akad bagi hasil mudharabah/musyarakah syariah.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-214",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 214,
+    "location": "TimeDepositProduct.java:180",
+    "title": "Pemain tidak bisa mengambil kredit dengan jaminan bilyet deposito aktif (*back-to-back loan*).",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-215",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 215,
+    "location": "LoanProduct.java:215",
+    "title": "Sisa pokok utang tidak dihitung ulang pasca pembayaran ekstra.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-216",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 216,
+    "location": "FundBuilderService.java:210",
+    "title": "Produk investasi pemain sepi peminat karena tidak ada agen AI yang melirik dana kelolaannya.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-217",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 217,
+    "location": "MultiAssetTradingService.java:250",
+    "title": "Kupon ORI anjlok ke 0% saat suku bunga acuan bank sentral turun drastis.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-218",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 218,
+    "location": "TimeDepositProduct.java:225",
+    "title": "Deposito lenyap dari antarmuka selama 24 jam saat perpanjangan otomatis berlangsung.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-219",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 219,
+    "location": "LoanProduct.java:260",
+    "title": "Ketiadaan simulasi skor kredit (*credit score checking*).",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-220",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 220,
+    "location": "FundBuilderService.java:260",
+    "title": "Pemain dapat mendirikan produk reksa dana publik dengan modal Rp 0.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-221",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 221,
+    "location": "MultiAssetTradingService.java:295",
+    "title": "Pembelian saham fraksional Amerika terhambat batas nominal bulat.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-222",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 222,
+    "location": "TimeDepositProduct.java:270",
+    "title": "Deviasi kalkulasi bunga perbankan modern.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-223",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 223,
+    "location": "LoanProduct.java:305",
+    "title": "Bunga kredit komersial tidak pernah naik meski suku bunga acuan makro melonjak ke 12%.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-224",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 224,
+    "location": "FundBuilderService.java:310",
+    "title": "Nasabah tidak mendapatkan informasi alokasi efek pasar modal.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-225",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 225,
+    "location": "MultiAssetTradingService.java:340",
+    "title": "Investor tidak mendapatkan kepastian restrukturisasi utang obligasi swasta.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-226",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 226,
+    "location": "TimeDepositProduct.java:315",
+    "title": "Menutup akses diversifikasi bagi pemain pemula.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-227",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 227,
+    "location": "LoanProduct.java:350",
+    "title": "Pemain yang sudah melunasi seluruh utang tetap diblokir dari pengajuan kredit baru.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-228",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 228,
+    "location": "FundBuilderService.java:360",
+    "title": "Pelanggaran pedoman OJK terhadap instrumen aset dasar reksa dana.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-229",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 229,
+    "location": "MultiAssetTradingService.java:385",
+    "title": "Obligasi negara dapat dibeli setiap saat seperti saham reguler.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-230",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 230,
+    "location": "TimeDepositProduct.java:360",
+    "title": "Bunga harian ditarik lebih cepat sebelum periode 24 jam penuh terpenuhi.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-231",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 231,
+    "location": "LoanProduct.java:395",
+    "title": "Notifikasi peringatan bank bernada ancaman yang tidak profesional.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-232",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 232,
+    "location": "FundBuilderService.java:410",
+    "title": "Nilai NAB bergerak liar di akhir pekan.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-233",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 233,
+    "location": "MultiAssetTradingService.java:430",
+    "title": "Kontrak minyak fisik dapat disimpan tanpa biaya pergudangan.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-234",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 234,
+    "location": "TimeDepositProduct.java:405",
+    "title": "Kas terpotong permanen jika deposito dibatalkan di menit pertama.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-235",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 235,
+    "location": "LoanProduct.java:440",
+    "title": "Bank tidak memotong batas keamanan *haircut* (misal 50% untuk saham lapis dua).",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-236",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 236,
+    "location": "FundBuilderService.java:460",
+    "title": "Ketiadaan identitas bank kustodian resmi.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-237",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 237,
+    "location": "MultiAssetTradingService.java:475",
+    "title": "Ketiadaan instrumen lindung nilai (*hedging*) formal bagi trader pro.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-238",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 238,
+    "location": "TimeDepositProduct.java:450",
+    "title": "Pemain melewatkan tanggal pencairan dana.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-239",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 239,
+    "location": "LoanProduct.java:485",
+    "title": "Perusahaan holding terpaksa mengambil kredit berjangka kaku.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-240",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 240,
+    "location": "FundBuilderService.java:510",
+    "title": "Ketiadaan algoritma pemeringkatan independen (seperti Morningstar / Infovesta).",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-241",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 241,
+    "location": "MultiAssetTradingService.java:520",
+    "title": "Biaya administrasi transfer dipotong secara tidak wajar.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-242",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 242,
+    "location": "TimeDepositProduct.java:495",
+    "title": "Kesalahan konversi mata uang bunga simpanan valas.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-243",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 243,
+    "location": "LoanProduct.java:530",
+    "title": "Total pokok dan bunga tidak sinkron dengan tenor bulan.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-244",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 244,
+    "location": "FundBuilderService.java:560",
+    "title": "Sisa aset kelolaan lenyap saat produk dibubarkan.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-245",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 245,
+    "location": "MultiAssetTradingService.java:565",
+    "title": "Ketiadaan jadwal pembayaran diskonto surat berharga pasar uang.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-246",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 246,
+    "location": "TimeDepositProduct.java:540",
+    "title": "Pembedaan nasabah baru dan lama gagal terdeteksi sistem.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-247",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 247,
+    "location": "LoanProduct.java:575",
+    "title": "Bank menghapus seluruh kewajiban tanpa analisis restrukturisasi.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-248",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 248,
+    "location": "FundBuilderService.java:610",
+    "title": "Penyimpanan JSON reksa dana kustom tidak tersinkronisasi ke database save.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-249",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 249,
+    "location": "MultiAssetTradingService.java:610",
+    "title": "Kurva bunga obligasi daerah terdistorsi.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-250",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 250,
+    "location": "LoanProduct.java:620",
+    "title": "Ketiadaan fasilitas pinjaman bunga rendah (6%) bagi anak usaha rintisan.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-251",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 251,
+    "location": "app.js:680",
+    "title": "Event Listener Scroll Tab Beranda Mengalami Memory Leak",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-252",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 252,
+    "location": "style.css:320",
+    "title": "Munculnya papan ketik Android merusak posisi tengah modal.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-253",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 253,
+    "location": "index.html:150",
+    "title": "Label Elemen Input Tidak Terhubung dengan Tag",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-254",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 254,
+    "location": "app.js:1420",
+    "title": "Counter animasi nilai portofolio tidak menggunakan kurva easing kubik yang halus.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-255",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 255,
+    "location": "style.css:590",
+    "title": "Spasi horizontal antar-chip terlalu lebar pada ponsel berlayar panjang.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-256",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 256,
+    "location": "index.html:280",
+    "title": "Ketiadaan Tag",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-257",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 257,
+    "location": "app.js:2180",
+    "title": "Pemain harus mengetik ulang angka untuk melihat kalkulasi nilai tukar terbaru.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-258",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 258,
+    "location": "style.css:870",
+    "title": "Jarak baris teks berita terlalu rapat dan sulit dibaca oleh mata lansia.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-259",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 259,
+    "location": "index.html:410",
+    "title": "Tag SVG Ikon Bintang Watchlist Tidak Memiliki Atribut",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-260",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 260,
+    "location": "app.js:3210",
+    "title": "Pemain tidak menyadari kas habis sebelum order ditolak.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-261",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 261,
+    "location": "style.css:1150",
+    "title": "Ketiadaan dither noise halus pada gradasi warna gelap.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-262",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 262,
+    "location": "index.html:530",
+    "title": "Menggulir modal profil ikut menggeser halaman di belakangnya.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-263",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 263,
+    "location": "app.js:4390",
+    "title": "Bug status kelas CSS",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-264",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 264,
+    "location": "style.css:1410",
+    "title": "Ketiadaan properti CSS",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-265",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 265,
+    "location": "index.html:670",
+    "title": "Pemain dapat memasukkan 500 huruf yang merusak tata letak kartu identitas.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-266",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 266,
+    "location": "app.js:5520",
+    "title": "Logika pemetaan kelas CSS warna sentimen terbalik.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-267",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 267,
+    "location": "style.css:1680",
+    "title": "Efek compositing bayangan kartu bocor di atas tab bar.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-268",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 268,
+    "location": "index.html:790",
+    "title": "Ketiadaan Atribut",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-269",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 269,
+    "location": "app.js:6640",
+    "title": "Mengetik",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-270",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 270,
+    "location": "style.css:1920",
+    "title": "Teks angka poin IHSG sulit dibaca tanpa kaca pembesar di layar tablet.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-271",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 271,
+    "location": "index.html:910",
+    "title": "Tooltip hanya mendukung event hover mouse dan tidak ramah layar sentuh.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-272",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 272,
+    "location": "app.js:7750",
+    "title": "Pemain harus menutup paksa aplikasi jika koneksi WebView tersendat.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-273",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 273,
+    "location": "style.css:2180",
+    "title": "Efek kedip lilin bergetar terlalu kencang dan berisiko memicu pusing/kejang visual.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-274",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 274,
+    "location": "index.html:1050",
+    "title": "Tag",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-275",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 275,
+    "location": "app.js:8820",
+    "title": "Daftar perusahaan anak usaha tidak terurut alfabetik, membingungkan navigasi.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-276",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 276,
+    "location": "style.css:2410",
+    "title": "Garis pemisah kartu lenyap pada setelan tema aksesibilitas kontras tinggi.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-277",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 277,
+    "location": "index.html:1180",
+    "title": "Console browser mencatat error 404 pada request",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-278",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 278,
+    "location": "app.js:9910",
+    "title": "Beberapa modul menampilkan format gaya Amerika ($1,000.00) dan gaya Eropa (1.000,00) secara tidak seragam.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-279",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 279,
+    "location": "style.css:2650",
+    "title": "Rasio padding statis memboroskan 30% area pandang di layar sempit.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-280",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 280,
+    "location": "index.html:1215",
+    "title": "Memutar ponsel ke mode lanskap merusak tata letak antarmuka 2D portrait.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-281",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 281,
+    "location": "app.js:10120",
+    "title": "Panduan bermain muncul berulang kali setiap kali menu dibuka.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-282",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 282,
+    "location": "style.css:2710",
+    "title": "Warna seleksi teks terlalu gelap sehingga teks yang disorot menjadi tidak terbaca.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-283",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 283,
+    "location": "index.html:1230",
+    "title": "Tag",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-284",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 284,
+    "location": "app.js:10340",
+    "title": "Menekan tombol minus dapat menurunkan kuantitas ke 0 lot atau nilai negatif.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-285",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 285,
+    "location": "style.css:2735",
+    "title": "Lebar scrollbar buatan menutupi area sentuh tombol aksi pojok.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-286",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 286,
+    "location": "index.html:1245",
+    "title": "Skrip Pustaka Eksternal Dimuat Tanpa Atribut",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-287",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 287,
+    "location": "app.js:10410",
+    "title": "Transaksi saham di atas Rp 10 Juta tidak memperhitungkan bea materai regulasi bursa.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-288",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 288,
+    "location": "style.css:2750",
+    "title": "Beberapa perangkat Android lama menampilkan kotak tanda tanya pada simbol mata uang.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-289",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 289,
+    "location": "index.html:1260",
+    "title": "Struktur Dokumen Memiliki Dua Tag",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-290",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 290,
+    "location": "app.js:10460",
+    "title": "Layar menjadi gelap dan terkunci permanen pasca penutupan paksa jendela modal.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-291",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 291,
+    "location": "style.css:2765",
+    "title": "Masalah *sticky hover* khas browser seluler yang membuat tombol terlihat selalu ditekan.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-292",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 292,
+    "location": "index.html:1275",
+    "title": "Elemen",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-293",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 293,
+    "location": "app.js:10480",
+    "title": "Pengguna kehilangan isian data saat terjadi kegagalan jaringan mendadak.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-294",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 294,
+    "location": "style.css:2780",
+    "title": "Angka tanggal kalender bursa terpotong di tepi atas kontainer.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-295",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 295,
+    "location": "index.html:1290",
+    "title": "Ketiadaan Atribut",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-296",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 296,
+    "location": "app.js:10490",
+    "title": "Tombol tab bar tetap menyorot tab Pasar meski pemain sedang berada di Tab Keuangan.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-297",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 297,
+    "location": "style.css:2795",
+    "title": "Penggunaan Properti CSS",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-298",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 298,
+    "location": "index.html:1305",
+    "title": "Informasi biaya transaksi tidak transparan bagi pemain pemula.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-299",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 299,
+    "location": "app.js:10493",
+    "title": "Variabel global rentan tertimpa atau diakses oleh injeksi skrip eksternal.",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B2-300",
+    "batch": "Batch 2 (AUDIT_300)",
+    "num": 300,
+    "location": "style.css:2810",
+    "title": "CSS Media Query Breakpoint Menggunakan Satuan Pixel Statis Alih-alih",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-301",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 301,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Loop Reset Status Duel Bos Kosong (`MarketBossService.java:48-52`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-302",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 302,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Akumulasi Return Pemain pada Duel Bos Menggunakan Penjumlahan Linier (`MarketBoss.java:91`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-303",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 303,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Duel Bos Kalah Menjadi Macet Tanpa Status Retry (`MarketBoss.java:95-100`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-304",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 304,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "File Gambar Avatar Bos Menggunakan Bahasa Asing Turki yang Hilang (`MarketBossService.java:26-29`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-305",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 305,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Return Bos Bertumbuh Mulus Setiap Sesi Tanpa Volatilitas Pasar (`MarketBoss.java:93`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-306",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 306,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Hadiah Kemenangan Bos Menggunakan Timestamp Sistem Bukan Jam Game (`MarketBossService.java:65`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-307",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 307,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Durasi Duel Bos Tetap Dihitung saat Bursa Libur (`MarketBoss.java:90`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-308",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 308,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Hadiah Duel Bos Final Terlalu Kecil Dibanding Syarat Modal (`MarketBoss.java:20`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-309",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 309,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Bos yang Sudah Dikalahkan Masih Dapat Ditantang Ulang Tanpa Batas (`MarketBossService.java:44`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-310",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 310,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Evaluasi Duel Bos Mengabaikan Akun Perusahaan Holding (`MarketBossService.java:57`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-311",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 311,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Desinkronisasi Status Duel Bos saat Memuat Save Game (`MarketBoss.java:110`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-312",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 312,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Ketiadaan Notifikasi Visual Menang/Kalah Duel Bos di Halaman Utama (`app.js:10100`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-313",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 313,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Pilihan Duel Bos Mengizinkan Melompati Tingkat Kesulitan (`MarketBossService.java:44`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-314",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 314,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Return Bos Mengizinkan Nilai Infinity saat Tenor Nol (`MarketBoss.java:93`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-315",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 315,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Modal Bos Tidak Terpengaruh oleh Kejatuhan Pasar Ekstrem (`MarketBoss.java:93`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-316",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 316,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Reset Service Menghapus Riwayat Kemenangan Bos Permanen (`MarketBossService.java:32`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-317",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 317,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Nilai Hadiah Bos Disimpan sebagai BigDecimal Tanpa Skala Desimal Terkunci (`MarketBoss.java:65`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-318",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 318,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Dialog Profil Bos Menampilkan Teks Kaku Tanpa Kutipan Karakter (`MarketBoss.java:28`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-319",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 319,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Tombol Duel Bos di Beranda Tidak Memiliki Indikator Hitung Mundur Sisa Hari (`index.html:85`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-320",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 320,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Peringatan Kekalahan Bos Menampilkan Pesan Sukses Palsu (`MarketBoss.java:97`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-321",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 321,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Pemain Diblokir 24 Jam Permanen dari Membeli Asuransi Portofolio (`PortfolioInsuranceService.java:105`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-322",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 322,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Klaim Asuransi Tidak Berjalan pada Crash Pasar Alami (`TradingFacade.java:3807`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-323",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 323,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Pembelian Node Tech Tree Mengabaikan Prasyarat Level Tier (`ResearchTechTreeService.java:104`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-324",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 324,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Biaya Upgrade Tech Tree Dicatat sebagai Biaya Pialang Transaksi Saham (`ResearchTechTreeService.java:115`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-325",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 325,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Bonus Tech Tree AUM Capacity Boost Pernah Tidak Memiliki Efek Riil (`ResearchTechTreeService.java:86`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-326",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 326,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Premi Asuransi Dihitung dari Nilai Kotor Tanpa Mengurangi Kas Tertahan (`PortfolioInsuranceService.java:110`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-327",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 327,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Status Klaim Asuransi Portofolio Hilang Pasca Load Game (`PortfolioInsuranceService.java:79`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-328",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 328,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Audit Kepatuhan Pajak Mengabaikan Seluruh Pinjaman Bank (`TradingFacade.java:3494`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-329",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 329,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Denda Penalti Audit Pajak Bersifat Kosong Tanpa Pemotongan Nyata (`TaxAuditService.java:70`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-330",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 330,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Diskon Pajak Dividen Peringkat A Tidak Pernah Diterapkan saat Pembagian Dividen (`CorporateActionService.java:645`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-331",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 331,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Durasi Sisa Sesi Polis Asuransi Menghasilkan Nilai Minus (`PortfolioInsuranceService.java:65`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-332",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 332,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Node Riset Efisiensi Order Fee Menghasilkan Diskon Melebihi 100% (`Order.java:108`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-333",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 333,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Polis Asuransi Tetap Berlaku Pasca Pembayaran Ganti Rugi Penuh (`PortfolioInsuranceService.java:49`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-334",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 334,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Ganti Rugi Asuransi Portofolio Dicatat sebagai Dana Talangan Pemerintah (`PortfolioInsuranceService.java:150`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-335",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 335,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Algoritma Sinyal Riset Memberikan Rekomendasi Terbalik saat Crash (`TradingFacade.java:3690`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-336",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 336,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Pembelian Asuransi Portofolio Mengizinkan Pembelian Polis Ganda (`PortfolioInsuranceService.java:98`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-337",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 337,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Pembagian Nol pada Rasio Utang Pajak saat Total Aset Bersih Nol (`TaxAuditService.java:66`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-338",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 338,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "State Pohon Riset Gagal Dipulihkan jika Ada Node Baru Ditambahkan (`ResearchTechTreeService.java:153`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-339",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 339,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Nilai Ambang Batas Sinyal Algoritma Terlalu Sempit pada Pasar Tenang (`TradingFacade.java:3688`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-340",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 340,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Ketiadaan Riwayat Klaim Asuransi yang Dapat Dilihat Pemain (`PortfolioInsuranceService.java:56`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-341",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 341,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Mustahil Menerima Mandat Klien Pertama (*Mathematical Impossibility Bug*) (`TradingFacade.java:650-690`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-342",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 342,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Pembajakan Analis Elit Memotong Uang Kas Tanpa Hasil Nyata (*Ghost Candidate*) (`TradingFacade.java:3713`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-343",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 343,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Biaya Jasa Headhunter Dibebankan sebagai Gaji Karyawan Perusahaan pada Akun Pribadi (`HeadhuntingService.java:117`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-344",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 344,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Loyalitas Staf yang Dibajak Selalu Maksimal 100% Selamanya (`HeadhuntingService.java:55`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-345",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 345,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Penolakan Mandat Klien Mengunci Slot Pencarian Klien Baru (`FirmManager.java:160`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-346",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 346,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Pemain Dapat Membeli Saham Menggunakan Uang Klien Tanpa Batasan Mandat (`TradingFacade.java:1095`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-347",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 347,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Penarikan Modal Klien Terjadi Seketika di Tengah Jam Perdagangan Aktif (`FirmManager.java:230`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-348",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 348,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Ketiadaan Mekanisme Komplain Nasabah Mandat saat Rugi Beruntun (`ClientMandate.java:45`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-349",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 349,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Gaji Analis Elit Tidak Pernah Dipotong Pasca Dibajak (`HeadhuntingService.java:48`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-350",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 350,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Akun Mandat Klien Tetap Aktif Pasca Masa Kontrak Berakhir (`TradingFacade.java:2077`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-351",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 351,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "High-Water Mark (HWM) Mengizinkan Pembayaran Fee Performa Ganda (`FirmManager.java:250`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-352",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 352,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Daftar Bursa Talenta Headhunter Hanya Berisi 3 Kandidat Statis (`HeadhuntingService.java:86`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-353",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 353,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Manajemen Fee Klien Dihitung dari Sisa Kas Bukan Total Portofolio (`FirmManager.java:290`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-354",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 354,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Biaya Jasa Bajak Staf Menggunakan Format Kurs Kaku IDR (`HeadhuntingService.java:87`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-355",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 355,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Mandat Klien Dapat Mengambil Fasilitas Pinjaman Margin Tanpa Izin Nasabah (`TradingFacade.java:1883`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-356",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 356,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Penalti Reputasi Pemutusan Mandat Tidak Mengurangi Skor Karier (`PlayerProfileManager.java:140`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-357",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 357,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Nilai Setoran Awal Klien Mengizinkan Nilai Negatif pada Mode Replay (`FirmManager.java:110`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-358",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 358,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Pengalihan Akun Aktif ke Klien Membocorkan Opsi Penarikan Modal ke Rekening Pribadi (`app.js:2101`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-359",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 359,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Calon Analis Bajakan Tetap Muncul di Daftar Setelah Direkrut (`HeadhuntingService.java:95`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-360",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 360,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Penghentian Mandat Klien Tidak Menjual Saham Portofolio Nasabah (`FirmManager.java:315`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-361",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 361,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Dialog Android WebView (`prompt`) Macet Total pada Penempatan Deposito (`app.js:4476`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-362",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 362,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Dialog Android WebView (`confirm`) Macet Total pada Penarikan Dini Deposito (`app.js:4437`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-363",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 363,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Bunga Deposito Anak Usaha Dibayarkan ke Rekening Pribadi Pemain (`TradingFacade.java:2200`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-364",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 364,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Cicilan Pinjaman Bank Jatuh Tempo di Hari Sabtu & Minggu saat Bursa Libur (`LoanContract.java:195-207`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-365",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 365,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Denda Keterlambatan Pinjaman Ditumpuk 100% pada Cicilan Pertama Saja (`LoanContract.java:131-135`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-366",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 366,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Endpoint Pencairan Pinjaman `bridge.disburseLoan` Melempar Exception Kaku (`TradingFacade.java:4019-4021`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-367",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 367,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Penalti Penarikan Dini Deposito Menghapus Seluruh Bunga Akrual Tanpa Bukti Potong (`TimeDepositManager.java:178`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-368",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 368,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Suku Bunga Pinjaman Bank Tidak Terhubung dengan Suku Bunga Makro (`LoanContract.java:97`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-369",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 369,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Pemain Dapat Mengajukan Pinjaman Baru saat Memiliki Pinjaman Macet (`InstallmentLoanManager.java:73`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-370",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 370,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Form Pengajuan Pinjaman Perusahaan Mengizinkan Nilai Kosong (`app.js:7344`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-371",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 371,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Penempatan Deposito Mengizinkan Jumlah Pecahan Sen Rupiah (`TimeDepositManager.java:100`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-372",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 372,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Denda Keterlambatan Pinjaman 24 Jam Tidak Terakumulasi Jika Bermain Kurang dari 24 Jam Sekali Main (`LoanContract.java:158`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-373",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 373,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Deposito Berjangka Tetap Menerima Bunga saat Bank Mengalami Krisis Likuiditas (`TimeDepositManager.java:137`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-374",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 374,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Pelunasan Pinjaman Lebih Awal Tetap Menghitung Bunga Penuh jika Dilakukan di Hari Jatuh Tempo (`LoanContract.java:215`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-375",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 375,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Idempotency ID Pembayaran Cicilan Terkunci Permanen saat Gagal Kirim (`app.js:7472`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-376",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 376,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Nilai Sisa Pokok Pinjaman Tidak Pernah Berkurang pada Menu Ringkasan Keuangan (`app.js:7450`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-377",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 377,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Produk Deposito Tenor 50 Sesi Memiliki Nama Tenor Hari Bursa yang Membingungkan (`TimeDepositManager.java:70`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-378",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 378,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Pembayaran Cicilan Pinjaman Melebihi Total Utang Tidak Mengembalikan Uang Kembalian (`LoanContract.java:340`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-379",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 379,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Bukti Tanda Terima Pembayaran Pinjaman Hilang saat Aplikasi Dimuat Ulang (`LoanContract.java:79`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-380",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 380,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Bunga Deposito Jatuh Tempo Tidak Menambah Saldo Kas Jika Akun Sedang Mengalami Penahanan Dana (`TimeDepositManager.java:140`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-381",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 381,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Hak Suara RUPS Saham US Selalu Nol Akibat Prepend \"IDX:\" Kaku (`ShareholderMeetingAgenda.java:61`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-382",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 382,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Resolusi RUPS Disahkan Tanpa Memenuhi Batas Kuorum Pemegang Saham (`ShareholderMeetingAgenda.java:54`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-383",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 383,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Tenggat Waktu Voting RUPS Kadaluwarsa di Hari Libur Bursa (`ShareholderMeetingAgenda.java:52`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-384",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 384,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Pelaksanaan Stock Split Terkunci Permanen jika Ada Akun yang Short (`TradingFacade.java:2235`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-385",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 385,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Dividen Tunai Diciptakan dari Udara Kosong Tanpa Mendebet Kas Emiten (`CorporateActionService.java:647-655`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-386",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 386,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Penjual Short Bebas dari Kewajiban Membayar Dividen Pengganti (`CorporateActionService.java:639`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-387",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 387,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Database SQLite 21 Tabel Lengkap Tidak Pernah Diaktifkan (`GameDatabaseHelper.java`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-388",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 388,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Tanggal Penjatahan IPO Bentrok dengan Tanggal Terakhir Penawaran (`IpoOffering.java:31`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-389",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 389,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Pembaruan Kuotasi Pasar Mati Total pada Tab Kombinasi `pasar_porto` (`app.js:10522`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-390",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 390,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Sinkronisasi Portofolio Live Mati Total pada Tab Kombinasi `pasar_porto` (`app.js:10519`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-391",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 391,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Stock Split Saham US Menghasilkan Jumlah Lembar Desimal Ilegal (`CorporateActionService.java:678`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-392",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 392,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Pembelian Komoditas Emas Mereset Waktu Akrual Bunga Seluruh Obligasi (`MultiAssetTradingService.java:99`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-393",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 393,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Transaksi Komoditas Emas Dibatalkan Sepihak jika Kas Dealer Obligasi Kurang (`MultiAssetTradingService.java:85`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-394",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 394,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Agenda RUPS yang Ditolak Tetap Memunculkan Berita Persetujuan di Media Pasar (`CorporateActionService.java:55`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-395",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 395,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Pemungutan Suara RUPS Mengizinkan Pemain Memilih Dua Opsi Berbeda Bersamaan (`app.js:3010`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-396",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 396,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Reverse Stock Split Menghilangkan Lembar Saham di Bawah 1 Lembar Tanpa Kompensasi Uang (`CorporateActionService.java:725`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-397",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 397,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Ketiadaan Riwayat Pemungutan Suara Pemain di Layar RUPS Pasca Voting (`app.js:3040`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-398",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 398,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Pemesanan Saham IPO Mengunci Saldo Kas Tanpa Konfirmasi Nomor Pemesanan Resmi (`CorporateActionService.java:775`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-399",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 399,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Penjatahan IPO Mengizinkan Alokasi Lembar Saham Negatif saat Rasio Ekstrem (`CorporateActionService.java:820`)",
+    "status": "completed"
+  },
+  {
+    "id": "MILESTONE-B3-400",
+    "batch": "Batch 3 (GELOMBANG_3)",
+    "num": 400,
+    "location": "Ekspansi, Boss, Mandat, Bank & RUPS",
+    "title": "Ketiadaan Sinkronisasi Rekening Efek Klien saat Stock Split Terjadi (`CorporateActionService.java:675`)",
+    "status": "completed"
+  }
+]
