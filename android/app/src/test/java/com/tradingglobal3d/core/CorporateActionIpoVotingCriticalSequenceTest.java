@@ -116,7 +116,7 @@ public class CorporateActionIpoVotingCriticalSequenceTest {
                 case 1: { // Pesan IPO jika ada penawaran aktif
                     LocalDate now = facade.getClock().getCurrentDate();
                     var ipos = facade.getCorporateService().getIpoOfferings().stream()
-                            .filter(i -> !i.isAllotted() && !i.getListingDate().isBefore(now))
+                            .filter(i -> !i.isAllotted() && !now.isBefore(i.getOfferingStartDate()) && !now.isAfter(i.getOfferingEndDate()))
                             .collect(java.util.stream.Collectors.toList());
                     if (!ipos.isEmpty()) {
                         IpoOffering ipo = ipos.get(0);
@@ -200,7 +200,7 @@ public class CorporateActionIpoVotingCriticalSequenceTest {
                 case 7: { // Boundary: Tolak pemesanan IPO melebihi saldo kas tersedia
                     LocalDate now = facade.getClock().getCurrentDate();
                     var ipos = facade.getCorporateService().getIpoOfferings().stream()
-                            .filter(i -> !i.isAllotted() && !i.getListingDate().isBefore(now))
+                            .filter(i -> !i.isAllotted() && !now.isBefore(i.getOfferingStartDate()) && !now.isAfter(i.getOfferingEndDate()))
                             .collect(java.util.stream.Collectors.toList());
                     if (!ipos.isEmpty()) {
                         IpoOffering ipo = ipos.get(0);

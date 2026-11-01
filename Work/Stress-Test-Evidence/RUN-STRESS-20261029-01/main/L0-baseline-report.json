@@ -1,0 +1,20 @@
+{
+  "actionsPerSeed": 100,
+  "invarianceChecksPassed": 1000,
+  "validActions": 710,
+  "level": "L0",
+  "totalTimeMs": 25512,
+  "latency": {
+    "p95_ms": 164.215,
+    "min_ms": 0,
+    "p99_ms": 250.993,
+    "p50_ms": 0.123,
+    "mean_ms": 22.366,
+    "max_ms": 401.663
+  },
+  "boundaryActions": 184,
+  "totalSeeds": 10,
+  "totalActionsExecuted": 1000,
+  "invalidRejectedActions": 106,
+  "throughputActionsPerSec": 39.2
+}

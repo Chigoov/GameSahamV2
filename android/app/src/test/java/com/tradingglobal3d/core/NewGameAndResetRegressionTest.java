@@ -1,5 +1,6 @@
 package com.tradingglobal3d.core;
 
+import com.tradingglobal3d.core.career.CareerRank;
 import com.tradingglobal3d.core.collection.CollectibleItem;
 import com.tradingglobal3d.core.collection.CollectionManager;
 import com.tradingglobal3d.core.economy.EconomyLedger;
@@ -139,10 +140,20 @@ public class NewGameAndResetRegressionTest {
         // C. Berikan posisi saham simulasi
         personal.addPosition(new Position("BBCA", "IDX", Currency.IDR, 500, new BigDecimal("9500"), new BigDecimal("9500")));
 
-        // Verifikasi bahwa data sementara telah terbentuk
+        // D. Buat order aktif di OrderManager
+        GameTestSupport.unlockIdxLevelFourForStressFixture(facade);
+        Order testOrder = new Order("ORD-TEST-001", "REQ-TEST-001", personal.getId(), "IDX:BBCA", OrderSide.BUY, OrderType.LIMIT, Money.of(9000L, Currency.IDR), null, 100, facade.getClock().getGameTimestamp(), null);
+        assertTrue(facade.submitOrder(testOrder).isSuccess);
+
+        // E. Dirikan perusahaan operasional di CompanyManager via facade
+        facade.foundCompany("COMP-001", "PT Usaha Maju Bersama", "TEKNOLOGI", Money.of(25_000_000L, Currency.IDR));
+
+        // Verifikasi bahwa seluruh data sementara telah terbentuk
         assertFalse(facade.getInstallmentLoanManager().getAllLoans().isEmpty());
         assertTrue(facade.getCollectionManager().getAllItems().stream().anyMatch(CollectibleItem::isOwned));
         assertFalse(personal.getPositions().isEmpty());
+        assertFalse(facade.getOrderManager().getOrdersForAccount(personal.getId()).isEmpty());
+        assertFalse(facade.getCompanyManager().getAllCompanies().isEmpty());
 
         // Simpan ke disk sebelum reset
         facade.save();
@@ -167,9 +178,48 @@ public class NewGameAndResetRegressionTest {
         // Seluruh barang koleksi lama HARUS BERSIH
         assertTrue("Seluruh koleksi lama harus bersih setelah reset", facade.getCollectionManager().getAllItems().stream().noneMatch(CollectibleItem::isOwned));
 
+        // Seluruh order aktif lama HARUS BERSIH
+        assertTrue("Seluruh order lama harus bersih setelah reset", facade.getOrderManager().getOrdersForAccount(resetPersonal.getId()).isEmpty());
+
+        // Seluruh perusahaan bisnis lama HARUS BERSIH
+        assertTrue("Seluruh anak usaha lama harus bersih setelah reset", facade.getCompanyManager().getAllCompanies().isEmpty());
+
+        // Jenjang karier kembali ke NOVICE_TRADER
+        assertEquals(CareerRank.NOVICE_TRADER, facade.getCareerManager().getCurrentRank());
+
         // Buku besar harus seimbang dan hanya berisi 1 mutasi modal awal
         assertTrue(facade.getLedger().reconcile(resetPersonal, Currency.IDR));
         assertEquals(1, facade.getLedger().getEntriesForAccount(resetPersonal.getId()).size());
+    }
+
+    @Test
+    public void testCorruptSaveAndBackupRecoveryBehavior() throws Exception {
+        TradingFacade facade = new TradingFacade(saveManager);
+        facade.setCatalog(catalog);
+        facade.startOrResume();
+
+        Account personal = facade.getPersonalAccount();
+        personal.addPosition(new Position("BBCA", "IDX", Currency.IDR, 200, new BigDecimal("9800"), new BigDecimal("9800")));
+        facade.save(); // Save pertama -> saveFile ada
+
+        personal.addPosition(new Position("BMRI", "IDX", Currency.IDR, 300, new BigDecimal("6500"), new BigDecimal("6500")));
+        facade.save(); // Save kedua -> backupFile terbentuk dari save pertama, saveFile memuat data kedua
+
+        assertTrue("Save file harus ada", saveFile.exists());
+        assertTrue("Backup file harus ada setelah 2x simpan", backupFile.exists());
+
+        // Rusak file save utama secara sengaja
+        Files.writeString(saveFile.toPath(), "{ CORRUPT_JSON_DATA !@#$ }");
+
+        // Buka facade baru (simulasi restart aplikasi saat file utama rusak)
+        TradingFacade recoveryFacade = new TradingFacade(saveManager);
+        recoveryFacade.setCatalog(catalog);
+        boolean restored = recoveryFacade.startOrResume();
+        assertFalse("Pemulihan harus menunggu konfirmasi", restored);
+        assertTrue(recoveryFacade.hasPendingBackupRecoveryOffer());
+        recoveryFacade.confirmBackupRecovery();
+        assertNotNull(recoveryFacade.getPersonalAccount());
+        assertEquals(Money.of(50_000_000L, Currency.IDR), recoveryFacade.getPersonalAccount().getTotalCash(Currency.IDR));
     }
 
     @Test

@@ -1,0 +1,2180 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Lengkap 70 Temuan Audit UI & Konten — Game Saham</title>
+<style>
+:root {
+  --bg-dark: #0d1117;
+  --bg-card: #161b22;
+  --bg-subtle: #21262d;
+  --border: #30363d;
+  --accent: #E3BD7F;
+  --text-main: #f0f6fc;
+  --text-muted: #8b949e;
+  --positive: #14F195;
+  --negative: #FF5252;
+  --warning: #F59E0B;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+body { background: var(--bg-dark); color: var(--text-main); padding: 20px; line-height: 1.5; }
+.container { max-width: 1140px; margin: 0 auto; }
+
+.header-banner { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+.tag-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; background: var(--accent); color: #151515; margin-bottom: 10px; }
+h1 { font-size: 1.7rem; color: #fff; margin-bottom: 6px; }
+p.lead { color: var(--text-muted); font-size: 0.92rem; margin-bottom: 16px; }
+
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px; }
+@media (max-width: 768px) { .stats-grid { grid-template-columns: 1fr 1fr; } }
+.stat-box { background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.stat-box small { display: block; font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; }
+.stat-box strong { font-size: 1.3rem; font-weight: 700; }
+
+/* Filter Tabs */
+.filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; position: sticky; top: 10px; z-index: 100; background: rgba(13, 17, 23, 0.95); backdrop-filter: blur(10px); padding: 10px 0; }
+.filter-btn { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main); font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.15s ease; }
+.filter-btn:hover { border-color: var(--accent); }
+.filter-btn.active { background: var(--accent); color: #151515; border-color: var(--accent); }
+
+/* Finding Card */
+.finding-list { display: flex; flex-direction: column; gap: 16px; }
+.finding-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; transition: border-color 0.2s; }
+.finding-card:hover { border-color: #484f58; }
+
+.finding-header { padding: 12px 18px; background: var(--bg-subtle); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.finding-id { font-weight: 700; font-size: 0.95rem; color: #fff; display: flex; align-items: center; gap: 8px; }
+.badge-priority { padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+.badge-priority.tinggi { background: rgba(255, 82, 82, 0.15); color: var(--negative); border: 1px solid rgba(255, 82, 82, 0.4); }
+.badge-priority.sedang { background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.4); }
+.badge-priority.rendah { background: rgba(56, 139, 253, 0.15); color: #58a6ff; border: 1px solid rgba(56, 139, 253, 0.4); }
+
+.finding-body { padding: 16px 18px; }
+.finding-meta { font-size: 0.78rem; color: var(--accent); margin-bottom: 12px; }
+
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+@media (max-width: 768px) { .compare-grid { grid-template-columns: 1fr; } }
+
+.compare-col { border-radius: 10px; padding: 12px; font-size: 0.82rem; }
+.compare-col.before { background: rgba(255, 82, 82, 0.08); border: 1px solid rgba(255, 82, 82, 0.25); }
+.compare-col.after { background: rgba(20, 241, 149, 0.08); border: 1px solid rgba(20, 241, 149, 0.25); }
+
+.compare-title { font-weight: 700; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 6px; display: flex; justify-content: space-between; }
+.compare-col.before .compare-title { color: #ff7b72; }
+.compare-col.after .compare-title { color: var(--positive); }
+
+.quote-box { background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 6px; font-family: monospace; font-size: 0.8rem; margin: 6px 0; word-break: break-all; }
+.compare-col.before .quote-box { border-left: 3px solid #ff7b72; color: #ff7b72; text-decoration: line-through; }
+.compare-col.after .quote-box { border-left: 3px solid var(--positive); color: var(--positive); }
+
+.finding-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.05); }
+@media (max-width: 600px) { .finding-detail-grid { grid-template-columns: 1fr; } }
+.fd-item strong { display: block; color: #fff; font-size: 0.72rem; text-transform: uppercase; margin-bottom: 2px; }
+.fd-item p { color: var(--text-muted); margin: 0; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header Banner -->
+  <div class="header-banner">
+    <span class="tag-badge">AUDIT KOMPREHENSIF UI & KONTEN · 30 OKTOBER 2026</span>
+    <h1>Daftar Lengkap 70 Temuan Elemen Berlebih & Perbandingan Before vs After</h1>
+    <p class="lead">Berikut adalah seluruh 70 temuan audit yang telah diidentifikasi pada 5 tab utama dan 82 alur layar. Anda dapat memfilter berdasarkan tingkat prioritas atau area layar untuk meninjaunya satu per satu.</p>
+    
+    <div class="stats-grid">
+      <div class="stat-box">
+        <small>Total Temuan Audit</small>
+        <strong>70 Item</strong>
+      </div>
+      <div class="stat-box">
+        <small>Prioritas Tinggi (Kritis UX)</small>
+        <strong style="color: var(--negative);">18 Item</strong>
+      </div>
+      <div class="stat-box">
+        <small>Prioritas Sedang (Redundan)</small>
+        <strong style="color: var(--warning);">36 Item</strong>
+      </div>
+      <div class="stat-box">
+        <small>Prioritas Rendah (Minor Polish)</small>
+        <strong style="color: #58a6ff;">16 Item</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <button class="filter-btn active" onclick="filterFindings('all', event)">Semua (70)</button>
+    <button class="filter-btn" onclick="filterFindings('tinggi', event)">🔥 Prioritas Tinggi (18)</button>
+    <button class="filter-btn" onclick="filterFindings('sedang', event)">⚠️ Prioritas Sedang (36)</button>
+    <button class="filter-btn" onclick="filterFindings('rendah', event)">ℹ️ Prioritas Rendah (16)</button>
+    <button class="filter-btn" onclick="filterFindings('beranda', event)">Tab Beranda (10)</button>
+    <button class="filter-btn" onclick="filterFindings('pasar', event)">Tab Pasar (8)</button>
+    <button class="filter-btn" onclick="filterFindings('portofolio', event)">Tab Portofolio (8)</button>
+    <button class="filter-btn" onclick="filterFindings('bisnis', event)">Tab Bisnis (9)</button>
+    <button class="filter-btn" onclick="filterFindings('lainnya', event)">Tab Lainnya (7)</button>
+    <button class="filter-btn" onclick="filterFindings('detail', event)">Detail Saham (7)</button>
+    <button class="filter-btn" onclick="filterFindings('order', event)">Tiket Order (5)</button>
+    <button class="filter-btn" onclick="filterFindings('modal', event)">Modal & Dialog (11)</button>
+  </div>
+
+  <!-- Finding Cards Container -->
+  <div class="finding-list" id="findings-container">
+    
+    <div class="finding-card" data-priority="sedang" data-category="shell">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-01]</span>
+          <span>Teks Eyebrow Generik 'GLOBAL TRADER' pada Header Shell</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Global Header Shell (index.html:16)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box"><span class="eyebrow">GLOBAL TRADER</span><strong id="header-title">Beranda</strong></div>
+            <p>Teks dekoratif statis 'GLOBAL TRADER' memakan ruang horizontal header ponsel di antara avatar profil dan chip kas.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><strong id="header-title" style="font-size:1.15rem;">Beranda</strong></div>
+            <p>Hapus teks 'GLOBAL TRADER', jadikan judul layar aktif lebih dominan dan tegas.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Mempersempit ruang judul layar dan chip kas pada layar beresolusi 390px-412px.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>SHELL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="tinggi" data-category="shell beranda">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-02]</span>
+          <span>Pengulangan Kas Tersedia 3 Kali Berturut-turut dalam Jarak 150px</span>
+        </div>
+        <span class="badge-priority tinggi">TINGGI</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Global Header & Kartu Hero Beranda (index.html:17, 43-44)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Header: Kas Rp 75 Jt | Hero: Kas Total Rp 75 Jt | Hero Sub: Tersedia Rp 75 Jt</div>
+            <p>Nominal uang tunai yang persis sama diulang 3 kali di area pandang paling atas tanpa memberi wawasan baru.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Header: Kas Tersedia | Hero: TOTAL KEKAYAAN BERSIH + Kas Tersedia (Ringkas)</div>
+            <p>Fokuskan hero pada Total Net Worth; satukan Kas Total dan Tersedia jika dana tertahan Rp 0.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Membuang area pandang atas layar portrait dan membingungkan ketika ada saham/portofolio.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>SHELL BERANDA</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="shell">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-03]</span>
+          <span>Elemen Tombol Mati pada Context Strip (display: none !important)</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Context Strip Global (index.html:21)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box"><button id="context-account-btn" style="display:none !important;">Akun: Pribadi</button></div>
+            <p>Tombol pemilih akun yang dinonaktifkan permanen dan disembunyikan duduk sebagai kode sampah.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><!-- Dieliminasi dari DOM produksi --></div>
+            <p>Hapus elemen tombol tersembunyi ini dari template HTML produksi.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Beban DOM tidak perlu dan membingungkan pemeliharaan kode antarmuka.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>SHELL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="shell">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-04]</span>
+          <span>Pita Banner Lingkungan Internal 'QA HOST JAVA' Memotong Layar</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Sub-header Shell (index.html:26-28)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box"><div id="mock-banner">QA HOST JAVA · SAVE TERISOLASI · BUKAN ANDROID</div></div>
+            <p>Pita banner pengujian setebal ~32px mendorong seluruh konten layar portrait ke bawah.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><!-- Nonaktifkan pada sesi visual normal / jadikan chip kecil transparan --></div>
+            <p>Sembunyikan banner pengujian pada sesi gameplay normal.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Merusak proporsi vertikal layar HP dan memotong konten yang seharusnya muat di layar pertama.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>SHELL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="shell">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-05]</span>
+          <span>Teks Status Jam Bursa 'Memuat sesi' Tanpa Fallback Tanggal/Waktu</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Context Strip (index.html:20, app.js:621)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box"><span id="session-label">Memuat sesi</span></div>
+            <p>Teks placeholder 'Memuat sesi' sering tampak statis beberapa detik sebelum jembatan jam merespons.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><span id="session-label">Sesi Pasar Reguler</span></div>
+            <p>Gunakan label default 'Sesi Pasar Reguler' sebelum sinkronisasi jam selesai.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Memberikan kesan aplikasi lambat atau macet sesaat saat transisi antar layar.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>SHELL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="tinggi" data-category="beranda">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-06]</span>
+          <span>Slogan Kosong 'Bangun langkahmu.' dan Label Statis 'HARI PERDAGANGAN'</span>
+        </div>
+        <span class="badge-priority tinggi">TINGGI</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Header Konten Beranda (index.html:35)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box"><span id="home-date">HARI PERDAGANGAN</span><h1>Bangun langkahmu.</h1></div>
+            <p>Slogan motivasi kosong memakan tinggi vertikal ~50px tepat di area paling berharga.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><h1 id="home-date" style="font-size:1.25rem;">Hari 44 · 01 Dec 2026</h1></div>
+            <p>Ganti slogan dengan Hari dan Tanggal Bursa Game yang tegas dan informatif.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Kartu finansial utama terdorong ke bawah; tanggal game justru ditaruh di font kecil.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>BERANDA</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="tinggi" data-category="beranda">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-07]</span>
+          <span>Bar 5 Tombol Lingkaran Aksi Cepat yang 80% Duplikat dengan Tab Bawah</span>
+        </div>
+        <span class="badge-priority tinggi">TINGGI</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Bagian Tengah Beranda (index.html:50-72)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Bar Lingkaran: [🛒 Beli Saham] [💼 Portofolio] [🏢 Bisnis] [🎁 Klaim Hibah] [💳 Pinjaman]</div>
+            <p>Tiga tombol menduplikasi tab bawah, satu tombol menduplikasi kartu sponsor tepat di bawahnya.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><!-- Bar lingkaran dihapus; tinggi layar dihemat 90px --></div>
+            <p>Hapus bar lingkaran duplikat ini sepenuhnya dari Beranda.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Pemborosan 90px tinggi layar portrait untuk tombol yang sama persis.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>BERANDA</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="beranda">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-08]</span>
+          <span>Pengulangan Tiga Kali Angka Nominal pada Kartu Sponsor Ventura</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Kartu Sponsor Beranda (index.html:74-84)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Pill: +Rp 25.000.000 | Teks: '...ekspansi portofolio.' | Tombol: 'Klaim Hibah Rp 25 Juta'</div>
+            <p>Nominal 25 juta disebut 3 kali dalam kartu setebal 160px dengan esai panjang.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Dana Hibah Ventura | +Rp 25.000.000 (1x per hari) | Tombol: [Klaim]</div>
+            <p>Rampingkan menjadi kartu aksi 1 baris (tinggi ~50px) dengan tombol cepat.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Memakan area vertikal secara berlebihan dengan pengulangan kata.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>BERANDA</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="beranda">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-09]</span>
+          <span>Akses Misi & Pencapaian Ganda (Kartu Karier vs Quick Grid)</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Modul Karier Beranda (index.html:85-97)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Kartu Karier: 'Lihat misi →' | Quick Grid: 'Misi Periodik 📋' & 'Pencapaian ◇'</div>
+            <p>Pemain disajikan dua pintu masuk terpisah untuk alur misi yang sama di layar yang sama.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Kartu Karier: Satu-satunya pusat progres (Level, XP, & Tombol Lihat Misi)</div>
+            <p>Satukan kontrol misi di dalam kartu karier; hapus duplikat dari quick grid.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Membingungkan pemain seolah ada dua sistem misi yang berbeda.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>BERANDA</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="tinggi" data-category="beranda">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-10]</span>
+          <span>Tumpukan 5 Baris 'Quick Grid' (10 Shortcut) Menenggelamkan Warta Pasar</span>
+        </div>
+        <span class="badge-priority tinggi">TINGGI</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Dasar Layar Beranda (index.html:92-132)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">10 Tombol: Laporan, Pencapaian, Misi, Liga, Duel Bos, Galeri, DNA, Streak, Dominasi, Asuransi</div>
+            <p>Menciptakan 'tembok tautan' vertikal yang mendorong warta pasar 400px ke bawah.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Pusat Aktivitas: [Laporan Sesi] [Liga & Rival] (Fitur sekunder dipindah ke Tab Lainnya)</div>
+            <p>Pindahkan modul sekunder ke Tab Lainnya; biarkan Beranda fokus ke pasar.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Pemain tidak melihat sentimen berita hari ini karena terhalang 10 kotak tombol.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>BERANDA</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="beranda">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-11]</span>
+          <span>Tombol Teks Terpencil 'Panduan & Mekanisme ↗' di Bawah Pantauan Pasar</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Paling Bawah Beranda (index.html:155)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box"><button id="btn-entry-game">Panduan & Mekanisme ↗</button></div>
+            <p>Tombol teks terisolasi di bawah tabel pasar yang fungsinya duplikat dengan menu Profil.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><!-- Dihapus dari Beranda; tersedia rapi di Tab Lainnya & Profil --></div>
+            <p>Hapus dari Beranda; pusatkan edukasi di Tab Lainnya.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Tautan yatim tanpa konteks jelas di bawah daftar saham.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>BERANDA</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="beranda portofolio">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-12]</span>
+          <span>Keterangan Hero Caption 'Aset portofolio, kas, bisnis & koleksi · IDR' Berulang</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Hero Card Beranda & Portofolio (index.html:41, app.js:1051)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box"><p class="hero-caption">Aset portofolio, kas, bisnis & koleksi · IDR</p></div>
+            <p>Daftar enumerasi komponen aset diulang di Beranda dan Portofolio padahal rinciannya ada tepat di bawahnya.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><p class="hero-caption">Konsolidasi seluruh aset & kas bersih</p></div>
+            <p>Persingkat menjadi label ringkas satu kalimat.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Teks panjang yang tidak perlu dibaca ulang setiap hari.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>BERANDA PORTOFOLIO</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="beranda">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-13]</span>
+          <span>Label 'Kewajiban / Utang' Menampilkan 'Memuat…' Warna Abu-abu Samar</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Hero Cash Breakdown Beranda (index.html:46)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box"><strong id="home-liabilities" style="color:var(--text-muted);">Memuat…</strong></div>
+            <p>Pemain yang tidak memiliki utang melihat 'Memuat…' abu-abu yang mirip dengan status error.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><strong id="home-liabilities">Rp 0</strong></div>
+            <p>Inisialisasi langsung dengan 'Rp 0' netral.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Menimbulkan keraguan apakah data utang sedang error atau memang bernilai nol.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>BERANDA</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="beranda">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-14]</span>
+          <span>Header Bagian 'Langkah berikutnya: HARI INI' yang Kurang Kontekstual</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Beranda Atas Grid (index.html:91)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box"><div class="section-heading"><h2>Langkah berikutnya</h2><span class="eyebrow">HARI INI</span></div></div>
+            <p>Label 'Langkah berikutnya' memberi kesan pemain diwajibkan menyelesaikan 10 menu di bawahnya.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><div class="section-heading"><h2>Pusat Aktivitas</h2><span class="eyebrow">PILIHAN</span></div></div>
+            <p>Ganti judul menjadi 'Pusat Aktivitas' atau 'Menu Cepat'.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Membingungkan alur orientasi pemain pemula.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>BERANDA</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="beranda">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-15]</span>
+          <span>Tombol Filter Berita Beranda 'Semua / Kabar Baik / Kabar Buruk' Mempersempit Teks</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Sentimen Pasar Beranda (index.html:143-147)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">3 Tombol Pill: [Semua] [▲ Kabar Baik] [▼ Kabar Buruk]</div>
+            <p>Pada layar Beranda yang hanya memuat 2 berita harian, 3 tombol filter filter membuat daftar kosong jika filter dipilih.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">2 Filter Cepat: [Semua] [Katalis Pilihan ★]</div>
+            <p>Cukup tampilkan warta aktif secara langsung tanpa filter berlebih di Beranda.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Pemain mengklik 'Kabar Buruk' dan mendapati pesan 'Belum ada berita'.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>BERANDA</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="tinggi" data-category="pasar">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-16]</span>
+          <span>Teks Metadisclaimer 'Model simulasi game' pada Kartu Indeks Utama</span>
+        </div>
+        <span class="badge-priority tinggi">TINGGI</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Ribbon Indeks Tab Pasar (app.js:1486, 1492)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">IHSG: Tag [Model] | Caption: "Model simulasi game (10 anggota)"</div>
+            <p>Menampilkan label internal developer yang melanggar keputusan pemilik K04.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">IHSG: Tag [Saham] | Caption: "Bursa Efek Indonesia" (LQ45: "45 Emiten Terlikuid")</div>
+            <p>Hapus teks 'Model' dan ganti dengan nama bursa resmi.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Merusak kesan game profesional dengan teks disclaimer berulang.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>PASAR</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="pasar">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-17]</span>
+          <span>Kalimat Kosong / Negatif pada Modul Top Movers Saat Pasar Tenang</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Modul 3 Penguat & 3 Pelemah (app.js:1547-1549)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">"Belum ada pelemah di daftar ini." / "Hanya 1 emiten menguat di daftar ini."</div>
+            <p>Kalimat negatif bernada keluhan saat pasar bergerak seimbang.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Langsung tampilkan emiten yang bergerak / "Pasar cenderung stagnan pada sesi ini."</div>
+            <p>Hapus kalimat filler jika data kurang dari 3.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Mengisi kartu dengan teks filler negatif yang tidak berguna.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>PASAR</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="pasar">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-18]</span>
+          <span>Ketiadaan Nominal Harga pada Modul 3 Penguat & 3 Pelemah</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Modul 3 Penguat & 3 Pelemah (app.js:1543)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">1. UNTR +1,92% | 2. ANTM +0,91% (Harga tidak dicantumkan!)</div>
+            <p>Pemain tidak tahu berapa harga nominal saham yang sedang menguat tersebut.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">1. UNTR · Rp 5.300 (+1,92%) | 2. ANTM · Rp 1.670 (+0,91%)</div>
+            <p>Cantumkan nominal harga di samping ticker saham.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Pemain harus klik bolak-balik hanya untuk melihat harga mover.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>PASAR</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="tinggi" data-category="pasar">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-19]</span>
+          <span>Formulir Filter Pasar 4-Baris Bertumpuk & Teks Status '20 emiten...'</span>
+        </div>
+        <span class="badge-priority tinggi">TINGGI</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Filter Bar Tab Pasar (index.html:168-197, app.js:1565)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">4 Field: Cari [Input], Bursa [Select], Sektor [Select], Daftar [Select] + "20 emiten..."</div>
+            <p>Blok filter memakan 180px vertikal sebelum daftar saham pertama terlihat.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Search Bar 1-Baris + Chips: [Semua] [IDX (Indonesia)] [US (Wall St)] [Watchlist ★]</div>
+            <p>Gunakan filter chips horizontal modern dan hilangkan teks status count.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Form dropdown kuno yang lambat dan memakan ruang layar ponsel.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>PASAR</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="pasar">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-20]</span>
+          <span>Pill Badge 'Pasar Realtime' yang Berwarna Terlalu Kontras di Header Pasar</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Header Tab Pasar (index.html:160)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box"><span class="live-badge">Pasar Realtime</span></div>
+            <p>Badge hijau neon terang yang bersaing fokus dengan judul halaman 'Pasar'.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><span class="m-tag pos">Bursa Aktif</span></div>
+            <p>Ganti dengan pill status halus yang selaras dengan tema.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Menarik perhatian berlebih padahal hanya penanda status koneksi.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>PASAR</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="pasar">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-21]</span>
+          <span>Label Sektor Kosong pada Emiten Tanpa Sektor Terdaftar</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Daftar Saham Pasar (app.js:1590)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box"><div class="stock-sector"></div> (Tag div kosong di DOM)</div>
+            <p>Jika emiten tidak memiliki data sektor di JSON, sistem merender div kosong yang memakan spasi 14px.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><div class="stock-sector">Ekuitas Komersial</div></div>
+            <p>Berikan nilai default sektor atau sembunyikan elemen jika kosong.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Jarak antar baris menjadi tidak konsisten pada kartu saham.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>PASAR</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="pasar">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-22]</span>
+          <span>Inisial Logo Dua Huruf 'BB' yang Tidak Memberikan Informasi Baru</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Daftar Saham Pasar (app.js:1582)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box"><span class="stock-symbol" aria-hidden="true">BB</span> (untuk BBCA)</div>
+            <p>Hanya memotong 2 huruf pertama dari kode saham yang sudah tertulis jelas di sampingnya.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Ikon grafis sektor / Ticker resmi 4 huruf</div>
+            <p>Ganti inisial huruf dengan ikon kategori sektor atau nomor urut.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Memakan 44px lebar horizontal di layar HP tanpa memberi informasi unik.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>PASAR</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="pasar">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-23]</span>
+          <span>Label 'Daftar emiten' pada Dropdown Watchlist</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Form Filter Pasar (index.html:190)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box"><label for="filter-list-select">Daftar emiten</label></div>
+            <p>Label kaku untuk form dropdown biner yang hanya berisi 'Semua' dan 'Watchlist'.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><!-- Terintegrasi ke Chip [Watchlist ★] --></div>
+            <p>Gantikan seluruh dropdown dengan tombol chip 'Watchlist ★'.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Menambah 1 baris vertikal tersendiri.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>PASAR</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="tinggi" data-category="portofolio">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-24]</span>
+          <span>Kebocoran Kode Tiket Developer '(A21)' dan '(A20)' pada Portofolio</span>
+        </div>
+        <span class="badge-priority tinggi">TINGGI</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Tab Portofolio (app.js:1801, 1809)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Total Kekayaan Bersih Konsolidasi (A21) | Lihat Rincian Alokasi Dana Tertahan (A20)</div>
+            <p>Kode pengenal sprint developer terpampang jelas di layar pemain.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Total Kekayaan Bersih Konsolidasi | Tombol: [Lihat Rincian Dana Tertahan]</div>
+            <p>Hapus seluruh kode tiket dalam kurung dari string tampilan.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Pemain bingung ('apa itu A20/A21?') dan terkesan aplikasi belum matang.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>PORTOFOLIO</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="portofolio">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-25]</span>
+          <span>Pengulangan Total Valuasi Seluruh Kas di dalam Accordion Dompet</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Accordion Dompet Portofolio (app.js:1786, 1802)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Komposisi: Kas Rp 100 Jt | Di dalam Dompet: Total Valuasi Seluruh Kas Rp 100 Jt</div>
+            <p>Angka yang sama persis diulang 2 kali dalam jarak beberapa sentimeter.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Dompet IDR & USD langsung memuat rincian: Saldo IDR (Total/Tersedia) & Saldo USD</div>
+            <p>Hapus baris 'Total Valuasi Seluruh Kas' di dalam lipatan dompet.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Menambah panjang baris rincian dompet tanpa menambah wawasan baru.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>PORTOFOLIO</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="portofolio">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-26]</span>
+          <span>Kategori Bawah Portofolio yang Berisi Shortcut Pintu Putar ke Tab Bisnis</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Dasar Layar Portofolio (app.js:1848-1855)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Kategori: 'Usaha & Dana Kelolaan' -> 3 Tautan yang hanya beralih ke Tab Bisnis</div>
+            <p>Tumpukan kartu besar yang hanya mengulang menu yang ada di Tab Bisnis.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Kategori difokuskan murni pada Aset Keuangan (Saham, Valuta, Reksa Dana, Utang)</div>
+            <p>Pangkas kategori shortcut usaha dari halaman Portofolio.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Memanjangkan halaman Portofolio dengan shortcut lintas-tab yang tidak perlu.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>PORTOFOLIO</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="portofolio">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-27]</span>
+          <span>Label 'PRIBADI' / 'DANA TERPISAH' pada Header Portofolio</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Header Portofolio (app.js:1783)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box"><span class="live-badge">Pribadi</span></div>
+            <p>Pemain bermain dengan mode pemain tunggal pribadi, label 'Pribadi' tidak memberi diferensiasi.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><!-- Dihapus jika akun aktif adalah akun pribadi default --></div>
+            <p>Tampilkan badge hanya jika akun berjenis 'Akun Klien'.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Pill badge tambahan yang memenuhi baris judul.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>PORTOFOLIO</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="portofolio">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-28]</span>
+          <span>Bar Alokasi Aset (Allocation Bar) Tanpa Angka Persentase di Sampingnya</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Komposisi Aset Portofolio (app.js:1795-1797)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box"><div class="allocation-bar" aria-label="X% aset berupa saham"><span></span></div> (Grafis polos)</div>
+            <p>Batang alokasi hanya berupa garis warna tanpa teks persentase visual yang terlihat langsung.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><div class="allocation-bar-wrap"><span>Saham: 11% · Kas: 89%</span><div class="bar">...</div></div></div>
+            <p>Sertakan teks persentase pembagian di samping atau atas batang alokasi.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Pemain harus menebak-nebak berapa persen porsi sahamnya dari panjang batang.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>PORTOFOLIO</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="portofolio">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-29]</span>
+          <span>Pengulangan Label '(valuasi IDR)' pada Setiap Baris Komposisi</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Komposisi Aset Portofolio (app.js:1786-1787)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Kas (valuasi IDR) & Posisi saham (valuasi IDR)</div>
+            <p>Frasa dalam kurung '(valuasi IDR)' diulang-ulang di setiap baris.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Kas Tunai & Investasi Saham (Mata Uang: IDR)</div>
+            <p>Cukup tulis 'Kas Tunai' dan 'Investasi Saham'.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Teks terasa kaku dan formal berlebihan.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>PORTOFOLIO</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="portofolio">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-30]</span>
+          <span>Status 'Impas' pada Portofolio yang Menggunakan Warna Teks Redup Samar</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Baris Portofolio Saham (app.js:806)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">0.00% Impas (Menggunakan var(--text-muted) abu-abu tua)</div>
+            <p>Warna abu-abu redup membuat status impas sulit dibaca di bawah cahaya terang.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">0.00% Impas (Menggunakan warna teks putih bersih kontras tinggi)</div>
+            <p>Gunakan warna teks sekunder yang kontras (`#DFD0B5`).</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Keterbacaan rendah pada ponsel.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>PORTOFOLIO</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="portofolio">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-31]</span>
+          <span>Ketiadaan Teks Penjelas 'Ketuk untuk buka pasar' pada Baris Saham</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Daftar Kepemilikan Portofolio (app.js:810-845)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Hanya menampilkan tanda panah '›' di ujung kanan tanpa petunjuk interaktivitas</div>
+            <p>Pemain baru mungkin tidak sadar bahwa baris saham bisa diklik untuk langsung trading.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Sertakan tooltip / mikro-caption 'Ketuk untuk transaksi di pasar'</div>
+            <p>Beri sedikit visual hover/press feedback yang tegas.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Interaktivitas kurang intuitif bagi pengguna pemula.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>PORTOFOLIO</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="bisnis">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-32]</span>
+          <span>Jargon Akuntansi Kaku 'Ledger Dua Sisi' pada Deskripsi Holding</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Tab Bisnis / Usaha (app.js:2228)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">"...Transfer/dividen internal memakai ledger dua sisi tanpa pajak bursa."</div>
+            <p>Istilah teknis database akuntansi yang membingungkan pemain game awam.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">"...Nikmati fasilitas transfer modal dan dividen internal antar-anak usaha tanpa potongan pajak bursa."</div>
+            <p>Ganti dengan penjelasan manfaat bebas pajak internal.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Pemain merasa terintimidasi seolah harus mengerti akuntansi buku besar.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>BISNIS</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="bisnis">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-33]</span>
+          <span>Label 'Kekayaan terintegrasi' dengan Kalimat Teori Kepemilikan 100%</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Seksi Usaha Tab Bisnis (app.js:2153)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">"Kas dan ekuitas perusahaan operasional 100% milik pemain terhitung di total kekayaan bersih."</div>
+            <p>Kalimat penjelas panjang yang menerangkan aturan perancangan sistem internal.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">"Ekuitas dan kas anak usaha otomatis terkonsolidasi ke kekayaan Anda."</div>
+            <p>Persingkat menjadi satu kalimat ringkas.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Memenuhi layar tab Bisnis dengan teks teori.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>BISNIS</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="bisnis">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-34]</span>
+          <span>Pesan Kosong Pendirian Usaha dengan Teks Syarat Modal Berulang</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Empty State Perusahaan (app.js:2164-2167)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Paragraf: "...Modal minimal Rp 25.000.000..." + Tombol: "+ Dirikan Perusahaan Baru (Min. Rp 25.000.000)"</div>
+            <p>Angka Rp 25.000.000 diulang di paragraf dan di dalam teks tombol.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Tombol: "+ Dirikan Perusahaan Baru" | Keterangan: "Modal awal mulai Rp 25 Juta"</div>
+            <p>Rampingkan teks tombol menjadi '+ Dirikan Perusahaan Baru'.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Tombol menjadi sangat panjang dan teks terdesak.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>BISNIS</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="bisnis">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-35]</span>
+          <span>Duplikasi Label 'Status operasional' dan Badge 'Operasional Normal'</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Kartu Ringkasan Perusahaan (app.js:2197, 2200)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Badge: [Operasional Normal] & Baris data: "Status operasional: Beroperasi Normal"</div>
+            <p>Status operasional perusahaan ditampilkan dua kali bertumpuk di kartu yang sama.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Badge: [Operasional Normal] (Baris data status operasional dihilangkan)</div>
+            <p>Cukup tampilkan status di badge header kartu perusahaan.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Menambah 1 baris vertikal tanpa faedah.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>BISNIS</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="bisnis">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-36]</span>
+          <span>Penulisan 'CEO: Belum tersedia' pada Perusahaan Tanpa Eksekutif</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Kartu Ringkasan Perusahaan (app.js:2204)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">"... · CEO: Belum tersedia"</div>
+            <p>Label pasif 'Belum tersedia' tidak memberi arahan aksi permainan.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">"... · Rekrut CEO untuk bonus efisiensi"</div>
+            <p>Ubah menjadi ajakan aksi bertransaksi/rekrutmen.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Pemain mengira ada bug data belum termuat.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>BISNIS</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="bisnis modal">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-37]</span>
+          <span>Esai Pembuka Modal Kebijakan Kerja Perusahaan</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Modal Kebijakan Kerja (app.js:3126)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">"Kebijakan kerja memengaruhi produktivitas, kepuasan kerja pegawai, dan risiko pergantian staf secara bertahap."</div>
+            <p>Paragraf pengantar psikologi manajemen yang bertele-tele.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">"Atur jam kerja, fasilitas, dan bonus insentif pegawai."</div>
+            <p>Ganti dengan subjudul aksi langsung.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Menenggelamkan slider pengaturan gaji dan jam kerja.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>BISNIS MODAL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="bisnis modal">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-38]</span>
+          <span>Pengulangan Nama Holding pada Judul Header dan Subjudul Modal Transfer</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Modal Transfer Holding (app.js:2292)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Header: Transfer Internal · [Nama Holding] | Subjudul: Transfer modal antar anak usaha [Nama Holding]</div>
+            <p>Nama holding diulang-ulang di header dan teks panduan.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Header: Transfer Modal Holding | Sub: Pilih pengirim dan penerima dana</div>
+            <p>Gunakan judul ringkas dan letakkan nama holding di ringkasan rekening.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Judul modal terpotong di layar kecil.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>BISNIS MODAL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="bisnis">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-39]</span>
+          <span>Pemberitahuan 'Perubahan perusahaan belum tersedia' Saat Gagal Operasi</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Error Handler Bisnis (app.js:3256)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">"Perubahan perusahaan belum tersedia: [Error Message]"</div>
+            <p>Judul error yang kaku dan terkesan fitur belum dibangun.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">"Operasi Belum Dapat Diproses: [Penyebab Nyata]"</div>
+            <p>Ganti judul notifikasi menjadi 'Transaksi Bisnis Tertunda'.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Menurunkan kepercayaan pemain terhadap stabilitas game.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>BISNIS</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="bisnis">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-40]</span>
+          <span>Pill Subtab 'Usaha Saya / Koleksi / Kelola Dana' Tanpa Jumlah Item Aktif</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Subnav Tab Bisnis (index.html:224-228)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">[🏢 Usaha Saya] [💎 Koleksi] [💼 Kelola Dana]</div>
+            <p>Pemain tidak tahu apakah ada anak usaha atau koleksi tanpa mengklik tab satu per satu.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">[Usaha (1)] [Koleksi (0)] [Kelola Dana]</div>
+            <p>Sertakan counter dinamis kecil pada subtab aktif.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Navigasi buta yang memerlukan klik tambahan.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>BISNIS</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="lainnya">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-41]</span>
+          <span>Banner Hero Progres Tab Lainnya yang Menduplikasi Profil Pemain</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Puncak Tab Lainnya (app.js:3529-3567)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Banner Raksasa: Nama Trader, Level, Pangkat, Reputasi, XP, Status Sesi (180px)</div>
+            <p>Menghabiskan setengah layar pertama hanya untuk mengulang data profil.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Header Ramping: 'Pusat Kontrol & Pengaturan' -> Langsung ke Menu Layanan</div>
+            <p>Rampingkan banner profil; jadikan Tab Lainnya efisien sebagai hub menu.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Menu-menu penting di Tab Lainnya terdorong jauh ke dasar layar.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>LAINNYA</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="lainnya">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-42]</span>
+          <span>Badge Eyebrow Kapital Ganda 'PROFIL & PRESTISE' pada Setiap Kartu Hub</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Hub Groups Tab Lainnya (app.js:3570, 3580, 3598, 3608)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Header grup memuat dua judul: 'PROFIL & PRESTISE' (eyebrow) + 'Profil & Progres' (h2)</div>
+            <p>Menampilkan dua judul yang maknanya hampir identik pada setiap seksi menu.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Cukup 1 judul jelas: 'Profil & Progres'</div>
+            <p>Hapus eyebrow kapital; gunakan heading h2 yang bersih.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Memperpanjang kartu menu secara visual tanpa fungsi.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>LAINNYA</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="lainnya">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-43]</span>
+          <span>Keterangan Subteks Menu 'Pohon Riset Finansial Tech Tree' Berulang</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Hub Menu Riset (app.js:3602)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Judul: Pohon Riset Finansial (Tech Tree) | Subteks: 'Riset teknologi order, analisis pasar, dan fitur bursa'</div>
+            <p>Kata 'riset' diulang 3 kali dalam satu baris menu.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Pohon Riset Finansial | Sub: 'Buka fitur bursa & teknologi baru'</div>
+            <p>Persingkat subteks menjadi manfaat utama.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Teks bertele-tele.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>LAINNYA</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="lainnya">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-44]</span>
+          <span>Deskripsi Menu 'Penyimpanan Permainan & Backup' yang Terlalu Panjang</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Hub Menu Pengaturan (app.js:3612)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">'Simpan permainan secara manual dan periksa integritas cadangan'</div>
+            <p>Deskripsi memanjang 2 baris penuh di layar kecil.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">'Kelola berkas simpanan & cadangan game'</div>
+            <p>Rampingkan menjadi kalimat ringkas padat.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Baris menu menjadi sangat tinggi.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>LAINNYA</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="lainnya">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-45]</span>
+          <span>Deskripsi Menu 'Mulai Permainan Baru (Reset Run)' Berisi Jargon 'Reset Run'</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Hub Menu Pengaturan (app.js:3614)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">'Mulai Permainan Baru (Reset Run)' - 'Mulai ulang permainan dari awal dengan konfirmasi ganda aman'</div>
+            <p>Istilah teknis gaming 'Reset Run' dan kata 'konfirmasi ganda aman' terdengar seperti pesan dev.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">'Mulai Permainan Baru' - 'Reset progres untuk memulai kembali dari awal'</div>
+            <p>Gunakan bahasa Indonesia standar yang bersih.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Kurang ramah bagi pemain kasual.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>LAINNYA</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="lainnya">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-46]</span>
+          <span>Tag Status Sesi Game di Hero Banner Tab Lainnya</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Hero Banner Tab Lainnya (app.js:3564)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Kotak status: 'Status Pasar: Sesi II'</div>
+            <p>Status sesi bursa sudah terpampang jelas di bilah context strip bagian atas.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><!-- Dieliminasi; sudah ada di header utama aplikasi --&gt;</div>
+            <p>Hapus kotak status pasar dari hero banner Tab Lainnya.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Pengulangan informasi sesi di layar yang sama.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>LAINNYA</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="lainnya">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-47]</span>
+          <span>Ikon Menu Hub yang Menggunakan Karakter Emoji Campuran</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Grup Menu Tab Lainnya (app.js:3572-3614)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Emoji: 👤, 🏆, 🎯, 🌟, 📋, 🥇, 🎁, ⚔️, 📊, 📰, 🌳, ⚡, 📖, ⏱️, 💾, 🔔, 🔄</div>
+            <p>Emoji warna-warni bawaan OS sering terlihat tidak konsisten dan bertabrakan dengan palet tema Tycoon.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Standardisasi ikon monokrom emas/krem yang selaras dengan tema</div>
+            <p>Bungkus emoji dalam wadah monokrom dengan filter warna tema terpadu.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Estetika visual terasa kurang serasi antar perangkat Android yang berbeda font emoji.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>LAINNYA</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="detail">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-48]</span>
+          <span>Tiga Kali Pengulangan Nama Perusahaan, Bursa & Sektor pada Detail Saham</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Detail Saham BBCA (app.js:4125, 4417-4424)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Header: Bank Central Asia Tbk | Di bawah harga: Keuangan | Di bawah: Nama resmi, Bursa, Sektor</div>
+            <p>Tiga entitas teks statis yang persis sama dicetak 3 kali dalam satu halaman.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Header: Nama & Sektor | Kartu Profil Bawah: Langsung ke Deskripsi Bisnis & Web</div>
+            <p>Pusatkan identitas emiten di header atas, bersihkan pengulangan di bawah.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Memperpanjang scroll vertikal dengan teks statis berulang.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>DETAIL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="detail">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-49]</span>
+          <span>Daftar 20 Baris Rasio Akuntansi Mentah Tanpa Pengelompokan</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Tab Valuasi Detail Saham (app.js:4434-4475)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">EPS, PER, PBV, ROE, ROA, DER, DPS, DPR, Yield, Aset, Liabilitas, Ekuitas... (20 Baris)</div>
+            <p>Daftar vertikal 400px penuh istilah teknis akuntansi yang melelahkan di-scroll.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Grid 4 Rasio Inti [PER] [PBV] [ROE] [Yield] + Lipatan [▶ Laporan Keuangan Lengkap]</div>
+            <p>Sorot 4 rasio utama di grid 4-kolom; simpan rincian dalam menu lipat.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Layar detail menjadi sangat panjang dan istilah CFO/CFI/DER membingungkan.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>DETAIL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="detail">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-50]</span>
+          <span>Tombol Manual Redundan 'Perbarui harga & antrean' pada Detail Saham</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Di Atas Dock Transaksi Detail Saham (app.js:4535-4539)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box"><button class="btn-secondary">Perbarui harga & antrean</button></div>
+            <p>Tombol manual berukuran penuh padahal kuotasi harga sudah otomatis sinkron real-time.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><!-- Dieliminasi; sistem mengandalkan auto-sync reaktif yang sudah terbukti --></div>
+            <p>Hapus tombol manual ini sepenuhnya.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Memakan ruang tepat di atas tombol beli dan membuat ragu apakah sistem otomatis.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>DETAIL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="detail">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-51]</span>
+          <span>Pemberitahuan Suspensi 'Pemberitahuan: Perdagangan instrumen ini sedang di-halt...'</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Detail Saham (app.js:4517)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box"><p class="notice">Pemberitahuan: Perdagangan instrumen ini sedang di-halt / disuspensi bursa. Order baru tidak dapat diproses.</p></div>
+            <p>Kalimat birokrasi panjang yang formal dan kaku.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><p class="notice" style="color:var(--negative);">⛔ Saham sedang disuspensi bursa (ARA/ARB). Transaksi ditutup sementara.</p></div>
+            <p>Ubah menjadi badge status suspensi yang ringkas dan padat.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Memakan 3 baris teks peringatan tebal.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>DETAIL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="detail">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-52]</span>
+          <span>Penjelasan Satuan '100 saham/unit (1 lot)' yang Diulang di Setiap Emiten</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Header Detail Saham (app.js:4128)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">`${latestSnapshot.clock.date} ${latestSnapshot.clock.time} · ${stock.lotSize} saham/unit (1 lot)`</div>
+            <p>Penjelasan definisi lot diulang setiap kali membuka detail saham.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">`${latestSnapshot.clock.time} WIB · 1 Lot = 100 Lbr`</div>
+            <p>Singkat penulisan satuan menjadi '1 Lot = 100 Lbr'.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Teks metadata menjadi panjang dan berpotensi terpotong.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>DETAIL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="detail">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-53]</span>
+          <span>Pesan 'Belum memiliki posisi pada instrumen ini' Mengisi Kartu Khusus</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Kartu Kepemilikan Detail Saham (app.js:4142)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box"><div class="card"><p class="notice">Belum memiliki posisi pada instrumen ini.</p></div></div>
+            <p>Membuat kartu kosong tersendiri untuk memberi tahu hal yang pemain sudah ketahui.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><!-- Sembunyikan kartu jika kuantitas 0; tampilkan hanya jika pemain memiliki saham --></div>
+            <p>Tampilkan kartu kepemilikan hanya jika saldo lembar > 0.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Menambah ketinggian scroll detail saham sebesar 60px.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>DETAIL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="detail">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-54]</span>
+          <span>Label 'Perkiraan dampak: naik · +2.0% - 5.0%' pada Berita Terkait Emiten</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Kartu Berita Terkait Detail Saham (app.js:4486)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">"... Perkiraan dampak: naik · +2.0% - 5.0%"</div>
+            <p>Frasa panjang yang membuat kartu berita menjadi padat dan bertumpuk.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">"Estimasi: +2% ~ 5%"</div>
+            <p>Gunakan tag pill estimasi ringkas di pojok kartu berita.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Judul berita terdesak ke atas.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>DETAIL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="order">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-55]</span>
+          <span>Teks Bantuan Tiket Order 'Biaya dan perkiraan kas ditampilkan sebelum order dikirim'</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Tiket Order Modal (index.html:305)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box"><p id="order-est-total">Biaya dan perkiraan kas ditampilkan sebelum order dikirim.</p></div>
+            <p>Teks placeholder statis yang tidak menampilkan angka kalkulasi sebelum tombol ditekan.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><p id="order-est-total">Estimasi Kas Diperlukan: <strong>Rp 1.044.500</strong></p></div>
+            <p>Langsung hitung dan tampilkan perkiraan total dana riil secara live.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Pemain tidak tahu total uang yang harus dikeluarkan saat mengatur jumlah lot.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>ORDER</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="order">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-56]</span>
+          <span>Duplikasi Label 'Beli' dan 'Harga beli maksimal' pada Form Limit</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Tiket Order Modal (app.js:7487)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Tombol aktif [BELI] & Label input: 'Harga beli maksimal (IDR)'</div>
+            <p>Kata 'beli' diulang di tombol dan di label input.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Tombol aktif [BELI] & Label input: 'Harga Limit (IDR)'</div>
+            <p>Cukup beri label 'Harga Limit (IDR)'.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Label input menjadi panjang dan terpotong di layar ponsel.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>ORDER</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="order">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-57]</span>
+          <span>Pill Tombol Persentase Lot (25%, 50%, 75%, MAX) yang Terlalu Rapat</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Tiket Order Modal (index.html:295-300)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">4 tombol berdempetan dengan padding minim di bawah input unit</div>
+            <p>Pemain berisiko salah menekan (misal ingin 50% terpencet MAX) karena tombol terlalu rapat.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Grid 4 tombol dengan target sentuh minimal 44px ramah jempol</div>
+            <p>Beri celah yang nyaman dan konfirmasi visual tegas saat dipilih.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Risiko fatal salah beli modal penuh.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>ORDER</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="order">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-58]</span>
+          <span>Teks Review Order 'Mode: Pasar Internal Game' yang Berulang</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Modal Tinjau Order (app.js:4538)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">flowText(panel, 'Mode', 'Pasar Internal Game')</div>
+            <p>Semua order berjalan di pasar internal game; baris ini tidak memberi informasi penting.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><!-- Dihapus dari ringkasan review order --></div>
+            <p>Hapus baris mode dari tinjauan order.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Memanjangkan dialog review order.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>ORDER</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="order">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-59]</span>
+          <span>Keterangan Waktu Berlaku 'Estimasi berlaku hingga: 15:45:00 WIB' pada Review Order</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Modal Tinjau Order (app.js:4548)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">flowText(panel, 'Estimasi berlaku hingga', '15:45:00 WIB')</div>
+            <p>Menampilkan countdown 30 detik untuk quote pasar internal yang membuat pemain panik terburu-buru.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><!-- Dieliminasi jika order bertipe DAY (berlaku hingga tutup bursa) --></div>
+            <p>Hapus batas waktu 30 detik pada pasar internal reguler.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Menciptakan urgensi buatan yang tidak perlu pada simulasi offline.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>ORDER</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="tinggi" data-category="modal">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-60]</span>
+          <span>Paragraf Esai Pembuka Panjang (100–180 Karakter) di 15+ Modal Dialog</span>
+        </div>
+        <span class="badge-priority tinggi">TINGGI</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Tersebar di 15+ Modal Dialog (app.js:5686, 5783, 6366, dll.)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">"Spesifikasi D05: Fasilitas pinjaman tenor 7/14/30 hari game dengan bunga harian 0.05% atas sisa pokok dan provisi cair 0.5%."</div>
+            <p>Esai panjang di baris pertama menelan 35% area layar modal di ponsel portrait.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Ketentuan Fasilitas: Tenor fleksibel 7, 14, atau 30 hari game dengan bunga 0.05%/hari.</div>
+            <p>Pangkas esai pembuka menjadi subjudul to-the-point maksimal 40 karakter.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Pemain harus scroll ke bawah hanya untuk menemukan tombol aksi.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>MODAL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="modal">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-61]</span>
+          <span>Teks Dialog Pemulihan Save yang Terlalu Defensif & Bergaya Catatan Dev</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Modal Pemulihan Save Game (app.js:594-595)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">"Save tidak dapat divalidasi. Berkas asli tidak dihapus... jangan membuat save baru di slot ini."</div>
+            <p>Bahasa instruksi internal teknis yang menakuti dan membingungkan pemain.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">"Data sesi permainan belum dapat dimuat. Berkas cadangan tersimpan aman. Tekan tombol di bawah untuk memuat cadangan valid terakhir."</div>
+            <p>Gunakan bahasa produk yang menenangkan dan instruktif.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Pemain panik mengira progresnya hilang selamanya.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>MODAL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="modal">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-62]</span>
+          <span>Teks Sisa Konsep Developer '(Satu Pintu)' pada Judul Terminal Riset</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Header Modal Terminal Riset (app.js:3294)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">showFlow('Terminal Riset Pasar (Satu Pintu)')</div>
+            <p>Teks dalam kurung adalah sisa nama konsep arsitektur plan pengembang.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">showFlow('Terminal Riset Pasar')</div>
+            <p>Hapus teks '(Satu Pintu)' dari judul header.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Tampak canggung di layar pemain.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>MODAL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="modal">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-63]</span>
+          <span>Judul Subtab Panjang 'Pohon Riset Finansial Tech Tree'</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Modal Tech Tree (app.js:8088)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">showFlow('Pohon Riset Finansial Tech Tree')</div>
+            <p>Mencampurkan istilah terjemahan 'Pohon Riset' dengan bahasa Inggris 'Tech Tree' di judul yang sama.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">showFlow('Riset Teknologi Finansial')</div>
+            <p>Gunakan judul ringkas: 'Riset Teknologi Finansial'.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Judul header terpotong di samping tombol kembali.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>MODAL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="modal">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-64]</span>
+          <span>Penjelasan Rumus Matematika 'Total kekayaan = Aset pribadi + Nilai ekuitas...' pada Modal Konsolidasi</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Modal Kekayaan Konsolidasi (app.js:5473)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">flowText(panel, 'Perhitungan kekayaan', 'Total kekayaan = Aset pribadi + Nilai ekuitas anak usaha + Koleksi mewah − Liabilitas...')</div>
+            <p>Menulis rumus teks aljabar panjang padahal pemain bisa langsung melihat tabel neracanya.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box"><!-- Dihapus; langsung sajikan tabel rincian aset dan total di kartu hero --></div>
+            <p>Hapus rumus teks; biarkan tabel angka berbicara sendiri.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Membuang ruang atas modal.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>MODAL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="modal">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-65]</span>
+          <span>Pesan Warning 'Gaya investasi sedang dievaluasi otomatis tanpa kuis buatan' di Modal Arketipe</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Modal Arketipe Investor (app.js:6945)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">'Gaya investasi sedang dievaluasi otomatis tanpa kuis buatan.'</div>
+            <p>Frasa defensif 'tanpa kuis buatan' adalah catatan perbandingan developer terhadap game lain.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">'Sistem sedang menganalisis gaya trading dari transaksi riil Anda.'</div>
+            <p>Ganti dengan kalimat positif tentang evaluasi trading riil.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Pemain merasa aneh membaca alasan tersebut.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>MODAL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="modal">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-66]</span>
+          <span>Label Teknis 'Skema V2, UTF-8' pada Modal Pengaturan Save</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Modal Penyimpanan Permainan (app.js:3871)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">flowText(panel, 'Format Berkas', 'JSON Standar (Skema V2, UTF-8)')</div>
+            <p>Pemain game tidak butuh informasi encoding UTF-8 atau nomor skema JSON.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">flowText(panel, 'Status Penyimpanan', 'Penyimpanan Lokal Terverifikasi')</div>
+            <p>Ganti dengan status verifikasi penyimpanan yang ramah pengguna.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Tampilan teknis kaku.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>MODAL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="modal">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-67]</span>
+          <span>Paragraf Ketentuan Cutoff Reksa Dana 'Pembatalan sebelum 15:30 WIB' yang Kaku</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Modal Pasar Reksa Dana (app.js:5528)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">'Cutoff Senin–Jumat pukul 16:00 WIB. Pembatalan sebelum 15:30 WIB. Harga final mengikuti NAB hari bursa bersangkutan.'</div>
+            <p>Paragraf disclaimer prospektus yang panjang di atas katalog reksa dana.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">'Cutoff transaksi pukul 16:00 WIB. Harga unit mengikuti valuasi NAB harian.'</div>
+            <p>Persingkat menjadi satu baris aturan jadwal cutoff.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Daftar produk reksa dana terdorong ke bawah.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>MODAL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="tinggi" data-category="shell modal">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-68]</span>
+          <span>Pesan Sukses Berulang Toast Autosave 'Progres tersimpan' yang Mengganggu Layar</span>
+        </div>
+        <span class="badge-priority tinggi">TINGGI</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Autosave Background Hook (app.js:558, 8350)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Memunculkan toast pop-up setiap kali siklus simpan berkala dijalankan</div>
+            <p>Melanggar keputusan resmi pemilik Q&A 44 ('Autosave tanpa pesan sukses setiap kali; saat gagal beri peringatan').</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Autosave hening (silent autosave); hanya beri notifikasi jika terjadi kegagalan simpan</div>
+            <p>Jadikan autosave berjalan hening di latar belakang tanpa toast sukses berulang.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Toast pop-up terus bermunculan dan menutupi tombol header setiap beberapa menit.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>SHELL MODAL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="sedang" data-category="modal">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-69]</span>
+          <span>Teks Konfirmasi Berulang 'Apakah Anda yakin ingin memulai Era Baru?'</span>
+        </div>
+        <span class="badge-priority sedang">SEDANG</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Modal Prestise & Era Baru (app.js:3672)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Alert browser konfirmasi teks panjang dengan huruf kapital 'PERINGATAN ERA BARU:...'</div>
+            <p>Menggunakan browser alert pop-up native yang memblokir layar dan merusak estetika game.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Gunakan sheet konfirmasi UI terpadu di dalam game dengan ringkasan bonus</div>
+            <p>Gunakan modal dialog in-game yang elegan dengan tombol Ya/Batal.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Pengalaman bermain terputus oleh dialog bawaan browser OS.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>MODAL</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="finding-card" data-priority="rendah" data-category="modal">
+      <div class="finding-header">
+        <div class="finding-id">
+          <span>[AUDIT-70]</span>
+          <span>Tombol 'Hentikan perpanjangan otomatis' pada Paket Basic yang Belum Pernah Langganan</span>
+        </div>
+        <span class="badge-priority rendah">RENDAH</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-meta">📍 Lokasi: Modal Kelola Paket Terminal Riset (app.js:3450)</div>
+        <div class="compare-grid">
+          <div class="compare-col before">
+            <div class="compare-title">❌ SEBELUM (BEFORE)</div>
+            <div class="quote-box">Pengecekan autoRenewal render kontrol pada kondisi paket yang tidak berlangganan</div>
+            <p>Menyajikan opsi pembatalan pada status paket gratisan.</p>
+          </div>
+          <div class="compare-col after">
+            <div class="compare-title">✨ SESUDAH (AFTER)</div>
+            <div class="quote-box">Tampilkan tombol batal perpanjangan HANYA pada paket Pro atau Whale yang sedang aktif</div>
+            <p>Sembunyikan kontrol pembatalan jika pemain berada di paket Basic.</p>
+          </div>
+        </div>
+        <div class="finding-detail-grid">
+          <div class="fd-item"><strong>Dampak:</strong><p>Membingungkan pemain apakah mereka sedang terkena tagihan atau tidak.</p></div>
+          <div class="fd-item"><strong>Kategori Area:</strong><p>MODAL</p></div>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+</div>
+
+<script>
+function filterFindings(category, e) {
+  const cards = document.querySelectorAll('.finding-card');
+  const buttons = document.querySelectorAll('.filter-btn');
+  buttons.forEach(b => b.classList.remove('active'));
+  if (e && e.target) e.target.classList.add('active');
+
+  cards.forEach(card => {
+    if (category === 'all') {
+      card.style.display = 'block';
+    } else if (category === 'tinggi' || category === 'sedang' || category === 'rendah') {
+      card.style.display = card.getAttribute('data-priority') === category ? 'block' : 'none';
+    } else {
+      const cats = card.getAttribute('data-category') || '';
+      card.style.display = cats.includes(category) ? 'block' : 'none';
+    }
+  });
+}
+</script>
+
+</body>
+</html>

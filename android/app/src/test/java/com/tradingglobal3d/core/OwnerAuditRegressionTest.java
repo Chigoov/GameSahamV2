@@ -3,9 +3,12 @@ package com.tradingglobal3d.core;
 import com.tradingglobal3d.core.clock.GameClock;
 import com.tradingglobal3d.core.facade.TradingFacade;
 import com.tradingglobal3d.core.market.InstrumentCatalog;
+import com.tradingglobal3d.core.model.Account;
+import com.tradingglobal3d.core.model.AccountType;
 import com.tradingglobal3d.core.model.Currency;
 import com.tradingglobal3d.core.model.GameMode;
 import com.tradingglobal3d.core.model.Money;
+import com.tradingglobal3d.core.model.Position;
 import com.tradingglobal3d.core.player.PlayerProgressManager;
 import com.tradingglobal3d.core.storage.SaveManager;
 import org.junit.Rule;
@@ -66,7 +69,7 @@ public class OwnerAuditRegressionTest {
             java.time.LocalTime time = game.getClock().getCurrentTime();
             game.getClock().setSpeedMultiplier(speed);
             game.getClock().play();
-            assertTrue(game.tick(3600)); // One real hour/day at 24x, independent of legacy speed.
+            assertTrue(game.tick(1800)); // 30 real minutes/day at 48x, independent of legacy speed.
             assertEquals(start.plusDays(1), game.getClock().getCurrentDate());
             assertEquals(time, game.getClock().getCurrentTime());
             assertEquals(1, game.getCareerManager().getSessionReports().size());
@@ -160,13 +163,17 @@ public class OwnerAuditRegressionTest {
         for (java.util.Map.Entry<String, Long> article : schedule.entrySet())
             if (article.getValue() <= game.getGameTimestamp()) expected.add(article.getKey());
         java.util.Set<String> published = new java.util.HashSet<>();
-        for (com.tradingglobal3d.core.research.NewsArticle article : game.getNewsFeed()) published.add(article.getId());
+        for (com.tradingglobal3d.core.research.NewsArticle article : game.getNewsFeed()) {
+            if (!article.getId().startsWith("NEWS-AUTO-")) published.add(article.getId());
+        }
         assertEquals(expected, published);
         assertTrue(game.load());
         java.util.Set<String> reloaded = new java.util.HashSet<>();
         for (com.tradingglobal3d.core.research.NewsArticle article : game.getNewsFeed()) {
-            reloaded.add(article.getId());
-            assertEquals(schedule.get(article.getId()).longValue(), article.getPublishedAt());
+            if (!article.getId().startsWith("NEWS-AUTO-")) {
+                reloaded.add(article.getId());
+                assertEquals(schedule.get(article.getId()).longValue(), article.getPublishedAt());
+            }
         }
         assertEquals(published, reloaded);
         assertFalse(game.recordResearchRead("NEWS-FUTURE-01"));
@@ -180,7 +187,7 @@ public class OwnerAuditRegressionTest {
         game.skipDay("OLD-SESSION");
         game.getCatalog().addToWatchlist("IDX:BBCA");
         game.createStrategySandbox("OLD-LAB");
-        game.deposit("SUB-USD", game.getPersonalAccount().getId(), Money.of(10_000, Currency.USD), "TEST ONLY");
+        game.deposit("SUB-USD", game.getPersonalAccount().getId(), Money.of(500_000, Currency.USD), "TEST ONLY");
         GameTestSupport.unlockManager(game);
         assertTrue(game.subscribeTerminal(com.tradingglobal3d.core.research.TerminalTier.PRO));
         game.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(50_000_000));
@@ -207,13 +214,18 @@ public class OwnerAuditRegressionTest {
 
     @Test public void restingOrderFillAlsoAwardsTradeAchievement() throws Exception {
         TradingFacade game = game();
+        game.getMarketEngine().reset();
+        game.getClock().advanceGameSeconds(1800); // 09:00 WIB (Sesi bursa buka)
         com.tradingglobal3d.core.trading.Order buy = com.tradingglobal3d.core.trading.Order.createLimit(
                 "RESTING-BUY", "IDX:BBCA", game.getPersonalAccount().getId(), com.tradingglobal3d.core.trading.OrderSide.BUY,
                 Money.of(10000, Currency.IDR), 100, 1L);
         assertTrue(game.submitOrder(buy).isSuccess);
         assertEquals(0, game.getProgressManager().getCurrentXp());
+        Account seller = new Account("ACC-SELLER-ACHIEVE", "Seller", AccountType.FIRM, null);
+        seller.addPosition(new Position("BBCA", "IDX", Currency.IDR, 100, new BigDecimal("10000"), new BigDecimal("10000")));
+        game.registerAccount(seller);
         com.tradingglobal3d.core.trading.Order sell = com.tradingglobal3d.core.trading.Order.createLimit(
-                "MATCH-RESTING", "IDX:BBCA", "ACC-NPC-MM-01", com.tradingglobal3d.core.trading.OrderSide.SELL,
+                "MATCH-RESTING", "IDX:BBCA", seller.getId(), com.tradingglobal3d.core.trading.OrderSide.SELL,
                 Money.of(10000, Currency.IDR), 100, 2L);
         assertTrue(game.submitOrder(sell).isSuccess);
         assertEquals(100, game.getProgressManager().getCurrentXp());
@@ -237,7 +249,7 @@ public class OwnerAuditRegressionTest {
 
     @Test public void terminalSubscriptionExpiresAtGameTimeBoundary() throws Exception {
         TradingFacade game = game();
-        game.deposit("TERMINAL-USD", game.getPersonalAccount().getId(), Money.of(1000, Currency.USD), "TEST ONLY");
+        game.deposit("TERMINAL-USD", game.getPersonalAccount().getId(), Money.of(500_000, Currency.USD), "TEST ONLY");
         GameTestSupport.unlockManager(game);
         assertTrue(game.subscribeTerminal(com.tradingglobal3d.core.research.TerminalTier.PRO));
         game.getClock().advanceGameSeconds(30L*86400);
@@ -254,50 +266,13 @@ public class OwnerAuditRegressionTest {
         assertTrue(game.reconcileAll());
     }
 
-    @Test public void productionBridgeCanStartHistoricalReplayMode() throws Exception {
+    @Test public void productionBridgeRejectsHistoricalReplayModePerActiveProductDecision() throws Exception {
         TradingFacade game = game();
         com.tradingglobal3d.mobile.TradingWebBridge bridge = new com.tradingglobal3d.mobile.TradingWebBridge(game);
         org.json.JSONObject result = new org.json.JSONObject(bridge.startNewGame("{\"mode\":\"HISTORICAL_REPLAY\",\"datasetId\":\"US:AAPL\",\"initialCapital\":50000000}"));
-        assertTrue(result.getBoolean("success"));
-        assertEquals(GameMode.HISTORICAL_REPLAY, game.getGameMode());
-        assertEquals("US:AAPL", result.getString("datasetId"));
-        assertTrue(game.getReplayEngine().isReplayActive());
-
-        // 1. Chart anti-leak: only 1 visible bar initially
-        org.json.JSONObject chart = game.getChartData("US:AAPL", "1D");
-        assertTrue(chart.getBoolean("success"));
-        org.json.JSONArray bars = chart.getJSONArray("bars");
-        assertEquals(1, bars.length());
-        assertEquals("2016-05-09", bars.getJSONObject(0).getString("time"));
-
-        // 2. Submit order in historical replay
-        org.json.JSONObject orderReq = new org.json.JSONObject()
-                .put("requestId", "HIST-ORDER-1")
-                .put("instrumentId", "US:AAPL")
-                .put("side", "BUY")
-                .put("type", "LIMIT")
-                .put("quantity", 10)
-                .put("limitPrice", "93.0"); // Open is 93.0, Low is 92.59, High is 93.77
-        org.json.JSONObject orderRes = new org.json.JSONObject(bridge.submitOrder(orderReq.toString()));
-        assertTrue(orderRes.getBoolean("success"));
-        assertEquals("FILLED", orderRes.getString("status"));
-        assertEquals(10, game.getPersonalAccount().getPosition("US:AAPL").getQuantity());
-
-        // 3. Advance to next day
-        game.skipDay("HIST-SKIP-1");
-        org.json.JSONObject chart2 = game.getChartData("US:AAPL", "1D");
-        org.json.JSONArray bars2 = chart2.getJSONArray("bars");
-        assertEquals(2, bars2.length());
-        assertEquals("2016-05-10", bars2.getJSONObject(1).getString("time"));
-
-        // 4. Save and reload
-        bridge.saveGame();
-        TradingFacade reloaded = new TradingFacade(game.getSaveManager());
-        reloaded.setCatalog(game.getCatalog());
-        assertTrue(reloaded.load());
-        assertEquals(GameMode.HISTORICAL_REPLAY, reloaded.getGameMode());
-        assertTrue(reloaded.getReplayEngine().isReplayActive());
-        assertEquals(1, reloaded.getReplayEngine().getCurrentBarIndex());
+        assertFalse("Replay historis wajib ditolak sesuai keputusan K02/A06", result.getBoolean("success"));
+        assertTrue("Pesan penolakan harus mencantumkan dinonaktifkan", result.getString("message").contains("dinonaktifkan"));
+        assertEquals("Mode game tetap INTERNAL_MARKET", GameMode.INTERNAL_MARKET, game.getGameMode());
     }
 
     @Test public void clockFailurePausesInsteadOfRetryingEachTick() throws Exception {

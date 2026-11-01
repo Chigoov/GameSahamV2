@@ -103,6 +103,20 @@ public final class ResearchTechTreeService {
         if (node == null) throw new IllegalArgumentException("Node riset tidak ditemukan: " + nodeId);
         if (node.isUnlocked()) return node;
 
+        // Validasi prasyarat tier level dalam kategori yang sama (Bug #323)
+        if (node.getTierLevel() > 1) {
+            boolean prevUnlocked = false;
+            for (TechNode other : nodes.values()) {
+                if (other.getCategory().equals(node.getCategory()) && other.getTierLevel() == node.getTierLevel() - 1 && other.isUnlocked()) {
+                    prevUnlocked = true;
+                    break;
+                }
+            }
+            if (!prevUnlocked) {
+                throw new IllegalStateException("Prasyarat riset belum terpenuhi: Tier " + (node.getTierLevel() - 1) + " pada kategori " + node.getCategory() + " harus dibuka terlebih dahulu.");
+            }
+        }
+
         Money cost = node.getUpgradeCost();
         Money avail = account.getAvailableCash(Currency.IDR);
         if (avail.isLessThan(cost)) {
@@ -116,7 +130,7 @@ public final class ResearchTechTreeService {
                 cost,
                 false, // debit
                 now,
-                "Upgrade Pohon Riset Finansial: " + node.getNodeName()
+                "Investasi Riset Finansial: " + node.getNodeName()
         );
 
         node.unlock();

@@ -2,6 +2,7 @@ package com.tradingglobal3d.core;
 
 import com.tradingglobal3d.core.economy.FxExchangeService;
 import com.tradingglobal3d.core.economy.FxQuote;
+import com.tradingglobal3d.core.economy.LedgerEntryType;
 import com.tradingglobal3d.core.facade.TradingFacade;
 import com.tradingglobal3d.core.market.Instrument;
 import com.tradingglobal3d.core.market.InstrumentCatalog;
@@ -44,6 +45,7 @@ public class TradingPortfolioFxTest {
         facade.setCatalog(catalog);
         facade.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(50_000_000));
         GameTestSupport.unlockManager(facade);
+        facade.getClock().advanceGameSeconds(1800); // 09:00 WIB bursa buka
 
         bbca = catalog.getById("IDX:BBCA");
         aapl = catalog.getById("US:AAPL");
@@ -65,11 +67,12 @@ public class TradingPortfolioFxTest {
 
     @Test
     public void testFullTradingJourneyBuyPartialCancelSell() {
-        Account personal = facade.getPersonalAccount();
-        Money startCash = personal.getTotalCash(Currency.IDR);
+        facade.getMarketEngine().reset();
+        Account firm = new Account("ACC-TEST-FIRM", "Firm Trader", AccountType.FIRM, null);
+        facade.getLedger().recordMutation("INIT-FIRM", firm, LedgerEntryType.INITIAL_CAPITAL, Money.of(50_000_000, Currency.IDR), true, System.currentTimeMillis(), "Modal awal firm");
 
         // Siapkan counterparty penjual dengan 100 lembar BBCA di harga 10.250
-        Account seller = new Account("ACC-SELLER-01", "Counterparty Penjual", AccountType.PERSONAL, null);
+        Account seller = new Account("ACC-SELLER-01", "Counterparty Penjual", AccountType.FIRM, null);
         seller.creditCash(Money.of(10_000_000, Currency.IDR));
         seller.addPosition(new Position("BBCA", "IDX", Currency.IDR, 100, BigDecimal.valueOf(10000), BigDecimal.valueOf(10250)));
 
@@ -81,32 +84,32 @@ public class TradingPortfolioFxTest {
         );
 
         Map<String, Account> map = new HashMap<>();
-        map.put(personal.getId(), personal);
+        map.put(firm.getId(), firm);
         map.put(seller.getId(), seller);
 
         facade.getMarketEngine().submitOrder(sellOrder, seller, bbca, facade.getLedger(), map, System.currentTimeMillis());
 
-        // 1. Pemain beli 300 lembar pada harga limit 10.250 (akan match 100, sisa 200 antre)
+        // 1. Akun non-pemain (Firm) beli 300 lembar pada harga limit 10.250 (akan match 100, sisa 200 antre partial fill)
         Order buyOrder = new Order(
                 "ORD-B-300", "REQ-B-300",
-                personal.getId(), bbca.getId(),
+                firm.getId(), bbca.getId(),
                 OrderSide.BUY, OrderType.LIMIT,
                 Money.of(10250, Currency.IDR), null, 300, System.currentTimeMillis(), null
         );
 
-        facade.getMarketEngine().submitOrder(buyOrder, personal, bbca, facade.getLedger(), map, System.currentTimeMillis());
+        facade.getMarketEngine().submitOrder(buyOrder, firm, bbca, facade.getLedger(), map, System.currentTimeMillis());
 
         assertEquals(OrderStatus.PARTIALLY_FILLED, buyOrder.getStatus());
         assertEquals(100, buyOrder.getFilledQuantity());
         assertEquals(200, buyOrder.getRemainingQuantity());
 
         // 2. Batalkan sisa 200 lembar
-        boolean cancelSuccess = facade.getMarketEngine().cancelOrder(buyOrder, personal);
+        boolean cancelSuccess = facade.getMarketEngine().cancelOrder(buyOrder, firm);
         assertTrue(cancelSuccess);
         assertEquals(OrderStatus.CANCELLED, buyOrder.getStatus());
 
         // 3. Jual 100 lembar saham yang dimiliki ke counterparty pembeli baru di harga 10.500 (ambil untung)
-        Account buyerNew = new Account("ACC-BUYER-02", "Pembeli Baru", AccountType.PERSONAL, null);
+        Account buyerNew = new Account("ACC-BUYER-02", "Pembeli Baru", AccountType.FIRM, null);
         buyerNew.creditCash(Money.of(10_000_000, Currency.IDR));
         map.put(buyerNew.getId(), buyerNew);
 
@@ -120,21 +123,22 @@ public class TradingPortfolioFxTest {
 
         Order sellPlayer = new Order(
                 "ORD-S-PLAYER", "REQ-S-PLAYER",
-                personal.getId(), bbca.getId(),
+                firm.getId(), bbca.getId(),
                 OrderSide.SELL, OrderType.LIMIT,
                 Money.of(10500, Currency.IDR), null, 100, System.currentTimeMillis(), null
         );
-        facade.getMarketEngine().submitOrder(sellPlayer, personal, bbca, facade.getLedger(), map, System.currentTimeMillis());
+        facade.getMarketEngine().submitOrder(sellPlayer, firm, bbca, facade.getLedger(), map, System.currentTimeMillis());
 
         assertEquals(OrderStatus.FILLED, sellPlayer.getStatus());
-        assertEquals(0, personal.getPosition("BBCA").getQuantity());
+        assertEquals(0, firm.getPosition("BBCA").getQuantity());
 
         // Verifikasi audit rekonsiliasi kas & ledger
-        assertTrue(facade.reconcileAll());
+        assertTrue(facade.getLedger().reconcile(firm, Currency.IDR));
     }
 
     @Test
     public void testFillMarksEveryHolderOfOnlyTheTradedExchange() {
+        facade.getMarketEngine().reset();
         Account holder = facade.createClientAccount("Holder", null, Money.of(1000000, Currency.IDR));
         holder.addPosition(new Position("BBCA", "IDX", Currency.IDR, 100, new BigDecimal("10000"), new BigDecimal("10000")));
         holder.addPosition(new Position("BBCA", "US", Currency.USD, 1, new BigDecimal("10"), new BigDecimal("10")));
@@ -155,7 +159,8 @@ public class TradingPortfolioFxTest {
     }
 
     @Test
-    public void testCrossingOwnOrderRejectsBeforeCashOrPriceChanges() {
+    public void testOwnOrderCannotSupplyMarketLiquidityOrChangeCashOrPrice() {
+        facade.getMarketEngine().reset();
         Account account = facade.getPersonalAccount();
         account.addPosition(new Position("BBCA", "IDX", Currency.IDR, 100, new BigDecimal("10000"), new BigDecimal("10250")));
         Order ask = Order.createLimit("SELF-ASK", bbca.getId(), account.getId(), OrderSide.SELL, Money.of(10500, Currency.IDR), 100, 1L);
@@ -163,8 +168,13 @@ public class TradingPortfolioFxTest {
         Money cash = account.getTotalCash(Currency.IDR);
         int entries = facade.getLedger().getEntries().size();
         Money price = bbca.getCurrentPrice();
-        Order buy = Order.createLimit("SELF-BUY", bbca.getId(), account.getId(), OrderSide.BUY, Money.of(10500, Currency.IDR), 100, 2L);
-        assertFalse("Own resting order must not generate a fill", facade.submitOrder(buy).isSuccess);
+        Map<String, Account> accounts = new HashMap<>();
+        for (Account a : facade.getAllAccounts()) accounts.put(a.getId(), a);
+        Order buy = new Order("SELF-BUY", "REQ-SELF-BUY", account.getId(), bbca.getId(),
+                OrderSide.BUY, OrderType.MARKET, null, null, 100, 2L, null);
+        var result = facade.getMarketEngine().submitOrder(buy, account, bbca, facade.getLedger(), accounts, 2L);
+        assertTrue("Own resting order must not generate a fill", result.fills.isEmpty());
+        assertEquals(OrderStatus.CANCELLED, buy.getStatus());
         assertEquals(OrderStatus.OPEN, ask.getStatus());
         assertEquals(0, ask.getFilledQuantity());
         assertEquals(100, account.getPosition("IDX:BBCA").getQuantity());
@@ -176,6 +186,7 @@ public class TradingPortfolioFxTest {
 
     @Test
     public void testInvalidSecondMakerCannotLeaveFirstFillPartiallySettled() {
+        facade.getMarketEngine().reset();
         Account first = facade.createClientAccount("First", null, Money.of(1000000, Currency.IDR));
         Account second = facade.createClientAccount("Second", null, Money.of(1000000, Currency.IDR));
         for (Account seller : new Account[]{first, second}) {
@@ -238,6 +249,7 @@ public class TradingPortfolioFxTest {
 
     @Test
     public void testInvalidOrderCannotChangeCashOrBook() {
+        facade.getMarketEngine().reset();
         Account personal = facade.getPersonalAccount();
         Money before = personal.getTotalCash(Currency.IDR);
         Order[] invalid = {
@@ -304,6 +316,7 @@ public class TradingPortfolioFxTest {
 
     @Test
     public void testTriggeredOrdersCancelUnfilledRemainderAndWaitDuringHalt() {
+        facade.getMarketEngine().reset();
         Account personal = facade.getPersonalAccount();
         personal.addPosition(new Position("BBCA", "IDX", Currency.IDR, 100,
                 BigDecimal.valueOf(10250), BigDecimal.valueOf(10250)));

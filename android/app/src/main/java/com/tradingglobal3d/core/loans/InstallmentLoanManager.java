@@ -26,6 +26,15 @@ public final class InstallmentLoanManager {
 
     private CollectionManager collectionManager;
     private final Map<String, LoanContract> loans = new LinkedHashMap<>();
+    private double currentMacroLoanRateAnnual = 10.75;
+
+    public synchronized void updateMacroLoanRate(double annualRate) {
+        if (annualRate > 0) this.currentMacroLoanRateAnnual = annualRate;
+    }
+
+    public synchronized double getCurrentMacroLoanRateAnnual() {
+        return currentMacroLoanRateAnnual;
+    }
 
     public synchronized void bindCollectionManager(CollectionManager collections) {
         Objects.requireNonNull(collections, "Registry koleksi wajib tersedia");
@@ -212,7 +221,8 @@ public final class InstallmentLoanManager {
         Money netDisbursed = principal.subtract(fee);
 
         String loanId = "LN-" + now + "-" + (loans.size() + 1);
-        LoanContract contract = new LoanContract(loanId, productId, account.getId(), principal, tenorDays, now);
+        BigDecimal dailyRate = BigDecimal.valueOf(currentMacroLoanRateAnnual).divide(BigDecimal.valueOf(36500), 8, RoundingMode.HALF_UP);
+        LoanContract contract = new LoanContract(loanId, productId, account.getId(), principal, tenorDays, now, dailyRate);
         loans.put(loanId, contract);
 
         // Kreditkan kas bersih ke akun
@@ -227,7 +237,7 @@ public final class InstallmentLoanManager {
         res.put("disbursementFee", fee.format());
         res.put("netCashDisbursed", netDisbursed.format());
         res.put("tenorDays", tenorDays);
-        res.put("dailyRate", "0.05% / hari");
+        res.put("dailyRate", String.format(Locale.ROOT, "%.3f%% / hari (%.2f%% p.a.)", (currentMacroLoanRateAnnual / 365.0), currentMacroLoanRateAnnual));
         res.put("dailyEstimate", contract.getDailyInstallmentEstimate().format());
         res.put("message", "Pencairan pinjaman " + loanId + " berhasil! Kas bersih " + netDisbursed.format() + " telah masuk ke akun.");
         return res;

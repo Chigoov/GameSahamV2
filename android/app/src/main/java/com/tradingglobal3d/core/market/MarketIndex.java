@@ -65,15 +65,16 @@ public final class MarketIndex {
             return currentValue;
         }
 
-        // MARKET_CAP_WEIGHTED
+        // MARKET_CAP_WEIGHTED (Free-Float Adjusted)
         BigDecimal totalCurrentCap = BigDecimal.ZERO;
         BigDecimal totalBaseCap = BigDecimal.ZERO;
 
         for (String mid : memberIds) {
             Instrument inst = instrumentMap.get(mid);
-            if (inst != null) {
-                BigDecimal curCap = inst.getCurrentPrice().getAmount().multiply(BigDecimal.valueOf(inst.getSharesOutstanding()));
-                BigDecimal baseCap = inst.getPreviousClosePrice().getAmount().multiply(BigDecimal.valueOf(inst.getSharesOutstanding()));
+            if (inst != null && inst.isActiveTrading()) {
+                long effectiveShares = Math.max(1L, (long)(inst.getSharesOutstanding() * Math.max(0.05, 1.0 - inst.getLockedFloatRatio())));
+                BigDecimal curCap = inst.getCurrentPrice().getAmount().multiply(BigDecimal.valueOf(effectiveShares));
+                BigDecimal baseCap = inst.getPreviousClosePrice().getAmount().multiply(BigDecimal.valueOf(effectiveShares));
                 totalCurrentCap = totalCurrentCap.add(curCap);
                 totalBaseCap = totalBaseCap.add(baseCap);
             }
@@ -82,6 +83,8 @@ public final class MarketIndex {
         if (totalBaseCap.compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal ratio = totalCurrentCap.divide(totalBaseCap, 6, RoundingMode.HALF_UP);
             this.currentValue = baseValue * ratio.doubleValue();
+        } else if (this.currentValue <= 0.0) {
+            this.currentValue = baseValue;
         }
         return currentValue;
     }

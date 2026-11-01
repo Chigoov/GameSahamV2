@@ -1,8 +1,16 @@
-# Game Saham: arah UI/UX aktif
+# Game Saham: arah UI/UX
 
-## Keputusan aktif 24 Oktober 2026: revisi 2 disetujui
+## Arah aktif terbaru: Tycoon Sinematik (28 Oktober 2026)
 
-Pemilik meninjau tiga contoh, meminta background gelap/UI terang/tab lama, lalu secara eksplisit menjawab “Setuju revisi 2; lanjutkan implementasi sesuai contoh”. Bukti dan riwayat ada di `Work/Master-Plan-Gabungan-2026-10-24/CHECKPOINT.md`; contoh di `Artifacts/Master-Plan-Gabungan-2026-10-24/design-prototype.html`. Bagian di bawah adalah sejarah, bukan pembatal kontrak ini.
+Pemilik memilih Tycoon Sinematik sebagai dasar seluruh game, sebagaimana dicatat pada `MASTER-PLAN-OFFLINE-DAN-REALISME-2026-10-28.md` bagian 2A. Contoh dasar bukan persetujuan detail atau implementasi semua layar. Tampilkan preview nyata dan minta persetujuan spesifik sebelum mengubah layar, komponen, teks, navigasi atau alur; kerjakan bagian independen saat menunggu. Pertahankan lima tab Beranda, Pasar, Portofolio, Bisnis, Lainnya; avatar bulat ke Profil; Tertahan tanpa panah dan dapat diketuk; indeks ringkas; Portofolio B; Profil A; ikon launcher; serta tiga alternatif galeri. Data contoh wajib diberi label. Keterbacaan, aksesibilitas, data domain nyata dan seluruh fitur yang masih berlaku tetap dijaga.
+
+Ketentuan visual yang lebih lama di bawah dipertahankan sebagai riwayat dan sumber rincian yang tidak bertentangan. Palet revisi 2, tema klasik atau empat tab tidak boleh menggantikan arah terbaru hanya karena disebut sebagai aktif di catatan historis. Jangan menganggap pilihan dasar sebagai bukti implementasi atau uji perangkat.
+
+## Arsip arahan visual terdahulu (historis)
+
+### Riwayat 24 Oktober 2026: revisi 2 disetujui pada saat itu
+
+Pemilik meninjau tiga contoh dan menyetujui revisi 2 pada saat itu. Bukti dan riwayat ada di `Work/Master-Plan-Gabungan-2026-10-24/CHECKPOINT.md`; contoh di `Artifacts/Master-Plan-Gabungan-2026-10-24/design-prototype.html`. Arah warna ini kemudian digantikan secara terbatas oleh Tycoon Sinematik pada 28 Oktober; rincian yang tidak bertentangan tetap perlu diperiksa.
 
 - Background navy `#101824`; panel putih `#FFFFFF`, konteks sekunder `#E8EEF5`. Teks panel `#162332`, pendukung `#526175`. Aksi biru `#165DCC`; untung `#087F5B`, rugi `#C22B43` disertai tanda/teks; bisnis `#6D40AF` terbatas; progres `#FFF5D9` dengan teks `#684300`. Tidak membuat toggle dua tema baru.
 - Lima tab tetap Beranda, Pasar, Portofolio, Bisnis, Lainnya. Portofolio kategori bertingkat, bukan accordion seluruh alat. Lainnya: Profil, Misi & Kompetisi, Riset, Pengaturan. Detail, review, receipt dan semua state mengikuti arah yang sama.
@@ -12,11 +20,11 @@ Pemilik meninjau tiga contoh, meminta background gelap/UI terang/tab lama, lalu 
 
 Pilihan background gelap dengan panel terang ini menggantikan usulan background terang menyeluruh di master plan. Tidak menyalin merek/aset broker. Empat blok Antislop produksi belum lulus hanya karena contoh disetujui.
 
-## Keputusan aktif: UI klasik dengan isi Aset terbaru
+### Riwayat 23 Oktober 2026: UI klasik dengan isi Aset terbaru
 
 Pemilik pada 23 Oktober 2026 meminta kembali ke UI klasik sebelum redesain (`fc3cdd2`), kecuali isi bagian Aset yang dipertahankan. Shell, palet navy/ungu/hijau/emas, header, kartu dan lima tab Beranda/Pasar/Portofolio/Bisnis/Lainnya kembali memakai desain klasik; Portofolio memakai isi Aset versi `1c821af`: nilai bersih, komposisi aset, dompet IDR/USD, posisi, FX dan seluruh alat/investasi/kewajiban. Tidak membangun ulang domain atau membatalkan perbaikan logika/persistensi. [ASUMSI] Istilah “isi bagian aset” mencakup informasi dan jalur fitur Portofolio; seluruhnya mengikuti tema klasik di sekitarnya.
 
-Design Read aktif: game trading portrait untuk pemain yang memilih identitas visual klasik; ENERGY 3 / RHYTHM 2 / MOTION 2. Gradien, lapisan kaca dan aksen neon dipertahankan karena merupakan gaya klasik yang dipilih pemilik. Emas menandai aksi, hijau/merah menunjukkan arah nilai, ungu menandai bagian aktif dan hero. Ikon lama dipakai kembali untuk kategori fitur, panah menunjukkan perpindahan atau rincian, label kapital membedakan kelompok data, dan font Plex lokal berlisensi OFL mempertahankan angka yang mudah dibaca. Motion singkat menunjukkan respons sentuhan dan perpindahan, dengan reduced motion. Teks, fokus, target sentuh dan reflow tetap diperbaiki bila perlu. Bagian arang/empat tab di bawah merupakan riwayat keputusan yang sudah digantikan, bukan arah implementasi aktif.
+Design Read historis: game trading portrait dengan identitas visual klasik; ENERGY 3 / RHYTHM 2 / MOTION 2. Gradien, lapisan kaca dan aksen neon merupakan gaya klasik yang dipilih saat itu. Emas menandai aksi, hijau/merah menunjukkan arah nilai, ungu menandai bagian aktif dan hero. Ikon lama dipakai kembali untuk kategori fitur, panah menunjukkan perpindahan atau rincian, label kapital membedakan kelompok data, dan font Plex lokal berlisensi OFL mempertahankan angka yang mudah dibaca. Motion singkat menunjukkan respons sentuhan dan perpindahan, dengan reduced motion. Teks, fokus, target sentuh dan reflow tetap diperbaiki bila perlu. Pilihan visual terbaru tercantum di bagian aktif di atas.
 
 Mandat pemilik 22 Oktober 2026, pilihan warna dan navigasi dikonfirmasi di chat 23 Oktober 2026. Menggantikan keputusan visual/UX historis, bukan FR-01 sampai FR-20 atau aturan domain. Status dokumen: arah disetujui; implementasi dan bukti diverifikasi terpisah.
 
@@ -89,7 +97,7 @@ Formulir memakai label yang terasosiasi dengan ID unik, termasuk beberapa penawa
 
 ## Navigasi dan pemetaan seluruh cakupan
 
-Pemilik menyetujui empat tab: **Ringkasan, Pasar, Aset, Karier**. ID internal `beranda`, `pasar`, `aset`, `firma` boleh dipertahankan untuk kontrak, `riset` menjadi halaman sekunder Pasar. Ini tidak menghapus riset atau bisnis. Profil/pengaturan di header. Alias rute lama diteruskan ke tujuan baru. Perubahan root harus diverifikasi bersama navigasi native Back/fokus.
+**Historis, digantikan:** pemilik pernah menyetujui empat tab **Ringkasan, Pasar, Aset, Karier**. Navigasi aktif sekarang adalah lima tab sebagaimana bagian atas; paragraf dan peta di bawah disimpan untuk melacak cakupan fitur, bukan untuk mengubah navigasi aktif. ID internal `beranda`, `pasar`, `aset`, `firma` dapat membantu menelusuri kontrak lama. Perubahan navigasi tetap perlu preview, persetujuan dan verifikasi Back/fokus.
 
 | Cakupan lama / FR | Tujuan baru | Alur/layer yang tetap tersedia |
 |---|---|---|

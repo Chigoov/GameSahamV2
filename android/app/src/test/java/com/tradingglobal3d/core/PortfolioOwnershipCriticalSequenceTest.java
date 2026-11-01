@@ -39,6 +39,9 @@ public class PortfolioOwnershipCriticalSequenceTest {
         game.setRealTimeClock(java.time.Clock.fixed(java.time.Instant.ofEpochMilli(EPOCH), java.time.ZoneOffset.UTC));
         assertTrue(restore ? game.load() : game.startOrResume());
         GameTestSupport.unlockManager(game);
+        if (!restore) {
+            game.getClock().advanceGameSeconds(1800); // 09:00 WIB bursa buka
+        }
         return game;
     }
 

@@ -77,6 +77,21 @@ public final class OperatingCompany {
     public Collection<Employee> getEmployees() { return Collections.unmodifiableCollection(employees.values()); }
     public long getStaffVersion() { return staffVersion; }
 
+    /**
+     * SINTESA MODUL 3: Skor Daya Saing Perusahaan (Market Competitiveness Score).
+     * Memperhitungkan Level Perusahaan, Fasilitas (Benefit Tier), Jam Kerja, Moral Pegawai, dan Produktivitas Staf/CEO.
+     */
+    public double getMarketCompetitivenessScore() {
+        double moraleWeight = (double) this.morale / 100.0;
+        double benefitBonus = this.benefitTier != null ? this.benefitTier.getMoraleBonus() * 0.5 : 0.0;
+        double productivity = (this.workHours == 10) ? 1.25 : (this.workHours == 6) ? 0.85 : 1.0;
+        for (Employee e : employees.values()) {
+            productivity += (e.getProductivityMultiplier() - 1.0);
+        }
+        double baseScore = (this.level * 20.0) + benefitBonus;
+        return Math.max(5.0, baseScore * moraleWeight * productivity);
+    }
+
     public void setWorkPolicy(int workHours, BenefitTier benefitTier) {
         if (workHours != 6 && workHours != 8 && workHours != 10) {
             throw new IllegalArgumentException("Kebijakan jam kerja yang sah hanya 6, 8, atau 10 jam");
@@ -191,6 +206,10 @@ public final class OperatingCompany {
     }
 
     public Money calculateDailyRevenue(long day) {
+        return calculateDailyRevenue(day, 1.0);
+    }
+
+    public Money calculateDailyRevenue(long day, double macroMultiplier) {
         // Demand caps sales, so hiring beyond available demand cannot create unlimited revenue.
         long base = getSectorModel().equals("MANUFAKTUR") ? 50_000_000L
                 : getSectorModel().equals("RITEL") ? 20_000_000L : 8_000_000L;
@@ -198,7 +217,12 @@ public final class OperatingCompany {
         Money capacity = calculateDailyCapacity();
         Money sales = capacity.isLessThan(demand) ? capacity : demand;
         if (supplyChainCrisisActive && getSectorModel().equals("ENERGY")) sales = sales.multiply(new BigDecimal("1.10"));
-        return sales;
+
+        // Integrasi Skor Daya Saing Sintesa & Pengali Makro
+        double compRatio = getMarketCompetitivenessScore() / 50.0;
+        double effectiveMultiplier = compRatio * (macroMultiplier > 0 ? macroMultiplier : 1.0);
+        Money rev = sales.multiply(BigDecimal.valueOf(effectiveMultiplier).setScale(4, java.math.RoundingMode.HALF_UP));
+        return rev.isNegative() ? Money.zero(Currency.IDR) : rev;
     }
 
     public Money calculateDailyRevenue() {

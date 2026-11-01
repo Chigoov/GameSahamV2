@@ -93,7 +93,7 @@ public class ResearchTerminalBillingCriticalSequenceTest {
 
         // Deposit awal $5,000 USD untuk biaya billing terminal riset
         String pId = facade.getPersonalAccount().getId();
-        facade.deposit("DEP-USD-" + seed, pId, Money.of(5000.0, Currency.USD), "Modal USD Riset");
+        facade.deposit("DEP-USD-" + seed, pId, Money.of(2_000_000.0, Currency.USD), "Modal USD Riset");
 
         Random rnd = new Random(seed);
         facade.getClock().play();
@@ -144,10 +144,10 @@ public class ResearchTerminalBillingCriticalSequenceTest {
                     actionsCount++;
                     break;
                 }
-                case 4: { // Langganan Terminal Tier PRO seharga $500 USD jika saldo cukup dan rank memadai
+                case 4: { // Langganan Terminal Tier PRO seharga $250.000 USD jika saldo cukup dan rank memadai
                     double availUsd = facade.getPersonalAccount().getAvailableCash(Currency.USD).getAmount().doubleValue();
                     if (facade.getCareerManager().hasRank(com.tradingglobal3d.core.career.CareerRank.SENIOR_ANALYST)) {
-                        if (availUsd >= 500.0) {
+                        if (availUsd >= 250_000.0) {
                             boolean ok = facade.subscribeTerminal(TerminalTier.PRO);
                             assertTrue("Langganan PRO harus sukses saat kas USD cukup: " + ctx, ok);
                             assertEquals(TerminalTier.PRO, facade.getResearchService().getCurrentTier());
@@ -163,10 +163,10 @@ public class ResearchTerminalBillingCriticalSequenceTest {
                     }
                     break;
                 }
-                case 5: { // Langganan Terminal Tier ENTERPRISE seharga $2,000 USD jika saldo cukup dan rank memadai
+                case 5: { // Langganan Terminal Tier ENTERPRISE seharga $1.000.000 USD jika saldo cukup dan rank memadai
                     double availUsd = facade.getPersonalAccount().getAvailableCash(Currency.USD).getAmount().doubleValue();
                     if (facade.getCareerManager().hasRank(com.tradingglobal3d.core.career.CareerRank.SENIOR_ANALYST)) {
-                        if (availUsd >= 2000.0) {
+                        if (availUsd >= 1_000_000.0) {
                             boolean ok = facade.subscribeTerminal(TerminalTier.ENTERPRISE);
                             assertTrue("Langganan ENTERPRISE harus sukses saat kas USD cukup: " + ctx, ok);
                             assertEquals(TerminalTier.ENTERPRISE, facade.getResearchService().getCurrentTier());
@@ -184,7 +184,7 @@ public class ResearchTerminalBillingCriticalSequenceTest {
                 }
                 case 6: { // Boundary: coba langganan saat saldo kas USD tidak cukup
                     double availUsd = facade.getPersonalAccount().getAvailableCash(Currency.USD).getAmount().doubleValue();
-                    if (availUsd < 500.0) {
+                    if (availUsd < 250_000.0) {
                         boolean ok = facade.subscribeTerminal(TerminalTier.PRO);
                         assertFalse("Langganan harus ditolak jika kas USD kurang", ok);
                         actionsCount++;

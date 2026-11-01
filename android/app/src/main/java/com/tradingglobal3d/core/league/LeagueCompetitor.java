@@ -21,6 +21,7 @@ public final class LeagueCompetitor {
     private Money netWorth;
     private double weeklyReturnPercent;
     private final boolean isPlayer;
+    private final int avatarId;
 
     public LeagueCompetitor(String id, String name, String title, String style, Money netWorth, double weeklyReturnPercent, boolean isPlayer) {
         this.id = Objects.requireNonNull(id);
@@ -30,6 +31,7 @@ public final class LeagueCompetitor {
         this.netWorth = Objects.requireNonNull(netWorth);
         this.weeklyReturnPercent = weeklyReturnPercent;
         this.isPlayer = isPlayer;
+        this.avatarId = isPlayer ? 1 : ((id.hashCode() & 0x7fffffff) % 100) + 1;
     }
 
     public String getId() { return id; }
@@ -39,6 +41,7 @@ public final class LeagueCompetitor {
     public Money getNetWorth() { return netWorth; }
     public double getWeeklyReturnPercent() { return weeklyReturnPercent; }
     public boolean isPlayer() { return isPlayer; }
+    public int getAvatarId() { return avatarId; }
 
     public void setNetWorth(Money nw) { this.netWorth = Objects.requireNonNull(nw); }
     public void setWeeklyReturnPercent(double ret) { this.weeklyReturnPercent = ret; }
@@ -50,6 +53,8 @@ public final class LeagueCompetitor {
         obj.put("name", name);
         obj.put("title", title);
         obj.put("style", style);
+        obj.put("avatarId", avatarId);
+        obj.put("avatarPath", String.format(java.util.Locale.ROOT, "img/avatars/avatar_%03d.webp", avatarId));
         obj.put("netWorth", netWorth.format());
         obj.put("netWorthRaw", netWorth.getAmount().doubleValue());
         obj.put("weeklyReturn", String.format(java.util.Locale.ROOT, "%+.2f%%", weeklyReturnPercent));

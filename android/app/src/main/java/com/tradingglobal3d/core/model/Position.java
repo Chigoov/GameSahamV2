@@ -50,6 +50,12 @@ public final class Position {
     }
 
     public String getTicker() { return ticker; }
+    
+    public Position copy() {
+        return new Position(this.ticker, this.exchange, this.currency, this.quantity,
+                this.averageCost, this.currentPrice, this.realizedPnL,
+                this.acquisitionFeesRemaining, this.acquisitionFeeQuantity);
+    }
     public String getExchange() { return exchange; }
     public Currency getCurrency() { return currency; }
     public long getQuantity() { return quantity; }
@@ -63,7 +69,7 @@ public final class Position {
             throw new IllegalArgumentException("Jumlah alokasi biaya tidak valid");
         return soldQty == acquisitionFeeQuantity ? acquisitionFeesRemaining
                 : new Money(acquisitionFeesRemaining.getAmount().multiply(BigDecimal.valueOf(soldQty))
-                        .divide(BigDecimal.valueOf(acquisitionFeeQuantity), currency.getDecimalPlaces(), RoundingMode.DOWN), currency);
+                        .divide(BigDecimal.valueOf(acquisitionFeeQuantity), currency.getDecimalPlaces(), RoundingMode.HALF_UP), currency);
     }
 
     public Money getTotalCost() {
@@ -81,7 +87,7 @@ public final class Position {
     public double getUnrealizedPnLPercent() {
         if (quantity == 0 || averageCost.compareTo(BigDecimal.ZERO) == 0) return 0.0;
         BigDecimal diff = currentPrice.subtract(averageCost);
-        return diff.divide(averageCost, 4, RoundingMode.HALF_UP).doubleValue() * 100.0;
+        return diff.divide(averageCost, 6, RoundingMode.HALF_UP).doubleValue() * 100.0;
     }
 
     public void updateMarketPrice(BigDecimal newPrice) {
@@ -103,7 +109,7 @@ public final class Position {
         BigDecimal addedTotal = executionPrice.multiply(BigDecimal.valueOf(addedQty));
         long newQty = Math.addExact(quantity, addedQty);
         long feeQty = Math.addExact(acquisitionFeeQuantity, addedQty);
-        BigDecimal newAvgCost = currentTotal.add(addedTotal).divide(BigDecimal.valueOf(newQty), 4, RoundingMode.HALF_UP);
+        BigDecimal newAvgCost = currentTotal.add(addedTotal).divide(BigDecimal.valueOf(newQty), currency == Currency.IDR ? 2 : 4, RoundingMode.HALF_UP);
 
         this.quantity = newQty;
         this.averageCost = newAvgCost;
@@ -129,6 +135,9 @@ public final class Position {
         this.quantity -= soldQty;
         acquisitionFeesRemaining = acquisitionFeesRemaining.subtract(allocatedFee);
         acquisitionFeeQuantity -= soldQty;
+        if (acquisitionFeeQuantity == 0 && this.quantity == 0) {
+            this.averageCost = BigDecimal.ZERO;
+        }
         this.currentPrice = executionPrice;
         if (realizedPnL != null) realizedPnL = realizedPnL.add(realized);
 

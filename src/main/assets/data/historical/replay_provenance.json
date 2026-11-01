@@ -1,0 +1,36 @@
+{
+  "manifestVersion": "3.0.0",
+  "retrievedDate": "2026-10-21",
+  "availableDatasetIds": ["US:AAPL"],
+  "datasets": [{
+    "id": "US:AAPL",
+    "ticker": "AAPL",
+    "currency": "USD",
+    "timezone": "America/New_York",
+    "resolution": "1D",
+    "startDate": "2016-05-09",
+    "endDate": "2016-08-03",
+    "barsCount": 61,
+    "relativePath": "data/historical/us_aapl_wiki_daily.csv",
+    "sha256": "491f2ff9152e7792927444cc75d8ee60a9c87263d88f816fdcc0a9e79f8a3161",
+    "publisher": "Quandl community WIKI Prices, documented by Nasdaq Data Link",
+    "rights": "Public domain dedication explicitly stated by feed publisher; not inferred from mirror code license",
+    "termsUrl": "https://data.nasdaq.com/databases/WIKIP",
+    "publisherRightsStatement": "curated by the Quandl community and released into the public domain",
+    "sourceDownload": "https://raw.githubusercontent.com/QuantLandi/stock-predictor/199b7fcd596855a6fb4a7f58dd66267a7ff8806c/WIKI-AAPL.csv",
+    "sourceAttribution": "https://github.com/QuantLandi/stock-predictor/blob/199b7fcd596855a6fb4a7f58dd66267a7ff8806c/README.md",
+    "sourceUtf8Sha256": "5bac5bf6542468e394e4de76487412f9cd942168c3b78dd58b8bff5fe899cdcc",
+    "transformation": "Filter inclusive dates, sort ascending, retain original raw open/high/low/close decimal strings and integer volume; no price rescaling, interpolation or fabricated bars",
+    "priceBasis": "Raw unadjusted OHLCV, USD per pre-2020-split share",
+    "corporateActions": "Source ex_dividend=0 and split_ratio=1 for all 61 selected rows; no synthetic corporate actions in replay",
+    "gaps": "US trading-session rows only; weekends and exchange holidays intentionally absent, no forward-generated candles",
+    "executionModel": "Game-local 09:00-16:00 daily opening-reference price; no intraday path, order book or tick-volume reconstruction. Full daily OHLCV visible only after model close. Prices do not branch because of player trades.",
+    "coverageLimit": "AAPL daily 61 sessions only; not an IDX dataset, real-time feed or intraday backtest",
+    "paidServicesUsed": false,
+    "syntheticDataAsHistorical": false
+  }],
+  "quarantinedLegacy": [
+    {"relativePath": "data/historical/idx_bbca_daily.csv", "reason": "Upstream exchange redistribution rights not verified; excluded from production loader"},
+    {"relativePath": "data/historical/us_aapl_daily.csv", "reason": "Mirror Apache code license does not establish upstream Yahoo/Nasdaq data rights; excluded from production loader"}
+  ]
+}

@@ -53,6 +53,26 @@ public class DomainAccountSaveTest {
     }
 
     @Test
+    public void capturePreservesLedgerHistoryAndReconciliationBeyondFiveThousandEntries() throws Exception {
+        Account account = new Account("QA-LEDGER", "QA", AccountType.PERSONAL, null);
+        EconomyLedger ledger = new EconomyLedger();
+        for (int i = 0; i < 5001; i++) {
+            ledger.recordMutation("QA-" + i, account, LedgerEntryType.TRADE_SELL,
+                    Money.of(1, Currency.IDR), true, i, "QA sintetis");
+        }
+        GameClock clock = new GameClock(LocalDate.of(2026, 1, 1), LocalTime.NOON);
+        SaveState snapshot = SaveState.capture(GameMode.INTERNAL_MARKET, clock,
+                java.util.Collections.singletonList(account), ledger);
+        assertEquals(5001, ledger.getEntries().size());
+        assertTrue(ledger.reconcile(account, Currency.IDR));
+        SaveState restored = SaveState.fromJsonString(snapshot.toJsonString());
+        EconomyLedger restoredLedger = new EconomyLedger();
+        restoredLedger.restoreEntries(restored.getLedgerEntries());
+        assertEquals(5001, restoredLedger.getEntries().size());
+        assertTrue(restoredLedger.reconcile(restored.getAccounts().get(0), Currency.IDR));
+    }
+
+    @Test
     public void testMoneyPrecisionAndFormatting() {
         Money idr = Money.of(1500000.75, Currency.IDR);
         assertEquals(new BigDecimal("1500001"), idr.getAmount());
@@ -168,16 +188,18 @@ public class DomainAccountSaveTest {
 
     @Test
     public void testGameClockAndMarketSessions() {
-        GameClock clock = new GameClock(LocalDate.of(2026, 10, 19), LocalTime.of(8, 40, 0));
-        assertEquals(MarketSession.CLOSED, clock.getCurrentMarketSession());
+        GameClock clock = new GameClock(LocalDate.of(2026, 10, 19), LocalTime.of(9, 0, 0));
+        // IDX sesi reguler pada jam 09:00 WIB
+        assertEquals(MarketSession.SESSION_1, clock.getCurrentMarketSession());
+        assertTrue(clock.getCurrentMarketSession().isOpenForTrading());
 
-        // Play dan tick 10 menit (ke 08:50:00 -> Pre-opening)
+        // Play dan tick 10 menit (ke 09:10:00 — tetap Perdagangan Aktif)
         clock.play();
         clock.tick(600);
-        assertEquals(MarketSession.PRE_OPENING, clock.getCurrentMarketSession());
-        assertFalse(clock.getCurrentMarketSession().isOpenForTrading());
+        assertEquals(MarketSession.SESSION_1, clock.getCurrentMarketSession());
+        assertTrue(clock.getCurrentMarketSession().isOpenForTrading());
 
-        // Tick 15 menit (ke 09:05:00 -> Sesi 1)
+        // Tick 15 menit (ke 09:25:00 — tetap Perdagangan Aktif)
         clock.tick(900);
         assertEquals(MarketSession.SESSION_1, clock.getCurrentMarketSession());
         assertTrue(clock.getCurrentMarketSession().isOpenForTrading());
@@ -185,7 +207,7 @@ public class DomainAccountSaveTest {
         // Pause clock -> waktu tidak bertambah
         clock.pause();
         clock.tick(1000);
-        assertEquals(LocalTime.of(9, 5, 0), clock.getCurrentTime());
+        assertEquals(LocalTime.of(9, 25, 0), clock.getCurrentTime());
     }
 
     @Test
@@ -270,7 +292,7 @@ public class DomainAccountSaveTest {
         facade.claimMission("MIS-01");
         Account client = facade.acceptClientMandate("MANDATE-01");
         facade.collectClientFees("MANDATE-01");
-        facade.deposit("SUB-USD", facade.getPersonalAccount().getId(), Money.of(1000, Currency.USD), "test");
+        facade.deposit("SUB-USD", facade.getPersonalAccount().getId(), Money.of(250_000, Currency.USD), "test");
         facade.subscribeTerminal(com.tradingglobal3d.core.research.TerminalTier.PRO);
         facade.save();
         TradingFacade loaded = new TradingFacade(saveManager);
@@ -299,7 +321,7 @@ public class DomainAccountSaveTest {
         facade.openShortPosition("BBCA", 100);
         com.tradingglobal3d.core.trading.Order order = com.tradingglobal3d.core.trading.Order.createLimit(
                 "SAVE-OPEN", "IDX:BMRI", personal.getId(), com.tradingglobal3d.core.trading.OrderSide.BUY,
-                Money.of(5000, Currency.IDR), 100, 1L);
+                Money.of(6500, Currency.IDR), 100, 1L);
         facade.submitOrder(order);
         Money reserved = personal.getReservedCash(Currency.IDR);
         facade.save();
@@ -352,6 +374,7 @@ public class DomainAccountSaveTest {
         facade = new TradingFacade(saveManager);
         facade.setCatalog(com.tradingglobal3d.core.market.InstrumentCatalog.fromJsonString(universe));
         facade.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(50_000_000));
+        facade.getClock().advanceGameSeconds(1800); // 09:00 WIB bursa buka
         facade.generateNpcLiquidity();
         com.tradingglobal3d.core.trading.Order buy = com.tradingglobal3d.core.trading.Order.createLimit("BOOK-FILL", "IDX:BBCA",
                 facade.getPersonalAccount().getId(), com.tradingglobal3d.core.trading.OrderSide.BUY, Money.of(11000, Currency.IDR), 100, 1L);
@@ -455,7 +478,9 @@ public class DomainAccountSaveTest {
         assertTrue("Harus berhasil memuat meskipun file utama korup", recoveryResult.isSuccess());
         assertEquals(SaveManager.LoadSource.BACKUP_RECOVERED, recoveryResult.getSource());
 
-        assertTrue(facade3.load());
+        assertFalse(facade3.load());
+        assertTrue(facade3.hasPendingBackupRecoveryOffer());
+        facade3.confirmBackupRecovery();
         // Saldo yang dipulihkan berasal dari snapshot valid sebelum save terakhir
         assertTrue(facade3.getPersonalAccount().getTotalCash(Currency.IDR).isPositive());
         assertTrue(facade3.reconcileAll());
@@ -480,7 +505,8 @@ public class DomainAccountSaveTest {
         // 2. Daftarkan IPO dan pesan 10 lot (kas tertahan Rp 500.000)
         IpoOffering ipo = new IpoOffering(
                 "IPO-SAVE-TEST", "TEST", "Test Company Tbk", Currency.IDR,
-                Money.of(500, Currency.IDR), 100, 50_000, future
+                Money.of(500, Currency.IDR), 100, 50_000,
+                today, future.minusDays(1), future.minusDays(1), future
         );
         facade.getCorporateService().registerIpoOffering(ipo);
         IpoSubscription sub = facade.orderIpo("IPO-SAVE-TEST", 10);

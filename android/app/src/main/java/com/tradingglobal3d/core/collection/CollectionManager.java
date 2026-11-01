@@ -262,7 +262,7 @@ public final class CollectionManager {
             if (item.isOwned() && timestamp >= item.getPurchaseTimestamp()) item.accrueMaintenance(day);
             Money due = item.getMaintenanceArrears();
             Money available = personalAccount.getAvailableCash(Currency.IDR);
-            Money payment = due.isLessThan(available) ? due : available;
+            Money payment = (available.isPositive() && due.isLessThan(available)) ? due : (available.isPositive() ? available : Money.zero(Currency.IDR));
             if (payment.isPositive()) {
                 ledger.recordMutation("COL-MAINT:" + item.getId() + ":" + day + ":" + ledger.getEntries().size(),
                         personalAccount, LedgerEntryType.COLLECTION_MAINTENANCE, payment, false, timestamp,

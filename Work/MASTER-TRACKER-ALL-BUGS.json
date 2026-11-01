@@ -1,0 +1,3102 @@
+[
+  {
+    "id": "BUG-A001",
+    "source": "AUDIT_100",
+    "num": 1,
+    "title": "Kegagalan `crypto.randomUUID()` pada Tiket Order Beli & Jual",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A002",
+    "source": "AUDIT_100",
+    "num": 2,
+    "title": "Kegagalan Pembelian Reksa Dana (`FUND-SUB`)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A003",
+    "source": "AUDIT_100",
+    "num": 3,
+    "title": "Kegagalan Penjualan/Redemption Reksa Dana (`FUND-RED`)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A004",
+    "source": "AUDIT_100",
+    "num": 4,
+    "title": "Kegagalan Pelunasan Awal Pinjaman Bank (`LOAN-PREPAY`)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A005",
+    "source": "AUDIT_100",
+    "num": 5,
+    "title": "Kegagalan Pembayaran Angsuran Pinjaman Bank (`LOAN-PAY`)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A006",
+    "source": "AUDIT_100",
+    "num": 6,
+    "title": "Kegagalan Transfer Modal Holding Antar Anak Usaha (`HOLD-TRF`)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A007",
+    "source": "AUDIT_100",
+    "num": 7,
+    "title": "Kegagalan Pendaftaran Pendirian Anak Usaha Baru (`COMP-`)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A008",
+    "source": "AUDIT_100",
+    "num": 8,
+    "title": "Kegagalan Perubahan Susunan Pegawai Anak Usaha (`STAFF-`)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A009",
+    "source": "AUDIT_100",
+    "num": 9,
+    "title": "Kegagalan Konversi Valas IDR/USD di Menu Pasar (`FX-UI-`)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A010",
+    "source": "AUDIT_100",
+    "num": 10,
+    "title": "Kegagalan Pemesanan Saham Perdana IPO (`REQ-IPO-`)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A011",
+    "source": "AUDIT_100",
+    "num": 11,
+    "title": "Kegagalan Klaim Modal Harian / Hibah Investor (`REQ-BONUS-`)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A012",
+    "source": "AUDIT_100",
+    "num": 12,
+    "title": "Pembekuan Pembaruan Kuotasi Pasar saat Layar Detail Terbuka",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A013",
+    "source": "AUDIT_100",
+    "num": 13,
+    "title": "Grafik Candlestick Tidak Pernah Diperbarui Realtime di Detail Saham",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A014",
+    "source": "AUDIT_100",
+    "num": 14,
+    "title": "Re-render DOM Masif Setiap 1 Detik di `renderMarketHighlights`",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A015",
+    "source": "AUDIT_100",
+    "num": 15,
+    "title": "Penulisan Disk I/O Sinkron ke `localStorage` di Main Thread UI Setiap 1 Detik",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A016",
+    "source": "AUDIT_100",
+    "num": 16,
+    "title": "Polling Loop Agresif 50ms ke Bridge JNI Android",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A017",
+    "source": "AUDIT_100",
+    "num": 17,
+    "title": "Runaway Timer & Memory Leak pada Audio Synthesizer BGM",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A018",
+    "source": "AUDIT_100",
+    "num": 18,
+    "title": "Kegagalan Resume AudioContext Autoplay Policy di Android",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A019",
+    "source": "AUDIT_100",
+    "num": 19,
+    "title": "Unchecked Null Pointer Exception pada `currentAccount.id` di Tampilan Aset",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A020",
+    "source": "AUDIT_100",
+    "num": 20,
+    "title": "Degradasi Frame Rate Akibat CSS `backdrop-filter: blur(8px)`",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A021",
+    "source": "AUDIT_100",
+    "num": 21,
+    "title": "Kerentanan Input Notasi Ilmiah pada Form Jumlah Order Saham",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A022",
+    "source": "AUDIT_100",
+    "num": 22,
+    "title": "Tumpang Tindih Lapisan Z-Index Antara Flow Page dan Modal Order",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A023",
+    "source": "AUDIT_100",
+    "num": 23,
+    "title": "Status Bintang Watchlist Desinkronisasi Antara Layar Detail dan Daftar Pasar",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A024",
+    "source": "AUDIT_100",
+    "num": 24,
+    "title": "Order Book Menampilkan Tabel Kosong Tanpa Shimmer Saat Inisialisasi",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A025",
+    "source": "AUDIT_100",
+    "num": 25,
+    "title": "Benturan Frekuensi Detak Jam Antara Timer 250ms dan Timer 1000ms",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A026",
+    "source": "AUDIT_100",
+    "num": 26,
+    "title": "Thread Penyelarasan Jam Tertahan Disk I/O `facade.save()`",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A027",
+    "source": "AUDIT_100",
+    "num": 27,
+    "title": "Pemborosan Memori Heap JVM Akibat Double Serialization Snapshot",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A028",
+    "source": "AUDIT_100",
+    "num": 28,
+    "title": "Potensi Deadlock UI Thread pada Synchronized Block `TradingWebBridge.this`",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A029",
+    "source": "AUDIT_100",
+    "num": 29,
+    "title": "Ketiadaan Mekanisme Cache Respons pada `getChartData`",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A030",
+    "source": "AUDIT_100",
+    "num": 30,
+    "title": "Risiko Save Corrupt saat Aplikasi Diminimize Mendadak (`onPause`)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A031",
+    "source": "AUDIT_100",
+    "num": 31,
+    "title": "Bahaya Crash RenderThread GPU pada `LAYER_TYPE_HARDWARE`",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A032",
+    "source": "AUDIT_100",
+    "num": 32,
+    "title": "Penanganan Error `triggerMarketShockEvent` Tidak Mengembalikan State Bursa",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A033",
+    "source": "AUDIT_100",
+    "num": 33,
+    "title": "Pemrosesan Order Synchronous Memblokir JavaBridge Thread",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A034",
+    "source": "AUDIT_100",
+    "num": 34,
+    "title": "Deserialisasi Penuh Berkas Lama pada Setiap Operasi Penyimpanan (`SaveManager`)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A035",
+    "source": "AUDIT_100",
+    "num": 35,
+    "title": "Disk Flush `fos.getFD().sync()` Memperlambat Thread Penyimpan",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A036",
+    "source": "AUDIT_100",
+    "num": 36,
+    "title": "Context Activity Leak pada Constructor `TradingWebBridge`",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A037",
+    "source": "AUDIT_100",
+    "num": 37,
+    "title": "Ketiadaan Rate Limiting pada `@JavascriptInterface beginClockSync`",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A038",
+    "source": "AUDIT_100",
+    "num": 38,
+    "title": "Ketiadaan Skema Migrasi Versi Save Data (`SaveState`)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A039",
+    "source": "AUDIT_100",
+    "num": 39,
+    "title": "Korupsi String JSON pada Error Message `getChartData`",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A040",
+    "source": "AUDIT_100",
+    "num": 40,
+    "title": "Console Error WebView Tersembunyi pada Build Rilis",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A041",
+    "source": "AUDIT_100",
+    "num": 41,
+    "title": "Race Condition pada Variabel `clockSyncPending`",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A042",
+    "source": "AUDIT_100",
+    "num": 42,
+    "title": "Bahaya Truncate Berkas saat Disk Penuh di `robustMove`",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A043",
+    "source": "AUDIT_100",
+    "num": 43,
+    "title": "Pembengkakan Alokasi String Objek `PENDING` Berulang",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A044",
+    "source": "AUDIT_100",
+    "num": 44,
+    "title": "Payload Portofolio Membengkak Tanpa Filter Riwayat",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A045",
+    "source": "AUDIT_100",
+    "num": 45,
+    "title": "Ketiadaan Paginasi pada Endpoint Riwayat Dividen",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A046",
+    "source": "AUDIT_100",
+    "num": 46,
+    "title": "Kerentanan Batas Kuota Storage `QuotaExceededError` di WebView",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A047",
+    "source": "AUDIT_100",
+    "num": 47,
+    "title": "Hilangnya Presisi Desimal Nilai Finansial saat Format Float di JSON",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A048",
+    "source": "AUDIT_100",
+    "num": 48,
+    "title": "Karakter Kontrol Tak Terlihat pada Input Nama Pemain",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A049",
+    "source": "AUDIT_100",
+    "num": 49,
+    "title": "Pemborosan Memori RAM Akibat Duplikasi Offscreen Buffer",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A050",
+    "source": "AUDIT_100",
+    "num": 50,
+    "title": "Ketiadaan Endpoint Kuotasi Ringan Mikro (Micro Price Feed)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A051",
+    "source": "AUDIT_100",
+    "num": 51,
+    "title": "Kebijakan All-Or-None (AON) Membatalkan Market Order Pemain",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A052",
+    "source": "AUDIT_100",
+    "num": 52,
+    "title": "Pengecekan Saldo Market Order Beli Bernilai 0 saat Antrean Kosong",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A053",
+    "source": "AUDIT_100",
+    "num": 53,
+    "title": "Kehabisan Stok Saham Market Maker Membekukan Antrean Ask (*Inventory Depletion*)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A054",
+    "source": "AUDIT_100",
+    "num": 54,
+    "title": "Kehabisan Kas Market Maker Membekukan Antrean Bid",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A055",
+    "source": "AUDIT_100",
+    "num": 55,
+    "title": "Seluruh Bot Perdagangan Ritel Mati saat Jam Bursa Tutup Sementara",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A056",
+    "source": "AUDIT_100",
+    "num": 56,
+    "title": "Fluktuasi Pasar Acak Hanya Dihitung Sekali Sehari di Penutupan Hari",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A057",
+    "source": "AUDIT_100",
+    "num": 57,
+    "title": "Agregasi Lilin `R1D` Menggunakan Interval Lambat 15 Menit",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A058",
+    "source": "AUDIT_100",
+    "num": 58,
+    "title": "Fraksi Tick Tidak Valid pada Kalkulasi Batas ARA/ARB",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A059",
+    "source": "AUDIT_100",
+    "num": 59,
+    "title": "Pertumbuhan Memori Tak Terbatas pada Riwayat Transaksi OrderBook",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A060",
+    "source": "AUDIT_100",
+    "num": 60,
+    "title": "Nilai Tertinggi (High) dan Terendah (Low) Harian Tidak Diperbarui pada Call Auction",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A061",
+    "source": "AUDIT_100",
+    "num": 61,
+    "title": "Sinkronisasi Aksi Beli/Jual Bot Ritel Akibat Random Seed Identik",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A062",
+    "source": "AUDIT_100",
+    "num": 62,
+    "title": "Hardcoded Clock Multiplier 24L Membiaskan Waktu Berita Riset",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A063",
+    "source": "AUDIT_100",
+    "num": 63,
+    "title": "Penurunan Performa Matching Engine Akibat Loop O(N) Committed Shares",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A064",
+    "source": "AUDIT_100",
+    "num": 64,
+    "title": "Bahaya Tabrakan ID Order pada Lingkungan Multithreading",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A065",
+    "source": "AUDIT_100",
+    "num": 65,
+    "title": "Ketiadaan Indeks Sektor pada Katalog Instrumen Pasar",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A066",
+    "source": "AUDIT_100",
+    "num": 66,
+    "title": "Volume Lelang Call Auction Tidak Ditambahkan ke Volume Akumulasi Harian",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A067",
+    "source": "AUDIT_100",
+    "num": 67,
+    "title": "Kenaikan Squeeze Factor Melompati Batas Koridor ARA",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A068",
+    "source": "AUDIT_100",
+    "num": 68,
+    "title": "Order Terus Dipasang pada Harga ARA Meskipun Status Halt",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A069",
+    "source": "AUDIT_100",
+    "num": 69,
+    "title": "Memory Leak Node Key Kosong pada TreeMap OrderBook",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A070",
+    "source": "AUDIT_100",
+    "num": 70,
+    "title": "Rilis Kas Tertahan Tidak Sempurna pada Pembatalan Order Non-Limit",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A071",
+    "source": "AUDIT_100",
+    "num": 71,
+    "title": "Sesi Bursa IDX Berjalan 24 Jam Tanpa Istirahat Siang Realistis",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A072",
+    "source": "AUDIT_100",
+    "num": 72,
+    "title": "Ketiadaan Timeframe Chart Detik / Menit Intraday (M1 / S1)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A073",
+    "source": "AUDIT_100",
+    "num": 73,
+    "title": "Value Investor Menghasilkan Harga Target di Bawah Batas Bawah Bursa (Floor)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A074",
+    "source": "AUDIT_100",
+    "num": 74,
+    "title": "Selisih Pembulatan Kapitalisasi Pasar pada Stock Split Saham",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A075",
+    "source": "AUDIT_100",
+    "num": 75,
+    "title": "Pembatalan Order Limit Pemain di Penutupan Hari Tanpa Notifikasi Jelas",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A076",
+    "source": "AUDIT_100",
+    "num": 76,
+    "title": "Kegagalan Loading 21 Produk Reksa Dana dari File Asset di Android APK",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A077",
+    "source": "AUDIT_100",
+    "num": 77,
+    "title": "Risiko Pembagian Nol (*Division by Zero*) pada Perhitungan Kuota IPO",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A078",
+    "source": "AUDIT_100",
+    "num": 78,
+    "title": "Penarikan Modal Klien Mengacaukan High-Water Mark (HWM) Fee Mandat",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A079",
+    "source": "AUDIT_100",
+    "num": 79,
+    "title": "Penekanan Diam-Diam Kegagalan Rebalance Reksa Dana Indeks",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A080",
+    "source": "AUDIT_100",
+    "num": 80,
+    "title": "Integer Multiplication Overflow pada Form Pesanan Lot Ekstrem",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A081",
+    "source": "AUDIT_100",
+    "num": 81,
+    "title": "Race Condition Likuidasi Paksa Margin Call",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A082",
+    "source": "AUDIT_100",
+    "num": 82,
+    "title": "Bunga Pembiayaan Short & Margin Tetap Dikenakan di Hari Libur Bursa",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A083",
+    "source": "AUDIT_100",
+    "num": 83,
+    "title": "Pemotongan Gaji Anak Usaha Memicu Utang Korporasi Tak Terbatas",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A084",
+    "source": "AUDIT_100",
+    "num": 84,
+    "title": "Kebocoran Target Harga Berita yang Telah Kedaluwarsa",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A085",
+    "source": "AUDIT_100",
+    "num": 85,
+    "title": "Biaya Perawatan Barang Koleksi Menembus Saldo Kas Menjadi Negatif",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A086",
+    "source": "AUDIT_100",
+    "num": 86,
+    "title": "Akumulasi Fraksi Sen (*Penny Shaving*) pada Perhitungan NAB Unit Reksa Dana",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A087",
+    "source": "AUDIT_100",
+    "num": 87,
+    "title": "Ketiadaan Entri Buku Besar pada Settlement Order Reksa Dana",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A088",
+    "source": "AUDIT_100",
+    "num": 88,
+    "title": "Kerugian Fraksi Saham Reverse Split pada Kepemilikan Ritel Ganjil",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A089",
+    "source": "AUDIT_100",
+    "num": 89,
+    "title": "Pemutusan Sepihak Mandat Klien Tanpa Peringatan Dini",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A090",
+    "source": "AUDIT_100",
+    "num": 90,
+    "title": "Pengali Kue Sektor Bernilai Negatif pada Sektor yang Ambruk",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A091",
+    "source": "AUDIT_100",
+    "num": 91,
+    "title": "Hadiah Misi Harian Hangus saat Waktu Game Dipercepat (*Fast-Forward*)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A092",
+    "source": "AUDIT_100",
+    "num": 92,
+    "title": "Reset Streak Login Harian yang Tidak Adil Akibat Ketidaksinkronan Waktu",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A093",
+    "source": "AUDIT_100",
+    "num": 93,
+    "title": "Penjatahan IPO Menggantung pada Penawaran yang Sepi Peminat",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A094",
+    "source": "AUDIT_100",
+    "num": 94,
+    "title": "Asimetri Spread Kurs Valuta Asing IDR/USD Memicu Arbitrase Mikro",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A095",
+    "source": "AUDIT_100",
+    "num": 95,
+    "title": "Duplikasi Berulang Headline Berita Prosedural pada Game Jangka Panjang",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A096",
+    "source": "AUDIT_100",
+    "num": 96,
+    "title": "Efisiensi Staf Anak Usaha Tetap 100% Selamanya (*No Fatigue*)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A097",
+    "source": "AUDIT_100",
+    "num": 97,
+    "title": "Potensi NullPointerException pada Field `unknownLegacyShares`",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A098",
+    "source": "AUDIT_100",
+    "num": 98,
+    "title": "Ledakan Bunga Berbunga Pinjaman Tenor Bank (*Compound Interest Explosion*)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A099",
+    "source": "AUDIT_100",
+    "num": 99,
+    "title": "Deadlock Status Agenda RUPS saat Perolehan Suara Seimbang 50:50",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-A100",
+    "source": "AUDIT_100",
+    "num": 100,
+    "title": "Munculnya Dialog \"Pemulihan Save Diperlukan\" Palsu (*False Positive Alert*)",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B001",
+    "source": "AUDIT_300",
+    "num": 1,
+    "file_loc": "Money.java:95",
+    "title": "Pattern",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B002",
+    "source": "AUDIT_300",
+    "num": 2,
+    "file_loc": "Account.java:39",
+    "title": "Method",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B003",
+    "source": "AUDIT_300",
+    "num": 3,
+    "file_loc": "Position.java:129",
+    "title": "Saat seluruh saham dijual (",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B004",
+    "source": "AUDIT_300",
+    "num": 4,
+    "file_loc": "Position.java:64",
+    "title": "Method",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B005",
+    "source": "AUDIT_300",
+    "num": 5,
+    "file_loc": "Money.java:30",
+    "title": "Crash NumberFormatException pada",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B006",
+    "source": "AUDIT_300",
+    "num": 6,
+    "file_loc": "Account.java:73",
+    "title": "Method",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B007",
+    "source": "AUDIT_300",
+    "num": 7,
+    "file_loc": "EconomyLedger.java:58",
+    "title": "Format",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B008",
+    "source": "AUDIT_300",
+    "num": 8,
+    "file_loc": "Position.java:84",
+    "title": "Pembagian",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B009",
+    "source": "AUDIT_300",
+    "num": 9,
+    "file_loc": "Account.java:112",
+    "title": "Exception Ticker Ambigu Memblokir Multi-Exchange",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B010",
+    "source": "AUDIT_300",
+    "num": 10,
+    "file_loc": "Money.java:55",
+    "title": "Method",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B011",
+    "source": "AUDIT_300",
+    "num": 11,
+    "file_loc": "EconomyLedger.java:45",
+    "title": "Idempotency Map Tanpa Batas Kadaluwarsa",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B012",
+    "source": "AUDIT_300",
+    "num": 12,
+    "file_loc": "Position.java:140",
+    "title": "Method",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B013",
+    "source": "AUDIT_300",
+    "num": 13,
+    "file_loc": "Account.java:96",
+    "title": "Pelepasan Reserved Cash Melempar Exception",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B014",
+    "source": "AUDIT_300",
+    "num": 14,
+    "file_loc": "Money.java:86",
+    "title": "Operasi aritmatika beda mata uang langsung melempar exception kaku alih-alih meminta rate konversi.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B015",
+    "source": "AUDIT_300",
+    "num": 15,
+    "file_loc": "EconomyLedger.java:15",
+    "title": "List",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B016",
+    "source": "AUDIT_300",
+    "num": 16,
+    "file_loc": "Position.java:106",
+    "title": "Saham Indonesia diperdagangkan dalam satuan rupiah bulat; presisi 4 desimal menimbulkan angka pecahan seperti Rp 11.250,3333 yang tidak sesuai aturan fraksi BEI.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B017",
+    "source": "AUDIT_300",
+    "num": 17,
+    "file_loc": "Account.java:130",
+    "title": "Method",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B018",
+    "source": "AUDIT_300",
+    "num": 18,
+    "file_loc": "Money.java:121",
+    "title": "HashCode Mengabaikan Skala Mata Uang",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B019",
+    "source": "AUDIT_300",
+    "num": 19,
+    "file_loc": "EconomyLedger.java:51",
+    "title": "Pemanggilan",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B020",
+    "source": "AUDIT_300",
+    "num": 20,
+    "file_loc": "Position.java:78",
+    "title": "Unrealized PnL Mengabaikan Biaya Penjualan",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B021",
+    "source": "AUDIT_300",
+    "num": 21,
+    "file_loc": "Account.java:124",
+    "title": "Penghapusan Posisi Menyisakan Entri di Riwayat Mutasi",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B022",
+    "source": "AUDIT_300",
+    "num": 22,
+    "file_loc": "Money.java:22",
+    "title": "Pembulatan uang senilai $0.005 ke atas secara kumulatif menghasilkan deviasi beberapa sen pada ribuan transaksi.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B023",
+    "source": "AUDIT_300",
+    "num": 23,
+    "file_loc": "EconomyLedger.java:36",
+    "title": "Mutasi Kas Nol Diizinkan Masuk Buku Besar",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B024",
+    "source": "AUDIT_300",
+    "num": 24,
+    "file_loc": "Position.java:133",
+    "title": "Variabel",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B025",
+    "source": "AUDIT_300",
+    "num": 25,
+    "file_loc": "Account.java:64",
+    "title": "Melempar \"Nominal mutasi kas tidak boleh negatif\" tanpa menyebutkan sumber modul pemanggil.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B026",
+    "source": "AUDIT_300",
+    "num": 26,
+    "file_loc": "Money.java:99",
+    "title": "Format uang Dollar menampilkan titik pemisah ribuan saat dijalankan di lingkungan Android berbahasa Indonesia.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B027",
+    "source": "AUDIT_300",
+    "num": 27,
+    "file_loc": "EconomyLedger.java:21",
+    "title": "String Empty Tidak Dianggap Null",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B028",
+    "source": "AUDIT_300",
+    "num": 28,
+    "file_loc": "Position.java:40",
+    "title": "Jika data save lama memiliki fee quantity tidak selaras, objek posisi menolak dimuat.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B029",
+    "source": "AUDIT_300",
+    "num": 29,
+    "file_loc": "Account.java:27",
+    "title": "Tidak ada validasi mata uang sekunder saat akun baru dibuat.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B030",
+    "source": "AUDIT_300",
+    "num": 30,
+    "file_loc": "Money.java:106",
+    "title": "Membandingkan IDR dan USD di comparator koleksi memicu crash pengurutan Java.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B031",
+    "source": "AUDIT_300",
+    "num": 31,
+    "file_loc": "EconomyLedger.java:54",
+    "title": "Akun entitas non-pemain dapat didebit hingga minus jika tidak dijaga guardrail.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B032",
+    "source": "AUDIT_300",
+    "num": 32,
+    "file_loc": "Position.java:148",
+    "title": "Pengembalian Saham Pinjaman Memanipulasi Acquisition Quantity",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B033",
+    "source": "AUDIT_300",
+    "num": 33,
+    "file_loc": "Account.java:119",
+    "title": "Jika instrumen yang sama ditambahkan ulang via",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B034",
+    "source": "AUDIT_300",
+    "num": 34,
+    "file_loc": "Money.java:46",
+    "title": "Menjumlahkan",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B035",
+    "source": "AUDIT_300",
+    "num": 35,
+    "file_loc": "EconomyLedger.java:33",
+    "title": "Deskripsi panjang ribuan karakter dapat dimasukkan dan disimpan ke database tanpa pemotongan.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B036",
+    "source": "AUDIT_300",
+    "num": 36,
+    "file_loc": "Position.java:38",
+    "title": "Menolak fee akuisisi dalam mata uang berbeda dari instrumen meskipun biaya pialang dibayar dalam mata uang lokal.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B037",
+    "source": "AUDIT_300",
+    "num": 37,
+    "file_loc": "Account.java:86",
+    "title": "Menampilkan angka desimal panjang tanpa format mata uang manusia.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B038",
+    "source": "AUDIT_300",
+    "num": 38,
+    "file_loc": "Money.java:75",
+    "title": "Menghentikan proses sorting multi-currency.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B039",
+    "source": "AUDIT_300",
+    "num": 39,
+    "file_loc": "EconomyLedger.java:17",
+    "title": "Penggunaan HashMap default tanpa concurrency guard pada pemrosesan volume tinggi.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B040",
+    "source": "AUDIT_300",
+    "num": 40,
+    "file_loc": "Position.java:125",
+    "title": "Menghasilkan selisih nilai persediaan akhir pada metode akuntansi average.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B041",
+    "source": "AUDIT_300",
+    "num": 41,
+    "file_loc": "Account.java:127",
+    "title": "Menghentikan perhitungan kekayaan bersih saat rate server off.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B042",
+    "source": "AUDIT_300",
+    "num": 42,
+    "file_loc": "Money.java:63",
+    "title": "Menimbulkan kebingungan logika pada kondisi batas.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B043",
+    "source": "AUDIT_300",
+    "num": 43,
+    "file_loc": "EconomyLedger.java:37",
+    "title": "Parameter boolean mudah tertukar posisinya dibanding enum",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B044",
+    "source": "AUDIT_300",
+    "num": 44,
+    "file_loc": "Position.java:18",
+    "title": "Menyebabkan NullPointerException saat preview alokasi fee.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B045",
+    "source": "AUDIT_300",
+    "num": 45,
+    "file_loc": "Account.java:18",
+    "title": "Pencarian key menggunakan kombinasi ticker dan ID bursa yang rawan salah format.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B046",
+    "source": "AUDIT_300",
+    "num": 46,
+    "file_loc": "Money.java:115",
+    "title": "Equals Membandingkan BigDecimal dengan CompareTo",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B047",
+    "source": "AUDIT_300",
+    "num": 47,
+    "file_loc": "EconomyLedger.java:24",
+    "title": "Caller dapat memodifikasi isi entri yang sudah tercatat.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B048",
+    "source": "AUDIT_300",
+    "num": 48,
+    "file_loc": "Position.java:55",
+    "title": "Penjualan tanpa validasi dapat menghasilkan kuantitas negatif di bawah nol.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B049",
+    "source": "AUDIT_300",
+    "num": 49,
+    "file_loc": "Account.java:46",
+    "title": "Nilai enum diekspos mentah ke antarmuka.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B050",
+    "source": "AUDIT_300",
+    "num": 50,
+    "file_loc": "Money.java:15",
+    "title": "Tidak ada jaminan finalitas penuh pada implementasi eksternal.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B051",
+    "source": "AUDIT_300",
+    "num": 51,
+    "file_loc": "Order.java:45",
+    "title": "Konstruktor Order mengizinkan pembuatan order limit dengan harga null.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B052",
+    "source": "AUDIT_300",
+    "num": 52,
+    "file_loc": "OrderBook.java:95",
+    "title": "Antrean Bid dan Ask rentan salah urut prioritas harga terbaik jika instrumen berganti.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B053",
+    "source": "AUDIT_300",
+    "num": 53,
+    "file_loc": "MatchingEngine.java:310",
+    "title": "Order yang kedaluwarsa di akhir sesi bursa tidak merilis sisa uang tertahan di akun.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B054",
+    "source": "AUDIT_300",
+    "num": 54,
+    "file_loc": "OrderManager.java:80",
+    "title": "Pembatalan order yang sudah terisi penuh (FILLED) tidak melempar error, melainkan mengembalikan status sukses palsu.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B055",
+    "source": "AUDIT_300",
+    "num": 55,
+    "file_loc": "Order.java:78",
+    "title": "Logika rollback order tidak memulihkan status kuantitas secara atomik.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B056",
+    "source": "AUDIT_300",
+    "num": 56,
+    "file_loc": "OrderBook.java:115",
+    "title": "Queue kosong tetap tersimpan di dalam map buku order.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B057",
+    "source": "AUDIT_300",
+    "num": 57,
+    "file_loc": "MatchingEngine.java:440",
+    "title": "Order yang diubah kuantitasnya tidak memperbarui stempel waktu antrean.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B058",
+    "source": "AUDIT_300",
+    "num": 58,
+    "file_loc": "OrderManager.java:120",
+    "title": "Pendaftaran order tidak memeriksa apakah ID order sudah pernah terdaftar di sesi sebelumnya.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B059",
+    "source": "AUDIT_300",
+    "num": 59,
+    "file_loc": "Order.java:105",
+    "title": "Biaya Transaksi Efektif Dihitung Menggunakan Double",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B060",
+    "source": "AUDIT_300",
+    "num": 60,
+    "file_loc": "OrderBook.java:180",
+    "title": "Buku order gagal menangani anomali harga bid negatif.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B061",
+    "source": "AUDIT_300",
+    "num": 61,
+    "file_loc": "MatchingEngine.java:520",
+    "title": "Harga lelang tidak memilih harga yang meminimalkan sisa volume yang tidak match.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B062",
+    "source": "AUDIT_300",
+    "num": 62,
+    "file_loc": "OrderManager.java:160",
+    "title": "Pencarian Order Berdasarkan Akun Berjalan Linier",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B063",
+    "source": "AUDIT_300",
+    "num": 63,
+    "file_loc": "Order.java:135",
+    "title": "State machine status order mengizinkan transisi ilegal dari",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B064",
+    "source": "AUDIT_300",
+    "num": 64,
+    "file_loc": "OrderBook.java:210",
+    "title": "Level harga dengan kuantitas 0 lot tetap muncul di tabel 5-Best Bid/Ask.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B065",
+    "source": "AUDIT_300",
+    "num": 65,
+    "file_loc": "MatchingEngine.java:610",
+    "title": "Kalkulasi net proceed penjualan saham mengabaikan PPh Final 0.1%.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B066",
+    "source": "AUDIT_300",
+    "num": 66,
+    "file_loc": "OrderManager.java:200",
+    "title": "Order berstatus FILLED dan CANCELLED menumpuk di memori hingga jutaan objek.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B067",
+    "source": "AUDIT_300",
+    "num": 67,
+    "file_loc": "Order.java:60",
+    "title": "Order non-kelipatan 100 lembar (odd lot) diizinkan masuk ke pasar reguler BEI.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B068",
+    "source": "AUDIT_300",
+    "num": 68,
+    "file_loc": "OrderBook.java:250",
+    "title": "Jika harga Bid tertinggi lebih tinggi dari Ask terendah, buku tidak langsung mengeksekusi *crossing trade*.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B069",
+    "source": "AUDIT_300",
+    "num": 69,
+    "file_loc": "MatchingEngine.java:680",
+    "title": "Stempel waktu transaksi diisi",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B070",
+    "source": "AUDIT_300",
+    "num": 70,
+    "file_loc": "OrderManager.java:240",
+    "title": "Jika salah satu pembatalan order gagal, proses loop berhenti dan menyisakan order lainnya aktif.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B071",
+    "source": "AUDIT_300",
+    "num": 71,
+    "file_loc": "Order.java:90",
+    "title": "Order proteksi kerugian dapat dikirim dengan harga pemicu Rp 0.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B072",
+    "source": "AUDIT_300",
+    "num": 72,
+    "file_loc": "OrderBook.java:280",
+    "title": "JSON kuotasi pasar menyertakan identitas akun bot dan pemain lain.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B073",
+    "source": "AUDIT_300",
+    "num": 73,
+    "file_loc": "MatchingEngine.java:730",
+    "title": "Kalkulasi average cost posisi meleset saat menggunakan margin.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B074",
+    "source": "AUDIT_300",
+    "num": 74,
+    "file_loc": "OrderManager.java:280",
+    "title": "Jika request ID tidak ditemukan, fungsi mengembalikan null tanpa penjelasan error.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B075",
+    "source": "AUDIT_300",
+    "num": 75,
+    "file_loc": "Order.java:115",
+    "title": "Ketiadaan null guard pada enum",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B076",
+    "source": "AUDIT_300",
+    "num": 76,
+    "file_loc": "OrderBook.java:310",
+    "title": "Suspensi bursa tidak memblokir penambahan order limit baru.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B077",
+    "source": "AUDIT_300",
+    "num": 77,
+    "file_loc": "MatchingEngine.java:810",
+    "title": "Order market menyapu seluruh level ask hingga harga ARA tanpa batas slippage maksimal.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B078",
+    "source": "AUDIT_300",
+    "num": 78,
+    "file_loc": "OrderManager.java:310",
+    "title": "Satu akun dapat mengirimkan 10.000 order spam yang membekukan sistem matching.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B079",
+    "source": "AUDIT_300",
+    "num": 79,
+    "file_loc": "Order.java:140",
+    "title": "Order limit dengan limit price 0 lolos jika tipe order diubah pasca-konstruksi.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B080",
+    "source": "AUDIT_300",
+    "num": 80,
+    "file_loc": "OrderBook.java:340",
+    "title": "Akumulator total volume tidak di-decrement saat order dibatalkan.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B081",
+    "source": "AUDIT_300",
+    "num": 81,
+    "file_loc": "MatchingEngine.java:850",
+    "title": "Selisih uang reservasi dan uang eksekusi riil tidak langsung dikembalikan ke saldo kas bebas.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B082",
+    "source": "AUDIT_300",
+    "num": 82,
+    "file_loc": "OrderManager.java:350",
+    "title": "Riwayat order dikembalikan secara acak mengikuti hash map memory.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B083",
+    "source": "AUDIT_300",
+    "num": 83,
+    "file_loc": "Order.java:160",
+    "title": "JSON order tidak menyertakan currency ID, menyebabkan asumsi IDR otomatis.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B084",
+    "source": "AUDIT_300",
+    "num": 84,
+    "file_loc": "OrderBook.java:370",
+    "title": "Menghapus order dari buku order berkinerja lambat",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B085",
+    "source": "AUDIT_300",
+    "num": 85,
+    "file_loc": "MatchingEngine.java:890",
+    "title": "Saham ganjil hasil hibah tidak dapat dicocokkan di papan reguler.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B086",
+    "source": "AUDIT_300",
+    "num": 86,
+    "file_loc": "OrderManager.java:390",
+    "title": "Order yang gagal dibatalkan tetap tertahan selamanya.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B087",
+    "source": "AUDIT_300",
+    "num": 87,
+    "file_loc": "Order.java:175",
+    "title": "Mengkloning order memicu penolakan idempotency di backend.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B088",
+    "source": "AUDIT_300",
+    "num": 88,
+    "file_loc": "OrderBook.java:400",
+    "title": "Antrean jual Rp 10 lolos masuk antrean bursa normal.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B089",
+    "source": "AUDIT_300",
+    "num": 89,
+    "file_loc": "MatchingEngine.java:920",
+    "title": "Kuantitas saham dipotong di awal sebelum konfirmasi fill diterima.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B090",
+    "source": "AUDIT_300",
+    "num": 90,
+    "file_loc": "OrderManager.java:420",
+    "title": "Query order terbuka masih menyertakan order sesi kemarin.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B091",
+    "source": "AUDIT_300",
+    "num": 91,
+    "file_loc": "Order.java:190",
+    "title": "Perbandingan tanggal kedaluwarsa rentan kesalahan format zona waktu.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B092",
+    "source": "AUDIT_300",
+    "num": 92,
+    "file_loc": "OrderBook.java:430",
+    "title": "Pengosongan buku order tidak mengirimkan sinyal bahaya ke UI.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B093",
+    "source": "AUDIT_300",
+    "num": 93,
+    "file_loc": "MatchingEngine.java:950",
+    "title": "Biaya minimum transaksi memotong persentase tidak wajar pada transaksi mikro.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B094",
+    "source": "AUDIT_300",
+    "num": 94,
+    "file_loc": "OrderManager.java:450",
+    "title": "Data sensitif pesanan tersimpan mentah di file JSON.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B095",
+    "source": "AUDIT_300",
+    "num": 95,
+    "file_loc": "Order.java:210",
+    "title": "Harga trailing stop statis dan tidak mengikuti kenaikan harga puncak baru.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B096",
+    "source": "AUDIT_300",
+    "num": 96,
+    "file_loc": "OrderBook.java:460",
+    "title": "Node tree map tetap dialokasikan di memori.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B097",
+    "source": "AUDIT_300",
+    "num": 97,
+    "file_loc": "MatchingEngine.java:970",
+    "title": "Tidak ada penolakan otomatis pada pesanan di luar rentang harga harian yang sah.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B098",
+    "source": "AUDIT_300",
+    "num": 98,
+    "file_loc": "OrderManager.java:480",
+    "title": "Ketiadaan sanitasi input parameter pencarian order.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B099",
+    "source": "AUDIT_300",
+    "num": 99,
+    "file_loc": "Order.java:230",
+    "title": "Kegagalan validasi batas akumulasi fill parsial.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B100",
+    "source": "AUDIT_300",
+    "num": 100,
+    "file_loc": "OrderBook.java:490",
+    "title": "Tidak ada pengecekan selisih harga terbaik.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B101",
+    "source": "AUDIT_300",
+    "num": 101,
+    "file_loc": "Instrument.java:95",
+    "title": "Emiten yang dilikuidasi tidak mengubah flag",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B102",
+    "source": "AUDIT_300",
+    "num": 102,
+    "file_loc": "CorporateActionService.java:140",
+    "title": "Harga teoritis bursa tidak disesuaikan pasca cum-date dividen saham.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B103",
+    "source": "AUDIT_300",
+    "num": 103,
+    "file_loc": "MarketIndex.java:65",
+    "title": "Indeks harga saham gabungan dihitung dari total lembar modal dasar, bukan saham beredar publik (*Market Cap Weighted vs Free-Float Weighted*).",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B104",
+    "source": "AUDIT_300",
+    "num": 104,
+    "file_loc": "InstrumentCatalog.java:120",
+    "title": "Saham baru otomatis masuk ke kategori unclassified.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B105",
+    "source": "AUDIT_300",
+    "num": 105,
+    "file_loc": "Instrument.java:135",
+    "title": "Saham emiten rugi menghasilkan harga wajar negatif yang mengacaukan radar saham.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B106",
+    "source": "AUDIT_300",
+    "num": 106,
+    "file_loc": "CorporateActionService.java:210",
+    "title": "Hak dividen jatuh pada hari Minggu di mana bursa efek tutup.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B107",
+    "source": "AUDIT_300",
+    "num": 107,
+    "file_loc": "MarketIndex.java:95",
+    "title": "Pembagian indeks melempar error saat kapitalisasi sektor tidak aktif.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B108",
+    "source": "AUDIT_300",
+    "num": 108,
+    "file_loc": "InstrumentCatalog.java:160",
+    "title": "Mengetik",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B109",
+    "source": "AUDIT_300",
+    "num": 109,
+    "file_loc": "Instrument.java:165",
+    "title": "Market cap emiten tidak sinkron dengan harga penutupan terakhir.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B110",
+    "source": "AUDIT_300",
+    "num": 110,
+    "file_loc": "CorporateActionService.java:280",
+    "title": "Pembagian dividen mengabaikan status akun yang dibekukan.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B111",
+    "source": "AUDIT_300",
+    "num": 111,
+    "file_loc": "MarketIndex.java:130",
+    "title": "Divisor indeks tidak pernah disesuaikan saat ada emiten baru yang listing.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B112",
+    "source": "AUDIT_300",
+    "num": 112,
+    "file_loc": "InstrumentCatalog.java:210",
+    "title": "Reload universe menghapus relasi watchlist lokal pengguna.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B113",
+    "source": "AUDIT_300",
+    "num": 113,
+    "file_loc": "Instrument.java:195",
+    "title": "Emiten tidak memiliki harga pembukaan lelang pre-opening tersendiri.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B114",
+    "source": "AUDIT_300",
+    "num": 114,
+    "file_loc": "CorporateActionService.java:340",
+    "title": "Saham right langsung dikonversi tanpa opsi menjual bukti right.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B115",
+    "source": "AUDIT_300",
+    "num": 115,
+    "file_loc": "MarketIndex.java:170",
+    "title": "Kriteria konstituen indeks unggulan tidak memperhitungkan frekuensi transaksi harian.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B116",
+    "source": "AUDIT_300",
+    "num": 116,
+    "file_loc": "InstrumentCatalog.java:250",
+    "title": "Saham tanpa data laporan keuangan disembunyikan dari seluruh pencarian.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B117",
+    "source": "AUDIT_300",
+    "num": 117,
+    "file_loc": "Instrument.java:225",
+    "title": "Kesalahan kalkulasi saham pengendali dan publik.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B118",
+    "source": "AUDIT_300",
+    "num": 118,
+    "file_loc": "CorporateActionService.java:410",
+    "title": "Keputusan strategis korporasi disahkan meskipun kehadiran pemegang saham di bawah 50%.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B119",
+    "source": "AUDIT_300",
+    "num": 119,
+    "file_loc": "MarketIndex.java:210",
+    "title": "Kesalahan pemformatan string selisih poin IHSG.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B120",
+    "source": "AUDIT_300",
+    "num": 120,
+    "file_loc": "InstrumentCatalog.java:290",
+    "title": "Pembelian saham US dihitung dalam satuan lot 100 lembar alih-alih satuan 1 lembar (share).",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B121",
+    "source": "AUDIT_300",
+    "num": 121,
+    "file_loc": "Instrument.java:255",
+    "title": "Saham bursa Amerika (AAPL) dibulatkan ke kelipatan Rp 25 alih-alih $0.01 cent.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B122",
+    "source": "AUDIT_300",
+    "num": 122,
+    "file_loc": "CorporateActionService.java:470",
+    "title": "Mengabaikan aturan pembebasan pajak dividen korporasi antar-anak usaha.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B123",
+    "source": "AUDIT_300",
+    "num": 123,
+    "file_loc": "MarketIndex.java:250",
+    "title": "Menimbulkan selisih persentase dengan data tampilan bursa.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B124",
+    "source": "AUDIT_300",
+    "num": 124,
+    "file_loc": "InstrumentCatalog.java:330",
+    "title": "Ketiadaan validasi keunikan ticker lokal.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B125",
+    "source": "AUDIT_300",
+    "num": 125,
+    "file_loc": "Instrument.java:285",
+    "title": "Tidak mengikuti regulasi simetris bursa modern (-25%).",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B126",
+    "source": "AUDIT_300",
+    "num": 126,
+    "file_loc": "CorporateActionService.java:530",
+    "title": "Waran dapat disimpan selamanya tanpa risiko hangus.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B127",
+    "source": "AUDIT_300",
+    "num": 127,
+    "file_loc": "MarketIndex.java:290",
+    "title": "Nilai HIGH indeks ter-reset di tengah hari perdagangan.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B128",
+    "source": "AUDIT_300",
+    "num": 128,
+    "file_loc": "InstrumentCatalog.java:370",
+    "title": "Emiten berstatus *upcoming* muncul di pencarian pasar reguler.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B129",
+    "source": "AUDIT_300",
+    "num": 129,
+    "file_loc": "Instrument.java:315",
+    "title": "Pemain tidak mengetahui alasan bursa menghentikan perdagangan saham.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B130",
+    "source": "AUDIT_300",
+    "num": 130,
+    "file_loc": "CorporateActionService.java:590",
+    "title": "Buyback emiten tidak memengaruhi rasio *supply squeeze*.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B131",
+    "source": "AUDIT_300",
+    "num": 131,
+    "file_loc": "MarketIndex.java:330",
+    "title": "Ketiadaan korelasi independen bursa global.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B132",
+    "source": "AUDIT_300",
+    "num": 132,
+    "file_loc": "InstrumentCatalog.java:410",
+    "title": "Saham bernilai Rp 10 Triliun terurut di bawah Rp 2 Triliun karena perbandingan teks alfabet.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B133",
+    "source": "AUDIT_300",
+    "num": 133,
+    "file_loc": "Instrument.java:345",
+    "title": "Rasio keuangan saham tetap menggunakan data masa lalu.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B134",
+    "source": "AUDIT_300",
+    "num": 134,
+    "file_loc": "CorporateActionService.java:650",
+    "title": "Penawaran tender buy-out merugikan pemegang saham publik.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B135",
+    "source": "AUDIT_300",
+    "num": 135,
+    "file_loc": "MarketIndex.java:370",
+    "title": "Nilai indeks menjadi null pada akhir pekan alih-alih menggunakan flat hold.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B136",
+    "source": "AUDIT_300",
+    "num": 136,
+    "file_loc": "InstrumentCatalog.java:450",
+    "title": "Caller luar dapat menghapus saham dari universe aktif sistem.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B137",
+    "source": "AUDIT_300",
+    "num": 137,
+    "file_loc": "Instrument.java:375",
+    "title": "Ketiadaan parameter *beta* risiko pada emiten lapis tiga.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B138",
+    "source": "AUDIT_300",
+    "num": 138,
+    "file_loc": "CorporateActionService.java:710",
+    "title": "Kesalahan pengali harga tebusan waran.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B139",
+    "source": "AUDIT_300",
+    "num": 139,
+    "file_loc": "MarketIndex.java:410",
+    "title": "Konstituen indeks syariah tidak memfilter saham berbasis riba.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B140",
+    "source": "AUDIT_300",
+    "num": 140,
+    "file_loc": "InstrumentCatalog.java:490",
+    "title": "Profil dewan direksi kosong di halaman ringkasan emiten.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B141",
+    "source": "AUDIT_300",
+    "num": 141,
+    "file_loc": "Instrument.java:405",
+    "title": "Kemarin naik +10%, angka +10% tetap terbawa ke pembukaan pagi hari baru.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B142",
+    "source": "AUDIT_300",
+    "num": 142,
+    "file_loc": "CorporateActionService.java:770",
+    "title": "Persentase kepemilikan pemain tidak terdilusi pasca penerbitan saham baru.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B143",
+    "source": "AUDIT_300",
+    "num": 143,
+    "file_loc": "MarketIndex.java:450",
+    "title": "Volume transaksi pembeli dan penjual dijumlahkan dua kali lipat.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B144",
+    "source": "AUDIT_300",
+    "num": 144,
+    "file_loc": "InstrumentCatalog.java:530",
+    "title": "Emiten bertato notasi khusus (seperti keterlambatan laporan atau ekuitas negatif) tidak memiliki tanda visual badge.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B145",
+    "source": "AUDIT_300",
+    "num": 145,
+    "file_loc": "Instrument.java:435",
+    "title": "Ketiadaan proteksi harga minimum Rp 50 di pasar reguler.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B146",
+    "source": "AUDIT_300",
+    "num": 146,
+    "file_loc": "CorporateActionService.java:830",
+    "title": "Investor menerima saham gratis tanpa penyesuaian nilai pasar per lembar.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B147",
+    "source": "AUDIT_300",
+    "num": 147,
+    "file_loc": "MarketIndex.java:490",
+    "title": "Kesalahan pemetaan ID sektor pada rumus agregasi indeks.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B148",
+    "source": "AUDIT_300",
+    "num": 148,
+    "file_loc": "InstrumentCatalog.java:570",
+    "title": "Informasi tanggal pencatatan perdana emiten hilang setelah IPO selesai.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B149",
+    "source": "AUDIT_300",
+    "num": 149,
+    "file_loc": "Instrument.java:465",
+    "title": "Nilai buku saham emiten bermodal minus tidak dapat ditampilkan.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B150",
+    "source": "AUDIT_300",
+    "num": 150,
+    "file_loc": "CorporateActionService.java:890",
+    "title": "Kegagalan rekonsiliasi saham pasca kuasi-reorganisasi.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B151",
+    "source": "AUDIT_300",
+    "num": 151,
+    "file_loc": "PlayerProgressManager.java:85",
+    "title": "Kenaikan pangkat dari Ritel ke Manajer Investasi tidak memperluas limit fasilitas margin.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B152",
+    "source": "AUDIT_300",
+    "num": 152,
+    "file_loc": "BossRival.java:40",
+    "title": "Portofolio bos rival dimanipulasi dengan generator angka acak tanpa portofolio saham fisik.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B153",
+    "source": "AUDIT_300",
+    "num": 153,
+    "file_loc": "PeriodicMissionManager.java:95",
+    "title": "Pembelian berulang pada BBCA dianggap memenuhi kriteria diversifikasi 5 emiten.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B154",
+    "source": "AUDIT_300",
+    "num": 154,
+    "file_loc": "CareerManager.java:120",
+    "title": "Gelar kehormatan dapat dibuka hanya dari akumulasi volume transaksi kotor.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B155",
+    "source": "AUDIT_300",
+    "num": 155,
+    "file_loc": "PlayerProgressManager.java:130",
+    "title": "Kesalahan rumus penalti trading yang salah mendeteksi penjualan untung sebagai cut-loss.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B156",
+    "source": "AUDIT_300",
+    "num": 156,
+    "file_loc": "BossRival.java:75",
+    "title": "Pertandingan duel kekayaan dengan rival berjalan selamanya tanpa akhir sesi.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B157",
+    "source": "AUDIT_300",
+    "num": 157,
+    "file_loc": "PeriodicMissionManager.java:150",
+    "title": "Misi mingguan mengunci status completed permanen setelah minggu pertama.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B158",
+    "source": "AUDIT_300",
+    "num": 158,
+    "file_loc": "CareerManager.java:160",
+    "title": "Pemain yang mengalami kebangkrutan total tetap menyandang pangkat Taipan Tertinggi.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B159",
+    "source": "AUDIT_300",
+    "num": 159,
+    "file_loc": "PlayerProgressManager.java:175",
+    "title": "Pemain dapat mengelola dana pihak ketiga tanpa ujian kualifikasi kompetensi pasar modal.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B160",
+    "source": "AUDIT_300",
+    "num": 160,
+    "file_loc": "BossRival.java:110",
+    "title": "Logika AI rival secara instan membeli saham yang baru saja dibeli pemain dalam detik yang sama.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B161",
+    "source": "AUDIT_300",
+    "num": 161,
+    "file_loc": "PeriodicMissionManager.java:205",
+    "title": "Klaim hadiah misi menambah saldo rekening pemain secara siluman tanpa mutasi",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B162",
+    "source": "AUDIT_300",
+    "num": 162,
+    "file_loc": "CareerManager.java:200",
+    "title": "Pemain dapat memaksimalkan reputasi penuh hanya dalam 3 hari bermain aktif.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B163",
+    "source": "AUDIT_300",
+    "num": 163,
+    "file_loc": "PlayerProgressManager.java:220",
+    "title": "Kriteria piala pencapaian mengabaikan status profitabilitas.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B164",
+    "source": "AUDIT_300",
+    "num": 164,
+    "file_loc": "BossRival.java:145",
+    "title": "Menang duel melawan bos rival tidak menghasilkan hadiah dividen atau trofi portofolio.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B165",
+    "source": "AUDIT_300",
+    "num": 165,
+    "file_loc": "PeriodicMissionManager.java:260",
+    "title": "Pengecekan hari mengasumsikan 7 hari kalender berturut-turut tanpa jeda akhir pekan.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B166",
+    "source": "AUDIT_300",
+    "num": 166,
+    "file_loc": "CareerManager.java:240",
+    "title": "Tidak ada pencegahan benturan kepentingan.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B167",
+    "source": "AUDIT_300",
+    "num": 167,
+    "file_loc": "PlayerProgressManager.java:265",
+    "title": "Mengganti avatar profil investor kembali ke avatar default saat aplikasi dibuka ulang.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B168",
+    "source": "AUDIT_300",
+    "num": 168,
+    "file_loc": "BossRival.java:180",
+    "title": "Portofolio bos rival dapat bernilai negatif hingga miliaran rupiah tanpa dinyatakan kalah.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B169",
+    "source": "AUDIT_300",
+    "num": 169,
+    "file_loc": "PeriodicMissionManager.java:310",
+    "title": "Laba transaksi dihitung sebelum potongan komisi broker dan pajak.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B170",
+    "source": "AUDIT_300",
+    "num": 170,
+    "file_loc": "CareerManager.java:280",
+    "title": "Pemain yang memegang kas murni ditolak saat hendak menutup sesi harian.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B171",
+    "source": "AUDIT_300",
+    "num": 171,
+    "file_loc": "PlayerProgressManager.java:310",
+    "title": "Rasio kemenangan salah hitung saat posisi masih mengambang.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B172",
+    "source": "AUDIT_300",
+    "num": 172,
+    "file_loc": "BossRival.java:215",
+    "title": "Bos rival mengucapkan kalimat ejekan yang sama persis tanpa variasi dinamis.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B173",
+    "source": "AUDIT_300",
+    "num": 173,
+    "file_loc": "PeriodicMissionManager.java:360",
+    "title": "Ketiadaan validasi nilai nominal pembelian minimum pada target misi.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B174",
+    "source": "AUDIT_300",
+    "num": 174,
+    "file_loc": "CareerManager.java:320",
+    "title": "Pemain yang menjabat CEO tidak pernah menerima gaji bulanan ke rekening pribadi.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B175",
+    "source": "AUDIT_300",
+    "num": 175,
+    "file_loc": "PlayerProgressManager.java:355",
+    "title": "Integer overflow pada perhitungan akumulasi EXP pemain veteran.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B176",
+    "source": "AUDIT_300",
+    "num": 176,
+    "file_loc": "BossRival.java:250",
+    "title": "Bot bos rival dapat memperdagangkan saham yang dihentikan sementara oleh bursa efek.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B177",
+    "source": "AUDIT_300",
+    "num": 177,
+    "file_loc": "PeriodicMissionManager.java:410",
+    "title": "Banner selamat misi selesai membanjiri layar HP tanpa henti.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B178",
+    "source": "AUDIT_300",
+    "num": 178,
+    "file_loc": "CareerManager.java:360",
+    "title": "Kriteria misi menuntut kepemilikan saham yang belum terdaftar IPO.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B179",
+    "source": "AUDIT_300",
+    "num": 179,
+    "file_loc": "PlayerProgressManager.java:400",
+    "title": "Leaderboard offline gagal memuat profil rival fiktif.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B180",
+    "source": "AUDIT_300",
+    "num": 180,
+    "file_loc": "BossRival.java:285",
+    "title": "Transaksi rival bebas biaya 100%, menciptakan persaingan yang tidak adil bagi pemain.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B181",
+    "source": "AUDIT_300",
+    "num": 181,
+    "file_loc": "PeriodicMissionManager.java:460",
+    "title": "Misi harian menjadi mustahil diselesaikan pada bulan tanpa jadwal penawaran umum.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B182",
+    "source": "AUDIT_300",
+    "num": 182,
+    "file_loc": "CareerManager.java:400",
+    "title": "Mengklaim gelar baru menimpa daftar penghargaan sebelumnya.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B183",
+    "source": "AUDIT_300",
+    "num": 183,
+    "file_loc": "PlayerProgressManager.java:445",
+    "title": "Statistik jam terbang pemain tidak mencatat sesi permainan di latar belakang.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B184",
+    "source": "AUDIT_300",
+    "num": 184,
+    "file_loc": "BossRival.java:320",
+    "title": "Pemain yang kalah duel tidak kehilangan reputasi atau uang taruhan.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B185",
+    "source": "AUDIT_300",
+    "num": 185,
+    "file_loc": "PeriodicMissionManager.java:510",
+    "title": "Transaksi menggunakan uang nasabah klien dihitung sebagai pencapaian misi pribadi.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B186",
+    "source": "AUDIT_300",
+    "num": 186,
+    "file_loc": "CareerManager.java:440",
+    "title": "Ketiadaan sanksi suspensi dari OJK/Bursa jika pemain melakukan goreng saham (*pump and dump*).",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B187",
+    "source": "AUDIT_300",
+    "num": 187,
+    "file_loc": "PlayerProgressManager.java:490",
+    "title": "Validasi kategori aset properti gagal mengenali ID barang koleksi properti.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B188",
+    "source": "AUDIT_300",
+    "num": 188,
+    "file_loc": "BossRival.java:355",
+    "title": "Rival dapat membeli 50.000 lot saham gorengan dalam 1 detik meski antrean ask hanya 10 lot.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B189",
+    "source": "AUDIT_300",
+    "num": 189,
+    "file_loc": "PeriodicMissionManager.java:560",
+    "title": "Potensi eksploitasi klaim hadiah berkali-kali jika koneksi antarmuka lambat.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B190",
+    "source": "AUDIT_300",
+    "num": 190,
+    "file_loc": "CareerManager.java:480",
+    "title": "Kesalahan logika diskon yang memberikan harga beli saham lebih murah bagi pemain berpangkat tinggi (melanggar aturan harga pasar).",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B191",
+    "source": "AUDIT_300",
+    "num": 191,
+    "file_loc": "PlayerProgressManager.java:535",
+    "title": "Pemain tidak dapat meninjau rekam jejak hak suara voting yang pernah digunakan.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B192",
+    "source": "AUDIT_300",
+    "num": 192,
+    "file_loc": "BossRival.java:390",
+    "title": "AI bos menyerah secara otomatis tanpa pertandingan duel formal.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B193",
+    "source": "AUDIT_300",
+    "num": 193,
+    "file_loc": "PeriodicMissionManager.java:610",
+    "title": "Order yang dibatalkan tetap dihitung sebagai transaksi aktif.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B194",
+    "source": "AUDIT_300",
+    "num": 194,
+    "file_loc": "CareerManager.java:520",
+    "title": "Biaya kursus sertifikasi analis keuangan tidak memberikan efek boost analitik di game.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B195",
+    "source": "AUDIT_300",
+    "num": 195,
+    "file_loc": "PlayerProgressManager.java:580",
+    "title": "ATH kekayaan bersih dihitung dari aset kotor tanpa mengurangi kewajiban utang.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B196",
+    "source": "AUDIT_300",
+    "num": 196,
+    "file_loc": "BossRival.java:425",
+    "title": "Tidak ada regenerasi bos rival baru setelah pemain berhasil mengalahkan ketiga bos awal.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B197",
+    "source": "AUDIT_300",
+    "num": 197,
+    "file_loc": "PeriodicMissionManager.java:660",
+    "title": "Klaim reward tiket gratis tidak menambah saldo tiket di tab Keuangan.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B198",
+    "source": "AUDIT_300",
+    "num": 198,
+    "file_loc": "CareerManager.java:560",
+    "title": "Ketiadaan opsi memulai game baru dengan bonus warisan kas.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B199",
+    "source": "AUDIT_300",
+    "num": 199,
+    "file_loc": "PlayerProgressManager.java:625",
+    "title": "Satu transaksi spekulatif langsung mengubah arketipe gaya investasi pemain secara drastis.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B200",
+    "source": "AUDIT_300",
+    "num": 200,
+    "file_loc": "BossRival.java:460",
+    "title": "Pengumuman hasil duel hanya berupa pop-up teks sederhana tanpa kurva pertumbuhan aset.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B201",
+    "source": "AUDIT_300",
+    "num": 201,
+    "file_loc": "MultiAssetTradingService.java:70",
+    "title": "Pemain dapat mencairkan deposito tenor 12 bulan di hari ke-2 dengan bunga penuh tanpa denda penalti.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B202",
+    "source": "AUDIT_300",
+    "num": 202,
+    "file_loc": "TimeDepositProduct.java:45",
+    "title": "Kesalahan konfigurasi suku bunga terbalik (*inverted yield curve*) yang tidak realistis.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B203",
+    "source": "AUDIT_300",
+    "num": 203,
+    "file_loc": "LoanProduct.java:80",
+    "title": "Bank memberikan pinjaman tanpa jaminan kas atau aset jaminan (*unsecured lending risk*).",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B204",
+    "source": "AUDIT_300",
+    "num": 204,
+    "file_loc": "FundBuilderService.java:60",
+    "title": "Portofolio racikan pemain dapat disahkan dengan total alokasi hanya 70%.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B205",
+    "source": "AUDIT_300",
+    "num": 205,
+    "file_loc": "MultiAssetTradingService.java:115",
+    "title": "Sistem tetap mentransfer bunga ke rekening yang berstatus sengketa.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B206",
+    "source": "AUDIT_300",
+    "num": 206,
+    "file_loc": "TimeDepositProduct.java:90",
+    "title": "Tenor 3 hari diformat sebagai produk deposito berjangka resmi tanpa landasan perbankan riil.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B207",
+    "source": "AUDIT_300",
+    "num": 207,
+    "file_loc": "LoanProduct.java:125",
+    "title": "Bunga pinjaman komersial berhenti berjalan saat akhir pekan kalender.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B208",
+    "source": "AUDIT_300",
+    "num": 208,
+    "file_loc": "FundBuilderService.java:110",
+    "title": "Terjadi pemotongan ganda pada akun nasabah.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B209",
+    "source": "AUDIT_300",
+    "num": 209,
+    "file_loc": "MultiAssetTradingService.java:160",
+    "title": "Pembelian emas fisik tidak memiliki selisih harga cetak (*minting fee*).",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B210",
+    "source": "AUDIT_300",
+    "num": 210,
+    "file_loc": "TimeDepositProduct.java:135",
+    "title": "Seluruh bunga deposito diterima utuh tanpa potongan PPh Final perbankan.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B211",
+    "source": "AUDIT_300",
+    "num": 211,
+    "file_loc": "LoanProduct.java:170",
+    "title": "Rasio utang terhadap modal (DER) diabaikan oleh sistem perbankan.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B212",
+    "source": "AUDIT_300",
+    "num": 212,
+    "file_loc": "FundBuilderService.java:160",
+    "title": "Input nama dengan emoji merusak format penyimpanan basis data SQLite.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B213",
+    "source": "AUDIT_300",
+    "num": 213,
+    "file_loc": "MultiAssetTradingService.java:205",
+    "title": "Mengabaikan akad bagi hasil mudharabah/musyarakah syariah.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B214",
+    "source": "AUDIT_300",
+    "num": 214,
+    "file_loc": "TimeDepositProduct.java:180",
+    "title": "Pemain tidak bisa mengambil kredit dengan jaminan bilyet deposito aktif (*back-to-back loan*).",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B215",
+    "source": "AUDIT_300",
+    "num": 215,
+    "file_loc": "LoanProduct.java:215",
+    "title": "Sisa pokok utang tidak dihitung ulang pasca pembayaran ekstra.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B216",
+    "source": "AUDIT_300",
+    "num": 216,
+    "file_loc": "FundBuilderService.java:210",
+    "title": "Produk investasi pemain sepi peminat karena tidak ada agen AI yang melirik dana kelolaannya.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B217",
+    "source": "AUDIT_300",
+    "num": 217,
+    "file_loc": "MultiAssetTradingService.java:250",
+    "title": "Kupon ORI anjlok ke 0% saat suku bunga acuan bank sentral turun drastis.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B218",
+    "source": "AUDIT_300",
+    "num": 218,
+    "file_loc": "TimeDepositProduct.java:225",
+    "title": "Deposito lenyap dari antarmuka selama 24 jam saat perpanjangan otomatis berlangsung.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B219",
+    "source": "AUDIT_300",
+    "num": 219,
+    "file_loc": "LoanProduct.java:260",
+    "title": "Ketiadaan simulasi skor kredit (*credit score checking*).",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B220",
+    "source": "AUDIT_300",
+    "num": 220,
+    "file_loc": "FundBuilderService.java:260",
+    "title": "Pemain dapat mendirikan produk reksa dana publik dengan modal Rp 0.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B221",
+    "source": "AUDIT_300",
+    "num": 221,
+    "file_loc": "MultiAssetTradingService.java:295",
+    "title": "Pembelian saham fraksional Amerika terhambat batas nominal bulat.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B222",
+    "source": "AUDIT_300",
+    "num": 222,
+    "file_loc": "TimeDepositProduct.java:270",
+    "title": "Deviasi kalkulasi bunga perbankan modern.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B223",
+    "source": "AUDIT_300",
+    "num": 223,
+    "file_loc": "LoanProduct.java:305",
+    "title": "Bunga kredit komersial tidak pernah naik meski suku bunga acuan makro melonjak ke 12%.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B224",
+    "source": "AUDIT_300",
+    "num": 224,
+    "file_loc": "FundBuilderService.java:310",
+    "title": "Nasabah tidak mendapatkan informasi alokasi efek pasar modal.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B225",
+    "source": "AUDIT_300",
+    "num": 225,
+    "file_loc": "MultiAssetTradingService.java:340",
+    "title": "Investor tidak mendapatkan kepastian restrukturisasi utang obligasi swasta.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B226",
+    "source": "AUDIT_300",
+    "num": 226,
+    "file_loc": "TimeDepositProduct.java:315",
+    "title": "Menutup akses diversifikasi bagi pemain pemula.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B227",
+    "source": "AUDIT_300",
+    "num": 227,
+    "file_loc": "LoanProduct.java:350",
+    "title": "Pemain yang sudah melunasi seluruh utang tetap diblokir dari pengajuan kredit baru.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B228",
+    "source": "AUDIT_300",
+    "num": 228,
+    "file_loc": "FundBuilderService.java:360",
+    "title": "Pelanggaran pedoman OJK terhadap instrumen aset dasar reksa dana.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B229",
+    "source": "AUDIT_300",
+    "num": 229,
+    "file_loc": "MultiAssetTradingService.java:385",
+    "title": "Obligasi negara dapat dibeli setiap saat seperti saham reguler.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B230",
+    "source": "AUDIT_300",
+    "num": 230,
+    "file_loc": "TimeDepositProduct.java:360",
+    "title": "Bunga harian ditarik lebih cepat sebelum periode 24 jam penuh terpenuhi.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B231",
+    "source": "AUDIT_300",
+    "num": 231,
+    "file_loc": "LoanProduct.java:395",
+    "title": "Notifikasi peringatan bank bernada ancaman yang tidak profesional.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B232",
+    "source": "AUDIT_300",
+    "num": 232,
+    "file_loc": "FundBuilderService.java:410",
+    "title": "Nilai NAB bergerak liar di akhir pekan.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B233",
+    "source": "AUDIT_300",
+    "num": 233,
+    "file_loc": "MultiAssetTradingService.java:430",
+    "title": "Kontrak minyak fisik dapat disimpan tanpa biaya pergudangan.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B234",
+    "source": "AUDIT_300",
+    "num": 234,
+    "file_loc": "TimeDepositProduct.java:405",
+    "title": "Kas terpotong permanen jika deposito dibatalkan di menit pertama.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B235",
+    "source": "AUDIT_300",
+    "num": 235,
+    "file_loc": "LoanProduct.java:440",
+    "title": "Bank tidak memotong batas keamanan *haircut* (misal 50% untuk saham lapis dua).",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B236",
+    "source": "AUDIT_300",
+    "num": 236,
+    "file_loc": "FundBuilderService.java:460",
+    "title": "Ketiadaan identitas bank kustodian resmi.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B237",
+    "source": "AUDIT_300",
+    "num": 237,
+    "file_loc": "MultiAssetTradingService.java:475",
+    "title": "Ketiadaan instrumen lindung nilai (*hedging*) formal bagi trader pro.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B238",
+    "source": "AUDIT_300",
+    "num": 238,
+    "file_loc": "TimeDepositProduct.java:450",
+    "title": "Pemain melewatkan tanggal pencairan dana.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B239",
+    "source": "AUDIT_300",
+    "num": 239,
+    "file_loc": "LoanProduct.java:485",
+    "title": "Perusahaan holding terpaksa mengambil kredit berjangka kaku.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B240",
+    "source": "AUDIT_300",
+    "num": 240,
+    "file_loc": "FundBuilderService.java:510",
+    "title": "Ketiadaan algoritma pemeringkatan independen (seperti Morningstar / Infovesta).",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B241",
+    "source": "AUDIT_300",
+    "num": 241,
+    "file_loc": "MultiAssetTradingService.java:520",
+    "title": "Biaya administrasi transfer dipotong secara tidak wajar.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B242",
+    "source": "AUDIT_300",
+    "num": 242,
+    "file_loc": "TimeDepositProduct.java:495",
+    "title": "Kesalahan konversi mata uang bunga simpanan valas.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B243",
+    "source": "AUDIT_300",
+    "num": 243,
+    "file_loc": "LoanProduct.java:530",
+    "title": "Total pokok dan bunga tidak sinkron dengan tenor bulan.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B244",
+    "source": "AUDIT_300",
+    "num": 244,
+    "file_loc": "FundBuilderService.java:560",
+    "title": "Sisa aset kelolaan lenyap saat produk dibubarkan.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B245",
+    "source": "AUDIT_300",
+    "num": 245,
+    "file_loc": "MultiAssetTradingService.java:565",
+    "title": "Ketiadaan jadwal pembayaran diskonto surat berharga pasar uang.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B246",
+    "source": "AUDIT_300",
+    "num": 246,
+    "file_loc": "TimeDepositProduct.java:540",
+    "title": "Pembedaan nasabah baru dan lama gagal terdeteksi sistem.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B247",
+    "source": "AUDIT_300",
+    "num": 247,
+    "file_loc": "LoanProduct.java:575",
+    "title": "Bank menghapus seluruh kewajiban tanpa analisis restrukturisasi.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B248",
+    "source": "AUDIT_300",
+    "num": 248,
+    "file_loc": "FundBuilderService.java:610",
+    "title": "Penyimpanan JSON reksa dana kustom tidak tersinkronisasi ke database save.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B249",
+    "source": "AUDIT_300",
+    "num": 249,
+    "file_loc": "MultiAssetTradingService.java:610",
+    "title": "Kurva bunga obligasi daerah terdistorsi.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B250",
+    "source": "AUDIT_300",
+    "num": 250,
+    "file_loc": "LoanProduct.java:620",
+    "title": "Ketiadaan fasilitas pinjaman bunga rendah (6%) bagi anak usaha rintisan.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B251",
+    "source": "AUDIT_300",
+    "num": 251,
+    "file_loc": "app.js:680",
+    "title": "Event Listener Scroll Tab Beranda Mengalami Memory Leak",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B252",
+    "source": "AUDIT_300",
+    "num": 252,
+    "file_loc": "style.css:320",
+    "title": "Munculnya papan ketik Android merusak posisi tengah modal.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B253",
+    "source": "AUDIT_300",
+    "num": 253,
+    "file_loc": "index.html:150",
+    "title": "Label Elemen Input Tidak Terhubung dengan Tag",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B254",
+    "source": "AUDIT_300",
+    "num": 254,
+    "file_loc": "app.js:1420",
+    "title": "Counter animasi nilai portofolio tidak menggunakan kurva easing kubik yang halus.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B255",
+    "source": "AUDIT_300",
+    "num": 255,
+    "file_loc": "style.css:590",
+    "title": "Spasi horizontal antar-chip terlalu lebar pada ponsel berlayar panjang.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B256",
+    "source": "AUDIT_300",
+    "num": 256,
+    "file_loc": "index.html:280",
+    "title": "Ketiadaan Tag",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B257",
+    "source": "AUDIT_300",
+    "num": 257,
+    "file_loc": "app.js:2180",
+    "title": "Pemain harus mengetik ulang angka untuk melihat kalkulasi nilai tukar terbaru.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B258",
+    "source": "AUDIT_300",
+    "num": 258,
+    "file_loc": "style.css:870",
+    "title": "Jarak baris teks berita terlalu rapat dan sulit dibaca oleh mata lansia.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B259",
+    "source": "AUDIT_300",
+    "num": 259,
+    "file_loc": "index.html:410",
+    "title": "Tag SVG Ikon Bintang Watchlist Tidak Memiliki Atribut",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B260",
+    "source": "AUDIT_300",
+    "num": 260,
+    "file_loc": "app.js:3210",
+    "title": "Pemain tidak menyadari kas habis sebelum order ditolak.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B261",
+    "source": "AUDIT_300",
+    "num": 261,
+    "file_loc": "style.css:1150",
+    "title": "Ketiadaan dither noise halus pada gradasi warna gelap.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B262",
+    "source": "AUDIT_300",
+    "num": 262,
+    "file_loc": "index.html:530",
+    "title": "Menggulir modal profil ikut menggeser halaman di belakangnya.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B263",
+    "source": "AUDIT_300",
+    "num": 263,
+    "file_loc": "app.js:4390",
+    "title": "Bug status kelas CSS",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B264",
+    "source": "AUDIT_300",
+    "num": 264,
+    "file_loc": "style.css:1410",
+    "title": "Ketiadaan properti CSS",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B265",
+    "source": "AUDIT_300",
+    "num": 265,
+    "file_loc": "index.html:670",
+    "title": "Pemain dapat memasukkan 500 huruf yang merusak tata letak kartu identitas.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B266",
+    "source": "AUDIT_300",
+    "num": 266,
+    "file_loc": "app.js:5520",
+    "title": "Logika pemetaan kelas CSS warna sentimen terbalik.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B267",
+    "source": "AUDIT_300",
+    "num": 267,
+    "file_loc": "style.css:1680",
+    "title": "Efek compositing bayangan kartu bocor di atas tab bar.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B268",
+    "source": "AUDIT_300",
+    "num": 268,
+    "file_loc": "index.html:790",
+    "title": "Ketiadaan Atribut",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B269",
+    "source": "AUDIT_300",
+    "num": 269,
+    "file_loc": "app.js:6640",
+    "title": "Mengetik",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B270",
+    "source": "AUDIT_300",
+    "num": 270,
+    "file_loc": "style.css:1920",
+    "title": "Teks angka poin IHSG sulit dibaca tanpa kaca pembesar di layar tablet.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B271",
+    "source": "AUDIT_300",
+    "num": 271,
+    "file_loc": "index.html:910",
+    "title": "Tooltip hanya mendukung event hover mouse dan tidak ramah layar sentuh.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B272",
+    "source": "AUDIT_300",
+    "num": 272,
+    "file_loc": "app.js:7750",
+    "title": "Pemain harus menutup paksa aplikasi jika koneksi WebView tersendat.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B273",
+    "source": "AUDIT_300",
+    "num": 273,
+    "file_loc": "style.css:2180",
+    "title": "Efek kedip lilin bergetar terlalu kencang dan berisiko memicu pusing/kejang visual.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B274",
+    "source": "AUDIT_300",
+    "num": 274,
+    "file_loc": "index.html:1050",
+    "title": "Tag",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B275",
+    "source": "AUDIT_300",
+    "num": 275,
+    "file_loc": "app.js:8820",
+    "title": "Daftar perusahaan anak usaha tidak terurut alfabetik, membingungkan navigasi.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B276",
+    "source": "AUDIT_300",
+    "num": 276,
+    "file_loc": "style.css:2410",
+    "title": "Garis pemisah kartu lenyap pada setelan tema aksesibilitas kontras tinggi.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B277",
+    "source": "AUDIT_300",
+    "num": 277,
+    "file_loc": "index.html:1180",
+    "title": "Console browser mencatat error 404 pada request",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B278",
+    "source": "AUDIT_300",
+    "num": 278,
+    "file_loc": "app.js:9910",
+    "title": "Beberapa modul menampilkan format gaya Amerika ($1,000.00) dan gaya Eropa (1.000,00) secara tidak seragam.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B279",
+    "source": "AUDIT_300",
+    "num": 279,
+    "file_loc": "style.css:2650",
+    "title": "Rasio padding statis memboroskan 30% area pandang di layar sempit.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B280",
+    "source": "AUDIT_300",
+    "num": 280,
+    "file_loc": "index.html:1215",
+    "title": "Memutar ponsel ke mode lanskap merusak tata letak antarmuka 2D portrait.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B281",
+    "source": "AUDIT_300",
+    "num": 281,
+    "file_loc": "app.js:10120",
+    "title": "Panduan bermain muncul berulang kali setiap kali menu dibuka.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B282",
+    "source": "AUDIT_300",
+    "num": 282,
+    "file_loc": "style.css:2710",
+    "title": "Warna seleksi teks terlalu gelap sehingga teks yang disorot menjadi tidak terbaca.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B283",
+    "source": "AUDIT_300",
+    "num": 283,
+    "file_loc": "index.html:1230",
+    "title": "Tag",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B284",
+    "source": "AUDIT_300",
+    "num": 284,
+    "file_loc": "app.js:10340",
+    "title": "Menekan tombol minus dapat menurunkan kuantitas ke 0 lot atau nilai negatif.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B285",
+    "source": "AUDIT_300",
+    "num": 285,
+    "file_loc": "style.css:2735",
+    "title": "Lebar scrollbar buatan menutupi area sentuh tombol aksi pojok.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B286",
+    "source": "AUDIT_300",
+    "num": 286,
+    "file_loc": "index.html:1245",
+    "title": "Skrip Pustaka Eksternal Dimuat Tanpa Atribut",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B287",
+    "source": "AUDIT_300",
+    "num": 287,
+    "file_loc": "app.js:10410",
+    "title": "Transaksi saham di atas Rp 10 Juta tidak memperhitungkan bea materai regulasi bursa.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B288",
+    "source": "AUDIT_300",
+    "num": 288,
+    "file_loc": "style.css:2750",
+    "title": "Beberapa perangkat Android lama menampilkan kotak tanda tanya pada simbol mata uang.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B289",
+    "source": "AUDIT_300",
+    "num": 289,
+    "file_loc": "index.html:1260",
+    "title": "Struktur Dokumen Memiliki Dua Tag",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B290",
+    "source": "AUDIT_300",
+    "num": 290,
+    "file_loc": "app.js:10460",
+    "title": "Layar menjadi gelap dan terkunci permanen pasca penutupan paksa jendela modal.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B291",
+    "source": "AUDIT_300",
+    "num": 291,
+    "file_loc": "style.css:2765",
+    "title": "Masalah *sticky hover* khas browser seluler yang membuat tombol terlihat selalu ditekan.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B292",
+    "source": "AUDIT_300",
+    "num": 292,
+    "file_loc": "index.html:1275",
+    "title": "Elemen",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B293",
+    "source": "AUDIT_300",
+    "num": 293,
+    "file_loc": "app.js:10480",
+    "title": "Pengguna kehilangan isian data saat terjadi kegagalan jaringan mendadak.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B294",
+    "source": "AUDIT_300",
+    "num": 294,
+    "file_loc": "style.css:2780",
+    "title": "Angka tanggal kalender bursa terpotong di tepi atas kontainer.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B295",
+    "source": "AUDIT_300",
+    "num": 295,
+    "file_loc": "index.html:1290",
+    "title": "Ketiadaan Atribut",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B296",
+    "source": "AUDIT_300",
+    "num": 296,
+    "file_loc": "app.js:10490",
+    "title": "Tombol tab bar tetap menyorot tab Pasar meski pemain sedang berada di Tab Keuangan.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B297",
+    "source": "AUDIT_300",
+    "num": 297,
+    "file_loc": "style.css:2795",
+    "title": "Penggunaan Properti CSS",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B298",
+    "source": "AUDIT_300",
+    "num": 298,
+    "file_loc": "index.html:1305",
+    "title": "Informasi biaya transaksi tidak transparan bagi pemain pemula.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B299",
+    "source": "AUDIT_300",
+    "num": 299,
+    "file_loc": "app.js:10493",
+    "title": "Variabel global rentan tertimpa atau diakses oleh injeksi skrip eksternal.",
+    "status": "completed"
+  },
+  {
+    "id": "BUG-B300",
+    "source": "AUDIT_300",
+    "num": 300,
+    "file_loc": "style.css:2810",
+    "title": "CSS Media Query Breakpoint Menggunakan Satuan Pixel Statis Alih-alih",
+    "status": "completed"
+  }
+]

@@ -44,6 +44,7 @@ public class MultiAssetFundBuilderTest {
         facade.setCatalog(catalog);
         facade.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(100_000_000));
         com.tradingglobal3d.core.GameTestSupport.unlockManager(facade);
+        facade.getClock().advanceGameSeconds(1800); // 09:00 WIB bursa buka
     }
 
     @After

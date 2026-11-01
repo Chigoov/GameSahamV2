@@ -1,5 +1,9 @@
 # File plan untuk dikirim satu per satu ke Hermes
 
+**Pembaruan 29 Oktober 2026:** tabel dan urutan di bawah adalah arsip rencana awal 24 Oktober, bukan instruksi untuk otomatis memulai ulang file 01 atau bukti status terbaru. Pemilik menunjuk satu plan secara eksplisit. Untuk temuan UI dan APK-15, rencana yang disiapkan adalah [Plan 13](13-perbaikan-ui-dan-temuan-review-apk15/plan.md); keberadaannya tidak memulai pekerjaan. Keputusan terbaru ada di `AGENTS.md` dan `MASTER-PLAN-OFFLINE-DAN-REALISME-2026-10-28.md` bagian 2A. Status/checkpoint lama diverifikasi terhadap source dan bukti saat ini.
+
+## Arsip urutan awal (historis)
+
 Pemilik mengirim SATU file plan.md. Hermes menuntaskan file itu, menyerahkan hasil, lalu BERHENTI. Pemilik baru mengirim file berikut setelah meninjau penyelesaian sebelumnya. Pembuatan folder ini tidak menjalankan agent.
 
 Target akhir tetap 20 paket / 126 subtask. Status saat penyusunan: 2 selesai, 54 parsial, 70 pending. Task belum tuntas tetap belum selesai meski ada tes parsial. Dua PASS N20-02/N20-03 tercatat pada file 08.

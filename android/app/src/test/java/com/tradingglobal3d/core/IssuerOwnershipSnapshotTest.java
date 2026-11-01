@@ -122,6 +122,7 @@ public class IssuerOwnershipSnapshotTest {
         JSONObject before = g.getIssuerOwnership("IDX:BBCA");
         long mappedBefore = before.getLong("mappedShares");
 
+        g.getClock().advanceGameSeconds(1800); // 09:00 WIB bursa buka
         g.generateNpcLiquidity();
         com.tradingglobal3d.core.market.Instrument instrument = g.getCatalog().getById("IDX:BBCA");
         BigDecimal ask = g.getMarketEngine().getBook(instrument.getId()).getAskLevels(1).get(0).price;

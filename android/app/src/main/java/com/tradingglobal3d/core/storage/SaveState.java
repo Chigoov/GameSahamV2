@@ -102,6 +102,17 @@ public final class SaveState {
     public JSONObject getOfflineCatchupReport() { return offlineCatchupReport; }
     public void setOfflineCatchupReport(JSONObject report) { this.offlineCatchupReport = report; }
 
+    SaveState detachedCopy() throws JSONException {
+        List<Account> copiedAccounts = new ArrayList<>();
+        for (Account account : accounts) copiedAccounts.add(account.copy());
+        // LedgerEntry and Money are immutable; copying their references avoids a second full ledger JSON graph.
+        SaveState copy = new SaveState(schemaVersion, gameMode, savedTimestamp, gameDate, gameTime, speedMultiplier,
+                copiedAccounts, new ArrayList<>(ledgerEntries), lastRealTimeAnchor, gameMsRemainder, lifecycleState,
+                offlineCatchupReport == null ? null : new JSONObject(offlineCatchupReport.toString()));
+        copy.setRuntimeState(new JSONObject(runtimeState.toString()));
+        return copy;
+    }
+
     public String toJsonString() throws JSONException {
         JSONObject root = new JSONObject();
         root.put("schemaVersion", schemaVersion);

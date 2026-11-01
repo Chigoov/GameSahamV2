@@ -47,6 +47,9 @@ public final class OrderBook {
             throw new IllegalArgumentException("Limit order harus memiliki limit price");
         }
         BigDecimal price = order.getLimitPrice().getAmount();
+        if (price.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Harga order harus positif: " + price);
+        }
         if (order.isBuy()) {
             bids.computeIfAbsent(price, k -> new LinkedList<>()).add(order);
         } else {
@@ -64,6 +67,9 @@ public final class OrderBook {
 
     public synchronized void recordFill(TradeFill fill) {
         tradeHistory.add(fill);
+        if (tradeHistory.size() > 500) {
+            tradeHistory.remove(0);
+        }
         this.lastTradedPrice = fill.getPrice(); // HANYA BERUBAH saat terjadi transaksi nyata (FR-04.14)
     }
 

@@ -107,6 +107,9 @@ public class NewsRealDeadlineTest {
         java.nio.file.Path root = java.nio.file.Files.createTempDirectory(java.nio.file.Path.of(System.getProperty("java.io.tmpdir")), "news-economy-");
         var bulk = open(com.tradingglobal3d.core.storage.SaveManager.forDirectory(root.resolve("bulk").toFile()), REAL);
         var parts = open(com.tradingglobal3d.core.storage.SaveManager.forDirectory(root.resolve("parts").toFile()), REAL);
+        // Both branches represent an absent player; foreground NPC noise is not historical offline work.
+        bulk.onAppLifecycleChanged(false);
+        parts.onAppLifecycleChanged(false);
         bulk.setRealTimeClock(java.time.Clock.fixed(java.time.Instant.ofEpochMilli(REAL + 5400000L), java.time.ZoneOffset.UTC));
         bulk.syncClock();
         for (int i = 1; i <= 90; i++) {
@@ -127,6 +130,7 @@ public class NewsRealDeadlineTest {
         JSONObject legacy = new JSONObject(java.nio.file.Files.readString(saves.getSaveFile().toPath()));
         JSONObject subscription = legacy.getJSONObject("runtimeState").getJSONObject("subscription");
         subscription.remove("newsEffects"); subscription.remove("observedRealAt"); subscription.remove("observedGameAt");
+        subscription.remove("newsArticles"); // The legacy format had no persisted articles or embedded deadlines.
         java.nio.file.Files.writeString(saves.getSaveFile().toPath(), legacy.toString());
         long migratedAt = REAL + 900000L;
         game = open(saves, migratedAt);
@@ -197,7 +201,12 @@ public class NewsRealDeadlineTest {
         game.setCatalog(com.tradingglobal3d.core.market.InstrumentCatalog.fromJsonString(new String(java.nio.file.Files.readAllBytes(
                 java.nio.file.Paths.get("src/main/assets/data/market_universe.json")), java.nio.charset.StandardCharsets.UTF_8)));
         game.setRealTimeClock(java.time.Clock.fixed(java.time.Instant.ofEpochMilli(now), java.time.ZoneOffset.UTC));
-        assertTrue(game.startOrResume());
+        boolean started = game.startOrResume();
+        if (!started && game.hasPendingBackupRecoveryOffer()) {
+            game.confirmBackupRecovery();
+        } else {
+            assertTrue(started);
+        }
         return game;
     }
 }

@@ -1,0 +1,33 @@
+id,tahap,deskripsi,status,dependensi,bukti,alasan_tertunda
+LT-01,Tahap 1,Identitas dan snapshot baseline (Git commit hash save APK-11),PASS,-,Git 2b6ee5c save 59b41e24... APK-11 32ce2b3d...,-
+LT-02,Tahap 1,Baca laporan review APK-11 dan petakan temuan,PASS,LT-01,Artifacts/Review-Indep-APK11-2026-10-28/LAPORAN-REVIEW.md,-
+LT-03,Tahap 1,Reproduksi terisolasi ProbeAon dan ProbeClosedMarket,PASS,LT-02,ProbeAon (exit 2) ProbeClosedMarket (exit 2),-
+LT-04,Tahap 1,Inisialisasi rencana kerja dan tracker 32 task,PASS,LT-03,TRACKER-LT.csv,-
+LT-05,Tahap 2,Telaah seluruh jalur pencocokan order pembeli dan penjual,PASS,LT-04,MatchingEngine.java analysis,-
+LT-06,Tahap 2,Perbaiki akar penyebab partial fill kombinasi multi-lawan,PASS,LT-05,MatchingEngine.canFullyFillOrder & queue skipping,-
+LT-07,Tahap 2,Regresi kasus review ProbeAon dan variasi sisi jual,PASS,LT-06,ProbeAon (exit 0) & Apk11IndependentReviewFixesTest.java,-
+LT-08,Tahap 2,Integritas transaksi fee posisi kas dan ledger All-or-None,PASS,LT-07,OrderReceiptActualsTest (8/8 PASS),-
+LT-09,Tahap 3,Satu identitas order pasar tutup dan konsistensi objek,PASS,LT-04,Order.setLimitPrice & TradingFacade:1117,-
+LT-10,Tahap 3,Perbaiki pemrosesan order Market saat pembukaan pasar,PASS,LT-09,ProbeClosedMarket (exit 0) FILLED & filled=100,-
+LT-11,Tahap 3,Reservasi pembatalan dan penolakan suspensi tepat sekali,PASS,LT-10,MarketClosedOrderQueueRegressionTest (3/3 PASS),-
+LT-12,Tahap 3,Simulasi offline catchup dan persistensi order pasar tutup,PASS,LT-11,Apk11IndependentReviewFixesTest.testProbeClosedMarket...,-
+LT-13,Tahap 4,Konsistensi lintas tampilan domain bridge UI riwayat dan portofolio,PASS,LT-08,TradingWebBridge & app.js order sync,-
+LT-14,Tahap 4,Ketahanan aksi berulang retry idempotensi request ID,PASS,LT-13,OrderMatrixCombinationsTest & TradingWebBridgeTest,-
+LT-15,Tahap 4,Ketahanan gangguan save corrupt dan pemulihan backup,PASS,LT-14,NewGameAndResetRegressionTest corrupt recovery PASS,-
+LT-16,Tahap 4,Laporan dan verifikasi invariant finansial dan ledger,PASS,LT-15,128 JUnit tests PASS zero ledger discrepancy,-
+LT-17,Tahap 5,Koreksi pemetaan rank profil NPC di leaderboard,PASS,LT-04,TradingFacade.getNpcProfile computedRank Banyu Karang #2,-
+LT-18,Tahap 5,Sumber data profil aktual 1.000 NPC dan integrasi 4 tab,PASS,LT-17,TradingFacade.getNpcProfile real cash stockVal & ledger history,-
+LT-19,Tahap 5,Aktivitas perdagangan NPC beragam dan migrasi save canonical,PASS,LT-18,LeagueManager.bindMarket canonical migration safe,-
+LT-20,Tahap 5,Peringkat dinamis berbasis return dan kekayaan riil,PASS,LT-19,League1000NpcLeaderboardRegressionTest (2/2 PASS),-
+LT-21,Tahap 6,Audit alur penawaran dan penjatahan IPO aktual,PASS,LT-04,IpoOffering 4-phase distinct dates (3 hari masa penawaran),-
+LT-22,Tahap 6,Penjatahan 60:40 pecahan terbesar dan isolasi undersubscribed,PASS,LT-21,CorporateActionService.allotIpo undersubscribed 100% & 7:4,-
+LT-23,Tahap 6,Boundary waktu pembatalan IPO dan pelepasan dana tertahan,PASS,LT-22,CorporateActionService.cancelSubscription offering period guard,-
+LT-24,Tahap 6,Pengujian IPO end-to-end penawaran penjatahan refund dan listing,PASS,LT-23,CorporateActionIpoVotingTest & IpoAllotment6040AndCancellationTest,-
+LT-25,Tahap 7,Penyusunan preview UI profil NPC leaderboard dan pembatalan IPO,PASS,LT-18,Artifacts/Longtask-APK11-2026-10-28/preview-redesain-ui-dan-terminal.html,-
+LT-26,Tahap 7,Penerapan UI yang disetujui tata letak teks dan navigasi,PASS,LT-25,Konsep B Prestige Private Wealth disetujui pemilik & diterapkan di style.css/app.js,-
+LT-27,Tahap 7,Pengukuran performa 1.000 NPC waktu render dan serialisasi save,PASS,LT-20,Artifacts/Longtask-APK11-2026-10-28/benchmark-1000npc-report.json,-
+LT-28,Tahap 7,Optimisasi bottleneck kinerja memory dan penskalaan,PASS,LT-27,Leaderboard paging 50 per batch & jump to player rank,-
+LT-29,Tahap 8,Audit kebocoran informasi berita terminal sebelum rilis publik,PASS,LT-04,NewsArticle.java anti-leak in public feed & 3 tier Terminal,-
+LT-30,Tahap 8,Eksekusi pengujian menyeluruh full host test suite tanpa bypass,PASS,LT-08,Artifacts/Test-Core18/junit-latest.log (135/135 PASS),-
+LT-31,Tahap 8,Build APK-14 verifikasi tanda tangan V2 dan integritas aset,PASS,LT-30,Artifacts/Longtask-APK11-2026-10-28/apk/GameSaham-APK14-konsepB-final.apk,-
+LT-32,Tahap 8,Laporan final checkpoint handoff dan status keputusan terbuka,PASS,LT-31,Laporan Longtask 11 Final,-

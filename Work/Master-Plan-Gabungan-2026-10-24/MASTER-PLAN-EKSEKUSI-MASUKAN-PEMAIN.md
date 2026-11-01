@@ -32,7 +32,7 @@ Dokumen ini menggabungkan 21 anotasi browser pemilik, masukan tombol Beli sebelu
 | A03 | Form order: **kotak dialog ringkas di tengah layar**. | Preview dialog, adaptif pada layar pendek tanpa memotong kontrol penting; lihat R1/R2/R7. Tetap tersedia jenis order, harga, jumlah, validasi dan konfirmasi. |
 | A04 | Tiap kategori Portofolio dibuka sebagai **tab navigasi baru di bar bawah**, tidak muncul menyempil di bawah. | Pemilik memilih **contoh B** sebagai dasar: saat kategori Saham & Order dibuka, tab Portofolio sementara berubah menjadi Saham; kembali ke Portofolio mengembalikan tab semula. Terapkan prinsip yang sama pada kategori lain setelah preview masing-masing; pertahankan navigasi kembali dan tab lain. |
 | A05 | Informasi kategori terlalu panjang; **hapus penjelasan dan tampilkan nama fitur saja**. | Terapkan pada daftar kategori yang dimaksud; pertahankan informasi penting pada layar tujuan/konfirmasi jika diperlukan, jangan memuat jargon teknis mentah. |
-| A06 | Replay historis **dipertahankan dengan penjelasan sederhana**. | Jelaskan sebagai simulasi dari data lampau, terpisah dari permainan utama; bar harian tidak merekonstruksi harga intraday. Gunakan provenance nyata, jangan menjanjikan data yang tidak ada. |
+| A06 | **Hapus replay historis**: keputusan terbaru pemilik setelah melihat perbandingan, menggantikan keputusan sebelumnya untuk mempertahankan replay. | Inventaris UI, bridge, mode, data, caller dan save; hapus hanya jalur khusus replay. Pertahankan grafik, pasar utama dan komponen bersama. Penanganan save replay lama menunggu keputusan terpisah; jangan otomatis menghapus atau menimpanya. Perubahan UI tetap memerlukan preview. |
 | A07 | Pengaturan & Sistem dipindah menjadi **menu tersendiri di dalam halaman Profil, bagian bawah**. | Bukan menambah bar Pengaturan baru. Padukan dengan A13 dan jangan kehilangan save/reset/panduan. Ikuti susunan Profil A yang dipilih pemilik; Pengaturan berada di bagian bawah. |
 | A08 | Booster: **bedakan tiap jenis dan status**. | Pakai kombinasi warna/label/ikon yang dapat dibedakan tanpa warna saja, kontras sesuai standar. |
 | A09 | Profil: pemilik menginginkan **semua** pilihan yang ditawarkan: grafik perkembangan kekayaan, hasil/statistik trading dan pencapaian. | Tentukan seri aktual dari domain/history; beri label waktu dan no-data/coverage bila tidak tersedia. Jangan menciptakan histori atau angka palsu; ajukan layout preview. |
@@ -60,7 +60,7 @@ Dokumen ini menggabungkan 21 anotasi browser pemilik, masukan tombol Beli sebelu
 | R5 | TIDAK_DIPILIH | Usulan panduan berbasis tujuan tidak diotorisasi secara terpisah; A18/A13 tetap berlaku. |
 | R6 | DISETUJUI | Status bursa dapat dijelaskan saat diketuk, berdasarkan data domain. |
 | R7 | DISETUJUI | Review harga, biaya, potongan dan hasil bersih yang bersumber dari quote domain. |
-| R8 | DISETUJUI | Pemilik menyetujui penanda konteks contoh `Harga simulasi game · 1 bulan` / `Data historis AAPL · Mei–Agustus 2016`; sumber dan periode harus nyata. |
+| R8 | DIPERBARUI_PEMILIK | Pemilik kemudian memilih **menghapus penanda harga simulasi game pada pasar utama**, menggantikan persetujuan contoh sebelumnya. Replay juga diputuskan dihapus. Ajukan preview penghapusan UI; jangan menghapus informasi lain di luar cakupan. |
 | R9 | DISETUJUI | Hasil transaksi/sync belum pasti memiliki status dan cara memeriksa ulang; selaras K-018/K-024. |
 | R10 | DISETUJUI | Pertahankan posisi/konteks saat kembali dari detail, order dan berita. |
 
@@ -68,7 +68,7 @@ Dokumen ini menggabungkan 21 anotasi browser pemilik, masukan tombol Beli sebelu
 
 Keputusan yang sudah dijawab pemilik (jangan memperluas persetujuan melampaui contoh yang dipilih):
 
-1. R8 **disetujui** berdasarkan preview.
+1. R8: pemilik memilih menghapus penanda harga simulasi pasar utama; ajukan preview perubahan UI sebelum menerapkan.
 2. Susunan Profil pertama ditolak; pemilik kemudian memilih **Profil A**, dengan empat kelompok dan Penyimpanan & Backup serta Mulai Permainan Baru dalam Pengaturan di bagian bawah.
 3. Gaya penyederhanaan istilah Bisnis A17 **disetujui** berdasarkan preview.
 4. Pemilik memilih **utang lama tetap ada saat agunan dilepas**, dengan aturan baru; migrasi harus menjaga saldo dan tidak menghapus hak/progres. Tunjukkan rancangan sebelum perubahan UI.
@@ -101,7 +101,7 @@ Contoh interaktif lanjutan tersedia di `Artifacts/Preview-Keputusan-Pemilik-2026
 
 **M3 — Transaksi & Pasar.** Implementasikan UI A02/A03/A10/A11/A20 dan R1/R2/R3/R7/R9/R10 sesuai preview. Pertahankan ID intent yang stabil, quote/capacity domain, idempotensi, account isolation, arus Back dan lifecycle; uji tanpa transaksi pada save pemain. Tampilkan rencana sumber alokasi dana tertahan berdasarkan ledger/order/reservasi aktual.
 
-**M4 — IPO, replay dan profil.** Implementasikan A01/A06/A08/A09 dan R4/R6/R8 hanya jika disetujui. Gunakan kalender fase/data histori aktual, grafik hanya dari data tersedia, pengujian cakupan dan state kosong; jangan mengisi tanggal/histori dengan contoh palsu.
+**M4 — IPO, penghapusan replay dan profil.** Ikuti keputusan terbaru A06 untuk menghapus replay secara aman, dengan penanganan save replay lama menunggu keputusan pemilik. Implementasikan A01/A08/A09 dan R4/R6 sesuai preview; R8 untuk pasar utama mengikuti keputusan penghapusan penanda setelah preview. Pertahankan grafik pasar utama dan komponen bersama; gunakan data nyata dalam game dan jangan mengisi tanggal/histori dengan contoh palsu.
 
 **M5 — Bisnis & koleksi.** Terapkan aset150 setelah mapping jelas dan UI disetujui; selesaikan A14/A15/A17/A18, serta A21. Penyederhanaan teks mengikuti contoh yang pemilik setujui; ubah presentasi tanpa mengubah fitur/aturan bisnis. Uji grafik/aset, loading/fallback, file/APK dan performa.
 

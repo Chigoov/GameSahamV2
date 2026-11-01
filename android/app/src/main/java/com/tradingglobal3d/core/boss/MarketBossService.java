@@ -44,10 +44,13 @@ public final class MarketBossService {
     public synchronized MarketBoss startDuel(String bossId) {
         MarketBoss b = bosses.get(bossId);
         if (b == null) throw new IllegalArgumentException("Bos tidak ditemukan: " + bossId);
-        // Matikan duel lain yang sedang aktif
+        if (b.isDefeated()) {
+            throw new IllegalStateException("Bos " + b.getName() + " sudah dikalahkan! Silakan tantang bos pada tingkat kesulitan berikutnya.");
+        }
+        // Matikan duel lain yang sedang aktif (Bug #301)
         for (MarketBoss other : bosses.values()) {
             if (other.isActive() && !other.getBossId().equals(bossId)) {
-                // reset active status
+                other.setActive(false);
             }
         }
         b.startShowdown();
@@ -62,7 +65,7 @@ public final class MarketBossService {
                     // Kredit hadiah kemenangan duel bos
                     Money reward = new Money(b.getRewardCash(), Currency.IDR);
                     ledger.recordMutation(
-                            "BOSS-WIN-" + b.getBossId() + "-" + System.currentTimeMillis(),
+                            "BOSS-WIN-" + b.getBossId() + "-" + now,
                             personalAccount,
                             LedgerEntryType.MISSION_REWARD,
                             reward,

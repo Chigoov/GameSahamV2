@@ -124,6 +124,9 @@ public final class InstrumentCatalog {
                 .put("previous", inst.getPreviousClosePrice().getAmount().toPlainString())
                 .put("high", inst.getDayHigh().getAmount().toPlainString())
                 .put("low", inst.getDayLow().getAmount().toPlainString()).put("volume", inst.getDayVolume())
+                .put("intrinsicValue", inst.getIntrinsicValue().toPlainString())
+                .put("trailingEps", inst.getTrailingEps().toPlainString())
+                .put("sectorAvgPer", inst.getSectorAvgPer())
                 .put("shareSupply", inst.exportShareSupply()));
         return new JSONObject().put("catalogVersion", STATE_VERSION).put("instruments", instruments).put("watchlist", new JSONArray(watchlistIds));
     }
@@ -144,6 +147,12 @@ public final class InstrumentCatalog {
                     new Money(new BigDecimal(item.getString("previous")), c),
                     new Money(new BigDecimal(item.getString("high")), c),
                     new Money(new BigDecimal(item.getString("low")), c), item.getLong("volume"));
+            if (item.has("intrinsicValue") || item.has("trailingEps")) {
+                BigDecimal intrinsic = item.has("intrinsicValue") ? new BigDecimal(item.getString("intrinsicValue")) : null;
+                BigDecimal eps = item.has("trailingEps") ? new BigDecimal(item.getString("trailingEps")) : null;
+                double per = item.optDouble("sectorAvgPer", 15.0);
+                copy.restoreFundamentalState(intrinsic, eps, per);
+            }
             staged.add(copy);
         }
         return staged;
@@ -180,6 +189,7 @@ public final class InstrumentCatalog {
             Instrument target = instrumentsById.get(saved.getId());
             target.restoreShareSupply(saved.exportShareSupply());
             target.restoreMarketState(saved.getCurrentPrice(), saved.getPreviousClosePrice(), saved.getDayHigh(), saved.getDayLow(), saved.getDayVolume());
+            target.restoreFundamentalState(saved.getIntrinsicValue(), saved.getTrailingEps(), saved.getSectorAvgPer());
         }
         watchlistIds.clear(); watchlistIds.addAll(watchlist);
         recalculateAllIndices();

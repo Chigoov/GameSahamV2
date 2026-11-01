@@ -62,7 +62,7 @@ public final class MarketBoss implements Serializable {
         this.playerCurrentReturn = 0.0;
         this.active = false;
         this.defeated = false;
-        this.rewardCash = BigDecimal.valueOf(tier.getRewardCash());
+        this.rewardCash = BigDecimal.valueOf(tier.getRewardCash()).setScale(0, java.math.RoundingMode.HALF_UP);
     }
 
     public String getBossId() { return bossId; }
@@ -78,6 +78,10 @@ public final class MarketBoss implements Serializable {
     public boolean isDefeated() { return defeated; }
     public BigDecimal getRewardCash() { return rewardCash; }
 
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
     public void startShowdown() {
         this.active = true;
         this.elapsedSessions = 0;
@@ -88,9 +92,10 @@ public final class MarketBoss implements Serializable {
     public boolean updateProgress(double playerSessionReturn) {
         if (!active || defeated) return false;
         this.elapsedSessions++;
-        this.playerCurrentReturn += playerSessionReturn;
-        // Boss bertumbuh mendekati target return secara bertahap
-        this.bossCurrentReturn = (targetReturn / durationSessions) * elapsedSessions;
+        // Compounded return growth alih-alih linear sum (Bug #302)
+        this.playerCurrentReturn = ((1.0 + this.playerCurrentReturn / 100.0) * (1.0 + playerSessionReturn / 100.0) - 1.0) * 100.0;
+        // Boss bertumbuh mendekati target return secara bertahap (proteksi zero division Bug #314)
+        this.bossCurrentReturn = (targetReturn / Math.max(1, durationSessions)) * elapsedSessions;
 
         if (elapsedSessions >= durationSessions) {
             this.active = false;
@@ -98,6 +103,7 @@ public final class MarketBoss implements Serializable {
                 this.defeated = true;
                 return true; // Victory!
             }
+            // Jika kalah, status aktif dimatikan dan pemain dapat menantang ulang (Bug #303)
         }
         return false;
     }

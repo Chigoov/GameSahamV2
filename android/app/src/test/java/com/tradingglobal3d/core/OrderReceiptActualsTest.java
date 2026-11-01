@@ -61,34 +61,21 @@ public class OrderReceiptActualsTest {
   assertTrue(g.submitOrder(order).isSuccess);
   TradingWebBridge bridge=new TradingWebBridge(g);
   JSONObject beforeCancel=new JSONObject(bridge.getOrderStatus("PARTIAL-REQUEST"));
-  assertEquals("PARTIALLY_FILLED",beforeCancel.getString("status"));
-  assertEquals(100,beforeCancel.getLong("filledQuantity"));
-  assertEquals(200,beforeCancel.getLong("remainingQuantity"));
-  assertEquals(900000,beforeCancel.getLong("filledValueRaw"));
-  assertEquals(1350,beforeCancel.getLong("actualFeeRaw"));
-  assertEquals(901350,beforeCancel.getLong("cashImpactRaw"));
+  // Keputusan Pemilik 28 Okt 2026: Tidak ada partial fill bagi pemain; order tetap OPEN antre penuh
+  assertEquals("OPEN",beforeCancel.getString("status"));
+  assertEquals(0,beforeCancel.getLong("filledQuantity"));
+  assertEquals(300,beforeCancel.getLong("remainingQuantity"));
   Money reservedBeforeCancel=buyer.getReservedCash(Currency.IDR);
   JSONObject cancelled=new JSONObject(bridge.cancelOrder("PARTIAL-REQUEST"));
   assertEquals("CANCELLED",cancelled.getString("status"));
-  assertEquals(100,cancelled.getLong("filledQuantity"));
-  assertEquals(200,cancelled.getLong("remainingQuantity"));
-  assertEquals(200,cancelled.getLong("cancelledQuantity"));
-  assertEquals("900000",cancelled.getString("filledValueRaw"));
-  assertEquals("1350",cancelled.getString("actualFeeRaw"));
-  assertEquals("901350",cancelled.getString("cashImpactRaw"));
-  assertTrue(buyer.getReservedCash(Currency.IDR).isLessThan(reservedBeforeCancel));
-  assertEquals(Money.zero(Currency.IDR),buyer.getReservedCash(Currency.IDR));
-  assertEquals(cashBeforeOrder.subtract(Money.of(901350,Currency.IDR)),buyer.getTotalCash(Currency.IDR));
-  JSONObject duplicateCancel=new JSONObject(bridge.cancelOrder("PARTIAL-REQUEST"));
-  assertEquals("CANCELLED",duplicateCancel.getString("status"));
-  assertEquals(buyer.getTotalCash(Currency.IDR),cashBeforeOrder.subtract(Money.of(901350,Currency.IDR)));
-  assertEquals(Money.zero(Currency.IDR),buyer.getReservedCash(Currency.IDR));
+  assertEquals(0,cancelled.getLong("filledQuantity"));
+  assertEquals(300,cancelled.getLong("remainingQuantity"));
+  assertEquals(300,cancelled.getLong("cancelledQuantity"));
+  assertEquals(Money.zero(Currency.IDR), buyer.getReservedCash(Currency.IDR));
+  assertEquals(cashBeforeOrder, buyer.getAvailableCash(Currency.IDR));
   assertTrue(g.reconcileAll());g.save();assertTrue(g.load());
   JSONObject restored=new JSONObject(bridge.getOrderStatus("PARTIAL-REQUEST"));
   assertEquals("CANCELLED",restored.getString("status"));
-  assertEquals(cancelled.getString("filledValueRaw"),restored.getString("filledValueRaw"));
-  assertEquals(cancelled.getString("actualFeeRaw"),restored.getString("actualFeeRaw"));
-  assertEquals(cancelled.getString("cashImpactRaw"),restored.getString("cashImpactRaw"));
   assertTrue(g.reconcileAll());
  }
 
@@ -208,19 +195,22 @@ public class OrderReceiptActualsTest {
 
   TradingWebBridge bridge = new TradingWebBridge(g);
   JSONObject receipt = new JSONObject(bridge.getOrderStatus("LIFECYCLE-EXPIRY-REQ"));
-  assertEquals("EXPIRED", receipt.getString("status"));
+  // Sesuai S02 rincian 4: order pemain tetap OPEN (GTC) melintasi pergantian hari bursa
+  assertEquals("OPEN", receipt.getString("status"));
   assertEquals(0, receipt.getLong("filledQuantity"));
-  assertFalse(receipt.getBoolean("canCancel"));
-  assertTrue(receipt.isNull("filledValueRaw"));
-  assertTrue(receipt.isNull("actualFeeRaw"));
+  assertTrue(receipt.getBoolean("canCancel"));
+  assertTrue(buyer.getReservedCash(Currency.IDR).isPositive());
 
+  // Pembatalan manual oleh pemain melepaskan reservasi kas
+  JSONObject cancelled = new JSONObject(bridge.cancelOrder("LIFECYCLE-EXPIRY-REQ"));
+  assertEquals("CANCELLED", cancelled.getString("status"));
   assertEquals(Money.zero(Currency.IDR), buyer.getReservedCash(Currency.IDR));
   assertEquals(initialCash, buyer.getTotalCash(Currency.IDR));
 
   g.save();
   assertTrue(g.load());
   JSONObject restored = new JSONObject(new TradingWebBridge(g).getOrderStatus("LIFECYCLE-EXPIRY-REQ"));
-  assertEquals("EXPIRED", restored.getString("status"));
+  assertEquals("CANCELLED", restored.getString("status"));
   assertFalse(restored.getBoolean("canCancel"));
  }
 }

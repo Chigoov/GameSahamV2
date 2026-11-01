@@ -81,6 +81,32 @@ public final class TimeDepositManager {
         return new ArrayList<>(products.values());
     }
 
+    public synchronized Money calculateTotalActivePrincipal() {
+        Money total = Money.zero(Currency.IDR);
+        for (TimeDeposit d : activeDeposits.values()) {
+            if ("ACTIVE".equals(d.getStatus())) {
+                total = total.add(d.getPrincipal());
+            }
+        }
+        return total;
+    }
+
+    public synchronized void updateMacroRates(double baseDepositRateAnnualPercent) {
+        double rateDecimal = (baseDepositRateAnnualPercent / 100.0);
+        DepositProduct bca = products.get("DEP-BCA-1M");
+        if (bca != null) products.put("DEP-BCA-1M", new DepositProduct("DEP-BCA-1M", bca.bankName, bca.tenorDays, rateDecimal * 0.80, bca.bonusInterestPercent, bca.minPlacement));
+        DepositProduct bmri = products.get("DEP-BMRI-3M");
+        if (bmri != null) products.put("DEP-BMRI-3M", new DepositProduct("DEP-BMRI-3M", bmri.bankName, bmri.tenorDays, rateDecimal * 0.95, bmri.bonusInterestPercent, bmri.minPlacement));
+        DepositProduct bbri = products.get("DEP-BBRI-6M");
+        if (bbri != null) products.put("DEP-BBRI-6M", new DepositProduct("DEP-BBRI-6M", bbri.bankName, bbri.tenorDays, rateDecimal * 1.10, bbri.bonusInterestPercent, bbri.minPlacement));
+        DepositProduct t10 = products.get("DEP-TENOR-10");
+        if (t10 != null) products.put("DEP-TENOR-10", new DepositProduct("DEP-TENOR-10", t10.bankName, t10.tenorDays, rateDecimal * 1.00, t10.bonusInterestPercent, t10.minPlacement));
+        DepositProduct t25 = products.get("DEP-TENOR-25");
+        if (t25 != null) products.put("DEP-TENOR-25", new DepositProduct("DEP-TENOR-25", t25.bankName, t25.tenorDays, rateDecimal * 1.25, t25.bonusInterestPercent, t25.minPlacement));
+        DepositProduct t50 = products.get("DEP-TENOR-50");
+        if (t50 != null) products.put("DEP-TENOR-50", new DepositProduct("DEP-TENOR-50", t50.bankName, t50.tenorDays, rateDecimal * 1.50, t50.bonusInterestPercent, t50.minPlacement));
+    }
+
     public synchronized TimeDeposit openDeposit(Account account, String productId, Money principal, long now, EconomyLedger ledger) {
         DepositProduct prod = products.get(productId);
         if (prod == null) throw new IllegalArgumentException("Produk deposito tidak ditemukan: " + productId);
@@ -129,16 +155,18 @@ public final class TimeDepositManager {
                     now,
                     "Pencairan Pokok Deposito " + dep.getBankName()
             );
-            // Kredit Bunga
+            // Kredit Bunga Bersih (PPh Final 20% Sesuai Regulasi Perbankan - Bug #210)
             if (interest.isPositive()) {
+                Money tax = interest.multiply(0.20);
+                Money netInterest = interest.subtract(tax);
                 ledger.recordMutation(
                         "DEP-MATURITY-INT-" + depositId,
                         account,
                         LedgerEntryType.TIME_DEPOSIT_INTEREST,
-                        interest,
+                        netInterest,
                         true,
                         now,
-                        "Bunga Jatuh Tempo Deposito " + dep.getBankName()
+                        "Bunga Bersih Deposito " + dep.getBankName() + " (PPh Final 20% Dipotong: " + tax.format() + ")"
                 );
             }
             dep.markMatured(interest);

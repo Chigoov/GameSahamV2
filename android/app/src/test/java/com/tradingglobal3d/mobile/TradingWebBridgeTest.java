@@ -296,8 +296,8 @@ public class TradingWebBridgeTest {
         JSONObject failSub = new JSONObject((String) subTier.invoke(bridge, "PRO"));
         assertFalse("Tanpa saldo USD langganan harus ditolak", failSub.getBoolean("success"));
 
-        // Berikan saldo USD ke akun personal
-        facade.getPersonalAccount().creditCash(new Money(BigDecimal.valueOf(1000), Currency.USD));
+        // Berikan saldo USD ke akun personal (Paket PRO: $250.000 USD)
+        facade.getPersonalAccount().creditCash(new Money(BigDecimal.valueOf(500_000), Currency.USD));
 
         // Berlangganan sukses
         JSONObject okSub = new JSONObject((String) subTier.invoke(bridge, "PRO"));
@@ -514,7 +514,7 @@ public class TradingWebBridgeTest {
         JSONObject running = new JSONObject((String) controls.invoke(bridge, true, 2));
         assertFalse(running.getJSONObject("clock").getBoolean("isPaused"));
         assertEquals(1, running.getJSONObject("clock").getInt("speed"));
-        assertEquals(24, running.getJSONObject("clock").getInt("rate"));
+        assertEquals(48, running.getJSONObject("clock").getInt("rate"));
         JSONObject paused = new JSONObject((String) controls.invoke(bridge, false, 1));
         assertFalse("Legacy pause requests must keep the world running", paused.getJSONObject("clock").getBoolean("isPaused"));
     }
@@ -525,8 +525,8 @@ public class TradingWebBridgeTest {
         facade.setRealTimeClock(java.time.Clock.fixed(java.time.Instant.ofEpochMilli(start), java.time.ZoneOffset.UTC));
         facade.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(50_000_000));
         int initialDays = facade.getCareerManager().getDaysTraded();
-        facade.setRealTimeClock(java.time.Clock.fixed(java.time.Instant.ofEpochMilli(start + 3600000L), java.time.ZoneOffset.UTC));
-        bridge.syncClock(); // Automatic one-day rollover at 24x, not a player close-day command.
+        facade.setRealTimeClock(java.time.Clock.fixed(java.time.Instant.ofEpochMilli(start + 1800000L), java.time.ZoneOffset.UTC));
+        bridge.syncClock(); // Automatic one-day rollover at 48x, not a player close-day command.
         java.time.LocalDate date = facade.getClock().getCurrentDate();
         int days = facade.getCareerManager().getDaysTraded();
         assertEquals(initialDays + 1, days);
@@ -718,6 +718,7 @@ public class TradingWebBridgeTest {
         assertTrue(new JSONObject(bridge.submitOrder(request.toString())).getBoolean("success"));
         assertFalse("Unfilled order is not a trade", facade.getCareerManager().getMission("MIS-01").isCompleted());
         bridge.cancelOrder("MISSION-OPEN");
+        facade.getClock().advanceGameSeconds(1800); // 09:00 WIB bursa buka
         facade.generateNpcLiquidity();
         request.put("requestId", "MISSION-FILL").put("limitPrice", "11000");
         assertEquals("FILLED", new JSONObject(bridge.submitOrder(request.toString())).getString("status"));
@@ -742,7 +743,7 @@ public class TradingWebBridgeTest {
         java.lang.reflect.Method reports = TradingWebBridge.class.getMethod("getSessionReports");
         assertEquals(0, new JSONArray((String) reports.invoke(bridge)).length());
         facade.deposit("REPORT-EXTERNAL", facade.getPersonalAccount().getId(), Money.of(1000000, Currency.IDR), "test inflow");
-        facade.advanceRealMs(3600000L, true); // One real hour settles exactly one calendar day at 24x.
+        facade.advanceRealMs(1800000L, true); // 30 real minutes settles exactly one calendar day at 48x.
         assertFalse(new JSONObject(bridge.closeDay("REPORT-LIST")).getBoolean("success"));
         Money cash = facade.getPersonalAccount().getTotalCash(Currency.IDR);
         java.time.LocalDate date = facade.getClock().getCurrentDate();
@@ -782,6 +783,7 @@ public class TradingWebBridgeTest {
 
     @Test
     public void testPendingTriggerCanBeCancelledBeforeBookExistsAndAfterReload() throws Exception {
+        facade.getMarketEngine().clearState();
         JSONObject request = new JSONObject().put("accountId", facade.getPersonalAccount().getId())
                 .put("instrumentId", "IDX:BBCA").put("side", "BUY").put("type", "STOP_LOSS")
                 .put("quantity", 100).put("triggerPrice", "11000").put("requestId", "CANCEL-TRIGGER");
@@ -899,6 +901,7 @@ public class TradingWebBridgeTest {
         assertEquals(0, emptyBars.getJSONObject(0).getLong("volume"));
 
         // 2. Siapkan likuiditas market maker dan eksekusi transaksi beli 1 lot BBCA (@ Rp 10.250)
+        facade.getClock().advanceGameSeconds(1800); // 09:00 WIB bursa buka
         facade.generateNpcLiquidity();
         JSONObject buyReq = new JSONObject()
                 .put("requestId", "REQ-CHART-TEST-1")
@@ -968,6 +971,7 @@ public class TradingWebBridgeTest {
         assertEquals(2, progAfterMandate.getInt("achievementsUnlocked"));
 
         // 4. Transaksi pertama: membuka 'first' (100 XP)
+        facade.getClock().advanceGameSeconds(1800); // 09:00 WIB bursa buka
         facade.generateNpcLiquidity();
         JSONObject buyReq = new JSONObject()
                 .put("requestId", "REQ-PROG-TEST-1")
@@ -1113,7 +1117,7 @@ public class TradingWebBridgeTest {
         // 2. League leaderboard
         JSONObject lbRes = new JSONObject(bridge.getLeagueLeaderboard("NET_WORTH"));
         assertTrue(lbRes.getBoolean("success"));
-        assertEquals(21, lbRes.getInt("totalCompetitors")); // 20 NPC + 1 player
+        assertEquals(1001, lbRes.getInt("totalCompetitors")); // 1000 NPC + 1 player
 
         // 3. Rival status
         JSONObject rivalRes = new JSONObject(bridge.getRivalStatus());
@@ -1138,6 +1142,7 @@ public class TradingWebBridgeTest {
     @Test
     public void portfolioValuationMatchesFillReceiptCashDeltaAndLedgerEntries() throws Exception {
         Account personal = facade.getPersonalAccount();
+        facade.getClock().advanceGameSeconds(1800); // 09:00 WIB bursa buka
         facade.generateNpcLiquidity();
         JSONArray asks = new JSONObject(bridge.getOrderBook("IDX:BBCA")).getJSONArray("asks");
         assertTrue("QA liquidity must provide an actual ask", asks.length() > 0);
@@ -1203,7 +1208,7 @@ public class TradingWebBridgeTest {
         JSONObject book = new JSONObject(bridge.getOrderBook("IDX:BBCA"));
         JSONArray bids = book.getJSONArray("bids");
         BigDecimal highestBid = bids.length() == 0 ? new BigDecimal("9000") : new BigDecimal(bids.getJSONObject(0).getString("price"));
-        BigDecimal restingAsk = highestBid.add(new BigDecimal("5000"));
+        BigDecimal restingAsk = highestBid.add(new BigDecimal("500"));
         JSONObject request = new JSONObject().put("accountId", personal.getId())
                 .put("instrumentId", "IDX:BBCA").put("side", "SELL").put("type", "LIMIT")
                 .put("quantity", 100).put("limitPrice", restingAsk.toPlainString()).put("requestId", "N10-SELL-RESERVE");
@@ -1215,7 +1220,7 @@ public class TradingWebBridgeTest {
         assertEquals(100, reserved.getLong("reservedShares"));
         JSONObject overbooked = new JSONObject().put("accountId", personal.getId())
                 .put("instrumentId", "IDX:BBCA").put("side", "SELL").put("type", "LIMIT")
-                .put("quantity", 200).put("limitPrice", restingAsk.add(new BigDecimal("1000")).toPlainString())
+                .put("quantity", 200).put("limitPrice", restingAsk.add(new BigDecimal("250")).toPlainString())
                 .put("requestId", "N10-SELL-OVERBOOK");
         assertFalse(new JSONObject(bridge.submitOrder(overbooked.toString())).getBoolean("success"));
 
@@ -1227,7 +1232,7 @@ public class TradingWebBridgeTest {
 
         JSONObject trigger = new JSONObject().put("accountId", personal.getId())
                 .put("instrumentId", "IDX:BBCA").put("side", "SELL").put("type", "TAKE_PROFIT")
-                .put("quantity", 100).put("triggerPrice", "50000").put("requestId", "N10-SELL-TRIGGER");
+                .put("quantity", 100).put("triggerPrice", "11500").put("requestId", "N10-SELL-TRIGGER");
         JSONObject triggered = new JSONObject(bridge.submitOrder(trigger.toString()));
         assertTrue(triggered.toString(), triggered.getBoolean("success"));
         assertEquals("PENDING_TRIGGER", triggered.getString("status"));

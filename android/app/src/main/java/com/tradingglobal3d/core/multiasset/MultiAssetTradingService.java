@@ -135,6 +135,7 @@ public final class MultiAssetTradingService {
         applyCoupons(owner, dealer, ledger, plan, now);
     }
     private void applyCoupons(Account owner, Account dealer, EconomyLedger ledger, List<CouponSettlement> plan, long now) {
+        if (owner.isFrozen()) return; // Skip kupon ke akun yang dibekukan/sengketa (Bug #205)
         for (CouponSettlement settlement : plan) {
             BondInstrument bond = settlement.bond; Money due = settlement.due;
             String anchorKey = accrualKey(owner, bond);

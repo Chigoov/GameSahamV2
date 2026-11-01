@@ -14,10 +14,12 @@ import java.util.*;
  */
 public final class OrderManager {
     private final Map<String, List<Order>> ordersByAccount = new HashMap<>();
+    private final Map<String, Order> ordersByRequest = new HashMap<>();
     private final List<Order> activeTriggerOrders = new ArrayList<>();
 
     public synchronized void registerOrder(Order order) {
         ordersByAccount.computeIfAbsent(order.getAccountId(), k -> new ArrayList<>()).add(order);
+        ordersByRequest.putIfAbsent(order.getRequestId(), order);
         if (order.getStatus() == OrderStatus.PENDING_TRIGGER) {
             activeTriggerOrders.add(order);
         }
@@ -25,7 +27,12 @@ public final class OrderManager {
 
     public synchronized void reset() {
         ordersByAccount.clear();
+        ordersByRequest.clear();
         activeTriggerOrders.clear();
+    }
+
+    public synchronized boolean hasActiveTriggers() {
+        return !activeTriggerOrders.isEmpty();
     }
 
     public synchronized org.json.JSONArray exportState() throws org.json.JSONException {
@@ -37,14 +44,14 @@ public final class OrderManager {
                     .put("limit", o.getLimitPrice() == null ? org.json.JSONObject.NULL : o.getLimitPrice().getAmount().toPlainString())
                     .put("trigger", o.getTriggerPrice() == null ? org.json.JSONObject.NULL : o.getTriggerPrice().getAmount().toPlainString())
                     .put("quantity", o.getTotalQuantity()).put("filled", o.getFilledQuantity()).put("createdAt", o.getCreatedAt())
-                    .put("status", o.getStatus().name()).put("feeDiscountPercent", o.getFeeDiscountPercent())
+                    .put("status", o.getStatus().name()).put("awaitingMarketOpen", o.isAwaitingMarketOpen()).put("feeDiscountPercent", o.getFeeDiscountPercent())
                     .put("reserved", o.getReservedMoney() == null ? org.json.JSONObject.NULL : o.getReservedMoney().getAmount().toPlainString()));
         }
         return result;
     }
 
     public synchronized void restoreState(org.json.JSONArray saved, InstrumentCatalog catalog, MarketEngine market) throws org.json.JSONException {
-        ordersByAccount.clear(); activeTriggerOrders.clear();
+        reset();
         for (int i = 0; i < saved.length(); i++) {
             org.json.JSONObject p = saved.getJSONObject(i);
             Instrument instrument = catalog.getById(p.getString("instrumentId"));
@@ -59,8 +66,15 @@ public final class OrderManager {
             order.setFeeDiscountPercent(p.optDouble("feeDiscountPercent", 0.0));
             order.applyFill(p.getLong("filled"));
             order.setStatus(OrderStatus.valueOf(p.getString("status")));
+            boolean legacyWaitingMarket = order.getType() == OrderType.MARKET && order.getStatus() == OrderStatus.OPEN;
+            order.setAwaitingMarketOpen(p.optBoolean("awaitingMarketOpen", legacyWaitingMarket));
+            if (order.isAwaitingMarketOpen()) {
+                if (order.getType() != OrderType.MARKET || order.getStatus() != OrderStatus.OPEN || order.getFilledQuantity() != 0)
+                    throw new IllegalArgumentException("Antrean pembukaan save tidak valid");
+                order.setLimitPrice(null);
+            }
             registerOrder(order);
-            if (!order.getStatus().isFinal() && order.getStatus() != OrderStatus.PENDING_TRIGGER)
+            if (!order.isAwaitingMarketOpen() && !order.getStatus().isFinal() && order.getStatus() != OrderStatus.PENDING_TRIGGER)
                 market.getOrCreateBook(instrument).addLimitOrder(order);
         }
     }
@@ -74,12 +88,7 @@ public final class OrderManager {
     }
 
     public synchronized Order getOrderByRequest(String requestId) {
-        for (List<Order> orders : ordersByAccount.values()) {
-            for (Order order : orders) {
-                if (order.getRequestId().equals(requestId)) return order;
-            }
-        }
-        return null;
+        return ordersByRequest.get(requestId);
     }
 
     public synchronized List<Order> getOrdersForAccount(String accountId) {

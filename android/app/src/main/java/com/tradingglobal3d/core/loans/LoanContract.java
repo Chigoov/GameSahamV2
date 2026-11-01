@@ -85,6 +85,10 @@ public final class LoanContract {
     public static final BigDecimal SIMPLE_24H_REAL_PENALTY_RATE = new BigDecimal("0.05"); // 5% sederhana per 24 jam nyata (A16)
 
     public LoanContract(String id, String productId, String accountId, Money principal, int tenorDays, long createdTimestamp) {
+        this(id, productId, accountId, principal, tenorDays, createdTimestamp, DAILY_RATE);
+    }
+
+    public LoanContract(String id, String productId, String accountId, Money principal, int tenorDays, long createdTimestamp, BigDecimal dailyInterestRate) {
         this.id = Objects.requireNonNull(id);
         this.productId = Objects.requireNonNull(productId);
         this.accountId = Objects.requireNonNull(accountId);
@@ -94,7 +98,7 @@ public final class LoanContract {
                 || createdTimestamp < 0) throw new IllegalArgumentException("Pokok, tenor atau timestamp pinjaman tidak sah");
         this.tenorDays = tenorDays;
         this.remainingDays = this.tenorDays;
-        this.dailyInterestRate = DAILY_RATE;
+        this.dailyInterestRate = (dailyInterestRate != null && dailyInterestRate.compareTo(BigDecimal.ZERO) > 0) ? dailyInterestRate : DAILY_RATE;
         this.accruedInterest = Money.zero(Currency.IDR);
         this.accruedPenalty = Money.zero(Currency.IDR);
         this.status = LoanStatus.ACTIVE;
@@ -111,6 +115,7 @@ public final class LoanContract {
         for (Installment installment : schedule) installment.dueDay += shift;
         lastAccrualDay = restoredDay; legacyAnchorUnresolved = false; refreshStatus();
     }
+    public BigDecimal getDailyInterestRate() { return dailyInterestRate; }
     public String getCollateralId() { return collateralId; }
     void attachCollateral(CollectibleItem item) { collateralId = item.getId(); boundCollateral = item; }
     void bindCollateral(CollectibleItem item) { boundCollateral = item; }
@@ -440,6 +445,7 @@ public final class LoanContract {
         obj.put("createdTimestamp", createdTimestamp);
         obj.put("paymentReceipts", new JSONObject(new JSONObject(paymentReceipts).toString()));
         obj.put("stateSchemaVersion", 2);
+        obj.put("dailyInterestRate", dailyInterestRate != null ? dailyInterestRate.toPlainString() : DAILY_RATE.toPlainString());
         obj.put("lastRealPenaltyTimestamp", lastRealPenaltyTimestamp);
         obj.put("disbursementPayload", disbursementPayload == null ? JSONObject.NULL : disbursementPayload);
         obj.put("disbursementReceipt", disbursementReceipt == null ? JSONObject.NULL : new JSONObject(disbursementReceipt.toString()));
@@ -467,7 +473,10 @@ public final class LoanContract {
         int tenor = obj.optInt("tenorDays", 14);
         long ts = obj.getLong("createdTimestamp");
 
-        LoanContract contract = new LoanContract(id, pId, aId, origP, tenor, ts);
+        String rateStr = obj.optString("dailyInterestRate", null);
+        BigDecimal rate = (rateStr != null && !rateStr.trim().isEmpty()) ? new BigDecimal(rateStr) : DAILY_RATE;
+
+        LoanContract contract = new LoanContract(id, pId, aId, origP, tenor, ts, rate);
         contract.remainingPrincipal = new Money(new BigDecimal(obj.optString("remainingPrincipal", origP.getAmount().toPlainString())), Currency.IDR);
         contract.remainingDays = obj.optInt("remainingDays", tenor);
         contract.accruedInterest = new Money(new BigDecimal(obj.optString("accruedInterest", "0")), Currency.IDR);

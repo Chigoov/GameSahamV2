@@ -93,6 +93,14 @@ public final class HeadhuntingService {
     }
 
     public List<Candidate> getAllCandidates() {
+        List<Candidate> list = new ArrayList<>();
+        for (Candidate c : candidates.values()) {
+            if (!c.isHired()) list.add(c); // Saring kandidat yang sudah direkrut (Bug #359)
+        }
+        return list;
+    }
+
+    public List<Candidate> getAllCandidatesIncludingHired() {
         return new ArrayList<>(candidates.values());
     }
 
@@ -114,7 +122,7 @@ public final class HeadhuntingService {
         ledger.recordMutation(
                 "POACH-" + cand.getCandidateId() + "-" + System.currentTimeMillis(),
                 personal,
-                LedgerEntryType.COMPANY_PAYROLL,
+                LedgerEntryType.TRANSACTION_FEE, // Biaya jasa profesional non-payroll (Bug #343)
                 cost,
                 false, // debit
                 now,

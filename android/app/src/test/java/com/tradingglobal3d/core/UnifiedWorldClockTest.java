@@ -55,7 +55,7 @@ public class UnifiedWorldClockTest {
                     time(game, START + elapsed - 1000); game.onAppLifecycleChanged(true);
                     time(game, START + elapsed); game.syncClock();
                 }
-                assertEquals("duration " + elapsed + " lifecycle " + lifecycle, elapsed * 24, game.getGameTimestamp() - initial);
+                assertEquals("duration " + elapsed + " lifecycle " + lifecycle, elapsed * 48, game.getGameTimestamp() - initial);
                 assertEquals(0, game.getClock().getGameMsRemainder());
                 assertTrue(game.reconcileAll());
                 assertFalse(game.getClock().isPaused());
@@ -81,11 +81,11 @@ public class UnifiedWorldClockTest {
         Files.delete(temp.toPath().resolve("block")); Files.delete(temp.toPath());
         game.save(); game.save();
         game = open(directory, START + 2000);
-        assertEquals(initial + 48000, game.getGameTimestamp());
+        assertEquals(initial + 96000, game.getGameTimestamp());
         assertEquals(0, game.getClock().getGameMsRemainder());
         assertTrue(game.reconcileAll());
         game = open(directory, START + 2000);
-        assertEquals(initial + 48000, game.getGameTimestamp());
+        assertEquals(initial + 96000, game.getGameTimestamp());
     }
 
     @Test public void legacyWithoutAnchorUsesSavedTimestampWithoutInventingHistory() throws Exception {
@@ -99,19 +99,19 @@ public class UnifiedWorldClockTest {
         legacy.getJSONObject("runtimeState").remove("worldClockVersion");
         Files.write(file.toPath(), legacy.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
         game = open(directory, START + 1900);
-        assertEquals(initial + 45000, game.getGameTimestamp());
-        assertEquals(600, game.getClock().getGameMsRemainder());
+        assertEquals(initial + 91000, game.getGameTimestamp());
+        assertEquals(200, game.getClock().getGameMsRemainder());
         game = open(directory, START + 2000);
-        assertEquals(initial + 48000, game.getGameTimestamp());
+        assertEquals(initial + 96000, game.getGameTimestamp());
         assertTrue(game.reconcileAll());
     }
 
     @Test public void everyLifecycleAndLegacySpeedUsesTwentyFourTimes() {
         for (boolean foreground : new boolean[]{true, false}) {
             for (int speed : new int[]{1, 2, 5}) {
-                assertEquals(7200000L, GameClock.convertRealMsToGameMs(300000, foreground, speed));
-                assertEquals(86400000L, GameClock.convertRealMsToGameMs(3600000, foreground, speed));
-                assertEquals(172800000L, GameClock.convertRealMsToGameMs(7200000, foreground, speed));
+                assertEquals(14400000L, GameClock.convertRealMsToGameMs(300000, foreground, speed));
+                assertEquals(172800000L, GameClock.convertRealMsToGameMs(3600000, foreground, speed));
+                assertEquals(345600000L, GameClock.convertRealMsToGameMs(7200000, foreground, speed));
             }
         }
     }
@@ -129,15 +129,15 @@ public class UnifiedWorldClockTest {
         TradingFacade game = open(temporary.newFolder(), START);
         long before = game.getClock().getGameTimestamp();
         time(game, START + 1900); game.syncClock();
-        assertEquals(45000L, game.getClock().getGameTimestamp() - before);
-        assertEquals(600, game.getClock().getGameMsRemainder());
+        assertEquals(91000L, game.getClock().getGameTimestamp() - before);
+        assertEquals(200, game.getClock().getGameMsRemainder());
         time(game, START + 2000); game.onAppLifecycleChanged(false);
-        assertEquals(48000L, game.getClock().getGameTimestamp() - before);
+        assertEquals(96000L, game.getClock().getGameTimestamp() - before);
         assertEquals(0, game.getClock().getGameMsRemainder());
         game.onAppLifecycleChanged(false);
         time(game, START + 3000); game.onAppLifecycleChanged(true);
         game.onAppLifecycleChanged(true);
-        assertEquals(72000L, game.getClock().getGameTimestamp() - before);
+        assertEquals(144000L, game.getClock().getGameTimestamp() - before);
         assertTrue(game.reconcileAll());
     }
 
@@ -151,7 +151,7 @@ public class UnifiedWorldClockTest {
         game = open(directory, START + 1500);
         assertEquals(START + 2000, game.getLastRealTimeAnchor());
         time(game, START + 2500); game.syncClock();
-        assertEquals(60000L, game.getClock().getGameTimestamp() - before);
+        assertEquals(120000L, game.getClock().getGameTimestamp() - before);
         assertTrue(game.reconcileAll());
     }
 
@@ -162,10 +162,10 @@ public class UnifiedWorldClockTest {
         Object cash = game.getPersonalAccount().getTotalCash(com.tradingglobal3d.core.model.Currency.IDR);
         game.save();
         game = open(directory, START + 300000);
-        assertEquals(7200000L, game.getClock().getGameTimestamp() - before);
+        assertEquals(14400000L, game.getClock().getGameTimestamp() - before);
         assertEquals(cash, game.getPersonalAccount().getTotalCash(com.tradingglobal3d.core.model.Currency.IDR));
         game = open(directory, START + 300000);
-        assertEquals(7200000L, game.getClock().getGameTimestamp() - before);
+        assertEquals(14400000L, game.getClock().getGameTimestamp() - before);
         assertTrue(game.reconcileAll());
     }
 
@@ -181,7 +181,7 @@ public class UnifiedWorldClockTest {
         assertFalse(new JSONObject(bridge.closeDay("NO-PLAYER-CLOSE")).getBoolean("success"));
         assertEquals(before, game.getClock().getGameTimestamp());
         time(game, START + 1000); game.syncClock();
-        assertEquals(24000L, game.getClock().getGameTimestamp() - before);
+        assertEquals(48000L, game.getClock().getGameTimestamp() - before);
     }
 
     @Test public void legacySaveMigrationKeepsWorldFractionAndBalancesAndRunsOnce() throws Exception {
@@ -197,7 +197,7 @@ public class UnifiedWorldClockTest {
         legacy.getJSONObject("runtimeState").put("rulesVersion", "2026.10.20.2");
         Files.write(file.toPath(), legacy.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
         game = open(directory, START + 1000);
-        assertEquals(before + 24000L, game.getClock().getGameTimestamp());
+        assertEquals(before + 48000L, game.getClock().getGameTimestamp());
         assertEquals(456, game.getClock().getGameMsRemainder());
         assertEquals(1, game.getClock().getSpeedMultiplier());
         JSONObject migrated = new JSONObject(new String(Files.readAllBytes(file.toPath()), java.nio.charset.StandardCharsets.UTF_8));
@@ -215,7 +215,7 @@ public class UnifiedWorldClockTest {
         assertTrue(legacy.getJSONArray("ledger").similar(migrated.getJSONArray("ledger")));
         assertEquals(1, migrated.getJSONObject("runtimeState").getInt("worldClockVersion"));
         game = open(directory, START + 1000);
-        assertEquals(before + 24000L, game.getClock().getGameTimestamp());
+        assertEquals(before + 48000L, game.getClock().getGameTimestamp());
         assertEquals(456, game.getClock().getGameMsRemainder());
         assertTrue(game.reconcileAll());
     }

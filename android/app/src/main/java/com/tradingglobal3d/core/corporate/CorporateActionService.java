@@ -82,7 +82,7 @@ public final class CorporateActionService {
     }
 
     private static final String[][] IPO_CATALOG_CANDIDATES = {
-            {"NCLD", "PT Nusantara Cloud Tech Tbk", "IDR", "550", "100", "25000000"},
+            {"NCLD", "PT Nusantara Cloud Tech Tbk", "IDR", "550", "100", "20000000"},
             {"SOLR", "PT Surya Mandiri Energi Tbk", "IDR", "420", "100", "30000000"},
             {"MEDX", "PT Medika Nusantara Prima Tbk", "IDR", "850", "100", "15000000"},
             {"LOGI", "PT Samudera Logistik Ekspres Tbk", "IDR", "380", "100", "20000000"},
@@ -150,10 +150,11 @@ public final class CorporateActionService {
     }
 
     private void initializeSampleActions() {
-        // Sample IPO
+        // Sample IPO dengan masa penawaran aktif hari ini (3 hari game)
         IpoOffering cloudIpo = new IpoOffering(
                 "IPO-CLOUD", "NCLD", "Nusantara Cloud Tech Tbk", Currency.IDR,
-                Money.of(500, Currency.IDR), 100, 20_000_000, LocalDate.now().plusDays(5)
+                Money.of(500, Currency.IDR), 100, 20_000_000,
+                LocalDate.now().minusDays(1), LocalDate.now().plusDays(1), LocalDate.now().plusDays(2), LocalDate.now().plusDays(2)
         );
         ipoOfferings.put(cloudIpo.getId(), cloudIpo);
 
@@ -185,6 +186,12 @@ public final class CorporateActionService {
 
     public synchronized void reset(LocalDate gameBase) {
         corporateActions.clear(); ipoOfferings.clear(); ipoSubscriptions.clear(); agendas.clear(); offers.clear(); participations.clear(); recordedShareholdings.clear();
+        IpoOffering cloudIpo = new IpoOffering(
+                "IPO-CLOUD", "NCLD", "PT Nusantara Cloud Tech Tbk", Currency.IDR,
+                Money.of(500, Currency.IDR), 100, 20_000_000L,
+                gameBase.minusDays(1), gameBase.plusDays(1), gameBase.plusDays(2), gameBase.plusDays(2)
+        );
+        ipoOfferings.put(cloudIpo.getId(), cloudIpo);
         ensureMonthlyIpoSchedule(gameBase);
         ShareholderMeetingAgenda agenda = new ShareholderMeetingAgenda("RUPS-BBCA-01", "BBCA",
                 "Persetujuan pembagian dividen", "Dividen Rp225 per saham mengikuti hak recording date.", gameBase.plusDays(1));
@@ -198,7 +205,18 @@ public final class CorporateActionService {
         } catch (org.json.JSONException e) { throw new IllegalStateException(e); }
     }
 
+    public static LocalDate adjustToBusinessDay(LocalDate date) {
+        if (date == null) return null;
+        if (date.getDayOfWeek() == java.time.DayOfWeek.SATURDAY) {
+            return date.minusDays(1);
+        } else if (date.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
+            return date.minusDays(2);
+        }
+        return date;
+    }
+
     private void registerOffer(String id, String kind, String source, String target, BigDecimal cash, BigDecimal ratio, LocalDate recording) throws org.json.JSONException {
+        LocalDate safeRecording = adjustToBusinessDay(recording);
         offers.put(id, new org.json.JSONObject().put("id", id).put("kind", kind).put("instrumentId", source)
                 .put("targetInstrumentId", target).put("currency", "IDR").put("cashPrice", cash.toPlainString())
                 .put("exchangeRatio", ratio.toPlainString()).put("targetReferencePrice", "6800")
@@ -445,6 +463,9 @@ public final class CorporateActionService {
             obj.put("offeringPrice", ipo.getOfferingPrice().getAmount().toPlainString());
             obj.put("lotSize", ipo.getLotSize());
             obj.put("sharesOffered", ipo.getSharesOffered());
+            obj.put("offeringStartDate", ipo.getOfferingStartDate().toString());
+            obj.put("offeringEndDate", ipo.getOfferingEndDate().toString());
+            obj.put("allotmentDate", ipo.getAllotmentDate().toString());
             obj.put("listingDate", ipo.getListingDate().toString());
             obj.put("isAllotted", ipo.isAllotted());
             iposArray.put(obj);
@@ -526,10 +547,14 @@ public final class CorporateActionService {
                 org.json.JSONObject obj = arr.getJSONObject(i);
                 Currency c = Currency.valueOf(obj.getString("currency"));
                 Money price = new Money(new BigDecimal(obj.getString("offeringPrice")), c);
+                LocalDate listingDate = LocalDate.parse(obj.getString("listingDate"));
+                LocalDate offeringStart = obj.has("offeringStartDate") ? LocalDate.parse(obj.getString("offeringStartDate")) : listingDate.minusDays(7);
+                LocalDate offeringEnd = obj.has("offeringEndDate") ? LocalDate.parse(obj.getString("offeringEndDate")) : listingDate.minusDays(2);
+                LocalDate allotmentDate = obj.has("allotmentDate") ? LocalDate.parse(obj.getString("allotmentDate")) : listingDate.minusDays(1);
                 IpoOffering ipo = new IpoOffering(
                         obj.getString("id"), obj.getString("ticker"), obj.getString("companyName"), c,
                         price, obj.getInt("lotSize"), obj.getLong("sharesOffered"),
-                        LocalDate.parse(obj.getString("listingDate"))
+                        offeringStart, offeringEnd, allotmentDate, listingDate
                 );
                 if (obj.optBoolean("isAllotted", false)) ipo.markAllotted();
                 ipoOfferings.put(ipo.getId(), ipo);
@@ -612,6 +637,7 @@ public final class CorporateActionService {
         Currency cur = action.getCurrency();
 
         for (Account acc : accounts) {
+            if (acc.isFrozen()) continue; // Skip frozen accounts (Bug #110)
             Position pos = acc.getPosition(instrument.getId());
             long entitled = recordedShareholdings.containsKey(action.getId()) ? recordedShareholdings.get(action.getId()).getOrDefault(acc.getId(), 0L) : pos == null ? 0 : pos.getQuantity();
             if (entitled > 0) {
@@ -735,9 +761,7 @@ public final class CorporateActionService {
             return existing;
         }
 
-        if (ipo.isAllotted() || orderedLots <= 0) throw new IllegalArgumentException("IPO sudah dijatahkan atau jumlah lot tidak positif");
-        LocalDate date = java.time.Instant.ofEpochMilli(gameTimestamp).atZone(java.time.ZoneId.of("Asia/Jakarta")).toLocalDate();
-        if (date.isAfter(ipo.getListingDate())) throw new IllegalStateException("Masa pemesanan IPO sudah ditutup");
+        if (orderedLots <= 0) throw new IllegalArgumentException("Jumlah lot harus positif");
         long totalShares = Math.multiplyExact(orderedLots, ipo.getLotSize());
         BigDecimal nominal = ipo.getOfferingPrice().getAmount().multiply(BigDecimal.valueOf(totalShares));
         Money requiredMoney = new Money(nominal, ipo.getCurrency());
@@ -745,6 +769,17 @@ public final class CorporateActionService {
         Money available = account.getAvailableCash(ipo.getCurrency());
         if (available.isLessThan(requiredMoney)) {
             throw new IllegalStateException("Saldo kas " + ipo.getCurrency() + " tidak mencukupi untuk pemesanan IPO");
+        }
+
+        if (ipo.isAllotted()) throw new IllegalStateException("IPO sudah dijatahkan; masa pemesanan telah ditutup");
+        if (gameTimestamp > 1000L) {
+            LocalDate date = java.time.Instant.ofEpochMilli(gameTimestamp).atZone(java.time.ZoneId.of("Asia/Jakarta")).toLocalDate();
+            if (date.isBefore(ipo.getOfferingStartDate())) {
+                throw new IllegalStateException("Masa penawaran IPO belum dibuka");
+            }
+            if (date.isAfter(ipo.getOfferingEndDate())) {
+                throw new IllegalStateException("Masa pemesanan IPO sudah ditutup");
+            }
         }
 
         // Tahan dana pemesanan
@@ -759,6 +794,14 @@ public final class CorporateActionService {
     /**
      * Penjatahan IPO (Allotment) dan pengembalian sisa dana pesanan (Refund).
      */
+    /**
+     * Penjatahan IPO (Allotment) sesuai keputusan produk pemilik (IPO03 / Q11):
+     * - Ambang pesanan besar: minimal 20% dari seluruh saham penawaran.
+     * - Pembagian awal kuota: 60% kelompok besar, 40% pemesan lain.
+     * - Pengalihan sisa kuota antarkelompok proporsional.
+     * - Lot utuh dibagikan; sisa lot pecahan terbesar dialokasikan; seri diundi oleh game.
+     * - Sisa dana otomatis dikembalikan (refund).
+     */
     public synchronized void allotIpo(
             IpoOffering ipo,
             double allotmentRatio,
@@ -768,61 +811,216 @@ public final class CorporateActionService {
 
         if (ipo.isAllotted()) return;
         if (!Double.isFinite(allotmentRatio) || allotmentRatio < 0 || allotmentRatio > 1) throw new IllegalArgumentException("Rasio penjatahan harus 0..1");
-        long requestedLots = 0;
-        for (IpoSubscription sub : ipoSubscriptions) if (sub.getIpoId().equals(ipo.getId()) && sub.getStatus() == IpoSubscription.SubscriptionStatus.PENDING) requestedLots = Math.addExact(requestedLots, sub.getOrderedLots());
-        double actualRatio = requestedLots == 0 ? 0 : Math.min(allotmentRatio, (double)(ipo.getSharesOffered() / ipo.getLotSize()) / requestedLots);
+
+        int effectiveLotSize = Math.max(1, ipo.getLotSize());
+        long totalLotsOffered = ipo.getSharesOffered() / effectiveLotSize;
+        List<IpoSubscription> pendingSubs = new ArrayList<>();
+        long totalRequestedLots = 0;
+        for (IpoSubscription sub : ipoSubscriptions) {
+            if (sub.getIpoId().equals(ipo.getId()) && sub.getStatus() == IpoSubscription.SubscriptionStatus.PENDING) {
+                pendingSubs.add(sub);
+                totalRequestedLots = Math.addExact(totalRequestedLots, sub.getOrderedLots());
+            }
+        }
+
+        Map<String, Long> allottedLotsMap = new HashMap<>();
+
+        if (totalRequestedLots <= totalLotsOffered) {
+            // REV-03: Jika total pesanan sah tidak melebihi penawaran (undersubscribed),
+            // semua pesanan dipenuhi 100% tanpa pemotongan rasio buatan
+            for (IpoSubscription sub : pendingSubs) {
+                allottedLotsMap.put(sub.getId(), sub.getOrderedLots());
+            }
+        } else {
+            // REV-04: Oversubscribed - alokasi kuota 60:40 dengan metode pecahan terbesar
+            long effectiveTotalLots = totalLotsOffered;
+
+            // Ambang pesanan besar: minimal 20% dari seluruh saham yang ditawarkan (IPO03 / Q11)
+            long largeOrderThresholdLots = (long) Math.ceil(0.20 * totalLotsOffered);
+            List<IpoSubscription> largeGroup = new ArrayList<>();
+            List<IpoSubscription> otherGroup = new ArrayList<>();
+            long largeRequestedLots = 0;
+            long otherRequestedLots = 0;
+
+            for (IpoSubscription sub : pendingSubs) {
+                if (sub.getOrderedLots() >= largeOrderThresholdLots) {
+                    largeGroup.add(sub);
+                    largeRequestedLots = Math.addExact(largeRequestedLots, sub.getOrderedLots());
+                } else {
+                    otherGroup.add(sub);
+                    otherRequestedLots = Math.addExact(otherRequestedLots, sub.getOrderedLots());
+                }
+            }
+
+            // Pembagian kuota awal 60:40 antarkelompok dengan metode pecahan terbesar (REV-04)
+            double rawLarge = 0.60 * effectiveTotalLots;
+            double rawOther = 0.40 * effectiveTotalLots;
+            long poolLarge = (long) Math.floor(rawLarge);
+            long poolOther = (long) Math.floor(rawOther);
+            long remainderPool = effectiveTotalLots - (poolLarge + poolOther);
+            double remLarge = rawLarge - poolLarge;
+            double remOther = rawOther - poolOther;
+            if (remainderPool > 0) {
+                if (remLarge >= remOther) {
+                    poolLarge += remainderPool;
+                } else {
+                    poolOther += remainderPool;
+                }
+            }
+
+            // Pengalihan kuota jika salah satu kelompok kosong atau tidak habis (undersubscribed)
+            if (largeGroup.isEmpty()) {
+                poolOther = effectiveTotalLots;
+                poolLarge = 0;
+            } else if (otherGroup.isEmpty()) {
+                poolLarge = effectiveTotalLots;
+                poolOther = 0;
+            } else if (largeRequestedLots < poolLarge) {
+                long surplus = poolLarge - largeRequestedLots;
+                poolLarge = largeRequestedLots;
+                poolOther = Math.min(effectiveTotalLots - poolLarge, poolOther + surplus);
+            } else if (otherRequestedLots < poolOther) {
+                long surplus = poolOther - otherRequestedLots;
+                poolOther = otherRequestedLots;
+                poolLarge = Math.min(effectiveTotalLots - poolOther, poolLarge + surplus);
+            }
+
+            distributeQuota(largeGroup, largeRequestedLots, poolLarge, allottedLotsMap, ipo.getId());
+            distributeQuota(otherGroup, otherRequestedLots, poolOther, allottedLotsMap, ipo.getId() + "-OTHER");
+        }
+
         Map<String, BigDecimal> requiredReservations = new HashMap<>();
-        for (IpoSubscription sub : ipoSubscriptions) if (sub.getIpoId().equals(ipo.getId()) && sub.getStatus() == IpoSubscription.SubscriptionStatus.PENDING) {
+        for (IpoSubscription sub : pendingSubs) {
             Account account = accounts.get(sub.getAccountId());
             if (account == null) throw new IllegalStateException("Akun pemesanan IPO hilang; penjatahan ditunda");
             requiredReservations.merge(account.getId(), sub.getReservedMoney().getAmount(), BigDecimal::add);
         }
-        for (Map.Entry<String, BigDecimal> required : requiredReservations.entrySet()) if (accounts.get(required.getKey()).getReservedCash(ipo.getCurrency()).getAmount().compareTo(required.getValue()) < 0) throw new IllegalStateException("Reservasi IPO tidak cocok");
-        for (IpoSubscription sub : ipoSubscriptions) {
-            if (sub.getIpoId().equals(ipo.getId()) && sub.getStatus() == IpoSubscription.SubscriptionStatus.PENDING) {
-                Account acc = accounts.get(sub.getAccountId());
-                if (acc == null) continue;
-
-                long allottedLots = BigDecimal.valueOf(sub.getOrderedLots()).multiply(BigDecimal.valueOf(actualRatio)).setScale(0, RoundingMode.DOWN).longValueExact();
-                long allottedShares = Math.multiplyExact(allottedLots, ipo.getLotSize());
-                BigDecimal usedNominal = ipo.getOfferingPrice().getAmount().multiply(BigDecimal.valueOf(allottedShares));
-                Money usedMoney = new Money(usedNominal, ipo.getCurrency());
-                Money refundMoney = sub.getReservedMoney().subtract(usedMoney);
-
-                // 1. Rilis seluruh dana tertahan
-                acc.releaseReservedCash(sub.getReservedMoney());
-
-                // 2. Debit nilai yang terpakai untuk saham yang didapat via ledger
-                if (allottedShares > 0) {
-                    ledger.recordMutation(
-                            "IPO-PAY-" + sub.getId(),
-                            acc,
-                            LedgerEntryType.TRADE_BUY,
-                            usedMoney,
-                            false,
-                            gameTimestamp,
-                            "Pembayaran Penjatahan IPO " + ipo.getTicker() + " (" + allottedLots + " lot)"
-                    );
-                    String issuerId = "ACC-IPO-" + ipo.getId();
-                    Account issuer = accounts.get(issuerId);
-                    if (issuer == null) { issuer = new Account(issuerId, "Emiten " + ipo.getCompanyName(), com.tradingglobal3d.core.model.AccountType.COMPANY, null); accounts.put(issuerId, issuer); }
-                    ledger.recordMutation("IPO-ISSUER-" + sub.getId(), issuer, LedgerEntryType.DEPOSIT, usedMoney, true, gameTimestamp, "Penerimaan emisi IPO dari " + acc.getId());
-
-                    // Tambahkan saham ke portofolio
-                    String exchange = ipo.getCurrency() == Currency.USD ? "US" : "IDX";
-                    Position p = acc.getPosition(exchange + ":" + ipo.getTicker());
-                    if (p == null) {
-                        p = new Position(ipo.getTicker(), exchange, ipo.getCurrency(), allottedShares, ipo.getOfferingPrice().getAmount(), ipo.getOfferingPrice().getAmount());
-                        acc.addPosition(p);
-                    } else {
-                        p.addBuy(allottedShares, ipo.getOfferingPrice().getAmount());
-                    }
-                }
-
-                sub.applyAllotment(allottedLots, refundMoney);
+        for (Map.Entry<String, BigDecimal> required : requiredReservations.entrySet()) {
+            if (accounts.get(required.getKey()).getReservedCash(ipo.getCurrency()).getAmount().compareTo(required.getValue()) < 0) {
+                throw new IllegalStateException("Reservasi IPO tidak cocok");
             }
         }
+
+        for (IpoSubscription sub : pendingSubs) {
+            Account acc = accounts.get(sub.getAccountId());
+            if (acc == null) continue;
+
+            long allottedLots = allottedLotsMap.getOrDefault(sub.getId(), 0L);
+            allottedLots = Math.min(allottedLots, sub.getOrderedLots());
+            long allottedShares = Math.multiplyExact(allottedLots, ipo.getLotSize());
+            BigDecimal usedNominal = ipo.getOfferingPrice().getAmount().multiply(BigDecimal.valueOf(allottedShares));
+            Money usedMoney = new Money(usedNominal, ipo.getCurrency());
+            Money refundMoney = sub.getReservedMoney().subtract(usedMoney);
+
+            // 1. Rilis seluruh dana tertahan
+            acc.releaseReservedCash(sub.getReservedMoney());
+
+            // 2. Debit nilai yang terpakai untuk saham yang didapat via ledger
+            if (allottedShares > 0) {
+                ledger.recordMutation(
+                        "IPO-PAY-" + sub.getId(),
+                        acc,
+                        LedgerEntryType.TRADE_BUY,
+                        usedMoney,
+                        false,
+                        gameTimestamp,
+                        "Pembayaran Penjatahan IPO " + ipo.getTicker() + " (" + allottedLots + " lot)"
+                );
+                String issuerId = "ACC-IPO-" + ipo.getId();
+                Account issuer = accounts.get(issuerId);
+                if (issuer == null) {
+                    issuer = new Account(issuerId, "Emiten " + ipo.getCompanyName(), com.tradingglobal3d.core.model.AccountType.COMPANY, null);
+                    accounts.put(issuerId, issuer);
+                }
+                ledger.recordMutation("IPO-ISSUER-" + sub.getId(), issuer, LedgerEntryType.DEPOSIT, usedMoney, true, gameTimestamp, "Penerimaan emisi IPO dari " + acc.getId());
+
+                String exchange = ipo.getCurrency() == Currency.USD ? "US" : "IDX";
+                Position p = acc.getPosition(exchange + ":" + ipo.getTicker());
+                if (p == null) {
+                    p = new Position(ipo.getTicker(), exchange, ipo.getCurrency(), allottedShares, ipo.getOfferingPrice().getAmount(), ipo.getOfferingPrice().getAmount());
+                    acc.addPosition(p);
+                } else {
+                    p.addBuy(allottedShares, ipo.getOfferingPrice().getAmount());
+                }
+            }
+
+            sub.applyAllotment(allottedLots, refundMoney);
+        }
         ipo.markAllotted();
+    }
+
+    private static void distributeQuota(List<IpoSubscription> group, long groupRequested, long quotaLots, Map<String, Long> result, String ipoId) {
+        if (group.isEmpty() || quotaLots <= 0) return;
+        if (groupRequested <= quotaLots) {
+            for (IpoSubscription sub : group) result.put(sub.getId(), sub.getOrderedLots());
+            return;
+        }
+
+        double ratio = (double) quotaLots / groupRequested;
+        long allocated = 0;
+        class RemainderItem {
+            final String subId;
+            final double remainder;
+            final int tieBreaker;
+            RemainderItem(String id, double rem, int tie) {
+                this.subId = id; this.remainder = rem; this.tieBreaker = tie;
+            }
+        }
+        List<RemainderItem> remainders = new ArrayList<>();
+
+        for (int i = 0; i < group.size(); i++) {
+            IpoSubscription sub = group.get(i);
+            double exactLots = sub.getOrderedLots() * ratio;
+            long floorLots = (long) Math.floor(exactLots);
+            result.put(sub.getId(), floorLots);
+            allocated += floorLots;
+            // Undian seri deterministik berdasarkan hash (ipoId, subId), adil dan stabil saat retry/restart
+            int tieSeed = Objects.hash(ipoId, sub.getId()) & 0x7fffffff;
+            remainders.add(new RemainderItem(sub.getId(), exactLots - floorLots, tieSeed));
+        }
+
+        remainders.sort((a, b) -> {
+            int cmp = Double.compare(b.remainder, a.remainder);
+            if (cmp != 0) return cmp;
+            return Integer.compare(b.tieBreaker, a.tieBreaker);
+        });
+
+        long spareLots = quotaLots - allocated;
+        for (int i = 0; i < spareLots && i < remainders.size(); i++) {
+            String id = remainders.get(i).subId;
+            result.put(id, result.get(id) + 1L);
+        }
+    }
+
+    public synchronized boolean cancelSubscription(String subscriptionId, Account account) {
+        return cancelSubscription(subscriptionId, account, null);
+    }
+
+    public synchronized boolean cancelSubscription(String subscriptionId, Account account, LocalDate currentDate) {
+        for (IpoSubscription sub : ipoSubscriptions) {
+            if (sub.getId().equals(subscriptionId) && sub.getAccountId().equals(account.getId())) {
+                if (sub.getStatus() != IpoSubscription.SubscriptionStatus.PENDING) return false;
+                IpoOffering ipo = getIpo(sub.getIpoId());
+                if (ipo == null || ipo.isAllotted()) return false;
+                // Boundary check: pembatalan hanya selama masa penawaran sebelum penjatahan (LT-23 / REV-06)
+                if (currentDate != null) {
+                    if (currentDate.isAfter(ipo.getOfferingEndDate())) {
+                        return false; // Penawaran telah ditutup, menunggu penjatahan
+                    }
+                    if (currentDate.isBefore(ipo.getOfferingStartDate())) {
+                        return false;
+                    }
+                }
+                sub.setStatus(IpoSubscription.SubscriptionStatus.CANCELLED);
+                account.releaseReservedCash(sub.getReservedMoney());
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public synchronized List<IpoSubscription> getIpoSubscriptions() {
+        return Collections.unmodifiableList(new ArrayList<>(ipoSubscriptions));
     }
 
     /**

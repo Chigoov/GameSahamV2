@@ -8,6 +8,7 @@ import com.tradingglobal3d.core.market.InstrumentCatalog;
 import com.tradingglobal3d.core.model.Account;
 import com.tradingglobal3d.core.model.Currency;
 import com.tradingglobal3d.core.model.Money;
+import com.tradingglobal3d.core.model.Position;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -219,7 +220,14 @@ public final class CareerManager {
             throw new IllegalStateException("Fasilitas dana pemulihan modal (Bailout) hanya dapat digunakan satu kali seumur karier");
         }
         Money avail = personalAccount.getAvailableCash(Currency.IDR);
-        if (avail.getAmount().compareTo(BigDecimal.valueOf(500_000)) > 0 || !personalAccount.getPositions().isEmpty()) {
+        boolean hasActiveShares = false;
+        for (Position p : personalAccount.getPositions().values()) {
+            if (p != null && p.getQuantity() > 0) {
+                hasActiveShares = true;
+                break;
+            }
+        }
+        if (avail.getAmount().compareTo(BigDecimal.valueOf(500_000)) > 0 || hasActiveShares) {
             throw new IllegalStateException("Fasilitas pemulihan hanya dapat diajukan jika modal kas di bawah Rp 500.000 dan tidak memiliki saham");
         }
 
@@ -235,7 +243,10 @@ public final class CareerManager {
         );
 
         this.bailoutUsed = true;
-        this.reputationScore = Math.max(5, this.reputationScore - 15); // Konsekuensi penalti reputasi
+        this.reputationScore = Math.max(5, this.reputationScore - 25); // Konsekuensi penalti reputasi kebangkrutan
+        if (this.currentRank.getLevel() > CareerRank.NOVICE_TRADER.getLevel()) {
+            this.currentRank = CareerRank.NOVICE_TRADER; // Reset pangkat saat menerima bailout darurat (Bug #158)
+        }
         return bailoutMoney;
     }
 

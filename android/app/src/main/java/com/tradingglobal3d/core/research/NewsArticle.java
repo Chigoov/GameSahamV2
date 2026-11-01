@@ -122,8 +122,25 @@ public final class NewsArticle {
         effectDurationMinutes = duration;
     }
 
+    public JSONObject exportState() throws JSONException {
+        return toJsonObject(publishedAt).put("announcedAt", announcedAt).put("effect", exportEffect());
+    }
+
+    public static NewsArticle fromState(JSONObject state) throws JSONException {
+        NewsArticle article = new NewsArticle(state.getString("id"), state.getString("headline"), state.getString("content"),
+                Category.valueOf(state.getString("category")), state.isNull("relatedTicker") ? null : state.getString("relatedTicker"),
+                state.getString("affectedSector"), state.getString("direction"), state.getString("estimatedRange"),
+                state.getInt("horizonDays"), state.getString("confidence"), state.getDouble("sentimentImpact"),
+                state.getLong("announcedAt"), state.getLong("publishedAt"));
+        article.restoreEffect(state.getJSONObject("effect"));
+        return article;
+    }
+
     public JSONObject toJsonObject(long gameNow, long realNow, boolean replay) throws JSONException {
         JSONObject obj = toJsonObject(gameNow);
+        if (!isPublished(gameNow)) {
+            obj.put("headline", "[Jadwal Rilis] " + affectedSector + ": " + direction);
+        }
         long ends = effectStartsRealAt < 0 ? -1 : Math.addExact(effectStartsRealAt, effectDurationMinutes * 60000L);
         long remaining = ends < 0 ? 0 : Math.max(0, ends - realNow);
         boolean active = !replay && isPublished(gameNow) && isRealEffectActive(realNow);
@@ -159,24 +176,30 @@ public final class NewsArticle {
         obj.put("id", id);
         obj.put("category", category.name());
         obj.put("categoryLabel", category.getLabel());
-        obj.put("relatedTicker", relatedTicker == null ? JSONObject.NULL : relatedTicker);
-        obj.put("affectedSector", affectedSector);
-        obj.put("direction", direction);
-        obj.put("estimatedRange", estimatedRange);
         obj.put("horizonDays", horizonDays);
-        obj.put("confidence", confidence);
         obj.put("publishedAt", publishedAt);
-        obj.put("isPublished", isPublished(currentTimestamp));
+        boolean published = isPublished(currentTimestamp);
+        obj.put("isPublished", published);
         obj.put("countdownLabel", getCountdownLabel(currentTimestamp));
 
-        if (isPublished(currentTimestamp)) {
+        if (published) {
             obj.put("headline", headline);
             obj.put("content", content);
+            obj.put("relatedTicker", relatedTicker == null ? JSONObject.NULL : relatedTicker);
+            obj.put("affectedSector", affectedSector);
+            obj.put("direction", direction);
+            obj.put("estimatedRange", estimatedRange);
+            obj.put("confidence", confidence);
             obj.put("sentimentImpact", sentimentImpact);
         } else {
-            // Anti-future leak: isi lengkap dirahasiakan sebelum terbit, hanya clue yang tampil
-            obj.put("headline", "[Jadwal Rilis] " + affectedSector + ": " + direction);
+            // Anti-future leak: rahasiakan emiten, arah, rentang & sentimen dari feed umum sebelum terbit
+            obj.put("headline", "[Agenda Rilis] Kalender Berita " + category.getLabel());
             obj.put("content", "Informasi resmi sedang dalam proses persiapan publikasi keterbukaan.");
+            obj.put("relatedTicker", JSONObject.NULL);
+            obj.put("affectedSector", "Sektor " + category.getLabel());
+            obj.put("direction", "Terjadwal");
+            obj.put("estimatedRange", "");
+            obj.put("confidence", "Menunggu Rilis");
             obj.put("sentimentImpact", 0.0);
         }
         return obj;

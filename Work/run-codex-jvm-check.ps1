@@ -12,11 +12,21 @@ try {
     if ($jars.Count -ne 3) { throw 'Expected existing JUnit, Hamcrest and JSON jars' }
     $cp = ($jars + "$env:LOCALAPPDATA/Android/Sdk/platforms/android-36/android.jar") -join ';'
     $sources = @(rg --files android/app/src/main/java/com/tradingglobal3d/core -g '*.java') + @('android/app/src/main/java/com/tradingglobal3d/mobile/TradingWebBridge.java', 'android/app/src/main/java/com/tradingglobal3d/mobile/MainActivity.java') + @(rg --files android/app/src/test/java -g '*.java')
+    $sources | ForEach-Object { Get-FileHash -LiteralPath $_ -Algorithm SHA256 } | Select-Object Path,Hash | ConvertTo-Json | Set-Content "$output/source-hashes.json"
     $sources | ForEach-Object { '"'+(Join-Path $repo $_).Replace('\','/')+'"' } | Set-Content "$output/sources.txt"
     & "$javaBin/javac.exe" -J-Xmx256m -encoding UTF-8 -cp $cp -d "$output/classes" "@$output/sources.txt"
     if ($LASTEXITCODE -ne 0) { throw "Compilation failed: $LASTEXITCODE" }
-    if (!$Tests) { $Tests = @(rg --files android/app/src/test/java -g '*Test.java' | ForEach-Object { $_.Substring($_.IndexOf('com\')).Replace('\','.').Replace('.java','') }) }
+    if (!$Tests) {
+        $Tests = @(rg --files android/app/src/test/java -g '*Test.java' | ForEach-Object {
+            $norm = $_.Replace('\', '/')
+            $idx = $norm.IndexOf('com/')
+            if ($idx -ge 0) {
+                $norm.Substring($idx).Replace('/', '.').Replace('.java', '')
+            }
+        })
+    }
     # ponytail: isolate hardcoded relative test outputs and temp saves without changing domain tests.
+    $Tests | Set-Content "$output/test-selection.txt"
     $sandbox = Join-Path $output ('test-run-' + [Guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Force -Path "$sandbox/src/main/assets", "$sandbox/tmp" | Out-Null
     Copy-Item -LiteralPath "$repo/android/app/src/main/assets/data" -Destination "$sandbox/src/main/assets/data" -Recurse

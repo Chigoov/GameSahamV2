@@ -134,7 +134,7 @@ public class CatalogExpansionRegressionTest {
         SaveState state = saves.load().getState();
         JSONArray entries = state.getRuntimeState().getJSONObject("catalog").getJSONArray("instruments");
         for (int i = 0; i < entries.length(); i++) if ("US:NEE".equals(entries.getJSONObject(i).getString("id"))) { entries.remove(i); break; }
-        assertEquals(99, entries.length()); saves.save(state);
+        assertEquals(99, entries.length()); Files.writeString(saves.getSaveFile().toPath(), state.toJsonString(), StandardCharsets.UTF_8);
         assertFalse(current(saves).load());
     }
 
@@ -175,7 +175,7 @@ public class CatalogExpansionRegressionTest {
             JSONObject saved = state.getRuntimeState().getJSONObject("catalog");
             if (legacy) saved.getJSONArray("instruments").remove(0);
             else saved.put("catalogVersion", 2);
-            saves.save(state);
+            Files.writeString(saves.getSaveFile().toPath(), state.toJsonString(), StandardCharsets.UTF_8);
             byte[] bytes = Files.readAllBytes(saves.getSaveFile().toPath());
             TradingFacade game = current(saves);
             game.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(75_000_000));
@@ -191,7 +191,7 @@ public class CatalogExpansionRegressionTest {
             SaveManager saves = legacySave();
             SaveState state = saves.load().getState();
             state.getRuntimeState().getJSONObject("catalog").put("catalogVersion", version);
-            saves.save(state);
+            Files.writeString(saves.getSaveFile().toPath(), state.toJsonString(), StandardCharsets.UTF_8);
             assertFalse("Invalid catalogVersion: " + version, current(saves).load());
         }
         for (String id : new String[]{"IDX:BBCA", "IDX:UNKNOWN"}) {
@@ -199,7 +199,7 @@ public class CatalogExpansionRegressionTest {
             SaveState state = saves.load().getState();
             JSONArray entries = state.getRuntimeState().getJSONObject("catalog").getJSONArray("instruments");
             entries.put(new JSONObject(entries.getJSONObject(0).toString()).put("id", id));
-            saves.save(state);
+            Files.writeString(saves.getSaveFile().toPath(), state.toJsonString(), StandardCharsets.UTF_8);
             assertFalse(current(saves).load());
         }
     }

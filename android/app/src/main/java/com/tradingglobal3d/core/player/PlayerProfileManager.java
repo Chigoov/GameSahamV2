@@ -38,10 +38,12 @@ public final class PlayerProfileManager {
     private Money lifetimeWorstTradePnL = Money.zero(Currency.IDR);
     private final Map<String, JSONObject> prestigeHistory = new LinkedHashMap<>();
 
-    // Preferensi Antarmuka (Aksesibilitas D16)
+    // Preferensi Antarmuka (Aksesibilitas D16) & Tema (Plan 15 B05)
     private String textSize = "100%";
     private boolean highContrast = false;
     private boolean reducedMotion = false;
+    private String theme = "EMAS_KLASIK";
+    private boolean offlineProgressEnabled = true;
 
     public synchronized void reset() {
         this.playerName = "Trader Nusantara";
@@ -178,11 +180,37 @@ public final class PlayerProfileManager {
     }
 
     public synchronized void setPreferences(String textSize, boolean highContrast, boolean reducedMotion) {
+        setPreferences(textSize, highContrast, reducedMotion, this.theme, this.offlineProgressEnabled);
+    }
+
+    public synchronized void setPreferences(String textSize, boolean highContrast, boolean reducedMotion, String theme) {
+        setPreferences(textSize, highContrast, reducedMotion, theme, null);
+    }
+
+    public synchronized void setPreferences(String textSize, boolean highContrast, boolean reducedMotion, String theme, Boolean offlineProgressEnabled) {
         if (textSize != null && !textSize.equals("100%") && !textSize.equals("200%"))
             throw new IllegalArgumentException("Ukuran teks yang tersedia 100% atau 200%");
         if (textSize != null) this.textSize = textSize;
         this.highContrast = highContrast;
         this.reducedMotion = reducedMotion;
+        if (theme != null && (theme.equalsIgnoreCase("EMAS_KLASIK") || theme.equalsIgnoreCase("MIDNIGHT_NEON"))) {
+            this.theme = theme.toUpperCase(java.util.Locale.ROOT);
+        }
+        if (offlineProgressEnabled != null) {
+            this.offlineProgressEnabled = offlineProgressEnabled;
+        }
+    }
+
+    public synchronized boolean isOfflineProgressEnabled() {
+        return offlineProgressEnabled;
+    }
+
+    public synchronized void setOfflineProgressEnabled(boolean enabled) {
+        this.offlineProgressEnabled = enabled;
+    }
+
+    public synchronized String getTheme() {
+        return theme;
     }
 
     public synchronized JSONObject toJsonObject() throws JSONException {
@@ -215,6 +243,8 @@ public final class PlayerProfileManager {
         prefs.put("textSize", textSize);
         prefs.put("highContrast", highContrast);
         prefs.put("reducedMotion", reducedMotion);
+        prefs.put("theme", theme);
+        prefs.put("offlineProgressEnabled", offlineProgressEnabled);
         obj.put("preferences", prefs);
         return obj;
     }
@@ -242,6 +272,8 @@ public final class PlayerProfileManager {
         obj.put("textSize", textSize);
         obj.put("highContrast", highContrast);
         obj.put("reducedMotion", reducedMotion);
+        obj.put("theme", theme);
+        obj.put("offlineProgressEnabled", offlineProgressEnabled);
         return obj;
     }
 
@@ -256,7 +288,7 @@ public final class PlayerProfileManager {
         restored.worstTradePnL = new Money(new BigDecimal(obj.optString("worstTradePnL", "0")), Currency.IDR);
         restored.lifetimePeakNetWorth = new Money(new BigDecimal(obj.optString("lifetimePeakNetWorth", "50000000")), Currency.IDR);
         restored.lifetimeDaysPlayed = obj.optInt("lifetimeDaysPlayed", 1);
-        restored.setPreferences(obj.optString("textSize", "100%"), obj.optBoolean("highContrast", false), obj.optBoolean("reducedMotion", false));
+        restored.setPreferences(obj.optString("textSize", "100%"), obj.optBoolean("highContrast", false), obj.optBoolean("reducedMotion", false), obj.optString("theme", "EMAS_KLASIK"), obj.optBoolean("offlineProgressEnabled", true));
         restored.runDaysPlayed = obj.optInt("runDaysPlayed", restored.lifetimeDaysPlayed);
         restored.lifetimeTradesExecuted = obj.optInt("lifetimeTradesExecuted", restored.totalTradesExecuted);
         restored.lifetimeClosedTradesCount = obj.optInt("lifetimeClosedTradesCount", restored.lifetimeTradesExecuted);
@@ -307,6 +339,8 @@ public final class PlayerProfileManager {
         this.textSize = restored.textSize;
         this.highContrast = restored.highContrast;
         this.reducedMotion = restored.reducedMotion;
+        this.theme = restored.theme;
+        this.offlineProgressEnabled = restored.offlineProgressEnabled;
         this.runDaysPlayed = restored.runDaysPlayed;
         this.lifetimeTradesExecuted = restored.lifetimeTradesExecuted;
         this.lifetimeProfitableTradesCount = restored.lifetimeProfitableTradesCount;

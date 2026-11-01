@@ -83,7 +83,7 @@ public class IpoScheduleAndAllotmentTest {
         cs.ensureMonthlyIpoSchedule(gameDate);
         IpoOffering targetIpo = null;
         for (IpoOffering ipo : cs.getIpoOfferings()) {
-            if (!ipo.getListingDate().isBefore(gameDate) && !ipo.isAllotted()) {
+            if (!ipo.isAllotted() && ipo.isOfferingPeriod(gameDate)) {
                 targetIpo = ipo;
                 break;
             }
@@ -102,12 +102,12 @@ public class IpoScheduleAndAllotmentTest {
         Money cashAfterOrder = personal.getAvailableCash(Currency.IDR);
         assertTrue("Kas harus berkurang setelah memesan IPO", initialCash.getAmount().compareTo(cashAfterOrder.getAmount()) > 0);
 
-        // Eksekusi penjatahan 50%
+        // Eksekusi penjatahan (kurang peminat -> 100% dipenuhi sesuai REV-03)
         facade.allotIpo(targetIpo.getId(), 0.50);
         assertTrue("IPO harus berstatus allotted", targetIpo.isAllotted());
 
-        // Pemain harus menerima saham penjatahan di portofolio
-        long expectedShares = 5 * targetIpo.getLotSize();
+        // Pemain harus menerima saham penjatahan penuh di portofolio
+        long expectedShares = 10 * targetIpo.getLotSize();
         com.tradingglobal3d.core.model.Position pos = personal.getPosition(targetIpo.getTicker());
         assertNotNull("Pemain harus memiliki posisi", pos);
         assertEquals("Pemain harus memegang saham hasil penjatahan IPO", expectedShares, pos.getQuantity());

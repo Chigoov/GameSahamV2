@@ -50,6 +50,7 @@ public class DailyStreakAndMarketShockTahapS4Test {
         facade = new TradingFacade(SaveManager.forDirectory(testDir));
         facade.setCatalog(InstrumentCatalog.fromJsonString(jsonUniverse));
         facade.initializeNewGame(GameMode.INTERNAL_MARKET, BigDecimal.valueOf(500_000_000));
+        facade.getClock().advanceGameSeconds(1800); // 09:00 WIB bursa buka
     }
 
     @After

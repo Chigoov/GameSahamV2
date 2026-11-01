@@ -14,6 +14,7 @@ import java.util.*;
 public final class EconomyLedger {
     private final List<LedgerEntry> entries = new ArrayList<>();
     private final Map<String, List<LedgerEntry>> entriesByAccount = new HashMap<>();
+    private long sequence = 0;
     private final Map<String, LedgerEntry> processedRequests = new HashMap<>();
 
     public synchronized boolean isRequestProcessed(String requestId) {
@@ -55,7 +56,7 @@ public final class EconomyLedger {
         }
 
         Money balanceAfter = account.getTotalCash(amount.getCurrency());
-        String entryId = "LEDGER-" + (entries.size() + 1) + "-" + System.nanoTime();
+        String entryId = "LEDGER-" + (++sequence) + "-" + System.nanoTime();
 
         LedgerEntry entry = new LedgerEntry(
                 entryId,
@@ -127,4 +128,5 @@ public final class EconomyLedger {
         Money actualBalance = account.getTotalCash(currency);
         return actualBalance.getAmount().compareTo(calculated) == 0;
     }
+
 }

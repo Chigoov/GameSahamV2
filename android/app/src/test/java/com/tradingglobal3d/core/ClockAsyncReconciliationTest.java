@@ -25,8 +25,8 @@ public class ClockAsyncReconciliationTest {
   JSONObject result;long limit=System.nanoTime()+60_000_000_000L;
   do { result=new JSONObject((String)status.invoke(bridge)); if(!"PENDING".equals(result.getString("status")))break;Thread.sleep(10); }while(System.nanoTime()<limit);
   assertEquals(result.toString(),"COMPLETED",result.getString("status"));
-  assertEquals(initial+86400000L*24,game.getGameTimestamp());assertTrue(game.reconcileAll());
-  assertEquals(initial+86400000L*24, new JSONObject(bridge.getSnapshot()).getJSONObject("clock").getLong("timestamp"));
+  assertEquals(initial+86400000L*48,game.getGameTimestamp());assertTrue(game.reconcileAll());
+  assertEquals(initial+86400000L*48, new JSONObject(bridge.getSnapshot()).getJSONObject("clock").getLong("timestamp"));
  }
  @Test public void failedSaveAndLifecycleDuringWorkerCanRetryWithoutRepeatingTime() throws Exception {
   Path dir=Files.createTempDirectory(Path.of(System.getProperty("java.io.tmpdir")),"async-fault-");
@@ -41,7 +41,7 @@ public class ClockAsyncReconciliationTest {
   assertArrayEquals(durable,Files.readAllBytes(game.getSaveManager().getSaveFile().toPath()));
   Files.delete(blocked.resolve("block"));Files.delete(blocked);
   bridge.beginClockSync(true);assertEquals("COMPLETED",await(bridge).getString("status"));
-  assertTrue(game.getClock().isForeground());assertEquals(initial+7200000L*24,game.getGameTimestamp());assertTrue(game.reconcileAll());
+  assertTrue(game.getClock().isForeground());assertEquals(initial+7200000L*48,game.getGameTimestamp());assertTrue(game.reconcileAll());
  }
  @Test public void rapidLifecycleChangesSettleToLastRequestedState() throws Exception {
   TradingFacade game=new TradingFacade(SaveManager.forDirectory(Files.createTempDirectory(Path.of(System.getProperty("java.io.tmpdir")),"async-race-").toFile()));
@@ -54,7 +54,7 @@ public class ClockAsyncReconciliationTest {
    bridge.beginClockSync(false);assertEquals("COMPLETED",await(bridge).getString("status"));
    assertFalse("latest lifecycle at iteration"+i,game.getClock().isForeground());
   }
-  assertEquals(initial+2400000L,game.getGameTimestamp());assertTrue(game.reconcileAll());
+  assertEquals(initial+4800000L,game.getGameTimestamp());assertTrue(game.reconcileAll());
  }
  private JSONObject await(TradingWebBridge bridge) throws Exception {
   JSONObject result;long limit=System.nanoTime()+60_000_000_000L;

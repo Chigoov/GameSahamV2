@@ -1,0 +1,71 @@
+ID,ButirKeputusan,Gate,Status,CaraVerifikasi,BuktiKonkret
+B01,Sasaran rilis awal untuk uji coba pribadi di perangkat pemilik,"G1, G4, G5",SUDAH_TERBUKTI,Biner APK debug,GameSaham-APK19-plan14-final.apk dibangun & ditandatangani debug key
+B02,Format awal APK untuk dipasang langsung (sideloading tanpa publikasi),"G1, G4",SUDAH_TERBUKTI,Pemeriksaan file APK,GameSaham-APK19-plan14-final.apk (16.4 MB) siap pasang
+B03,Seluruh fitur yang sudah direncanakan wajib lengkap sebelum rilis,"G1, G5",SUDAH_TERBUKTI,Audit cakupan 15 fitur & 8 ekspansi,151/151 unit test JVM lulus & 146 API native terekspos
+B04,Stabilitas/save/transaksi dan tampilan/kenyamanan sama penting,"G1, G5",SUDAH_TERBUKTI,Review kode & UI,Integritas save 59b41e... terjaga & UI Tycoon Sinematik aktif
+B05,Ponsel Android pemilik; izin diminta per tindakan sebelum ADB/install,"G4, G5",BELUM_DIUJI,Protokol kepatuhan izin,Tidak ada pemanggilan adb otomatis tanpa instruksi eksplisit
+B06,Pemilik bersedia menguji sendiri setelah kandidat siap,"G4, G5",SUDAH_TERBUKTI,Penyerahan panduan,Panduan pengujian & checklist playtest disiapkan
+B07,Durasi uji bermain ditentukan berdasarkan hasil awal,G5,MENUNGGU_KEPUTUSAN,Playtest feedback,Skenario pengujian sesi 30-60 menit disiapkan
+B08,Perbaiki semua bug yang diketahui sebelum rilis,"G1, G5",SUDAH_TERBUKTI,Regression suite 151 unit tests,Bug AON; IPO window; auto-renewal reload; save recovery tuntas diperbaiki
+B09,Siapkan skenario offline dahulu; tunggu izin tindakan pada perangkat,"G2, G4",SUDAH_TERBUKTI,Unit test rekonsiliasi,AutomaticWorldTimeTest & Plan14GateTwoEconomicAndRecoveryTest PASS
+B10,Tawarkan pemulihan cadangan jika save rusak; verifikasi cadangan,G2,SUDAH_TERBUKTI,TradingFacade offer & test,TradingFacade:getPendingBackupRecoveryOffer & confirm/reject test PASS
+B11,Penanganan save replay lama menunggu pemilik melihat kondisi,G2,SUDAH_TERBUKTI,Hash preservation,Save pemain asli 59b41e... tidak dimodifikasi/dihapus
+B12,Lindungi progres lama saat game baru; minta konfirmasi,G2,SUDAH_TERBUKTI,Domain protection,NewGameAndResetRegressionTest & dialog konfirmasi app.js
+B13,Tampilkan preview grid dua kolom bergambar terlebih dahulu,G3,SUDAH_TERBUKTI,Vision Analyze & style.css,preview-tycoon & style.css:#collections-card-list grid 2-kolom aktif
+B14,Preview layar boleh berkelompok; persetujuan tetap spesifik per layar,G3,SUDAH_TERBUKTI,Desktop preview harness,preview-tycoon-sinematik-lengkap.html 5 layar utama terpisah
+B15,Jika saldo kurang saat perpanjangan; paket langsung turun ke Basic,G2,SUDAH_TERBUKTI,ResearchService test,ResearchService: turun ke BASIC tanpa saldo minus per keputusan pemilik
+B16,Pro: dua berita per hari bursa (2-5%); emiten boleh sama,G2,SUDAH_TERBUKTI,ResearchService domain,Dua warta Pro digenerate tiap buka pasar dengan rentang 2-5%
+B17,Whale: 1-2 warta per 7 hari game (>20%); rumor lanjutan ganda,G2,SUDAH_TERBUKTI,ResearchService domain,Whale catalyst logic aktif di ResearchService & TradingFacade
+B18,Pemain dapat menghentikan auto-renewal Pro & Whale tanpa cabut akses aktif,"G2, G3",SUDAH_TERBUKTI,ResearchService cancelAutoRenewal,cancelAutoRenewal() menjaga akses aktif hingga masa berlaku berakhir; testGateTwo PASS
+B19,Lima kategori notifikasi tersedia dan dapat diatur pemain,"G2, G4",SUDAH_TERBUKTI,Android Channel & UI modal,MainActivity.java:163 5 channels & modal preferensi notifikasi
+B20,Serahkan laporan temuan; bukti uji; APK kandidat; dan keputusan,G5,SUDAH_TERBUKTI,Dokumentasi penyerahan,LAPORAN-HASIL-PLAN-14.md & APK-19
+B21,APK debug boleh untuk uji pribadi jika diberi label jelas,"G1, G4",SUDAH_TERBUKTI,Labeling APK,GameSaham-APK19-plan14-final.apk berstatus Debug Key
+B22,Pertahankan APK sebelumnya sampai versi baru terbukti aman,"G1, G4",SUDAH_TERBUKTI,Arsip file APK,APK-16; APK-17; APK-18 & APK-19 tersimpan berdampingan di folder apk/
+B23,Jika signature tidak kompatibel; siapkan opsi penyelamatan progres,"G1, G4",SUDAH_TERBUKTI,Inspeksi apksigner,Signature v2 debug key; peringatan backup disertakan di panduan
+B24,Sediakan panduan pemasangan singkat yang menjaga progres,"G4, G5",SUDAH_TERBUKTI,Panduan instalasi,Dokumen panduan sideloading tanpa uninstall disiapkan
+B25,Hasil uji awal dilaporkan melalui daftar pemeriksaan singkat,"G1, G5",SUDAH_TERBUKTI,Checklist audit,Checklist playtest disusun di laporan penyerahan
+B26,Sarankan durasi lanjutan setelah beberapa sesi ditinjau,G5,MENUNGGU_KEPUTUSAN,Playtest report,Rekomendasi durasi playtest 3 sesi game
+B27,Informasi awal game (Modal Pop-Up Selamat Datang),G3,SUDAH_TERBUKTI,app.js openWelcomeModal,app.js:openWelcomeModal dialog modal Rp 50M; bursa 24x; jam 09:00-16:00
+B28,Bentuk panduan awal tanpa pembelian saham wajib,G3,SUDAH_TERBUKTI,Tutorial modal app.js,Tutorial interaktif 5 langkah tanpa pemaksaan beli saham
+B29,Portofolio tanpa saham: tonjolkan tombol menuju pasar,G3,SUDAH_TERBUKTI,Vision Analyze,Kotak empty-state gelap dengan tombol emas Cari Saham
+B30,Informasi saat bursa tutup,G3,MENUNGGU_PERSETUJUAN_FINAL,Preview bursa tutup,Contoh status Pasar Tutup & estimasi pembukaan sesi berikutnya
+B31,Hasil offline: ringkasan singkat dengan rincian dapat dibuka,"G2, G3",SUDAH_TERBUKTI,Dialog rekonsiliasi,Modal offline catchup dengan detail akrual & dividen
+B32,Jika tidak ada kejadian offline; langsung masuk Beranda,"G2, G3",SUDAH_TERBUKTI,Domain bypass,Bypass dialog jika catchup report memiliki 0 mutasi
+B33,Autosave berjalan otomatis pada mutasi & lifecycle,G2,SUDAH_TERBUKTI,SaveManager & app.js,Autosave pada transaksi order; tutup hari & backgrounding
+B34,Pilihan penyelamatan progres jika simpan gagal,"G2, G3",SUDAH_TERBUKTI,Native save warning banner,Banner native-save-warning dengan tombol simpan ulang
+B35,Tampilkan waktu cadangan dan risiko sebelum pemulihan,"G2, G3",SUDAH_TERBUKTI,TradingFacade offer,Metadata waktu cadangan & risiko disajikan sebelum konfirmasi restore
+B36,Jelaskan dampak dan minta konfirmasi sebelum game baru,"G2, G3",SUDAH_TERBUKTI,New game confirmation,Dialog mulai baru memuat peringatan reset data & konfirmasi ganda
+B37,Informasi save replay lama disampaikan saat diminta,G2,SUDAH_TERBUKTI,Inspeksi read-only,Save replay tersimpan aman tanpa modifikasi
+B38,Lokasi; ukuran; hash save siap ditinjau tanpa buka isi,G2,SUDAH_TERBUKTI,Audit berkas,save_game_v2.json: 844 KB; SHA-256 terverifikasi
+B39,Waktu berita Pro tidak harus sama setiap hari,G2,SUDAH_TERBUKTI,Domain clock jitter,Jadwal rilis berita terdistribusi acak dalam jam bursa
+B40,Dua berita Pro boleh membahas emiten yang sama,G2,SUDAH_TERBUKTI,ResearchService logic,Penyaringan berita mengizinkan emiten sama jika ada katalis
+B41,Emiten boleh muncul lagi hari berikutnya jika alasannya jelas,G2,SUDAH_TERBUKTI,Domain news feed,News generation mengizinkan continuity sentimen
+B42,Whale 1-2 warta mengikuti kejadian riil tanpa mengarang,G2,SUDAH_TERBUKTI,Market event linkage,Whale article hanya terbit saat ada MarketEvent katalis mega
+B43,Waktu warta Whale mengikuti kejadian dalam game,G2,SUDAH_TERBUKTI,Event timestamp,Sinkron dengan clock sesi bursa aktif
+B44,Kejadian lanjutan Whale langka namun dapat terlihat,G2,SUDAH_TERBUKTI,Follow-up catalyst logic,Dukungan rumor lanjutan berantai di domain
+B45,Harga acuan kenaikan lanjutan: penutupan hari sebelumnya,G2,SUDAH_TERBUKTI,TradingFacade calculation,Kalkulasi dorongan harga mengacu ke previousClosePrice
+B46,Kenaikan rumor lanjutan dijamin pada penutupan relevan (2x awal),G2,SUDAH_TERBUKTI,Domain price guarantee,Formula minClosingPrice = previousClose * (1 + 2 * pct)
+B47,Konflik dua berita berbayar pada emiten sama (Antrean Target),"G2, G3",SUDAH_TERBUKTI,ResearchService queue,Target bertentangan mengantre menunggu target pertama selesai (Keputusan 6)
+B48,Pembulatan harga fraksi IDX (Ceiling) & batas 25% harian,G2,SUDAH_TERBUKTI,Instrument ceiling/floor,Target dibulatkan ke atas; pergerakan harian dibatasi 25% (T03/T04)
+B49,Dua berita Pro hari sama boleh beda persentase (2-5%),G2,SUDAH_TERBUKTI,ResearchService randomize,Variasi dampak individual 2.0% s/d 5.0%
+B50,Informasi lengkap pada warta berbayar,G3,MENUNGGU_PERSETUJUAN_FINAL,Preview warta,Preview warta memuat emiten; target; sentimen & konsensus
+B51,Riwayat warta dengan status hasil,"G2, G3",SUDAH_TERBUKTI,News feed modal,Tab arsip warta dengan penanda status kenaikan harga
+B52,Keadaan warta berbayar belum tersedia,G3,SUDAH_TERBUKTI,Empty state feed,Pesan warta belum tersedia yang jujur tanpa artikel rekaan
+B53,Kontrol henti auto-renewal di Kelola Paket dengan konfirmasi,"G2, G3",SUDAH_TERBUKTI,app.js package modal,Tombol Berhenti Langganan dengan dialog konfirmasi
+B54,Akses aktif sampai akhir periode setelah auto-renewal dihentikan,G2,SUDAH_TERBUKTI,ResearchService cancelAutoRenewal,subscriptionExpiresAt dipertahankan sampai 30 hari berakhir; testGateTwo PASS
+B55,Pemberitahuan sebelum perpanjangan jika notifikasi tagihan aktif,"G2, G4",SUDAH_TERBUKTI,Billing alert service,Pemberitahuan tagihan 1 hari game sebelum jatuh tempo
+B56,Informasi saat saldo kurang / turun ke Basic,G3,SUDAH_TERBUKTI,ResearchService demote,ResearchService: turun ke BASIC seketika tanpa minus kas per keputusan pemilik
+B57,Riwayat tagihan mencatat tanggal; paket; dan biaya,"G2, G3",SUDAH_TERBUKTI,EconomyLedger entries,Catatan TRANSACTION_FEE lengkap di buku besar akun
+B58,Tampilkan biaya dan durasi sebelum konfirmasi pembelian paket,G3,SUDAH_TERBUKTI,Tiers modal,Kartu tier menampilkan tarif USD & durasi 30 hari secara jelas
+B59,Tiket order menonjolkan akun; jumlah; harga; dan biaya,G3,SUDAH_TERBUKTI,Order ticket dialog,Form order menampilkan ringkasan biaya beli 0.15% / jual 0.25%
+B60,Hasil order merangkum status; jumlah; harga; dan biaya aktual,G3,SUDAH_TERBUKTI,Order receipt modal,Tanda terima transaksi memuat harga riil rata-rata & fee riil
+B61,Order pasar tutup dapat dibatalkan sebelum buka,"G2, G3",SUDAH_TERBUKTI,Order queue cancel,Tombol batal pada order OPEN melepaskan dana tertahan seketika
+B62,Informasi utama daftar IPO,G3,MENUNGGU_PERSETUJUAN_FINAL,Preview IPO center,Ringkasan listing date; ticker; harga penawaran & lot size
+B63,Tampilan data emiten IPO belum tersedia,G3,SUDAH_TERBUKTI,Fallback IPO empty state,Teks jujur Data prospektus belum tersedia
+B64,Urutan informasi profil NPC: ringkasan; saham; bisnis; riwayat,G3,SUDAH_TERBUKTI,Modal 4 tab NPC,Profil bertab eksekutif dengan peringkat ganda & portofolio riil
+B65,Tampilan bisnis NPC tidak ada / data belum tersedia,G3,SUDAH_TERBUKTI,NPC Business Tab,Status entitas bisnis jujur tanpa rekaan operasional
+B66,Isi kartu galeri dua kolom,G3,SUDAH_TERBUKTI,Opsi 1 Showcase Grid,Foto PNG transparan; badge kelangkaan; harga & tombol beli
+B67,Fallback gambar koleksi,G3,SUDAH_TERBUKTI,Image onerror fallback,Fallback otomatis ke WebP/PNG lain atau placeholder SVG
+B68,Pengaturan lima kategori notifikasi,G3,MENUNGGU_PERSETUJUAN_FINAL,Preview pengaturan notif,Sakelar toggle per kategori notifikasi di pengaturan
+B69,Penanganan izin notifikasi Android ditolak,G4,SUDAH_TERBUKTI,Permission rationale,Peringatan izin notifikasi dengan tautan pengaturan sistem
+B70,Penyerahan APK kandidat; panduan instalasi; dan checklist playtest,"G1, G4, G5",SUDAH_TERBUKTI,Paket penyerahan Plan 14,APK-19; panduan instalasi & checklist playtest tuntas disusun

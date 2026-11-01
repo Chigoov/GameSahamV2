@@ -18,14 +18,16 @@ public class LeagueRosterRegressionTest {
         LeagueManager league = new LeagueManager();
         JSONObject initial = league.exportState();
         JSONArray roster = initial.getJSONArray("competitors");
-        assertEquals(20, roster.length());
+        assertEquals(LeagueManager.TARGET_NPC_COUNT, roster.length());
         Set<String> ids = new HashSet<>(), names = new HashSet<>(), styles = new HashSet<>();
         for (int i = 0; i < roster.length(); i++) {
             JSONObject npc = roster.getJSONObject(i);
             assertTrue(ids.add(npc.getString("id")));
             assertTrue(names.add(npc.getString("name")));
             styles.add(npc.getString("style"));
-            assertEquals(i == 19 ? "NPC-RIV-01" : String.format(java.util.Locale.ROOT, "NPC-%02d", i + 1), npc.getString("id"));
+            if (i < 20) {
+                assertEquals(i == 19 ? "NPC-RIV-01" : String.format(java.util.Locale.ROOT, "NPC-%02d", i + 1), npc.getString("id"));
+            }
         }
         assertEquals(3, styles.size());
         assertEquals("Arunika Bara", roster.getJSONObject(0).getString("name"));
@@ -76,7 +78,7 @@ public class LeagueRosterRegressionTest {
         league.restoreState(state.put("competitors", reversed));
         JSONArray wealth = league.getLeaderboardByNetWorth(PLAYER_WORTH, "Pemain", "Trader").getJSONArray("leaderboard");
         JSONArray returns = league.getLeaderboardByWeeklyReturn(0.0, PLAYER_WORTH, "Pemain", "Trader").getJSONArray("leaderboard");
-        assertEquals(21, wealth.length());
+        assertEquals(LeagueManager.TARGET_NPC_COUNT + 1, wealth.length());
         for (int i = 0; i < wealth.length(); i++) {
             String id = wealth.getJSONObject(i).getString("id");
             assertEquals(id, returns.getJSONObject(i).getString("id"));

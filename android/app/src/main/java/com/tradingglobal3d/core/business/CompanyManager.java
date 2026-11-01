@@ -10,6 +10,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.math.BigDecimal;
 import java.util.*;
 
 /**
@@ -290,11 +291,32 @@ public final class CompanyManager {
         return new JSONObject().put("holdingId", group.id).put("holdingName", group.name).put("subsidiaries", subsidiaries);
     }
 
+    public static Money getMonthlySectorPie(String sectorModel, int macroIndex) {
+        long base = 20_000_000_000_000L;
+        if ("ENERGY".equalsIgnoreCase(sectorModel) || "ENERGI".equalsIgnoreCase(sectorModel)) base = 25_000_000_000_000L;
+        else if ("MANUFAKTUR".equalsIgnoreCase(sectorModel)) base = 20_000_000_000_000L;
+        else if ("RITEL".equalsIgnoreCase(sectorModel)) base = 15_000_000_000_000L;
+        else if ("JASA".equalsIgnoreCase(sectorModel)) base = 30_000_000_000_000L;
+
+        double mult = 1.0 + (macroIndex - 5) * 0.075;
+        BigDecimal amount = BigDecimal.valueOf(base).multiply(BigDecimal.valueOf(mult)).setScale(0, java.math.RoundingMode.HALF_UP);
+        return new Money(amount, Currency.IDR);
+    }
+
     public synchronized void processDailyOperations(
             Account companyAccount,
             OperatingCompany company,
             EconomyLedger ledger,
             long timestamp) {
+        processDailyOperations(companyAccount, company, ledger, timestamp, 1.0);
+    }
+
+    public synchronized void processDailyOperations(
+            Account companyAccount,
+            OperatingCompany company,
+            EconomyLedger ledger,
+            long timestamp,
+            double macroMultiplier) {
 
         if (companies.get(company.getId()) != company || !company.getAccountId().equals(companyAccount.getId()))
             throw new IllegalArgumentException("Perusahaan/akun operasional tidak sesuai");
@@ -309,7 +331,7 @@ public final class CompanyManager {
         if (paidCost.isPositive()) ledger.recordMutation("COMP-OPS-" + company.getId() + "-" + day,
                 companyAccount, LedgerEntryType.TRANSACTION_FEE, paidCost, false, timestamp,
                 "Biaya operasional perusahaan " + company.getName());
-        Money revenue = company.calculateDailyRevenue(day);
+        Money revenue = company.calculateDailyRevenue(day, macroMultiplier);
         if (company.getPayrollArrears().isPositive()) revenue = revenue.multiply(0.5);
         // Unfunded operations stop; partial funding only produces its paid fraction, without hidden free costs.
         revenue = revenue.multiply(paidCost.getAmount().divide(requiredCost.getAmount(), 12, java.math.RoundingMode.DOWN));
@@ -545,6 +567,12 @@ public final class CompanyManager {
                 .put("dailyCapacityAfter", projected.calculateDailyCapacity().getAmount().toPlainString())
                 .put("dailyOperatingCostBefore", company.calculateDailyOperatingCost().getAmount().toPlainString())
                 .put("dailyOperatingCostAfter", projected.calculateDailyOperatingCost().getAmount().toPlainString())
+                .put("projectedDailyRevenueBefore", company.calculateDailyCapacity().getAmount().toPlainString())
+                .put("projectedDailyRevenueAfter", projected.calculateDailyCapacity().getAmount().toPlainString())
+                .put("projectedDailyCostBefore", company.calculateDailyPayroll().add(company.calculateDailyOperatingCost()).getAmount().toPlainString())
+                .put("projectedDailyCostAfter", projected.calculateDailyPayroll().add(projected.calculateDailyOperatingCost()).getAmount().toPlainString())
+                .put("projectedDailyProfitBefore", company.calculateDailyCapacity().subtract(company.calculateDailyPayroll().add(company.calculateDailyOperatingCost())).getAmount().toPlainString())
+                .put("projectedDailyProfitAfter", projected.calculateDailyCapacity().subtract(projected.calculateDailyPayroll().add(projected.calculateDailyOperatingCost())).getAmount().toPlainString())
                 .put("durationGameSeconds", 0).put("effectiveRule", "NEXT_DAILY_SETTLEMENT");
     }
 

@@ -46,7 +46,7 @@ public class WireIntegrationDomainTest {
         TradingFacade game = game(dir()); TradingWebBridge bridge = new TradingWebBridge(game);
         assertTrue(call(bridge.researchQuery("{\"kind\":\"inbox\"}")).getBoolean("success"));
         assertFalse(call(bridge.researchQuery("{\"kind\":\"consensus\",\"instrumentId\":\"IDX:BBCA\"}")).getBoolean("success"));
-        game.deposit("QA-USD", game.getPersonalAccount().getId(), Money.of(5000, Currency.USD), "QA funding");
+        game.deposit("QA-USD", game.getPersonalAccount().getId(), Money.of(1_500_000, Currency.USD), "QA funding");
         game.getCareerManager().restoreState(game.getCareerManager().exportState().put("rank", "SENIOR_ANALYST"));
         assertTrue(game.subscribeTerminal(com.tradingglobal3d.core.research.TerminalTier.ENTERPRISE));
         assertTrue(call(bridge.researchQuery("{\"kind\":\"consensus\",\"instrumentId\":\"IDX:BBCA\"}")).getBoolean("success"));

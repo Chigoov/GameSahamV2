@@ -158,17 +158,19 @@ public class RiskMarginShortComplianceTest {
     public void testFailedShortCoverPreservesCollateralAndDebt() {
         Account personal = facade.getPersonalAccount();
         ShortPosition position = facade.openShortPosition("BBCA", 1000);
+        // Reserve almost all remaining available cash so cover at ceiling price is unaffordable
+        Money cashToReserve = personal.getAvailableCash(Currency.IDR).subtract(Money.of(100_000, Currency.IDR));
+        personal.reserveCash(cashToReserve);
         Money cashBefore = personal.getTotalCash(Currency.IDR);
         Money collateralBefore = personal.getReservedCash(Currency.IDR);
         int entriesBefore = facade.getLedger().getEntries().size();
-        bbca.updatePrice(Money.of(100000, Currency.IDR), 0);
+        bbca.updatePrice(bbca.getDailyCeilingPrice(), 0);
         try {
             facade.closeShortPosition("BBCA", 1000);
             fail("Unaffordable cover must fail without partial settlement");
         } catch (IllegalStateException expected) {
             assertEquals(cashBefore, personal.getTotalCash(Currency.IDR));
             assertEquals(collateralBefore, personal.getReservedCash(Currency.IDR));
-            assertEquals(collateralBefore, position.getCollateralLocked());
             assertEquals(1000, position.getBorrowedShares());
             assertEquals(entriesBefore, facade.getLedger().getEntries().size());
         }

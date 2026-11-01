@@ -41,7 +41,7 @@ public class AutomaticWorldTimeTest {
         assertTrue(game.getSaveManager().getSaveFile().exists());
         long before = game.getClock().getGameTimestamp();
         game.tick(1);
-        assertEquals(24000L, game.getClock().getGameTimestamp() - before);
+        assertEquals(48000L, game.getClock().getGameTimestamp() - before);
         game.setClockState(false, 1);
         assertFalse(game.getClock().isPaused());
     }
@@ -57,9 +57,9 @@ public class AutomaticWorldTimeTest {
         assertEquals(before, game.getClock().getGameTimestamp());
         time(game, START + 3600000);
         game.onAppLifecycleChanged(true);
-        assertEquals(86400000L, game.getClock().getGameTimestamp() - before);
+        assertEquals(172800000L, game.getClock().getGameTimestamp() - before);
         game.onAppLifecycleChanged(true);
-        assertEquals(86400000L, game.getClock().getGameTimestamp() - before);
+        assertEquals(172800000L, game.getClock().getGameTimestamp() - before);
         assertTrue(game.reconcileAll());
     }
 
@@ -68,12 +68,12 @@ public class AutomaticWorldTimeTest {
         long before = game.getClock().getGameTimestamp();
         time(game, START + 900);
         game.onAppLifecycleChanged(false);
-        assertEquals(21000L, game.getClock().getGameTimestamp() - before);
-        assertEquals(600, game.getClock().getGameMsRemainder());
+        assertEquals(43000L, game.getClock().getGameTimestamp() - before);
+        assertEquals(200, game.getClock().getGameMsRemainder());
         time(game, START + 1900);
         game.onAppLifecycleChanged(true);
-        assertEquals(45000L, game.getClock().getGameTimestamp() - before);
-        assertEquals(600, game.getClock().getGameMsRemainder());
+        assertEquals(91000L, game.getClock().getGameTimestamp() - before);
+        assertEquals(200, game.getClock().getGameMsRemainder());
     }
 
     @Test public void delayedTimerThenBackgroundDoesNotDropTheTimerRemainder() throws Exception {
@@ -83,7 +83,7 @@ public class AutomaticWorldTimeTest {
         game.syncClock();
         time(game, START + 2000);
         game.onAppLifecycleChanged(false);
-        assertEquals(48000L, game.getClock().getGameTimestamp() - before);
+        assertEquals(96000L, game.getClock().getGameTimestamp() - before);
         assertEquals(0, game.getClock().getGameMsRemainder());
     }
 
@@ -92,14 +92,22 @@ public class AutomaticWorldTimeTest {
         TradingFacade game = open(save, START);
         long before = game.getClock().getGameTimestamp();
         int initialDays = game.getCareerManager().getDaysTraded();
+        GameTestSupport.unlockIdxLevelFourForStressFixture(game);
+        var player = game.getPersonalAccount();
+        var request = new com.tradingglobal3d.core.trading.Order("QA-OFFLINE-OPEN", "QA-OFFLINE-OPEN", player.getId(),
+                "IDX:BBCA", com.tradingglobal3d.core.trading.OrderSide.BUY, com.tradingglobal3d.core.trading.OrderType.MARKET,
+                null, null, 100, game.getGameTimestamp(), null);
+        assertTrue(game.submitOrder(request).isSuccess);
+        assertTrue(request.isAwaitingMarketOpen());
         game.onAppLifecycleChanged(false);
-        TradingFacade reopened = open(save, START + 3600000);
+        TradingFacade reopened = open(save, START + 1800000);
         assertEquals(86400000L, reopened.getClock().getGameTimestamp() - before);
         assertEquals(initialDays + 1, reopened.getCareerManager().getDaysTraded());
-        assertTrue("Offline market must execute trades", reopened.getMarketEngine()
-                .getOrCreateBook(reopened.getCatalog().getById("IDX:BBCA")).getTradeHistory().size() > 0);
+        assertEquals(com.tradingglobal3d.core.trading.OrderStatus.FILLED,
+                reopened.getOrderManager().getOrderByRequest(request.getRequestId()).getStatus());
+        assertEquals(100, reopened.getPersonalAccount().getPosition("IDX:BBCA").getQuantity());
         assertTrue(reopened.reconcileAll());
-        TradingFacade again = open(save, START + 3600000);
+        TradingFacade again = open(save, START + 1800000);
         assertEquals(reopened.getClock().getGameTimestamp(), again.getClock().getGameTimestamp());
         assertEquals(initialDays + 1, again.getCareerManager().getDaysTraded());
     }
@@ -113,14 +121,14 @@ public class AutomaticWorldTimeTest {
         assertFalse(game.getClock().isPaused());
         long before = game.getClock().getGameTimestamp();
         game.tick(1);
-        assertEquals(24000L, game.getClock().getGameTimestamp() - before);
+        assertEquals(48000L, game.getClock().getGameTimestamp() - before);
     }
 
     @Test public void returningFromReplayCatchesUpTheInternalWorld() throws Exception {
         TradingFacade game = open(temporary.newFolder(), START);
         long before = game.getClock().getGameTimestamp();
         assertTrue(game.startHistoricalReplay("US:AAPL", java.math.BigDecimal.valueOf(50000000)).getBoolean("success"));
-        time(game, START + 3600000);
+        time(game, START + 1800000);
         assertTrue(game.resumeSavedMode("INTERNAL_MARKET").getBoolean("success"));
         assertEquals(86400000L, game.getClock().getGameTimestamp() - before);
         assertFalse(game.getClock().isPaused());
@@ -143,7 +151,7 @@ public class AutomaticWorldTimeTest {
         long before = game.getClock().getGameTimestamp();
         time(game, START + 1000);
         game.syncClock();
-        assertEquals(24000L, game.getClock().getGameTimestamp() - before);
+        assertEquals(48000L, game.getClock().getGameTimestamp() - before);
         assertTrue(game.reconcileAll());
     }
 
@@ -159,17 +167,17 @@ public class AutomaticWorldTimeTest {
                 switch (random.nextInt(4)) {
                     case 0:
                         now += elapsed; time(game, now);
-                        game.advanceRealMs(elapsed, true); expectedMs += elapsed * 24;
+                        game.advanceRealMs(elapsed, true); expectedMs += elapsed * 48;
                         break;
                     case 1:
                         game.onAppLifecycleChanged(false);
                         now += elapsed; time(game, now);
                         game.onAppLifecycleChanged(false);
-                        game.onAppLifecycleChanged(true); expectedMs += elapsed * 24;
+                        game.onAppLifecycleChanged(true); expectedMs += elapsed * 48;
                         break;
                     case 2:
                         game.save(); now += elapsed;
-                        game = open(save, now); expectedMs += elapsed * 24;
+                        game = open(save, now); expectedMs += elapsed * 48;
                         break;
                     default:
                         game.deposit("AUTO-" + seed + "-" + step, game.getPersonalAccount().getId(),

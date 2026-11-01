@@ -18,7 +18,7 @@ public class FeatureCompletionLeagueCanonicalTest {
         LeagueManager league = new LeagueManager();
         JSONObject board = league.getLeaderboardByWeeklyReturn((Double) null, WEALTH, "QA", "Trader");
         assertTrue(board.isNull("playerRank")); assertFalse(board.getBoolean("playerEligible"));
-        JSONObject player = board.getJSONArray("leaderboard").getJSONObject(20);
+        JSONObject player = board.getJSONArray("leaderboard").getJSONObject(board.getJSONArray("leaderboard").length() - 1);
         assertTrue(player.isNull("weeklyReturnRaw"));
         assertFalse(league.getRivalStatus(WEALTH, (Double) null).getBoolean("isLeading"));
         league.processWeeklyRollover((Double) null, WEALTH);
@@ -34,7 +34,7 @@ public class FeatureCompletionLeagueCanonicalTest {
                 100, 1_000_000_000L, true, Money.of(1000, Currency.IDR));
         catalog.registerInstrument(stock); league.bindMarket(accounts, ledger, catalog, 1000);
         int seeded = ledger.getEntries().size(); league.bindMarket(accounts, ledger, catalog, 1001);
-        assertEquals(20, accounts.size()); assertEquals(seeded, ledger.getEntries().size());
+        assertEquals(LeagueManager.TARGET_NPC_COUNT, accounts.size()); assertEquals(seeded, ledger.getEntries().size());
         Order intent = league.getNpcOrders(2000).get(0);
         assertEquals(intent.getRequestId(), league.getNpcOrders(2001).get(0).getRequestId());
         Money before = accounts.get(intent.getAccountId()).getTotalCash(Currency.IDR);

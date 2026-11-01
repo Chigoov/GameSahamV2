@@ -123,7 +123,7 @@ public class CorporateActionIpoVotingTest {
         Money initialCash = personal.getTotalCash(Currency.IDR);
 
         IpoOffering ipo = facade.getCorporateService().getIpoOfferings().stream()
-                .filter(i -> !i.isAllotted() && !i.getListingDate().isBefore(facade.getClock().getCurrentDate()))
+                .filter(i -> !i.isAllotted() && i.isOfferingPeriod(facade.getClock().getCurrentDate()))
                 .findFirst().orElseThrow(() -> new AssertionError("Katalog harus memuat IPO terbuka"));
         Money reservation = ipo.getOfferingPrice().multiply(BigDecimal.valueOf(100L * ipo.getLotSize()));
         Money allottedCost = ipo.getOfferingPrice().multiply(BigDecimal.valueOf(40L * ipo.getLotSize()));
@@ -134,19 +134,19 @@ public class CorporateActionIpoVotingTest {
         // Reservasi mengikuti harga dan lot pada penawaran aktif.
         assertEquals(initialCash.subtract(reservation), personal.getAvailableCash(Currency.IDR));
 
-        // Penjatahan 40% menghasilkan 40 lot; sisa reservasi menjadi refund.
+        // Sesuai REV-03: jika pesanan sah tidak melebihi penawaran, 100% dipenuhi (100 lot)
         facade.allotIpo(ipo.getId(), 0.40);
         assertEquals(IpoSubscription.SubscriptionStatus.ALLOTTED, sub.getStatus());
-        assertEquals(40, sub.getAllottedLots());
-        assertEquals(reservation.subtract(allottedCost), sub.getRefundMoney());
+        assertEquals(100, sub.getAllottedLots());
+        assertEquals(Money.zero(Currency.IDR), sub.getRefundMoney());
 
         // Saham dari penawaran yang dipilih masuk ke portofolio pemain.
         Position ipoPos = personal.getPosition("IDX:" + ipo.getTicker());
         assertNotNull(ipoPos);
-        assertEquals(40L * ipo.getLotSize(), ipoPos.getQuantity());
+        assertEquals(100L * ipo.getLotSize(), ipoPos.getQuantity());
 
-        // Hanya biaya lot terjatah yang mengurangi total kas.
-        assertEquals(initialCash.subtract(allottedCost), personal.getTotalCash(Currency.IDR));
+        // Biaya seluruh lot mengurangi total kas
+        assertEquals(initialCash.subtract(reservation), personal.getTotalCash(Currency.IDR));
         assertEquals(Money.zero(Currency.IDR), personal.getReservedCash(Currency.IDR));
 
         assertTrue(facade.reconcileAll());
@@ -232,10 +232,10 @@ public class CorporateActionIpoVotingTest {
         // 6. Verifikasi IPO dialokasikan otomatis dan refund diproses
         assertTrue(ipo.isAllotted());
         assertEquals(IpoSubscription.SubscriptionStatus.ALLOTTED, sub.getStatus());
-        assertEquals(10, sub.getAllottedLots()); // 50% dari 20 lot = 10 lot
+        assertEquals(20, sub.getAllottedLots()); // Sesuai REV-03: 20 lot pesanan dipenuhi 100% karena penawaran jauh mencukupi
         Position ncldPos = personal.getPosition("NCLD");
         assertNotNull("Saham IPO harus masuk portofolio pemain", ncldPos);
-        assertEquals(1000, ncldPos.getQuantity());
+        assertEquals(2000, ncldPos.getQuantity());
 
         // Kas tertahan harus kembali 0
         assertEquals(Money.zero(Currency.IDR), personal.getReservedCash(Currency.IDR));

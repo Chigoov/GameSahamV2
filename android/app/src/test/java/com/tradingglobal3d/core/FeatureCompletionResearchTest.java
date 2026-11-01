@@ -25,7 +25,7 @@ public class FeatureCompletionResearchTest {
         ResearchService service = new ResearchService(); service.resetForGame(now);
         Account personal = new Account("QA", "QA", AccountType.PERSONAL, null);
         EconomyLedger ledger = new EconomyLedger();
-        ledger.recordMutation("QA", personal, LedgerEntryType.INITIAL_CAPITAL, Money.of(10_000, Currency.USD), true, now, "QA");
+        ledger.recordMutation("QA", personal, LedgerEntryType.INITIAL_CAPITAL, Money.of(10_000_000, Currency.USD), true, now, "QA");
         assertTrue(service.subscribeTerminal(personal, tier, ledger, now));
         return service;
     }
@@ -48,7 +48,7 @@ public class FeatureCompletionResearchTest {
 
     @Test public void consensusUsesLatestPublishedOpinionPerAnalystAndNeverFuture() throws Exception {
         ResearchService service = service(TerminalTier.PRO);
-        service.addAnalystReport(report("OLD", "A", now - 100, 100));
+        service.addAnalystReport(report("SUPERSEDED", "A", now - 100, 100));
         service.addAnalystReport(report("LATEST", "A", now - 10, 1200));
         service.addAnalystReport(report("SECOND", "B", now, 1800));
         service.addAnalystReport(report("FUTURE", "C", now + 1, 900000));
@@ -56,7 +56,7 @@ public class FeatureCompletionResearchTest {
         assertEquals(2, result.getInt("sampleCount"));
         assertEquals("1500", result.getString("meanTarget"));
         assertEquals("1500", result.getString("medianTarget"));
-        assertFalse(result.toString().contains("FUTURE")); assertFalse(result.toString().contains("OLD"));
+        assertFalse(result.toString().contains("FUTURE")); assertFalse(result.toString().contains("SUPERSEDED"));
         assertEquals(2, result.getInt("hold"));
         assertEquals("EMPTY", service.getConsensus(instrument("OTHER"), now).getString("status"));
     }

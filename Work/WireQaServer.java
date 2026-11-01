@@ -5,6 +5,8 @@ import com.sun.net.httpserver.HttpServer;
 import com.tradingglobal3d.core.facade.TradingFacade;
 import com.tradingglobal3d.core.market.HistoricalDatasetLoader;
 import com.tradingglobal3d.core.market.InstrumentCatalog;
+import com.tradingglobal3d.core.market.Instrument;
+import com.tradingglobal3d.core.model.Account;
 import com.tradingglobal3d.core.model.GameMode;
 import com.tradingglobal3d.core.storage.SaveManager;
 import org.json.JSONArray;
@@ -37,6 +39,7 @@ public final class WireQaServer {
             public long millis() { return (fixedEpochMs == null ? System.currentTimeMillis() : fixedEpochMs) + clockOffset.get(); }
         });
         facade.setCatalog(InstrumentCatalog.fromJsonString(Files.readString(assets.resolve("data/market_universe.json"))));
+        facade.setDynamicDailyNewsEnabled(true);
         String initialCapital = System.getProperty("qa.initialCapital");
         if (initialCapital != null && !saveManager.getSaveFile().exists() && !saveManager.getBackupFile().exists()) {
             facade.initializeNewGame(GameMode.INTERNAL_MARKET, new java.math.BigDecimal(initialCapital));
@@ -85,6 +88,12 @@ public final class WireQaServer {
                         } else if ("advanceToTradingSession".equals(action)) {
                             facade.getClock().play();
                             facade.tick(1800);
+                            response = new JSONObject().put("success", true).toString().getBytes(StandardCharsets.UTF_8);
+                        } else if ("injectPosition".equals(action)) {
+                            Account p = facade.getPersonalAccount();
+                            Instrument inst = facade.getCatalog().getById(request.optString("instrumentId", "IDX:BBCA"));
+                            p.addPosition(new com.tradingglobal3d.core.model.Position(inst.getTicker(), inst.getExchange().name(), inst.getCurrency(), 1000L, inst.getCurrentPrice().getAmount(), inst.getCurrentPrice().getAmount()));
+                            facade.save();
                             response = new JSONObject().put("success", true).toString().getBytes(StandardCharsets.UTF_8);
                         } else {
                             throw new IllegalArgumentException("Unknown QA action: " + action);

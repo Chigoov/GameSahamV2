@@ -90,7 +90,7 @@ public class FeatureCompletionCorporateTest {
 
     @Test public void ipoRejectsInvalidAndOverflowAmountsAndNeverOverallocatesSupply() {
         EconomyLedger ledger = new EconomyLedger(); Account account = personal(ledger); CorporateActionService service = service();
-        IpoOffering ipo = new IpoOffering("QA-IPO", "NCLD", "QA", Currency.IDR, Money.of(100, Currency.IDR), 100, 100, BASE.plusDays(5));
+        IpoOffering ipo = new IpoOffering("QA-IPO", "NCLD", "QA", Currency.IDR, Money.of(100, Currency.IDR), 100, 100, BASE, BASE.plusDays(4), BASE.plusDays(4), BASE.plusDays(5));
         assertThrows(IllegalArgumentException.class, () -> service.orderIpo(ipo, account, 0, timestamp(BASE)));
         assertThrows(ArithmeticException.class, () -> service.orderIpo(ipo, account, Long.MAX_VALUE, timestamp(BASE)));
         IpoSubscription subscription = service.orderIpo(ipo, account, 10, "IPO-REQ", timestamp(BASE));

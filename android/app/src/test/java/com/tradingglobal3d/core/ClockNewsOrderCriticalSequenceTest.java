@@ -33,8 +33,8 @@ public class ClockNewsOrderCriticalSequenceTest {
     }
     private void invariant(TradingFacade g, long initial, long elapsed, long deadline, String ctx) throws Exception {
         assertTrue(ctx, g.reconcileAll());
-        assertEquals(ctx, initial + elapsed * 24 / 1000 * 1000, g.getGameTimestamp());
-        assertEquals(ctx, elapsed * 24 % 1000, g.getClock().getGameMsRemainder());
+        assertEquals(ctx, initial + elapsed * 48 / 1000 * 1000, g.getGameTimestamp());
+        assertEquals(ctx, elapsed * 48 % 1000, g.getClock().getGameMsRemainder());
         assertEquals(ctx, deadline, article(g).getLong("effectEndsRealAt"));
         Set<String> ledgerIds = new HashSet<>();
         for (var e : g.getLedger().getEntries()) assertTrue(ctx + " duplicate ledger", ledgerIds.add(e.getRequestId()));
@@ -77,7 +77,10 @@ public class ClockNewsOrderCriticalSequenceTest {
                 assertTrue(g.submitOrder(sell).isSuccess);
                 invariant(g,initial,now-START,deadline,"seed"+seed+" action"+(++count));
                 Order buy=new Order(req,req,g.getPersonalAccount().getId(),"IDX:BBCA",OrderSide.BUY,OrderType.LIMIT,Money.of(9000,Currency.IDR),null,200,g.getGameTimestamp(),null);
-                assertTrue(g.submitOrder(buy).isSuccess);assertEquals(100,buy.getFilledQuantity());
+                assertTrue(g.submitOrder(buy).isSuccess);
+                // Keputusan Pemilik 28 Okt 2026: Tidak ada partial fill bagi pemain; order tetap OPEN antre penuh
+                assertEquals(OrderStatus.OPEN, buy.getStatus());
+                assertEquals(0, buy.getFilledQuantity());
                 invariant(g,initial,now-START,deadline,"seed"+seed+" action"+(++count));
                 int entries=g.getLedger().getEntries().size();g.submitOrder(buy);assertEquals(entries,g.getLedger().getEntries().size());
                 invariant(g,initial,now-START,deadline,"seed"+seed+" action"+(++count));

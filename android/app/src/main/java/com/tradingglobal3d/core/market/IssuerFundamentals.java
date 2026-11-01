@@ -174,16 +174,16 @@ public final class IssuerFundamentals {
 
         BigDecimal bps = totalEquity.divide(BigDecimal.valueOf(sharesOutstanding), 2, RoundingMode.HALF_UP);
         BigDecimal pbv = bps.signum() > 0 ? price.divide(bps, 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
-        valuation.put("pbv", pbv.toPlainString() + "x");
+        valuation.put("pbv", bps.signum() > 0 ? pbv.toPlainString() + "x" : "N/A (Ekuitas Negatif)");
 
         BigDecimal roe = totalEquity.signum() > 0 ? netProfit.multiply(BigDecimal.valueOf(100)).divide(totalEquity, 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
-        valuation.put("roe", roe.toPlainString() + "%");
+        valuation.put("roe", totalEquity.signum() > 0 ? roe.toPlainString() + "%" : "N/A (Defisit)");
 
         BigDecimal roa = totalAssets.signum() > 0 ? netProfit.multiply(BigDecimal.valueOf(100)).divide(totalAssets, 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
         valuation.put("roa", roa.toPlainString() + "%");
 
         BigDecimal der = totalEquity.signum() > 0 ? totalLiabilities.divide(totalEquity, 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
-        valuation.put("der", der.toPlainString() + "x");
+        valuation.put("der", totalEquity.signum() > 0 ? der.toPlainString() + "x" : "N/A (Defisit)");
 
         valuation.put("dividendPerShare", dividendPerShare.toPlainString());
         BigDecimal divYield = price.signum() > 0 ? dividendPerShare.multiply(BigDecimal.valueOf(100)).divide(price, 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;

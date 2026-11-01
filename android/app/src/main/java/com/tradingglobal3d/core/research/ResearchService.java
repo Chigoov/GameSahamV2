@@ -6,6 +6,8 @@ import com.tradingglobal3d.core.model.Account;
 import com.tradingglobal3d.core.model.Currency;
 import com.tradingglobal3d.core.model.Money;
 import com.tradingglobal3d.core.market.Instrument;
+import com.tradingglobal3d.core.market.InstrumentCatalog;
+import com.tradingglobal3d.core.market.MarketExchange;
 import org.json.JSONObject;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -27,8 +29,12 @@ public final class ResearchService {
     private final List<CalendarEvent> calendarEvents = new ArrayList<>();
     private final List<MarketEvent> marketEvents = new ArrayList<>();
     private final List<ResearchBooster> boosters = new ArrayList<>();
+    private final List<NewsPriceTarget> newsTargets = new ArrayList<>();
+    private final Map<String, JSONObject> legacyTargetEffects = new HashMap<>();
+    private final Set<String> scheduledDates = new HashSet<>();
 
     private TerminalTier currentTier = TerminalTier.BASIC;
+    private TerminalTier enrolledTier = TerminalTier.BASIC;
     private long subscriptionExpiresAt = Long.MAX_VALUE; // Basic gratis selamanya
     private long contentEpoch;
     private long observedGameAt = -1, observedRealAt = -1;
@@ -53,15 +59,16 @@ public final class ResearchService {
                     && gameTime > observedGameAt) {
                 long gameDelta = article.getPublishedAt() - observedGameAt;
                 long realDelta = now - observedRealAt;
-                publishedReal = observedRealAt + java.math.BigInteger.valueOf(gameDelta)
+                publishedReal = observedRealAt + new BigDecimal(java.math.BigInteger.valueOf(gameDelta)
                         .multiply(java.math.BigInteger.valueOf(realDelta))
-                        .divide(java.math.BigInteger.valueOf(gameTime - observedGameAt)).longValueExact();
+                        .divide(java.math.BigInteger.valueOf(gameTime - observedGameAt))).longValueExact();
             }
             article.startRealEffect(publishedReal);
         }
         observedGameAt = gameTime;
         observedRealAt = now;
         replayClock = replay;
+        pinActiveTargetReferences();
     }
 
     public synchronized void resetForGame(long baseTime) {
@@ -72,7 +79,11 @@ public final class ResearchService {
         calendarEvents.clear();
         marketEvents.clear();
         boosters.clear();
+        newsTargets.clear();
+        legacyTargetEffects.clear();
+        scheduledDates.clear();
         currentTier = TerminalTier.BASIC;
+        enrolledTier = TerminalTier.BASIC;
         subscriptionExpiresAt = Long.MAX_VALUE;
         LocalDate baseDate = java.time.Instant.ofEpochMilli(baseTime).atZone(java.time.ZoneId.of("Asia/Jakarta")).toLocalDate();
 
@@ -162,19 +173,63 @@ public final class ResearchService {
     }
 
     public org.json.JSONObject exportState() throws org.json.JSONException {
+        JSONArray articles = new JSONArray();
+        for (NewsArticle article : newsList) articles.put(article.exportState());
         JSONArray effects = new JSONArray();
-        for (NewsArticle article : newsList) effects.put(article.exportEffect());
-        return new org.json.JSONObject().put("tier", currentTier.name()).put("expiresAt", subscriptionExpiresAt).put("contentEpoch", contentEpoch)
-                .put("newsEffects", effects).put("observedGameAt", observedGameAt).put("observedRealAt", observedRealAt);
+        Set<String> exportedEffects = new HashSet<>();
+        for (NewsArticle article : newsList) { effects.put(article.exportEffect()); exportedEffects.add(article.getId()); }
+        for (Map.Entry<String, JSONObject> entry : legacyTargetEffects.entrySet())
+            if (!exportedEffects.contains(entry.getKey())) effects.put(new JSONObject(entry.getValue().toString()));
+
+        JSONArray targetArr = new JSONArray();
+        for (NewsPriceTarget t : newsTargets) targetArr.put(t.toJsonObject());
+
+        JSONArray dateArr = new JSONArray();
+        for (String d : scheduledDates) dateArr.put(d);
+
+        return new org.json.JSONObject()
+                .put("tier", currentTier.name())
+                .put("enrolledTier", (enrolledTier != null ? enrolledTier : currentTier).name())
+                .put("autoRenewal", isAutoRenewalEnabled())
+                .put("dynamicDailyNewsEnabled", dynamicDailyNewsEnabled)
+                .put("expiresAt", subscriptionExpiresAt)
+                .put("contentEpoch", contentEpoch)
+                .put("newsEffects", effects)
+                .put("newsArticles", articles)
+                .put("newsTargets", targetArr)
+                .put("scheduledDates", dateArr)
+                .put("observedGameAt", observedGameAt)
+                .put("observedRealAt", observedRealAt);
     }
 
     public void restoreState(org.json.JSONObject state) throws org.json.JSONException {
         if (state.has("contentEpoch")) resetForGame(state.getLong("contentEpoch"));
+        JSONArray articles = state.optJSONArray("newsArticles");
+        if (articles != null) {
+            List<NewsArticle> restored = new ArrayList<>();
+            Set<String> ids = new HashSet<>();
+            for (int i = 0; i < articles.length(); i++) {
+                NewsArticle article = NewsArticle.fromState(articles.getJSONObject(i));
+                if (!ids.add(article.getId())) throw new IllegalArgumentException("ID berita save duplikat");
+                restored.add(article);
+            }
+            newsList.clear();
+            newsList.addAll(restored);
+        }
         currentTier = TerminalTier.valueOf(state.getString("tier"));
+        if (state.has("enrolledTier")) {
+            enrolledTier = TerminalTier.valueOf(state.getString("enrolledTier"));
+        } else {
+            // Kompatibilitas mundur save lama: bila belum ada enrolledTier,
+            // gunakan currentTier jika bukan BASIC
+            enrolledTier = (currentTier != TerminalTier.BASIC) ? currentTier : TerminalTier.BASIC;
+        }
         subscriptionExpiresAt = state.getLong("expiresAt");
+        dynamicDailyNewsEnabled = state.optBoolean("dynamicDailyNewsEnabled", false);
         observedGameAt = state.optLong("observedGameAt", -1);
         observedRealAt = state.optLong("observedRealAt", -1);
         if (observedGameAt < -1 || observedRealAt < -1) throw new IllegalArgumentException("Anchor berita tidak valid");
+        legacyTargetEffects.clear();
         JSONArray effects = state.optJSONArray("newsEffects");
         if (effects != null) {
             Set<String> seen = new HashSet<>();
@@ -182,17 +237,151 @@ public final class ResearchService {
                 JSONObject effect = effects.getJSONObject(i);
                 String id = effect.getString("id");
                 if (!seen.add(id)) throw new IllegalArgumentException("Deadline berita duplikat");
-                for (NewsArticle article : newsList) if (id.equals(article.getId())) article.restoreEffect(effect);
+                boolean found = false;
+                for (NewsArticle article : newsList) if (id.equals(article.getId())) { article.restoreEffect(effect); found = true; }
+                if (!found) {
+                    long start = effect.getLong("startsRealAt");
+                    int duration = effect.getInt("durationMinutes");
+                    if (start < -1 || (duration != 60 && duration != 120)) throw new IllegalArgumentException("Deadline berita lama tidak valid");
+                    legacyTargetEffects.put(id, new JSONObject(effect.toString()));
+                }
+            }
+        }
+        newsTargets.clear();
+        JSONArray targetArr = state.optJSONArray("newsTargets");
+        if (targetArr != null) {
+            for (int i = 0; i < targetArr.length(); i++) {
+                NewsPriceTarget restored = NewsPriceTarget.fromJsonObject(targetArr.getJSONObject(i));
+                if (restored.getStatus() == NewsPriceTarget.TargetStatus.WAITING_PREVIOUS_TARGET)
+                    restored.setStatus(NewsPriceTarget.TargetStatus.ACTIVE);
+                newsTargets.add(restored);
+            }
+        }
+        scheduledDates.clear();
+        JSONArray dateArr = state.optJSONArray("scheduledDates");
+        if (dateArr != null) {
+            for (int i = 0; i < dateArr.length(); i++) {
+                scheduledDates.add(dateArr.getString(i));
             }
         }
     }
 
     public TerminalTier getCurrentTier() { return currentTier; }
+    public TerminalTier getEnrolledTier() { return enrolledTier; }
     public long getSubscriptionExpiresAt() { return subscriptionExpiresAt; }
+
+    /**
+     * Memeriksa apakah perpanjangan otomatis paket sedang aktif (Butir 18).
+     */
+    public synchronized boolean isAutoRenewalEnabled() {
+        return enrolledTier != null && enrolledTier != TerminalTier.BASIC;
+    }
+
+    /**
+     * Menghentikan perpanjangan otomatis tanpa mencabut akses aktif berbayar (Butir 18 & 54).
+     * Akses Pro/Whale tetap aktif hingga subscriptionExpiresAt; saat jatuh tempo turun ke BASIC.
+     */
+    public synchronized boolean cancelAutoRenewal() {
+        if (enrolledTier == TerminalTier.BASIC) return false;
+        this.enrolledTier = TerminalTier.BASIC;
+        return true;
+    }
 
     public synchronized void addNews(NewsArticle article) {
         newsList.add(article);
         if (observedRealAt >= 0 && article.isPublished(observedGameAt)) article.startRealEffect(observedRealAt);
+    }
+
+    private final Set<String> proceduralNewsDates = new HashSet<>();
+
+    /**
+     * Generator Berita & Katalis Otomatis Procedural.
+     * Memastikan berita bursa, rumor sektor, dan performa laba emiten terus terbit
+     * secara mandiri setiap 1-2 hari bursa tanpa batas waktu.
+     */
+    public synchronized void generateDailyProceduralNews(LocalDate date, long timestamp, InstrumentCatalog catalog, int macroIndex) {
+        if (date == null) return;
+        String dateKey = date.toString();
+        if (proceduralNewsDates.contains(dateKey)) return;
+        proceduralNewsDates.add(dateKey);
+
+        int daySeed = Math.abs(Objects.hash(date.getYear(), date.getDayOfYear()));
+        int typeMod = daySeed % 4; // 0: Emiten Laba, 1: Kebijakan Makro, 2: Sektor Industri, 3: Katalis Global
+
+        String newsId = "NEWS-AUTO-" + date.toString() + "-" + (daySeed % 100);
+        NewsArticle article = null;
+
+        if (typeMod == 0 && catalog != null) {
+            List<Instrument> universe = catalog.getActiveUniverse();
+            if (!universe.isEmpty()) {
+                Instrument inst = universe.get(daySeed % universe.size());
+                boolean isBull = (daySeed % 2 == 0);
+                double impact = isBull ? 0.35 + (daySeed % 35) / 100.0 : -0.30 - (daySeed % 30) / 100.0;
+                String headline = isBull
+                        ? "Laba Bersih " + inst.getTicker() + " Lampaui Ekspektasi Konsensus"
+                        : "Koreksi Laba Bersih Kuartalan Tekan Saham " + inst.getTicker();
+                String content = isBull
+                        ? "Peningkatan volume penjualan dan efisiensi margin operasional mendongkrak optimisme investor pada " + inst.getName() + "."
+                        : "Kenaikan beban pokok pendapatan serta pelemahan permintaan menekan kinerja kuartalan " + inst.getName() + ".";
+                article = new NewsArticle(
+                        newsId, headline, content, NewsArticle.Category.COMPANY,
+                        inst.getTicker(), inst.getSector(), isBull ? "POSITIF" : "NEGATIF",
+                        isBull ? "+2.5% s/d +6.0%" : "-2.0% s/d -5.0%", 2, "TINGGI",
+                        impact, timestamp - 1800_000L, timestamp
+                );
+            }
+        } else if (typeMod == 1) {
+            boolean isExp = macroIndex >= 5;
+            double impact = isExp ? 0.40 : -0.35;
+            String headline = isExp
+                    ? "Bank Sentral Menilai Likuiditas Pasar Stabil di Level " + macroIndex
+                    : "Tekanan Inflasi Memicu Kebijakan Moneter Ketat (Makro Lv." + macroIndex + ")";
+            String content = isExp
+                    ? "Pertumbuhan kredit perbankan yang solid dan iklim investasi kondusif menopang daya beli di pasar modal."
+                    : "Pelaku pasar mencermati risiko kenaikan biaya dana perbankan dan penyesuaian belanja modal korporasi.";
+            article = new NewsArticle(
+                    newsId, headline, content, NewsArticle.Category.MACRO,
+                    null, "Perbankan & Moneter", isExp ? "POSITIF" : "NEGATIF",
+                    isExp ? "+1.5% s/d +3.5%" : "-1.5% s/d -4.0%", 3, "TINGGI",
+                    impact, timestamp - 1800_000L, timestamp
+            );
+        } else if (typeMod == 2) {
+            String[] sectors = {"Energi", "Manufaktur", "Konsumen Primer", "Teknologi", "Bahan Baku"};
+            String sec = sectors[daySeed % sectors.length];
+            boolean isBull = (daySeed % 3 != 0);
+            double impact = isBull ? 0.30 : -0.28;
+            String headline = isBull
+                    ? "Permintaan Produk Sektor " + sec + " Alami Peningkatan Kuartal Ini"
+                    : "Tantangan Rantai Pasok Global Bayangi Sektor " + sec;
+            String content = isBull
+                    ? "Kenaikan harga komoditas dan pesanan baru memperkuat arus kas emiten pada sektor " + sec + "."
+                    : "Kenaikan tarif logistik dan fluktuasi bahan baku membebani margin laba sektor " + sec + ".";
+            article = new NewsArticle(
+                    newsId, headline, content, NewsArticle.Category.SECTOR,
+                    null, sec, isBull ? "POSITIF" : "NEGATIF",
+                    isBull ? "+2.0% s/d +5.0%" : "-1.8% s/d -4.5%", 2, "SEDANG",
+                    impact, timestamp - 1800_000L, timestamp
+            );
+        } else {
+            boolean isBull = (daySeed % 2 == 0);
+            double impact = isBull ? 0.38 : -0.32;
+            String headline = isBull
+                    ? "Indeks Bursa Global Wall St Menguat Ditopang Sektor Teknologi"
+                    : "Bursa Global Tertekan Aksi Ambil Untung (Profit Taking) Investor";
+            String content = isBull
+                    ? "Laporan keuangan raksasa teknologi AS yang solid mengangkat optimisme bursa global."
+                    : "Investor institusi global melakukan rotasi portofolio ke aset likuid di tengah ketidakpastian pasar.";
+            article = new NewsArticle(
+                    newsId, headline, content, NewsArticle.Category.MACRO,
+                    null, "Global & Teknologi", isBull ? "POSITIF" : "NEGATIF",
+                    isBull ? "+1.8% s/d +4.2%" : "-1.5% s/d -3.8%", 2, "SEDANG",
+                    impact, timestamp - 1800_000L, timestamp
+            );
+        }
+
+        if (article != null) {
+            addNews(article);
+        }
     }
 
     public synchronized void addAnalystReport(AnalystReport report) {
@@ -256,28 +445,297 @@ public final class ResearchService {
         JSONArray arr = new JSONArray();
         for (NewsArticle a : newsList) {
             if (a.isAnnounced(currentTimestamp) || a.isPublished(currentTimestamp)) {
-                arr.put(a.toJsonObject(currentTimestamp, Math.max(realNow, observedRealAt), replayClock));
+                JSONObject obj = a.toJsonObject(currentTimestamp, Math.max(realNow, observedRealAt), replayClock);
+                NewsPriceTarget target = getTargetForNews(a.getId());
+                if (target != null) {
+                    obj.put("targetInfo", target.toJsonObject());
+                }
+                arr.put(obj);
             }
         }
         return arr;
     }
 
     /**
-     * Menghitung dampak sentimen berita aktif untuk emiten atau sektor tertentu (R12).
+     * Q09: Gabungkan persentase berita yang masih aktif terhadap harga acuan yang sama:
+     * +5% dan -3% menjadi target bersih +2% selama keduanya aktif (penjumlahan bertanda).
      */
     public synchronized double getActiveNewsImpact(String ticker, String sector, long currentTimestamp) {
         if (replayClock) return 0.0;
-        double impact = 0.0;
+        double tickerSentimentSum = 0.0;
+        int tickerNewsCount = 0;
+        double sectorSentimentSum = 0.0;
+        int sectorNewsCount = 0;
+
         for (NewsArticle a : newsList) {
             if (a.isPublished(currentTimestamp) && (observedRealAt >= 0 ? a.isRealEffectActive(observedRealAt) : a.isHorizonActive(currentTimestamp))) {
+                NewsPriceTarget target = getTargetForNews(a.getId());
+                if (target != null && target.getStatus() == NewsPriceTarget.TargetStatus.WAITING_PREVIOUS_TARGET) {
+                    continue; // Jangan terapkan sentimen jika masih mengantre menunggu target sebelumnya (Keputusan 6)
+                }
                 boolean matchTicker = ticker != null && ticker.equalsIgnoreCase(a.getRelatedTicker());
                 boolean matchSector = sector != null && sector.equalsIgnoreCase(a.getAffectedSector());
-                if (matchTicker || matchSector) {
-                    impact += a.getSentimentImpact();
+                if (matchTicker) {
+                    tickerSentimentSum += a.getSentimentImpact();
+                    tickerNewsCount++;
+                } else if (matchSector) {
+                    sectorSentimentSum += a.getSentimentImpact();
+                    sectorNewsCount++;
                 }
             }
         }
-        return Math.max(-1.0, Math.min(1.0, impact));
+        // Berita spesifik emiten diutamakan; jika ada, jumlahkan seluruh sentimen aktif emiten
+        if (tickerNewsCount > 0) {
+            return Math.max(-1.0, Math.min(1.0, tickerSentimentSum));
+        }
+        if (sectorNewsCount > 0) {
+            return Math.max(-1.0, Math.min(1.0, sectorSentimentSum));
+        }
+        return 0.0;
+    }
+
+    public synchronized void registerNewsTarget(NewsPriceTarget target) {
+        Objects.requireNonNull(target);
+        for (NewsPriceTarget existing : newsTargets) if (existing.getId().equals(target.getId())) return;
+        target.setStatus(NewsPriceTarget.TargetStatus.ACTIVE);
+        newsTargets.add(target);
+        pinActiveTargetReferences();
+    }
+
+    private boolean targetEffectActive(NewsPriceTarget target) {
+        for (NewsArticle article : newsList) if (article.getId().equals(target.getNewsId()))
+            return !replayClock && article.isPublished(observedGameAt) && article.isRealEffectActive(observedRealAt);
+        JSONObject legacyEffect = legacyTargetEffects.get(target.getNewsId());
+        if (legacyEffect != null) {
+            long start = legacyEffect.optLong("startsRealAt", -1);
+            return !replayClock && start >= 0 && observedRealAt >= start
+                    && observedRealAt < Math.addExact(start, legacyEffect.optLong("durationMinutes") * 60000L);
+        }
+        // ponytail: manually registered domain targets without an article use their explicit active status.
+        return target.getStatus() == NewsPriceTarget.TargetStatus.ACTIVE;
+    }
+
+    private long targetPublicationTime(NewsPriceTarget target) {
+        for (NewsArticle article : newsList) if (article.getId().equals(target.getNewsId())) return article.getPublishedAt();
+        return target.getPublishedDate().atStartOfDay().toInstant(java.time.ZoneOffset.ofHours(7)).toEpochMilli();
+    }
+
+    private void pinActiveTargetReferences() {
+        List<NewsPriceTarget> active = new ArrayList<>();
+        for (NewsPriceTarget target : newsTargets) if (targetEffectActive(target)) active.add(target);
+        active.sort(Comparator.comparingLong(this::targetPublicationTime).thenComparing(NewsPriceTarget::getId));
+        Map<String, Money> references = new HashMap<>();
+        Map<String, Long> origins = new HashMap<>();
+        for (NewsPriceTarget target : active) {
+            String ticker = target.getTicker().toUpperCase(java.util.Locale.ROOT);
+            long origin = target.isReferencePinned() ? target.getReferenceOriginGameAt() : targetPublicationTime(target);
+            if (!origins.containsKey(ticker) || origin < origins.get(ticker)) {
+                origins.put(ticker, origin);
+                references.put(ticker, target.getReferencePrice());
+            }
+        }
+        for (NewsPriceTarget target : active) {
+            String ticker = target.getTicker().toUpperCase(java.util.Locale.ROOT);
+            target.pinReference(references.get(ticker), origins.get(ticker));
+        }
+    }
+
+    public synchronized NewsPriceTarget getTargetForNews(String newsId) {
+        if (newsId == null) return null;
+        for (NewsPriceTarget t : newsTargets) {
+            if (newsId.equals(t.getNewsId())) return t;
+        }
+        return null;
+    }
+
+    public synchronized List<NewsPriceTarget> getNewsTargets() {
+        return new ArrayList<>(newsTargets);
+    }
+
+    public synchronized JSONArray getNewsTargetsJson() throws JSONException {
+        JSONArray arr = new JSONArray();
+        for (NewsPriceTarget t : newsTargets) {
+            arr.put(t.toJsonObject());
+        }
+        return arr;
+    }
+
+    public synchronized boolean hasActiveNewsTarget(String ticker) {
+        return getActiveNewsTarget(ticker) != null;
+    }
+
+    public synchronized NewsPriceTarget getActiveNewsTarget(String ticker) {
+        if (ticker == null) return null;
+        pinActiveTargetReferences();
+        NewsPriceTarget first = null;
+        BigDecimal total = BigDecimal.ZERO;
+        for (NewsPriceTarget target : newsTargets) {
+            if (targetEffectActive(target) && (ticker.equalsIgnoreCase(target.getTicker()) || ticker.endsWith(":" + target.getTicker()))) {
+                if (first == null || targetPublicationTime(target) < targetPublicationTime(first)) first = target;
+                total = total.add(BigDecimal.valueOf(target.getTargetPercent()));
+            }
+        }
+        if (first == null || total.signum() == 0) return null;
+        return new NewsPriceTarget("NET-" + first.getId(), first.getNewsId(), first.getTicker(), first.getTier(),
+                first.getHeadline(), false, total.doubleValue(), first.getReferencePrice(), null, first.getPublishedDate());
+    }
+
+    public synchronized void evaluateNewsTargets(InstrumentCatalog catalog, LocalDate date) {
+        if (catalog == null || date == null) return;
+        pinActiveTargetReferences();
+        Map<String, NewsPriceTarget> effectiveByTicker = new HashMap<>();
+        for (NewsPriceTarget target : newsTargets)
+            effectiveByTicker.computeIfAbsent(target.getTicker(), this::getActiveNewsTarget);
+        for (NewsPriceTarget target : newsTargets) {
+            if (target.getStatus() == NewsPriceTarget.TargetStatus.ACTIVE) {
+                Instrument inst = catalog.getByExchangeAndTicker(MarketExchange.IDX, target.getTicker());
+                if (inst == null) inst = catalog.getById(target.getTicker());
+                if (inst == null) inst = catalog.getById("IDX:" + target.getTicker());
+
+                if (inst != null && inst.getCurrentPrice().isPositive() && target.getReferencePrice().isPositive()) {
+                    double pnlPct = (inst.getCurrentPrice().getAmount().doubleValue() - target.getReferencePrice().getAmount().doubleValue())
+                            / target.getReferencePrice().getAmount().doubleValue() * 100.0;
+                    target.setProgressPercent(Math.round(pnlPct * 10.0) / 10.0);
+
+                    NewsPriceTarget effective = effectiveByTicker.get(target.getTicker());
+                    int comparison = effective == null ? 0 : inst.getCurrentPrice().compareTo(effective.getTargetPrice());
+                    if (effective != null && (effective.getTargetPercent() < 0 ? comparison <= 0 : comparison >= 0)) {
+                        target.markAchieved(date);
+                    } else if (date.isAfter(target.getDeadlineDate())) {
+                        target.markExpired(date);
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean dynamicDailyNewsEnabled = false;
+
+    public synchronized void setDynamicDailyNewsEnabled(boolean enabled) {
+        this.dynamicDailyNewsEnabled = enabled;
+    }
+
+    public synchronized boolean isDynamicDailyNewsEnabled() {
+        return dynamicDailyNewsEnabled;
+    }
+
+    public synchronized void ensureDailyNewsSchedule(LocalDate date, InstrumentCatalog catalog, long timestamp) {
+        if (!dynamicDailyNewsEnabled) return;
+        if (date == null || catalog == null || scheduledDates.contains(date.toString())) return;
+        scheduledDates.add(date.toString());
+
+        List<Instrument> idxUniverse = new ArrayList<>();
+        for (Instrument inst : catalog.getActiveUniverse()) {
+            if (inst.getExchange() == MarketExchange.IDX && inst.isTradable() && inst.getCurrentPrice().isPositive()) {
+                idxUniverse.add(inst);
+            }
+        }
+        if (idxUniverse.isEmpty()) return;
+
+        int dayOfYear = date.getDayOfYear();
+        int year = date.getYear();
+
+        // 1. Dua berita Pro per hari bursa (2-5% masing-masing)
+        int idx1 = Math.abs((year * 365 + dayOfYear) % idxUniverse.size());
+        int idx2 = (dayOfYear % 3 == 0) ? idx1 : Math.abs((year * 365 + dayOfYear + 3) % idxUniverse.size());
+
+        Instrument inst1 = idxUniverse.get(idx1);
+        Instrument inst2 = idxUniverse.get(idx2);
+
+        double pct1 = 0.02 + (Math.abs(Math.sin(dayOfYear * 7.1)) * 0.03); // 2.0% s/d 5.0%
+        double pct2 = 0.02 + (Math.abs(Math.cos(dayOfYear * 5.3)) * 0.03); // 2.0% s/d 5.0%
+
+        pct1 = Math.round(pct1 * 1000.0) / 1000.0;
+        pct2 = Math.round(pct2 * 1000.0) / 1000.0;
+
+        String id1 = "NEWS-PRO-" + date + "-1";
+        String id2 = "NEWS-PRO-" + date + "-2";
+
+        String headline1 = (idx1 == idx2)
+                ? "Laba Kuartalan " + inst1.getTicker() + " Lampaui Konsensus Analis"
+                : "Konsensus Analis Proyeksikan Ekspansi Margin " + inst1.getTicker();
+        String headline2 = (idx1 == idx2)
+                ? "Akumulasi Berkelanjutan Institusi pada Saham " + inst2.getTicker()
+                : "Peluang Pertumbuhan Arus Kas Operasional " + inst2.getTicker();
+
+        NewsArticle newsPro1 = new NewsArticle(
+                id1, headline1, "Analisis riset fundamental mendeteksi dorongan beli dengan target kenaikan minimal +" + String.format(java.util.Locale.ROOT, "%.1f", pct1 * 100.0) + "%.",
+                NewsArticle.Category.COMPANY, inst1.getTicker(), pct1, timestamp
+        );
+        NewsArticle newsPro2 = new NewsArticle(
+                id2, headline2, "Laporan riset pasar mengonfirmasi optimisme konsensus dengan target kenaikan minimal +" + String.format(java.util.Locale.ROOT, "%.1f", pct2 * 100.0) + "%.",
+                NewsArticle.Category.COMPANY, inst2.getTicker(), pct2, timestamp + 1800_000L
+        );
+
+        addNews(newsPro1);
+        addNews(newsPro2);
+
+        registerNewsTarget(new NewsPriceTarget(
+                "TGT-" + id1, id1, inst1.getTicker(), TerminalTier.PRO, headline1, false,
+                pct1, inst1.getPreviousClosePrice(), inst1, date
+        ));
+        registerNewsTarget(new NewsPriceTarget(
+                "TGT-" + id2, id2, inst2.getTicker(), TerminalTier.PRO, headline2, false,
+                pct2, inst2.getPreviousClosePrice(), inst2, date
+        ));
+
+        // 2. Warta Eksklusif Whale (1-2 per 7 hari game, kenaikan > 20%)
+        int dayIn14 = Math.floorMod(date.toEpochDay(), 14);
+        if (dayIn14 == 2) {
+            Instrument whaleInst = idxUniverse.get((dayOfYear + 1) % idxUniverse.size());
+            double whalePct = 0.25; // +25% (> 20%)
+            String whaleId = "NEWS-WHALE-" + date;
+            String whaleHeadline = "Katalis Mega Taipan: Akuisisi Strategis Konglomerat pada " + whaleInst.getTicker();
+            NewsArticle whaleNews = new NewsArticle(
+                    whaleId, whaleHeadline, "Warta intelijen eksklusif Whale mendeteksi transaksi institusi skala raksasa dengan target kenaikan minimal +" + String.format(java.util.Locale.ROOT, "%.1f", whalePct * 100.0) + "%.",
+                    NewsArticle.Category.COMPANY, whaleInst.getTicker(), whalePct, timestamp
+            );
+            addNews(whaleNews);
+            registerNewsTarget(new NewsPriceTarget(
+                    "TGT-" + whaleId, whaleId, whaleInst.getTicker(), TerminalTier.ENTERPRISE, whaleHeadline, false,
+                    whalePct, whaleInst.getPreviousClosePrice(), whaleInst, date
+            ));
+        }
+
+        // 3. Rumor Lanjutan Whale (minimal sekali per 14 hari game, persentase minimum 2x rumor awal)
+        if (dayIn14 == 9) {
+            NewsArticle originNews = null;
+            for (int i = newsList.size() - 1; i >= 0; i--) {
+                NewsArticle cand = newsList.get(i);
+                if (cand.getId().startsWith("NEWS-WHALE-") && !cand.getId().contains("FOLLOWUP")
+                        && cand.getCategory() == NewsArticle.Category.COMPANY
+                        && cand.getPublishedAt() < timestamp) {
+                    originNews = cand;
+                    break;
+                }
+            }
+            if (originNews != null) {
+                String ticker = originNews.getRelatedTicker();
+                Instrument followUpInst = null;
+                for (Instrument inst : idxUniverse) {
+                    if (inst.getTicker().equalsIgnoreCase(ticker)) {
+                        followUpInst = inst;
+                        break;
+                    }
+                }
+                if (followUpInst != null) {
+                    double originPct = originNews.getSentimentImpact();
+                    double followUpPct = Math.round(originPct * 2.0 * 1000.0) / 1000.0;
+                    String followUpId = "NEWS-WHALE-FOLLOWUP-" + date;
+                    String followUpHeadline = "Rumor Lanjutan Taipan: Finalisasi Merger Multinasional " + followUpInst.getTicker();
+                    NewsArticle followUpNews = new NewsArticle(
+                            followUpId, followUpHeadline,
+                            "Perkembangan lanjutan katalis Whale dari warta " + originNews.getId() + " dengan dorongan beli berlipat ganda minimal +" + String.format(java.util.Locale.ROOT, "%.1f", followUpPct * 100.0) + "%.",
+                            NewsArticle.Category.COMPANY, followUpInst.getTicker(), followUpPct, timestamp
+                    );
+                    addNews(followUpNews);
+                    registerNewsTarget(new NewsPriceTarget(
+                            "TGT-" + followUpId, followUpId, followUpInst.getTicker(), TerminalTier.ENTERPRISE, followUpHeadline, true,
+                            followUpPct, followUpInst.getPreviousClosePrice(), followUpInst, date
+                    ));
+                }
+            }
+        }
     }
 
     /**
@@ -337,6 +795,8 @@ public final class ResearchService {
         BigDecimal mean = targets.isEmpty() ? null : total.divide(BigDecimal.valueOf(targets.size()), instrument.getCurrency().getDecimalPlaces(), RoundingMode.HALF_UP);
         BigDecimal median = targets.isEmpty() ? null : targets.size() % 2 == 1 ? targets.get(targets.size() / 2)
                 : targets.get(targets.size() / 2 - 1).add(targets.get(targets.size() / 2)).divide(BigDecimal.valueOf(2), instrument.getCurrency().getDecimalPlaces(), RoundingMode.HALF_UP);
+        double gapRate = calculateGapRate(instrument);
+        String fundSignal = getFundamentalSignal(gapRate);
         return new JSONObject().put("success", true).put("instrumentId", instrument.getId()).put("asOf", asOf)
                 .put("source", "Laporan analis NPC yang sudah terbit dalam dunia game").put("sampleCount", targets.size())
                 .put("status", targets.isEmpty() ? "EMPTY" : "AVAILABLE").put("currency", instrument.getCurrency().name())
@@ -346,9 +806,29 @@ public final class ResearchService {
                 .put("minTarget", targets.isEmpty() ? JSONObject.NULL : targets.get(0).toPlainString())
                 .put("maxTarget", targets.isEmpty() ? JSONObject.NULL : targets.get(targets.size() - 1).toPlainString())
                 .put("currentPrice", instrument.getCurrentPrice().getAmount().toPlainString())
+                .put("intrinsicValue", instrument.getIntrinsicValue() != null ? instrument.getIntrinsicValue().toPlainString() : instrument.getCurrentPrice().getAmount().toPlainString())
+                .put("gapRatePercent", String.format(java.util.Locale.US, "%.2f", gapRate))
+                .put("fundamentalSignal", fundSignal)
+                .put("trailingEps", instrument.getTrailingEps().toPlainString())
+                .put("sectorPer", instrument.getSectorAvgPer())
                 .put("reports", sources).put("uncertainty", targets.size() < 2
                         ? "Belum cukup opini independen untuk menilai sebaran konsensus; target bukan jaminan harga."
                         : "Target adalah opini NPC, dapat berbeda dan salah; bukan harga masa depan.");
+    }
+
+    public double calculateGapRate(Instrument instrument) {
+        if (instrument == null) return 0.0;
+        BigDecimal fair = instrument.getIntrinsicValue();
+        BigDecimal current = instrument.getCurrentPrice().getAmount();
+        if (fair == null || current.signum() <= 0) return 0.0;
+        return fair.subtract(current).divide(current, 4, RoundingMode.HALF_UP).doubleValue() * 100.0;
+    }
+
+    public String getFundamentalSignal(double gapRate) {
+        if (gapRate >= 15.0) return "STRONG_BUY";
+        if (gapRate >= 5.0)  return "BUY";
+        if (gapRate >= -5.0) return "HOLD";
+        return "SELL";
     }
 
     private JSONObject reportJson(AnalystReport report) throws JSONException {
@@ -430,8 +910,14 @@ public final class ResearchService {
             long currentTimestamp) {
 
         if (targetTier == TerminalTier.BASIC) {
-            this.currentTier = TerminalTier.BASIC;
-            this.subscriptionExpiresAt = Long.MAX_VALUE;
+            // Menghentikan perpanjangan otomatis: enrolledTier menjadi BASIC.
+            // Jika masih dalam masa aktif berbayar (currentTimestamp < subscriptionExpiresAt),
+            // pertahankan akses berbayar dan subscriptionExpiresAt hingga periode berakhir (Butir 18 & 54).
+            this.enrolledTier = TerminalTier.BASIC;
+            if (currentTimestamp >= subscriptionExpiresAt) {
+                this.currentTier = TerminalTier.BASIC;
+                this.subscriptionExpiresAt = Long.MAX_VALUE;
+            }
             return true;
         }
 
@@ -453,7 +939,39 @@ public final class ResearchService {
         );
 
         this.currentTier = targetTier;
+        this.enrolledTier = targetTier;
         this.subscriptionExpiresAt = currentTimestamp + THIRTY_DAYS_MS;
         return true;
+    }
+
+    /**
+     * Perpanjangan otomatis paket Pro & Whale setelah 30 hari game jika saldo USD cukup (A05).
+     * Jika saldo USD kurang, status langganan otomatis turun ke BASIC secara transparan.
+     */
+    public synchronized void processDailyAutoRenewal(Account personalAccount, EconomyLedger ledger, long currentTimestamp) {
+        TerminalTier tierToRenew = enrolledTier;
+        if (tierToRenew == null || tierToRenew == TerminalTier.BASIC) return;
+        if (currentTimestamp >= subscriptionExpiresAt) {
+            Money fee = tierToRenew.getMonthlyFeeUsd();
+            Money availUsd = personalAccount.getAvailableCash(Currency.USD);
+            if (availUsd.isGreaterThanOrEqual(fee)) {
+                ledger.recordMutation(
+                        "AUTO-RENEW-" + tierToRenew.name() + "-" + currentTimestamp,
+                        personalAccount,
+                        LedgerEntryType.TRANSACTION_FEE,
+                        fee,
+                        false,
+                        currentTimestamp,
+                        "Perpanjangan Otomatis " + tierToRenew.getTitle() + " (30 Hari Game)"
+                );
+                this.currentTier = tierToRenew;
+                this.enrolledTier = tierToRenew;
+                this.subscriptionExpiresAt = currentTimestamp + THIRTY_DAYS_MS;
+            } else {
+                this.currentTier = TerminalTier.BASIC;
+                this.enrolledTier = TerminalTier.BASIC;
+                this.subscriptionExpiresAt = Long.MAX_VALUE;
+            }
+        }
     }
 }

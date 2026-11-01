@@ -1,0 +1,116 @@
+ID,Sumber,Induk,Uraian,Status,Dependensi,CaraVerifikasi,Bukti
+A01.1,Plan 12,A01,Validasi tanggal pemesanan IPO wajib berada di antara offeringStartDate dan offeringEndDate inklusif,PERLU_REVISI,-,Unit test domain CorporateActionService,ProbeIpoWindow.java
+A01.2,Plan 12,A01,Penolakan pesanan IPO setelah masa penawaran tutup meskipun bursa belum listing,PERLU_REVISI,A01.1,Unit test domain & probe review,ProbeIpoWindow.java
+A01.3,Plan 12,A01,Penolakan pesanan IPO sebelum masa penawaran dibuka,PERLU_REVISI,A01.1,Unit test domain boundary tanggal,CorporateActionIpoVotingTest.java
+A01.4,Plan 12,A01,Pelepasan kas tertahan secara seketika saat pesanan IPO ditolak (kas tidak berkurang),PERLU_REVISI,A01.2,Assertion saldo akun & ledger,Apk11IndependentReviewFixesTest.java
+A01.5,Plan 12,A01,Masa penawaran IPO 3 hari kalender game sesuai keputusan pemilik,SUDAH_TERBUKTI,-,Pemeriksaan konstruktor IpoOffering,IpoOffering.java:29
+A01.6,Plan 12,A01,Integrasi alur pemesanan dan penolakan pada TradingWebBridge dan UI Pusat IPO,PERLU_REVISI,A01.2,Bridge call & UI response assertion,app.js & TradingWebBridge.java
+A01.7,Plan 12,A01,Penyelidikan regresi ProbeIpoWindow menghasilkan penolakan sah (bukan PENDING),PERLU_REVISI,A01.2,Eksekusi ProbeIpoWindow,ProbeIpoWindow execution
+A02.1,Plan 12,A02,Pemisahan komputasi peringkat kekayaan dan return mingguan di domain TradingFacade,PERLU_REVISI,-,Unit test domain TradingFacade,TradingFacade.java
+A02.2,Plan 12,A02,Penyajian dua peringkat berlabel pada DTO profil NPC (Peringkat Kekayaan dan Peringkat Return),PERLU_REVISI,A02.1,Inspeksi JSON getLeaderboard & getNpcProfile,TradingWebBridge.java
+A02.3,Plan 12,A02,Koreksi anomali peringkat Wira Lentera (juara return #1 tampil #1 di profil bukan #1001),PERLU_REVISI,A02.2,Unit test profiling NPC juara return,TradingFacade.java
+A02.4,Plan 12,A02,Penanganan nilai return atau kekayaan sama dengan ID stabil deterministik,SUDAH_TERBUKTI,-,Comparator LeagueManager,LeagueManager.java:246
+A02.5,Plan 12,A02,Penanganan status return belum tersedia pada periode baru secara jujur,SUDAH_TERBUKTI,-,JSON assertion returnDifference,TradingFacade.java
+A02.6,Plan 12,A02,Preview UI profil NPC menampilkan dua peringkat berlabel jelas,MENUNGGU_PREVIEW_PERSETUJUAN,A02.2,Desktop preview HTML,preview-tycoon-sinematik.html
+A02.7,Plan 12,A02,Uji regresi multi-filter leaderboard dan profil NPC,PERLU_REVISI,A02.3,Test suite JUnit,Apk11IndependentReviewFixesTest.java
+A03.1,Plan 12,A03,Algoritma pencocokan All-Or-None melewati maker parsial jika ada maker lain yang memenuhi volume penuh,PERLU_REVISI,-,Pemeriksaan algoritma MatchingEngine,MatchingEngine.java
+A03.2,Plan 12,A03,Kasus order beli pemain 300 lembar melewati NPC 100 lembar dan mengeksekusi klien 300 lembar,PERLU_REVISI,A03.1,Eksekusi ProbeAon termodifikasi,ProbeAon.java
+A03.3,Plan 12,A03,Kasus simetris order jual pemain 300 lembar melewati bid parsial 100 dan mengeksekusi bid 300,PERLU_REVISI,A03.1,Unit test simetris sell order AON,Apk11IndependentReviewFixesTest.java
+A03.4,Plan 12,A03,Proteksi All-Or-None dua arah: tidak ada partial fill pada maker pemain maupun taker pemain,PERLU_REVISI,A03.1,Assertion status order pemain,MatchingEngine.java
+A03.5,Plan 12,A03,Integritas fee transaksi kas dan saldo buku besar tepat sekali tanpa mutasi parsial,PERLU_REVISI,A03.2,Ledger reconciliation check,OrderReceiptActualsTest.java
+A03.6,Plan 12,A03,Uji regresi ProbeAon menghasilkan FILLED 300 lembar dari maker 300,PERLU_REVISI,A03.2,Eksekusi ProbeAon,ProbeAon log
+A04.1,Plan 12,A04,Penyatuan menu Terminal Riset dan Paket Langganan menjadi satu pintu di tab Lainnya,MENUNGGU_PREVIEW_PERSETUJUAN,-,Inspeksi struktur navigasi app.js,app.js
+A04.2,Plan 12,A04,Tampilan status paket aktif dan tombol kelola langganan di dalam Terminal,MENUNGGU_PREVIEW_PERSETUJUAN,A04.1,DOM preview render,preview-tycoon-sinematik.html
+A04.3,Plan 12,A04,Penjelasan rincian fitur dan batas hak akses per tier di dalam satu pintu,MENUNGGU_PREVIEW_PERSETUJUAN,A04.2,DOM preview render,preview-tycoon-sinematik.html
+A04.4,Plan 12,A04,Preservasi Back button dan navigasi keyboard ramah disabilitas,MENUNGGU_PREVIEW_PERSETUJUAN,A04.1,Playwright/DOM check,app.js
+A04.5,Plan 12,A04,Preview UI terminal satu pintu dan persetujuan pemilik,MENUNGGU_PREVIEW_PERSETUJUAN,A04.1,Desktop preview HTML,preview-tycoon-sinematik.html
+A04.6,Plan 12,A04,Uji interaksi bridge researchQuery dan langganan tier,SUDAH_TERBUKTI,-,JUnit bridge test,WireIntegrationDomainTest.java
+A05.1,Plan 12,A05,Penetapan harga paket Pro USD 250.000 dan Whale USD 1.000.000 game per 30 hari game (~30 jam nyata),PERLU_REVISI,-,Pemeriksaan enum TerminalTier,TerminalTier.java
+A05.2,Plan 12,A05,Perpanjangan otomatis (auto-renewal) paket setelah 30 hari game jika saldo USD cukup,PERLU_REVISI,A05.1,Unit test domain rollover ResearchService,ResearchService.java
+A05.3,Plan 12,A05,Penanganan saat saldo USD kurang untuk perpanjangan otomatis (turun ke Basic secara transparan),PERLU_REVISI,A05.2,Unit test boundary saldo kurang,ResearchService.java
+A05.4,Plan 12,A05,Kabar Pro (2-5%) dan Whale (>20%) diterima 1 hari game sebelum bursa buka,PERLU_REVISI,A05.1,Unit test domain rilis warta terminal,ResearchService.java
+A05.5,Plan 12,A05,Kabar tersedia pada setiap pembukaan pasar dengan frekuensi sedang,PERLU_REVISI,A05.4,Unit test jadwal kalender berita,ResearchService.java
+A05.6,Plan 12,A05,Kenaikan harga penutupan terhadap pembukaan terjamin di simulasi melalui order beli masif NPC,PERLU_REVISI,A05.4,Simulasi matching engine bursa,MarketEngine.java
+A05.7,Plan 12,A05,Hak Pro melihat rangkuman transaksi besar NPC yang benar-benar tercatat di buku besar,PERLU_REVISI,A05.1,Bridge query transaksi besar NPC,TradingWebBridge.java
+A05.8,Plan 12,A05,Penegasan aturan simulasi bahwa kenaikan harga saham bukan jaminan laba bersih pemain,SUDAH_TERBUKTI,-,Teks disclaimer pada preview UI,preview-tycoon-sinematik.html
+A05.9,Plan 12,A05,Preview UI paket langganan dan rincian manfaat,MENUNGGU_PREVIEW_PERSETUJUAN,A05.1,Desktop preview HTML,preview-tycoon-sinematik.html
+A05.10,Plan 12,A05,Uji regresi billing terminal dan siklus perpanjangan otomatis,PERLU_REVISI,A05.2,Critical sequence billing test,ResearchTerminalBillingCriticalSequenceTest.java
+A06.1,Plan 12,A06,Penerapan tema Tycoon Sinematik (obsidian bronze gold) pada CSS dan komponen UI,MENUNGGU_PREVIEW_PERSETUJUAN,-,Pemeriksaan variabel CSS,style.css
+A06.2,Plan 12,A06,Urutan preview layar: Beranda Pasar Portofolio Bisnis Lainnya,MENUNGGU_PREVIEW_PERSETUJUAN,A06.1,Desktop preview multi-layar,preview-tycoon-sinematik.html
+A06.3,Plan 12,A06,Preview layar terkait: Terminal Riset IPO Profil NPC Leaderboard Galeri dan Dialog Order,MENUNGGU_PREVIEW_PERSETUJUAN,A06.2,Desktop preview multi-layar,preview-tycoon-sinematik.html
+A06.4,Plan 12,A06,Penyusunan 3 alternatif desain galeri koleksi mewah,MENUNGGU_PREVIEW_PERSETUJUAN,A06.1,Desktop preview 3 opsi galeri,preview-tycoon-sinematik.html
+A06.5,Plan 12,A06,"Pengujian responsif mobile, aksesibilitas kontras 4.5:1 dan target sentuh minimal 48dp",MENUNGGU_PREVIEW_PERSETUJUAN,A06.1,Inspeksi style dan ukuran kontrol,style.css
+A07.1,Plan 12,A07,Sumber data profil 1.000 NPC aktual: saldo kas likuid portofolio saham dan riwayat transaksi,PERLU_REVISI,-,Inspeksi metode getNpcProfile,TradingFacade.java
+A07.2,Plan 12,A07,Pembuktian tokoh kaya NPC (seperti Banyu Karang) memiliki akumulasi saham dan data riil,PERLU_REVISI,A07.1,Verifikasi data posisi akun NPC,TradingFacade.java
+A07.3,Plan 12,A07,Ketiadaan fallback naratif fiktif yang menyesatkan (status belum tersedia jika data nihil),SUDAH_TERBUKTI,-,Inspeksi kode app.js render tab,app.js:6120
+A07.4,Plan 12,A07,Aktivitas perdagangan NPC beragam tanpa kewajiban seluruh 1.000 NPC bertransaksi serentak,SUDAH_TERBUKTI,-,Rotasi batch 50 NPC di getNpcOrders,LeagueManager.java:212
+A07.5,Plan 12,A07,Pengukuran performa dan alokasi memori domain 1.000 NPC,SUDAH_TERBUKTI,-,Benchmark report JSON,benchmark-1000npc-report.json
+A08.1,Plan 12,A08,Rerun seluruh probe kritis (ProbeIpoWindow ProbeAon ProbeClosedMarket) pada snapshot stabil,PERLU_REVISI,A01.2,Eksekusi probe mandiri,Probe execution logs
+A08.2,Plan 12,A08,Eksekusi full test suite host secara tuntas dengan pencatatan log lengkap dan exit code 0,PERLU_REVISI,A08.1,Eksekusi run-codex-jvm-check.ps1,junit-latest.log
+A08.3,Plan 12,A08,Build kandidat APK-15 dengan integrasi aset lengkap dan verifikasi apksigner V2,PERLU_REVISI,A08.2,Gradle assembleDebug & apksigner,GameSaham-APK15-final.apk
+A08.4,Plan 12,A08,Pelaporan terpisah hasil komputer browser APK emulator dan ponsel fisik,PERLU_REVISI,A08.3,Format laporan penyerahan,Laporan Plan 12
+A08.5,Plan 12,A08,Pemeriksaan hash SHA-256 save pemain asli sebelum dan sesudah tugas,PERLU_REVISI,-,sha256sum verification,Hash log
+R01.1,Riset R01,R01,Penjatahan IPO proporsional kuota 60:40 dengan ambang pesanan besar 20%,SUDAH_TERBUKTI,-,Unit test allotIpo 60:40,IpoAllotment6040AndCancellationTest.java
+R01.2,Riset R01,R01,Penjatahan IPO kurang peminat (undersubscribed) 100% dipenuhi tanpa pemotongan buatan,SUDAH_TERBUKTI,-,Unit test undersubscribed IPO,Apk10IndependentReviewFixesTest.java
+R01.3,Riset R01,R01,Pengembalian sisa dana pesanan (refund) otomatis dan idempoten ke kas tersedia,SUDAH_TERBUKTI,-,Ledger check refund,CorporateActionIpoVotingTest.java
+R01.4,Riset R01,R01,Penyajian informasi IPO yang mudah dipahami bagi pemain pemula,MENUNGGU_PREVIEW_PERSETUJUAN,-,Desktop preview UI Pusat IPO,preview-tycoon-sinematik.html
+R02.1,Riset R02,R02,Eksekusi dividen tunai otomatis harian saat penutupan bursa,SUDAH_TERBUKTI,-,Unit test automatic dividend on day close,CorporateActionIpoVotingTest.java
+R02.2,Riset R02,R02,Pemisahan hak dividen akun pribadi dari akun kelolaan klien,SUDAH_TERBUKTI,-,Akun isolation check,TradingWebBridgeTest.java
+R02.3,Riset R02,R02,Tanggal hak (cum/ex) dan pembayaran dividen bersumber dari data domain,SUDAH_TERBUKTI,-,Inspeksi DTO corporate action,CorporateActionService.java
+R02.4,Riset R02,R02,Preview jadwal dividen dan aksi korporasi di UI,MENUNGGU_PREVIEW_PERSETUJUAN,-,Desktop preview UI,preview-tycoon-sinematik.html
+R03.1,Riset R03,R03,"Dukungan aksi korporasi stock split, reverse split, rights issue, buyback di domain",SUDAH_TERBUKTI,-,Corporate action execution tests,CorporateActionService.java
+R03.2,Riset R03,R03,Penjelasan dampak perubahan saham dan harga sebelum/sesudah aksi,MENUNGGU_PREVIEW_PERSETUJUAN,-,Modal dialog aksi korporasi,app.js
+R03.3,Riset R03,R03,Integritas jumlah saham dan reservasi kas saat aksi korporasi,SUDAH_TERBUKTI,-,Domain rights reserve test,WireIntegrationDomainTest.java
+R03.4,Riset R03,R03,Preview UI aksi korporasi dan voting RUPS,MENUNGGU_PREVIEW_PERSETUJUAN,-,Desktop preview UI,preview-tycoon-sinematik.html
+R04.1,Riset R04,R04,Daftar pemegang saham menampilkan kepemilikan 1% atau lebih dan publik,SUDAH_TERBUKTI,-,Inspeksi struktur pemegang saham,app.js:4347
+R04.2,Riset R04,R04,Suara voting RUPS didasarkan pada jumlah saham berhak pada recording date,SUDAH_TERBUKTI,-,Unit test castShareholderVote,CorporateActionIpoVotingTest.java
+R04.3,Riset R04,R04,Pemisahan saham akun klien agar tidak disalahgunakan sebagai kendali pribadi,SUDAH_TERBUKTI,-,Audit account isolation,CorporateActionService.java:968
+R04.4,Riset R04,R04,Preview UI pemegang saham dan hak kendali bertahap,MENUNGGU_PREVIEW_PERSETUJUAN,-,Desktop preview UI,preview-tycoon-sinematik.html
+R05.1,Riset R05,R05,"Penyajian 4 tab informasi perusahaan IPO: Profil, Keuangan, Risiko, Rencana IPO",SUDAH_TERBUKTI,-,Inspeksi komponen UI IPO,preview-ipo-bertab-dan-pemegang-saham.html
+R05.2,Riset R05,R05,Penanganan kondisi data keuangan belum tersedia secara jujur tanpa angka rekaan,SUDAH_TERBUKTI,-,Fallback empty state UI,app.js
+R05.3,Riset R05,R05,Pemisahan informasi IPO dari fitur perbandingan saham Pro yang ditolak,SUDAH_TERBUKTI,-,Audit cakupan menu IPO,app.js
+R05.4,Riset R05,R05,Preview UI tab informasi perusahaan IPO,MENUNGGU_PREVIEW_PERSETUJUAN,-,Desktop preview UI,preview-tycoon-sinematik.html
+R06.1,Riset R06,R06,Visualisasi proporsi portofolio saham per sektor dan kelas aset,SUDAH_TERBUKTI,-,Komponen visual wealth breakdown,app.js:5286
+R06.2,Riset R06,R06,Penjelasan risiko konsentrasi tanpa pemaksaan transaksi kepada pemain,SUDAH_TERBUKTI,-,Teks edukatif portofolio,app.js
+R06.3,Riset R06,R06,Dukungan multi-mata uang IDR dan USD tanpa perhitungan ganda,SUDAH_TERBUKTI,-,Unit test portfolio net worth,TradingPortfolioFxTest.java
+R06.4,Riset R06,R06,Preview UI komposisi portofolio dan valuasi konsolidasi,MENUNGGU_PREVIEW_PERSETUJUAN,-,Desktop preview UI,preview-tycoon-sinematik.html
+R07.1,Riset R07,R07,"Bukti transaksi mencantumkan harga riil, biaya transaksi, dan status penuh/batal",SUDAH_TERBUKTI,-,Unit test order receipt actuals,OrderReceiptActualsTest.java
+R07.2,Riset R07,R07,Konsistensi dampak kas dan posisi saham terhadap mutasi buku besar,SUDAH_TERBUKTI,-,Reconciliation ledger check,OrderReceiptActualsTest.java
+R07.3,Riset R07,R07,Pelepasan reservasi kas seketika saat order dibatalkan atau ditolak,SUDAH_TERBUKTI,-,Unit test cancelOrder,OrderReceiptActualsTest.java
+R07.4,Riset R07,R07,Preview dialog bukti transaksi dan riwayat order,MENUNGGU_PREVIEW_PERSETUJUAN,-,Desktop preview UI,preview-tycoon-sinematik.html
+R08.1,Riset R08,R08,Penamaan jenis order yang jelas dan jujur (Limit dan Market),SUDAH_TERBUKTI,-,Inspeksi kontrol tiket order,app.js
+R08.2,Riset R08,R08,Sinkronisasi order Market saat pasar tutup menjadi terisi penuh saat buka,SUDAH_TERBUKTI,-,Eksekusi ProbeClosedMarket (exit 0),ProbeClosedMarket log
+R08.3,Riset R08,R08,Penolakan order pasar tutup jika saham disuspensi saat bursa dibuka,SUDAH_TERBUKTI,-,Unit test market closed order queue,MarketClosedOrderQueueRegressionTest.java
+R08.4,Riset R08,R08,Preview dialog order tengah layar dengan tahapan status,MENUNGGU_PREVIEW_PERSETUJUAN,-,Desktop preview UI,preview-tycoon-sinematik.html
+R09.1,Riset R09,R09,Penentuan posisi pemain dan rival terdekat di leaderboard berdasarkan data riil,SUDAH_TERBUKTI,-,Unit test getRivalStatus,TradingWebBridgeTest.java:1119
+R09.2,Riset R09,R09,Pencegahan pengacakan peringkat (urutan tie-break stabil berdasar ID),SUDAH_TERBUKTI,-,Leaderboard sorting assertion,LeagueManager.java:246
+R09.3,Riset R09,R09,Pemisahan peringkat mode kekayaan dan return mingguan dengan label yang jelas,PERLU_REVISI,A02.1,Inspeksi getNpcProfile DTO,TradingFacade.java
+R09.4,Riset R09,R09,Preview UI rivalitas dan posisi pemain di sekitar lawan,MENUNGGU_PREVIEW_PERSETUJUAN,-,Desktop preview UI,preview-tycoon-sinematik.html
+R10.1,Riset R10,R10,Tujuan pribadi dan misi awal bebas dipilih tanpa kewajiban beli saham,SUDAH_TERBUKTI,-,Audit misi awal MIS-01,app.js & CareerManager.java
+R10.2,Riset R10,R10,Klaim hadiah misi otomatis dan tercatat tepat sekali di buku besar,SUDAH_TERBUKTI,-,Unit test claimMission idempotency,CareerManager.java:179
+R10.3,Riset R10,R10,Sasaran pencapaian besar pertama pemain 1-3 hari nyata sebagai tolok ukur playtest,SUDAH_TERBUKTI,-,Dokumentasi balancing playtest,MASTER-PLAN-OFFLINE-DAN-REALISME-2026-10-28.md
+R10.4,Riset R10,R10,Preview UI tujuan pencapaian dan misi progresif,MENUNGGU_PREVIEW_PERSETUJUAN,-,Desktop preview UI,preview-tycoon-sinematik.html
+R11.1,Riset R11,R11,Jadwal bursa buka setiap hari game pukul 09.00-16.00 waktu game,SUDAH_TERBUKTI,-,Pemeriksaan sesi GameClock,GameClock.java:120
+R11.2,Riset R11,R11,"Akses kegiatan riset, pemantauan pasar, dan manajemen bisnis saat bursa tutup",SUDAH_TERBUKTI,-,Audit alur navigasi pasar tutup,app.js
+R11.3,Riset R11,R11,Pembuatan order antre saat bursa tutup dengan reservasi dana seketika,SUDAH_TERBUKTI,-,Unit test submitOrder market closed,MarketClosedOrderQueueRegressionTest.java
+R11.4,Riset R11,R11,Preview UI aktivitas bursa tutup dan ringkasan sesi,MENUNGGU_PREVIEW_PERSETUJUAN,-,Desktop preview UI,preview-tycoon-sinematik.html
+R12.1,Riset R12,R12,Rekonsiliasi kejadian offline 24x saat aplikasi kembali dibuka,SUDAH_TERBUKTI,-,Unit test advanceRealMs & clock reconciliation,AutomaticWorldTimeTest.java
+R12.2,Riset R12,R12,"Penyajian daftar kejadian offline aktual (order, dividen, bisnis, tagihan)",SUDAH_TERBUKTI,-,Inspeksi dialog ringkasan offline,app.js
+R12.3,Riset R12,R12,Pencegahan duplikasi transaksi dan penggandaan bunga saat kembali online,SUDAH_TERBUKTI,-,Idempotency assertion offline catchup,ClockAsyncReconciliationTest.java
+R12.4,Riset R12,R12,Preview UI ringkasan seluruh kejadian offline (Contoh B),MENUNGGU_PREVIEW_PERSETUJUAN,-,Desktop preview UI,preview-tycoon-sinematik.html
+R13.1,Riset R13,R13,"Dukungan 5 kategori notifikasi ponsel: order, berita, IPO, bisnis, tagihan",SUDAH_TERBUKTI,-,Audit saluran notifikasi Android,MainActivity.java:163
+R13.2,Riset R13,R13,Penyediaan sakelar (toggle) kontrol per kategori bagi pemain,MENUNGGU_PREVIEW_PERSETUJUAN,-,Modal pengaturan notifikasi,app.js
+R13.3,Riset R13,R13,Kepatuhan izin sistem POST_NOTIFICATIONS pada Android 13+,SUDAH_TERBUKTI,-,AndroidManifest.xml permission,AndroidManifest.xml:4
+R13.4,Riset R13,R13,Preview UI pengaturan notifikasi ponsel,MENUNGGU_PREVIEW_PERSETUJUAN,-,Desktop preview UI,preview-tycoon-sinematik.html
+R14.1,Riset R14,R14,Populasi 1.000 NPC unik dengan nama campuran Indonesia dan internasional,SUDAH_TERBUKTI,-,Unit test 1000 NPC roster,League1000NpcLeaderboardRegressionTest.java
+R14.2,Riset R14,R14,Pemasangan 100 avatar anime WebP 256x256 pada aset aplikasi,SUDAH_TERBUKTI,-,Verifikasi file WebP di www/img/avatars/,100 files in avatars/
+R14.3,Riset R14,R14,"Penyediaan data kas riil, saham dimiliki, dan entitas industri bagi NPC kaya",PERLU_REVISI,A07.1,Inspeksi posisi portofolio NPC di domain,TradingFacade.java
+R14.4,Riset R14,R14,Preview UI kartu profil NPC dan integrasi 4 tab,MENUNGGU_PREVIEW_PERSETUJUAN,-,Desktop preview UI,preview-tycoon-sinematik.html
+R15.1,Riset R15,R15,"Perbandingan pemasukan, biaya, dan proyeksi laba harian sebelum keputusan bisnis",SUDAH_TERBUKTI,-,Unit test previewCompanyAction,CompanyOperationsRegressionTest.java
+R15.2,Riset R15,R15,Pencatatan realisasi operasional harian anak usaha ke buku besar perusahaan,SUDAH_TERBUKTI,-,Unit test processDailyOperations,CompanyOperationsRegressionTest.java
+R15.3,Riset R15,R15,Pemisahan neraca kas operasional anak usaha dari kas pribadi pemain,SUDAH_TERBUKTI,-,Audit account type COMPANY vs PERSONAL,CompanyManager.java
+R15.4,Riset R15,R15,Preview UI konfirmasi keputusan bisnis dan proyeksi laba,MENUNGGU_PREVIEW_PERSETUJUAN,-,Desktop preview UI,preview-tycoon-sinematik.html
+R16.1,Riset R16,R16,Penerapan tema Tycoon Sinematik di seluruh layar utama game,MENUNGGU_PREVIEW_PERSETUJUAN,-,Pemeriksaan CSS dan komponen UI,style.css
+R16.2,Riset R16,R16,Penyusunan 3 alternatif desain galeri barang koleksi mewah,MENUNGGU_PREVIEW_PERSETUJUAN,-,Desktop preview 3 alternatif galeri,preview-tycoon-sinematik.html
+R16.3,Riset R16,R16,Penegakan target sentuh minimal 48dp dan kontras aksesibilitas,MENUNGGU_PREVIEW_PERSETUJUAN,-,Audit ukuran kontrol di style.css,style.css
+R16.4,Riset R16,R16,Preview menyeluruh 5 tab navigasi dan layar terkait,MENUNGGU_PREVIEW_PERSETUJUAN,-,Desktop preview multi-layar,preview-tycoon-sinematik.html

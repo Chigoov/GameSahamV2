@@ -77,7 +77,7 @@ public final class PortfolioInsuranceService {
             Policy policy = new Policy(obj.getString("policyId"), obj.getInt("purchasedSession"),
                     obj.getInt("expirySession"), obj.getDouble("coveragePercentage"),
                     new Money(new BigDecimal(obj.getString("premiumAmount")), Currency.valueOf(obj.getString("premiumCurrency"))));
-            policy.isClaimed = obj.getBoolean("isClaimed");
+            policy.isClaimed = obj.optBoolean("isClaimed", false);
             if (policy.purchasedSession < 0 || policy.expirySession < policy.purchasedSession
                     || policy.coveragePercentage <= 0 || policy.coveragePercentage > 100 || policy.premiumPaid.isNegative())
                 throw new IllegalArgumentException("State polis asuransi tidak valid");
@@ -99,14 +99,18 @@ public final class PortfolioInsuranceService {
                                               EconomyLedger ledger, long now, int currentSession) {
         Objects.requireNonNull(account);
         Objects.requireNonNull(portfolioValue);
-        GameClock sessionClock = new GameClock(java.time.Instant.ofEpochMilli(now)
-                .atOffset(java.time.ZoneOffset.ofHours(7)).toLocalDate(),
+        com.tradingglobal3d.core.clock.GameClock sessionClock = new com.tradingglobal3d.core.clock.GameClock(
+                java.time.Instant.ofEpochMilli(now).atOffset(java.time.ZoneOffset.ofHours(7)).toLocalDate(),
                 java.time.Instant.ofEpochMilli(now).atOffset(java.time.ZoneOffset.ofHours(7)).toLocalTime());
-        if (sessionClock.isAnyMarketOpen())
+        if (sessionClock.isAnyMarketOpen()) {
             throw new IllegalStateException("Polis asuransi hanya dapat dibeli sebelum sesi pasar dibuka");
+        }
+        if (activePolicy != null && activePolicy.isValidAtSession(currentSession)) {
+            throw new IllegalStateException("Masih ada polis asuransi aktif yang belum kedaluwarsa");
+        }
         int duration = Math.max(1, durationSessions);
 
-        // Premi: 1.0% dari total nilai portofolio (minimal Rp 500.000)
+        // Premi: 1.0% dari total nilai portofolio saham (minimal Rp 500.000) (Bug #326)
         BigDecimal premAmt = portfolioValue.getAmount().multiply(new BigDecimal("0.0100")).setScale(0, RoundingMode.HALF_UP);
         if (premAmt.compareTo(BigDecimal.valueOf(500_000)) < 0) {
             premAmt = BigDecimal.valueOf(500_000);
@@ -147,7 +151,7 @@ public final class PortfolioInsuranceService {
             ledger.recordMutation(
                     "INS-CLAIM-" + activePolicy.getPolicyId(),
                     account,
-                    LedgerEntryType.BAILOUT,
+                    LedgerEntryType.MISSION_REWARD, // Kredit klaim asuransi resmi non-bailout (Bug #334)
                     reimbursement,
                     true, // kredit
                     now,

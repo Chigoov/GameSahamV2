@@ -1,0 +1,501 @@
+Milestone_ID,Batch,Number,Location,Title,Status
+MILESTONE-B1-001,Batch 1 (AUDIT_100),1,Mobile Runtime & UI,Kegagalan `crypto.randomUUID()` pada Tiket Order Beli & Jual,completed
+MILESTONE-B1-002,Batch 1 (AUDIT_100),2,Mobile Runtime & UI,Kegagalan Pembelian Reksa Dana (`FUND-SUB`),completed
+MILESTONE-B1-003,Batch 1 (AUDIT_100),3,Mobile Runtime & UI,Kegagalan Penjualan/Redemption Reksa Dana (`FUND-RED`),completed
+MILESTONE-B1-004,Batch 1 (AUDIT_100),4,Mobile Runtime & UI,Kegagalan Pelunasan Awal Pinjaman Bank (`LOAN-PREPAY`),completed
+MILESTONE-B1-005,Batch 1 (AUDIT_100),5,Mobile Runtime & UI,Kegagalan Pembayaran Angsuran Pinjaman Bank (`LOAN-PAY`),completed
+MILESTONE-B1-006,Batch 1 (AUDIT_100),6,Mobile Runtime & UI,Kegagalan Transfer Modal Holding Antar Anak Usaha (`HOLD-TRF`),completed
+MILESTONE-B1-007,Batch 1 (AUDIT_100),7,Mobile Runtime & UI,Kegagalan Pendaftaran Pendirian Anak Usaha Baru (`COMP-`),completed
+MILESTONE-B1-008,Batch 1 (AUDIT_100),8,Mobile Runtime & UI,Kegagalan Perubahan Susunan Pegawai Anak Usaha (`STAFF-`),completed
+MILESTONE-B1-009,Batch 1 (AUDIT_100),9,Mobile Runtime & UI,Kegagalan Konversi Valas IDR/USD di Menu Pasar (`FX-UI-`),completed
+MILESTONE-B1-010,Batch 1 (AUDIT_100),10,Mobile Runtime & UI,Kegagalan Pemesanan Saham Perdana IPO (`REQ-IPO-`),completed
+MILESTONE-B1-011,Batch 1 (AUDIT_100),11,Mobile Runtime & UI,Kegagalan Klaim Modal Harian / Hibah Investor (`REQ-BONUS-`),completed
+MILESTONE-B1-012,Batch 1 (AUDIT_100),12,Mobile Runtime & UI,Pembekuan Pembaruan Kuotasi Pasar saat Layar Detail Terbuka,completed
+MILESTONE-B1-013,Batch 1 (AUDIT_100),13,Mobile Runtime & UI,Grafik Candlestick Tidak Pernah Diperbarui Realtime di Detail Saham,completed
+MILESTONE-B1-014,Batch 1 (AUDIT_100),14,Mobile Runtime & UI,Re-render DOM Masif Setiap 1 Detik di `renderMarketHighlights`,completed
+MILESTONE-B1-015,Batch 1 (AUDIT_100),15,Mobile Runtime & UI,Penulisan Disk I/O Sinkron ke `localStorage` di Main Thread UI Setiap 1 Detik,completed
+MILESTONE-B1-016,Batch 1 (AUDIT_100),16,Mobile Runtime & UI,Polling Loop Agresif 50ms ke Bridge JNI Android,completed
+MILESTONE-B1-017,Batch 1 (AUDIT_100),17,Mobile Runtime & UI,Runaway Timer & Memory Leak pada Audio Synthesizer BGM,completed
+MILESTONE-B1-018,Batch 1 (AUDIT_100),18,Mobile Runtime & UI,Kegagalan Resume AudioContext Autoplay Policy di Android,completed
+MILESTONE-B1-019,Batch 1 (AUDIT_100),19,Mobile Runtime & UI,Unchecked Null Pointer Exception pada `currentAccount.id` di Tampilan Aset,completed
+MILESTONE-B1-020,Batch 1 (AUDIT_100),20,Mobile Runtime & UI,Degradasi Frame Rate Akibat CSS `backdrop-filter: blur(8px)`,completed
+MILESTONE-B1-021,Batch 1 (AUDIT_100),21,Mobile Runtime & UI,Kerentanan Input Notasi Ilmiah pada Form Jumlah Order Saham,completed
+MILESTONE-B1-022,Batch 1 (AUDIT_100),22,Mobile Runtime & UI,Tumpang Tindih Lapisan Z-Index Antara Flow Page dan Modal Order,completed
+MILESTONE-B1-023,Batch 1 (AUDIT_100),23,Mobile Runtime & UI,Status Bintang Watchlist Desinkronisasi Antara Layar Detail dan Daftar Pasar,completed
+MILESTONE-B1-024,Batch 1 (AUDIT_100),24,Mobile Runtime & UI,Order Book Menampilkan Tabel Kosong Tanpa Shimmer Saat Inisialisasi,completed
+MILESTONE-B1-025,Batch 1 (AUDIT_100),25,Mobile Runtime & UI,Benturan Frekuensi Detak Jam Antara Timer 250ms dan Timer 1000ms,completed
+MILESTONE-B1-026,Batch 1 (AUDIT_100),26,Mobile Runtime & UI,Thread Penyelarasan Jam Tertahan Disk I/O `facade.save()`,completed
+MILESTONE-B1-027,Batch 1 (AUDIT_100),27,Mobile Runtime & UI,Pemborosan Memori Heap JVM Akibat Double Serialization Snapshot,completed
+MILESTONE-B1-028,Batch 1 (AUDIT_100),28,Mobile Runtime & UI,Potensi Deadlock UI Thread pada Synchronized Block `TradingWebBridge.this`,completed
+MILESTONE-B1-029,Batch 1 (AUDIT_100),29,Mobile Runtime & UI,Ketiadaan Mekanisme Cache Respons pada `getChartData`,completed
+MILESTONE-B1-030,Batch 1 (AUDIT_100),30,Mobile Runtime & UI,Risiko Save Corrupt saat Aplikasi Diminimize Mendadak (`onPause`),completed
+MILESTONE-B1-031,Batch 1 (AUDIT_100),31,Mobile Runtime & UI,Bahaya Crash RenderThread GPU pada `LAYER_TYPE_HARDWARE`,completed
+MILESTONE-B1-032,Batch 1 (AUDIT_100),32,Mobile Runtime & UI,Penanganan Error `triggerMarketShockEvent` Tidak Mengembalikan State Bursa,completed
+MILESTONE-B1-033,Batch 1 (AUDIT_100),33,Mobile Runtime & UI,Pemrosesan Order Synchronous Memblokir JavaBridge Thread,completed
+MILESTONE-B1-034,Batch 1 (AUDIT_100),34,Mobile Runtime & UI,Deserialisasi Penuh Berkas Lama pada Setiap Operasi Penyimpanan (`SaveManager`),completed
+MILESTONE-B1-035,Batch 1 (AUDIT_100),35,Mobile Runtime & UI,Disk Flush `fos.getFD().sync()` Memperlambat Thread Penyimpan,completed
+MILESTONE-B1-036,Batch 1 (AUDIT_100),36,Mobile Runtime & UI,Context Activity Leak pada Constructor `TradingWebBridge`,completed
+MILESTONE-B1-037,Batch 1 (AUDIT_100),37,Mobile Runtime & UI,Ketiadaan Rate Limiting pada `@JavascriptInterface beginClockSync`,completed
+MILESTONE-B1-038,Batch 1 (AUDIT_100),38,Mobile Runtime & UI,Ketiadaan Skema Migrasi Versi Save Data (`SaveState`),completed
+MILESTONE-B1-039,Batch 1 (AUDIT_100),39,Mobile Runtime & UI,Korupsi String JSON pada Error Message `getChartData`,completed
+MILESTONE-B1-040,Batch 1 (AUDIT_100),40,Mobile Runtime & UI,Console Error WebView Tersembunyi pada Build Rilis,completed
+MILESTONE-B1-041,Batch 1 (AUDIT_100),41,Mobile Runtime & UI,Race Condition pada Variabel `clockSyncPending`,completed
+MILESTONE-B1-042,Batch 1 (AUDIT_100),42,Mobile Runtime & UI,Bahaya Truncate Berkas saat Disk Penuh di `robustMove`,completed
+MILESTONE-B1-043,Batch 1 (AUDIT_100),43,Mobile Runtime & UI,Pembengkakan Alokasi String Objek `PENDING` Berulang,completed
+MILESTONE-B1-044,Batch 1 (AUDIT_100),44,Mobile Runtime & UI,Payload Portofolio Membengkak Tanpa Filter Riwayat,completed
+MILESTONE-B1-045,Batch 1 (AUDIT_100),45,Mobile Runtime & UI,Ketiadaan Paginasi pada Endpoint Riwayat Dividen,completed
+MILESTONE-B1-046,Batch 1 (AUDIT_100),46,Mobile Runtime & UI,Kerentanan Batas Kuota Storage `QuotaExceededError` di WebView,completed
+MILESTONE-B1-047,Batch 1 (AUDIT_100),47,Mobile Runtime & UI,Hilangnya Presisi Desimal Nilai Finansial saat Format Float di JSON,completed
+MILESTONE-B1-048,Batch 1 (AUDIT_100),48,Mobile Runtime & UI,Karakter Kontrol Tak Terlihat pada Input Nama Pemain,completed
+MILESTONE-B1-049,Batch 1 (AUDIT_100),49,Mobile Runtime & UI,Pemborosan Memori RAM Akibat Duplikasi Offscreen Buffer,completed
+MILESTONE-B1-050,Batch 1 (AUDIT_100),50,Mobile Runtime & UI,Ketiadaan Endpoint Kuotasi Ringan Mikro (Micro Price Feed),completed
+MILESTONE-B1-051,Batch 1 (AUDIT_100),51,Mobile Runtime & UI,Kebijakan All-Or-None (AON) Membatalkan Market Order Pemain,completed
+MILESTONE-B1-052,Batch 1 (AUDIT_100),52,Mobile Runtime & UI,Pengecekan Saldo Market Order Beli Bernilai 0 saat Antrean Kosong,completed
+MILESTONE-B1-053,Batch 1 (AUDIT_100),53,Mobile Runtime & UI,Kehabisan Stok Saham Market Maker Membekukan Antrean Ask (*Inventory Depletion*),completed
+MILESTONE-B1-054,Batch 1 (AUDIT_100),54,Mobile Runtime & UI,Kehabisan Kas Market Maker Membekukan Antrean Bid,completed
+MILESTONE-B1-055,Batch 1 (AUDIT_100),55,Mobile Runtime & UI,Seluruh Bot Perdagangan Ritel Mati saat Jam Bursa Tutup Sementara,completed
+MILESTONE-B1-056,Batch 1 (AUDIT_100),56,Mobile Runtime & UI,Fluktuasi Pasar Acak Hanya Dihitung Sekali Sehari di Penutupan Hari,completed
+MILESTONE-B1-057,Batch 1 (AUDIT_100),57,Mobile Runtime & UI,Agregasi Lilin `R1D` Menggunakan Interval Lambat 15 Menit,completed
+MILESTONE-B1-058,Batch 1 (AUDIT_100),58,Mobile Runtime & UI,Fraksi Tick Tidak Valid pada Kalkulasi Batas ARA/ARB,completed
+MILESTONE-B1-059,Batch 1 (AUDIT_100),59,Mobile Runtime & UI,Pertumbuhan Memori Tak Terbatas pada Riwayat Transaksi OrderBook,completed
+MILESTONE-B1-060,Batch 1 (AUDIT_100),60,Mobile Runtime & UI,Nilai Tertinggi (High) dan Terendah (Low) Harian Tidak Diperbarui pada Call Auction,completed
+MILESTONE-B1-061,Batch 1 (AUDIT_100),61,Mobile Runtime & UI,Sinkronisasi Aksi Beli/Jual Bot Ritel Akibat Random Seed Identik,completed
+MILESTONE-B1-062,Batch 1 (AUDIT_100),62,Mobile Runtime & UI,Hardcoded Clock Multiplier 24L Membiaskan Waktu Berita Riset,completed
+MILESTONE-B1-063,Batch 1 (AUDIT_100),63,Mobile Runtime & UI,Penurunan Performa Matching Engine Akibat Loop O(N) Committed Shares,completed
+MILESTONE-B1-064,Batch 1 (AUDIT_100),64,Mobile Runtime & UI,Bahaya Tabrakan ID Order pada Lingkungan Multithreading,completed
+MILESTONE-B1-065,Batch 1 (AUDIT_100),65,Mobile Runtime & UI,Ketiadaan Indeks Sektor pada Katalog Instrumen Pasar,completed
+MILESTONE-B1-066,Batch 1 (AUDIT_100),66,Mobile Runtime & UI,Volume Lelang Call Auction Tidak Ditambahkan ke Volume Akumulasi Harian,completed
+MILESTONE-B1-067,Batch 1 (AUDIT_100),67,Mobile Runtime & UI,Kenaikan Squeeze Factor Melompati Batas Koridor ARA,completed
+MILESTONE-B1-068,Batch 1 (AUDIT_100),68,Mobile Runtime & UI,Order Terus Dipasang pada Harga ARA Meskipun Status Halt,completed
+MILESTONE-B1-069,Batch 1 (AUDIT_100),69,Mobile Runtime & UI,Memory Leak Node Key Kosong pada TreeMap OrderBook,completed
+MILESTONE-B1-070,Batch 1 (AUDIT_100),70,Mobile Runtime & UI,Rilis Kas Tertahan Tidak Sempurna pada Pembatalan Order Non-Limit,completed
+MILESTONE-B1-071,Batch 1 (AUDIT_100),71,Mobile Runtime & UI,Sesi Bursa IDX Berjalan 24 Jam Tanpa Istirahat Siang Realistis,completed
+MILESTONE-B1-072,Batch 1 (AUDIT_100),72,Mobile Runtime & UI,Ketiadaan Timeframe Chart Detik / Menit Intraday (M1 / S1),completed
+MILESTONE-B1-073,Batch 1 (AUDIT_100),73,Mobile Runtime & UI,Value Investor Menghasilkan Harga Target di Bawah Batas Bawah Bursa (Floor),completed
+MILESTONE-B1-074,Batch 1 (AUDIT_100),74,Mobile Runtime & UI,Selisih Pembulatan Kapitalisasi Pasar pada Stock Split Saham,completed
+MILESTONE-B1-075,Batch 1 (AUDIT_100),75,Mobile Runtime & UI,Pembatalan Order Limit Pemain di Penutupan Hari Tanpa Notifikasi Jelas,completed
+MILESTONE-B1-076,Batch 1 (AUDIT_100),76,Mobile Runtime & UI,Kegagalan Loading 21 Produk Reksa Dana dari File Asset di Android APK,completed
+MILESTONE-B1-077,Batch 1 (AUDIT_100),77,Mobile Runtime & UI,Risiko Pembagian Nol (*Division by Zero*) pada Perhitungan Kuota IPO,completed
+MILESTONE-B1-078,Batch 1 (AUDIT_100),78,Mobile Runtime & UI,Penarikan Modal Klien Mengacaukan High-Water Mark (HWM) Fee Mandat,completed
+MILESTONE-B1-079,Batch 1 (AUDIT_100),79,Mobile Runtime & UI,Penekanan Diam-Diam Kegagalan Rebalance Reksa Dana Indeks,completed
+MILESTONE-B1-080,Batch 1 (AUDIT_100),80,Mobile Runtime & UI,Integer Multiplication Overflow pada Form Pesanan Lot Ekstrem,completed
+MILESTONE-B1-081,Batch 1 (AUDIT_100),81,Mobile Runtime & UI,Race Condition Likuidasi Paksa Margin Call,completed
+MILESTONE-B1-082,Batch 1 (AUDIT_100),82,Mobile Runtime & UI,Bunga Pembiayaan Short & Margin Tetap Dikenakan di Hari Libur Bursa,completed
+MILESTONE-B1-083,Batch 1 (AUDIT_100),83,Mobile Runtime & UI,Pemotongan Gaji Anak Usaha Memicu Utang Korporasi Tak Terbatas,completed
+MILESTONE-B1-084,Batch 1 (AUDIT_100),84,Mobile Runtime & UI,Kebocoran Target Harga Berita yang Telah Kedaluwarsa,completed
+MILESTONE-B1-085,Batch 1 (AUDIT_100),85,Mobile Runtime & UI,Biaya Perawatan Barang Koleksi Menembus Saldo Kas Menjadi Negatif,completed
+MILESTONE-B1-086,Batch 1 (AUDIT_100),86,Mobile Runtime & UI,Akumulasi Fraksi Sen (*Penny Shaving*) pada Perhitungan NAB Unit Reksa Dana,completed
+MILESTONE-B1-087,Batch 1 (AUDIT_100),87,Mobile Runtime & UI,Ketiadaan Entri Buku Besar pada Settlement Order Reksa Dana,completed
+MILESTONE-B1-088,Batch 1 (AUDIT_100),88,Mobile Runtime & UI,Kerugian Fraksi Saham Reverse Split pada Kepemilikan Ritel Ganjil,completed
+MILESTONE-B1-089,Batch 1 (AUDIT_100),89,Mobile Runtime & UI,Pemutusan Sepihak Mandat Klien Tanpa Peringatan Dini,completed
+MILESTONE-B1-090,Batch 1 (AUDIT_100),90,Mobile Runtime & UI,Pengali Kue Sektor Bernilai Negatif pada Sektor yang Ambruk,completed
+MILESTONE-B1-091,Batch 1 (AUDIT_100),91,Mobile Runtime & UI,Hadiah Misi Harian Hangus saat Waktu Game Dipercepat (*Fast-Forward*),completed
+MILESTONE-B1-092,Batch 1 (AUDIT_100),92,Mobile Runtime & UI,Reset Streak Login Harian yang Tidak Adil Akibat Ketidaksinkronan Waktu,completed
+MILESTONE-B1-093,Batch 1 (AUDIT_100),93,Mobile Runtime & UI,Penjatahan IPO Menggantung pada Penawaran yang Sepi Peminat,completed
+MILESTONE-B1-094,Batch 1 (AUDIT_100),94,Mobile Runtime & UI,Asimetri Spread Kurs Valuta Asing IDR/USD Memicu Arbitrase Mikro,completed
+MILESTONE-B1-095,Batch 1 (AUDIT_100),95,Mobile Runtime & UI,Duplikasi Berulang Headline Berita Prosedural pada Game Jangka Panjang,completed
+MILESTONE-B1-096,Batch 1 (AUDIT_100),96,Mobile Runtime & UI,Efisiensi Staf Anak Usaha Tetap 100% Selamanya (*No Fatigue*),completed
+MILESTONE-B1-097,Batch 1 (AUDIT_100),97,Mobile Runtime & UI,Potensi NullPointerException pada Field `unknownLegacyShares`,completed
+MILESTONE-B1-098,Batch 1 (AUDIT_100),98,Mobile Runtime & UI,Ledakan Bunga Berbunga Pinjaman Tenor Bank (*Compound Interest Explosion*),completed
+MILESTONE-B1-099,Batch 1 (AUDIT_100),99,Mobile Runtime & UI,Deadlock Status Agenda RUPS saat Perolehan Suara Seimbang 50:50,completed
+MILESTONE-B1-100,Batch 1 (AUDIT_100),100,Mobile Runtime & UI,"Munculnya Dialog ""Pemulihan Save Diperlukan"" Palsu (*False Positive Alert*)",completed
+MILESTONE-B2-001,Batch 2 (AUDIT_300),1,Money.java:95,Pattern,completed
+MILESTONE-B2-002,Batch 2 (AUDIT_300),2,Account.java:39,Method,completed
+MILESTONE-B2-003,Batch 2 (AUDIT_300),3,Position.java:129,Saat seluruh saham dijual (,completed
+MILESTONE-B2-004,Batch 2 (AUDIT_300),4,Position.java:64,Method,completed
+MILESTONE-B2-005,Batch 2 (AUDIT_300),5,Money.java:30,Crash NumberFormatException pada,completed
+MILESTONE-B2-006,Batch 2 (AUDIT_300),6,Account.java:73,Method,completed
+MILESTONE-B2-007,Batch 2 (AUDIT_300),7,EconomyLedger.java:58,Format,completed
+MILESTONE-B2-008,Batch 2 (AUDIT_300),8,Position.java:84,Pembagian,completed
+MILESTONE-B2-009,Batch 2 (AUDIT_300),9,Account.java:112,Exception Ticker Ambigu Memblokir Multi-Exchange,completed
+MILESTONE-B2-010,Batch 2 (AUDIT_300),10,Money.java:55,Method,completed
+MILESTONE-B2-011,Batch 2 (AUDIT_300),11,EconomyLedger.java:45,Idempotency Map Tanpa Batas Kadaluwarsa,completed
+MILESTONE-B2-012,Batch 2 (AUDIT_300),12,Position.java:140,Method,completed
+MILESTONE-B2-013,Batch 2 (AUDIT_300),13,Account.java:96,Pelepasan Reserved Cash Melempar Exception,completed
+MILESTONE-B2-014,Batch 2 (AUDIT_300),14,Money.java:86,Operasi aritmatika beda mata uang langsung melempar exception kaku alih-alih meminta rate konversi.,completed
+MILESTONE-B2-015,Batch 2 (AUDIT_300),15,EconomyLedger.java:15,List,completed
+MILESTONE-B2-016,Batch 2 (AUDIT_300),16,Position.java:106,"Saham Indonesia diperdagangkan dalam satuan rupiah bulat; presisi 4 desimal menimbulkan angka pecahan seperti Rp 11.250,3333 yang tidak sesuai aturan fraksi BEI.",completed
+MILESTONE-B2-017,Batch 2 (AUDIT_300),17,Account.java:130,Method,completed
+MILESTONE-B2-018,Batch 2 (AUDIT_300),18,Money.java:121,HashCode Mengabaikan Skala Mata Uang,completed
+MILESTONE-B2-019,Batch 2 (AUDIT_300),19,EconomyLedger.java:51,Pemanggilan,completed
+MILESTONE-B2-020,Batch 2 (AUDIT_300),20,Position.java:78,Unrealized PnL Mengabaikan Biaya Penjualan,completed
+MILESTONE-B2-021,Batch 2 (AUDIT_300),21,Account.java:124,Penghapusan Posisi Menyisakan Entri di Riwayat Mutasi,completed
+MILESTONE-B2-022,Batch 2 (AUDIT_300),22,Money.java:22,Pembulatan uang senilai $0.005 ke atas secara kumulatif menghasilkan deviasi beberapa sen pada ribuan transaksi.,completed
+MILESTONE-B2-023,Batch 2 (AUDIT_300),23,EconomyLedger.java:36,Mutasi Kas Nol Diizinkan Masuk Buku Besar,completed
+MILESTONE-B2-024,Batch 2 (AUDIT_300),24,Position.java:133,Variabel,completed
+MILESTONE-B2-025,Batch 2 (AUDIT_300),25,Account.java:64,"Melempar ""Nominal mutasi kas tidak boleh negatif"" tanpa menyebutkan sumber modul pemanggil.",completed
+MILESTONE-B2-026,Batch 2 (AUDIT_300),26,Money.java:99,Format uang Dollar menampilkan titik pemisah ribuan saat dijalankan di lingkungan Android berbahasa Indonesia.,completed
+MILESTONE-B2-027,Batch 2 (AUDIT_300),27,EconomyLedger.java:21,String Empty Tidak Dianggap Null,completed
+MILESTONE-B2-028,Batch 2 (AUDIT_300),28,Position.java:40,"Jika data save lama memiliki fee quantity tidak selaras, objek posisi menolak dimuat.",completed
+MILESTONE-B2-029,Batch 2 (AUDIT_300),29,Account.java:27,Tidak ada validasi mata uang sekunder saat akun baru dibuat.,completed
+MILESTONE-B2-030,Batch 2 (AUDIT_300),30,Money.java:106,Membandingkan IDR dan USD di comparator koleksi memicu crash pengurutan Java.,completed
+MILESTONE-B2-031,Batch 2 (AUDIT_300),31,EconomyLedger.java:54,Akun entitas non-pemain dapat didebit hingga minus jika tidak dijaga guardrail.,completed
+MILESTONE-B2-032,Batch 2 (AUDIT_300),32,Position.java:148,Pengembalian Saham Pinjaman Memanipulasi Acquisition Quantity,completed
+MILESTONE-B2-033,Batch 2 (AUDIT_300),33,Account.java:119,Jika instrumen yang sama ditambahkan ulang via,completed
+MILESTONE-B2-034,Batch 2 (AUDIT_300),34,Money.java:46,Menjumlahkan,completed
+MILESTONE-B2-035,Batch 2 (AUDIT_300),35,EconomyLedger.java:33,Deskripsi panjang ribuan karakter dapat dimasukkan dan disimpan ke database tanpa pemotongan.,completed
+MILESTONE-B2-036,Batch 2 (AUDIT_300),36,Position.java:38,Menolak fee akuisisi dalam mata uang berbeda dari instrumen meskipun biaya pialang dibayar dalam mata uang lokal.,completed
+MILESTONE-B2-037,Batch 2 (AUDIT_300),37,Account.java:86,Menampilkan angka desimal panjang tanpa format mata uang manusia.,completed
+MILESTONE-B2-038,Batch 2 (AUDIT_300),38,Money.java:75,Menghentikan proses sorting multi-currency.,completed
+MILESTONE-B2-039,Batch 2 (AUDIT_300),39,EconomyLedger.java:17,Penggunaan HashMap default tanpa concurrency guard pada pemrosesan volume tinggi.,completed
+MILESTONE-B2-040,Batch 2 (AUDIT_300),40,Position.java:125,Menghasilkan selisih nilai persediaan akhir pada metode akuntansi average.,completed
+MILESTONE-B2-041,Batch 2 (AUDIT_300),41,Account.java:127,Menghentikan perhitungan kekayaan bersih saat rate server off.,completed
+MILESTONE-B2-042,Batch 2 (AUDIT_300),42,Money.java:63,Menimbulkan kebingungan logika pada kondisi batas.,completed
+MILESTONE-B2-043,Batch 2 (AUDIT_300),43,EconomyLedger.java:37,Parameter boolean mudah tertukar posisinya dibanding enum,completed
+MILESTONE-B2-044,Batch 2 (AUDIT_300),44,Position.java:18,Menyebabkan NullPointerException saat preview alokasi fee.,completed
+MILESTONE-B2-045,Batch 2 (AUDIT_300),45,Account.java:18,Pencarian key menggunakan kombinasi ticker dan ID bursa yang rawan salah format.,completed
+MILESTONE-B2-046,Batch 2 (AUDIT_300),46,Money.java:115,Equals Membandingkan BigDecimal dengan CompareTo,completed
+MILESTONE-B2-047,Batch 2 (AUDIT_300),47,EconomyLedger.java:24,Caller dapat memodifikasi isi entri yang sudah tercatat.,completed
+MILESTONE-B2-048,Batch 2 (AUDIT_300),48,Position.java:55,Penjualan tanpa validasi dapat menghasilkan kuantitas negatif di bawah nol.,completed
+MILESTONE-B2-049,Batch 2 (AUDIT_300),49,Account.java:46,Nilai enum diekspos mentah ke antarmuka.,completed
+MILESTONE-B2-050,Batch 2 (AUDIT_300),50,Money.java:15,Tidak ada jaminan finalitas penuh pada implementasi eksternal.,completed
+MILESTONE-B2-051,Batch 2 (AUDIT_300),51,Order.java:45,Konstruktor Order mengizinkan pembuatan order limit dengan harga null.,completed
+MILESTONE-B2-052,Batch 2 (AUDIT_300),52,OrderBook.java:95,Antrean Bid dan Ask rentan salah urut prioritas harga terbaik jika instrumen berganti.,completed
+MILESTONE-B2-053,Batch 2 (AUDIT_300),53,MatchingEngine.java:310,Order yang kedaluwarsa di akhir sesi bursa tidak merilis sisa uang tertahan di akun.,completed
+MILESTONE-B2-054,Batch 2 (AUDIT_300),54,OrderManager.java:80,"Pembatalan order yang sudah terisi penuh (FILLED) tidak melempar error, melainkan mengembalikan status sukses palsu.",completed
+MILESTONE-B2-055,Batch 2 (AUDIT_300),55,Order.java:78,Logika rollback order tidak memulihkan status kuantitas secara atomik.,completed
+MILESTONE-B2-056,Batch 2 (AUDIT_300),56,OrderBook.java:115,Queue kosong tetap tersimpan di dalam map buku order.,completed
+MILESTONE-B2-057,Batch 2 (AUDIT_300),57,MatchingEngine.java:440,Order yang diubah kuantitasnya tidak memperbarui stempel waktu antrean.,completed
+MILESTONE-B2-058,Batch 2 (AUDIT_300),58,OrderManager.java:120,Pendaftaran order tidak memeriksa apakah ID order sudah pernah terdaftar di sesi sebelumnya.,completed
+MILESTONE-B2-059,Batch 2 (AUDIT_300),59,Order.java:105,Biaya Transaksi Efektif Dihitung Menggunakan Double,completed
+MILESTONE-B2-060,Batch 2 (AUDIT_300),60,OrderBook.java:180,Buku order gagal menangani anomali harga bid negatif.,completed
+MILESTONE-B2-061,Batch 2 (AUDIT_300),61,MatchingEngine.java:520,Harga lelang tidak memilih harga yang meminimalkan sisa volume yang tidak match.,completed
+MILESTONE-B2-062,Batch 2 (AUDIT_300),62,OrderManager.java:160,Pencarian Order Berdasarkan Akun Berjalan Linier,completed
+MILESTONE-B2-063,Batch 2 (AUDIT_300),63,Order.java:135,State machine status order mengizinkan transisi ilegal dari,completed
+MILESTONE-B2-064,Batch 2 (AUDIT_300),64,OrderBook.java:210,Level harga dengan kuantitas 0 lot tetap muncul di tabel 5-Best Bid/Ask.,completed
+MILESTONE-B2-065,Batch 2 (AUDIT_300),65,MatchingEngine.java:610,Kalkulasi net proceed penjualan saham mengabaikan PPh Final 0.1%.,completed
+MILESTONE-B2-066,Batch 2 (AUDIT_300),66,OrderManager.java:200,Order berstatus FILLED dan CANCELLED menumpuk di memori hingga jutaan objek.,completed
+MILESTONE-B2-067,Batch 2 (AUDIT_300),67,Order.java:60,Order non-kelipatan 100 lembar (odd lot) diizinkan masuk ke pasar reguler BEI.,completed
+MILESTONE-B2-068,Batch 2 (AUDIT_300),68,OrderBook.java:250,"Jika harga Bid tertinggi lebih tinggi dari Ask terendah, buku tidak langsung mengeksekusi *crossing trade*.",completed
+MILESTONE-B2-069,Batch 2 (AUDIT_300),69,MatchingEngine.java:680,Stempel waktu transaksi diisi,completed
+MILESTONE-B2-070,Batch 2 (AUDIT_300),70,OrderManager.java:240,"Jika salah satu pembatalan order gagal, proses loop berhenti dan menyisakan order lainnya aktif.",completed
+MILESTONE-B2-071,Batch 2 (AUDIT_300),71,Order.java:90,Order proteksi kerugian dapat dikirim dengan harga pemicu Rp 0.,completed
+MILESTONE-B2-072,Batch 2 (AUDIT_300),72,OrderBook.java:280,JSON kuotasi pasar menyertakan identitas akun bot dan pemain lain.,completed
+MILESTONE-B2-073,Batch 2 (AUDIT_300),73,MatchingEngine.java:730,Kalkulasi average cost posisi meleset saat menggunakan margin.,completed
+MILESTONE-B2-074,Batch 2 (AUDIT_300),74,OrderManager.java:280,"Jika request ID tidak ditemukan, fungsi mengembalikan null tanpa penjelasan error.",completed
+MILESTONE-B2-075,Batch 2 (AUDIT_300),75,Order.java:115,Ketiadaan null guard pada enum,completed
+MILESTONE-B2-076,Batch 2 (AUDIT_300),76,OrderBook.java:310,Suspensi bursa tidak memblokir penambahan order limit baru.,completed
+MILESTONE-B2-077,Batch 2 (AUDIT_300),77,MatchingEngine.java:810,Order market menyapu seluruh level ask hingga harga ARA tanpa batas slippage maksimal.,completed
+MILESTONE-B2-078,Batch 2 (AUDIT_300),78,OrderManager.java:310,Satu akun dapat mengirimkan 10.000 order spam yang membekukan sistem matching.,completed
+MILESTONE-B2-079,Batch 2 (AUDIT_300),79,Order.java:140,Order limit dengan limit price 0 lolos jika tipe order diubah pasca-konstruksi.,completed
+MILESTONE-B2-080,Batch 2 (AUDIT_300),80,OrderBook.java:340,Akumulator total volume tidak di-decrement saat order dibatalkan.,completed
+MILESTONE-B2-081,Batch 2 (AUDIT_300),81,MatchingEngine.java:850,Selisih uang reservasi dan uang eksekusi riil tidak langsung dikembalikan ke saldo kas bebas.,completed
+MILESTONE-B2-082,Batch 2 (AUDIT_300),82,OrderManager.java:350,Riwayat order dikembalikan secara acak mengikuti hash map memory.,completed
+MILESTONE-B2-083,Batch 2 (AUDIT_300),83,Order.java:160,"JSON order tidak menyertakan currency ID, menyebabkan asumsi IDR otomatis.",completed
+MILESTONE-B2-084,Batch 2 (AUDIT_300),84,OrderBook.java:370,Menghapus order dari buku order berkinerja lambat,completed
+MILESTONE-B2-085,Batch 2 (AUDIT_300),85,MatchingEngine.java:890,Saham ganjil hasil hibah tidak dapat dicocokkan di papan reguler.,completed
+MILESTONE-B2-086,Batch 2 (AUDIT_300),86,OrderManager.java:390,Order yang gagal dibatalkan tetap tertahan selamanya.,completed
+MILESTONE-B2-087,Batch 2 (AUDIT_300),87,Order.java:175,Mengkloning order memicu penolakan idempotency di backend.,completed
+MILESTONE-B2-088,Batch 2 (AUDIT_300),88,OrderBook.java:400,Antrean jual Rp 10 lolos masuk antrean bursa normal.,completed
+MILESTONE-B2-089,Batch 2 (AUDIT_300),89,MatchingEngine.java:920,Kuantitas saham dipotong di awal sebelum konfirmasi fill diterima.,completed
+MILESTONE-B2-090,Batch 2 (AUDIT_300),90,OrderManager.java:420,Query order terbuka masih menyertakan order sesi kemarin.,completed
+MILESTONE-B2-091,Batch 2 (AUDIT_300),91,Order.java:190,Perbandingan tanggal kedaluwarsa rentan kesalahan format zona waktu.,completed
+MILESTONE-B2-092,Batch 2 (AUDIT_300),92,OrderBook.java:430,Pengosongan buku order tidak mengirimkan sinyal bahaya ke UI.,completed
+MILESTONE-B2-093,Batch 2 (AUDIT_300),93,MatchingEngine.java:950,Biaya minimum transaksi memotong persentase tidak wajar pada transaksi mikro.,completed
+MILESTONE-B2-094,Batch 2 (AUDIT_300),94,OrderManager.java:450,Data sensitif pesanan tersimpan mentah di file JSON.,completed
+MILESTONE-B2-095,Batch 2 (AUDIT_300),95,Order.java:210,Harga trailing stop statis dan tidak mengikuti kenaikan harga puncak baru.,completed
+MILESTONE-B2-096,Batch 2 (AUDIT_300),96,OrderBook.java:460,Node tree map tetap dialokasikan di memori.,completed
+MILESTONE-B2-097,Batch 2 (AUDIT_300),97,MatchingEngine.java:970,Tidak ada penolakan otomatis pada pesanan di luar rentang harga harian yang sah.,completed
+MILESTONE-B2-098,Batch 2 (AUDIT_300),98,OrderManager.java:480,Ketiadaan sanitasi input parameter pencarian order.,completed
+MILESTONE-B2-099,Batch 2 (AUDIT_300),99,Order.java:230,Kegagalan validasi batas akumulasi fill parsial.,completed
+MILESTONE-B2-100,Batch 2 (AUDIT_300),100,OrderBook.java:490,Tidak ada pengecekan selisih harga terbaik.,completed
+MILESTONE-B2-101,Batch 2 (AUDIT_300),101,Instrument.java:95,Emiten yang dilikuidasi tidak mengubah flag,completed
+MILESTONE-B2-102,Batch 2 (AUDIT_300),102,CorporateActionService.java:140,Harga teoritis bursa tidak disesuaikan pasca cum-date dividen saham.,completed
+MILESTONE-B2-103,Batch 2 (AUDIT_300),103,MarketIndex.java:65,"Indeks harga saham gabungan dihitung dari total lembar modal dasar, bukan saham beredar publik (*Market Cap Weighted vs Free-Float Weighted*).",completed
+MILESTONE-B2-104,Batch 2 (AUDIT_300),104,InstrumentCatalog.java:120,Saham baru otomatis masuk ke kategori unclassified.,completed
+MILESTONE-B2-105,Batch 2 (AUDIT_300),105,Instrument.java:135,Saham emiten rugi menghasilkan harga wajar negatif yang mengacaukan radar saham.,completed
+MILESTONE-B2-106,Batch 2 (AUDIT_300),106,CorporateActionService.java:210,Hak dividen jatuh pada hari Minggu di mana bursa efek tutup.,completed
+MILESTONE-B2-107,Batch 2 (AUDIT_300),107,MarketIndex.java:95,Pembagian indeks melempar error saat kapitalisasi sektor tidak aktif.,completed
+MILESTONE-B2-108,Batch 2 (AUDIT_300),108,InstrumentCatalog.java:160,Mengetik,completed
+MILESTONE-B2-109,Batch 2 (AUDIT_300),109,Instrument.java:165,Market cap emiten tidak sinkron dengan harga penutupan terakhir.,completed
+MILESTONE-B2-110,Batch 2 (AUDIT_300),110,CorporateActionService.java:280,Pembagian dividen mengabaikan status akun yang dibekukan.,completed
+MILESTONE-B2-111,Batch 2 (AUDIT_300),111,MarketIndex.java:130,Divisor indeks tidak pernah disesuaikan saat ada emiten baru yang listing.,completed
+MILESTONE-B2-112,Batch 2 (AUDIT_300),112,InstrumentCatalog.java:210,Reload universe menghapus relasi watchlist lokal pengguna.,completed
+MILESTONE-B2-113,Batch 2 (AUDIT_300),113,Instrument.java:195,Emiten tidak memiliki harga pembukaan lelang pre-opening tersendiri.,completed
+MILESTONE-B2-114,Batch 2 (AUDIT_300),114,CorporateActionService.java:340,Saham right langsung dikonversi tanpa opsi menjual bukti right.,completed
+MILESTONE-B2-115,Batch 2 (AUDIT_300),115,MarketIndex.java:170,Kriteria konstituen indeks unggulan tidak memperhitungkan frekuensi transaksi harian.,completed
+MILESTONE-B2-116,Batch 2 (AUDIT_300),116,InstrumentCatalog.java:250,Saham tanpa data laporan keuangan disembunyikan dari seluruh pencarian.,completed
+MILESTONE-B2-117,Batch 2 (AUDIT_300),117,Instrument.java:225,Kesalahan kalkulasi saham pengendali dan publik.,completed
+MILESTONE-B2-118,Batch 2 (AUDIT_300),118,CorporateActionService.java:410,Keputusan strategis korporasi disahkan meskipun kehadiran pemegang saham di bawah 50%.,completed
+MILESTONE-B2-119,Batch 2 (AUDIT_300),119,MarketIndex.java:210,Kesalahan pemformatan string selisih poin IHSG.,completed
+MILESTONE-B2-120,Batch 2 (AUDIT_300),120,InstrumentCatalog.java:290,Pembelian saham US dihitung dalam satuan lot 100 lembar alih-alih satuan 1 lembar (share).,completed
+MILESTONE-B2-121,Batch 2 (AUDIT_300),121,Instrument.java:255,Saham bursa Amerika (AAPL) dibulatkan ke kelipatan Rp 25 alih-alih $0.01 cent.,completed
+MILESTONE-B2-122,Batch 2 (AUDIT_300),122,CorporateActionService.java:470,Mengabaikan aturan pembebasan pajak dividen korporasi antar-anak usaha.,completed
+MILESTONE-B2-123,Batch 2 (AUDIT_300),123,MarketIndex.java:250,Menimbulkan selisih persentase dengan data tampilan bursa.,completed
+MILESTONE-B2-124,Batch 2 (AUDIT_300),124,InstrumentCatalog.java:330,Ketiadaan validasi keunikan ticker lokal.,completed
+MILESTONE-B2-125,Batch 2 (AUDIT_300),125,Instrument.java:285,Tidak mengikuti regulasi simetris bursa modern (-25%).,completed
+MILESTONE-B2-126,Batch 2 (AUDIT_300),126,CorporateActionService.java:530,Waran dapat disimpan selamanya tanpa risiko hangus.,completed
+MILESTONE-B2-127,Batch 2 (AUDIT_300),127,MarketIndex.java:290,Nilai HIGH indeks ter-reset di tengah hari perdagangan.,completed
+MILESTONE-B2-128,Batch 2 (AUDIT_300),128,InstrumentCatalog.java:370,Emiten berstatus *upcoming* muncul di pencarian pasar reguler.,completed
+MILESTONE-B2-129,Batch 2 (AUDIT_300),129,Instrument.java:315,Pemain tidak mengetahui alasan bursa menghentikan perdagangan saham.,completed
+MILESTONE-B2-130,Batch 2 (AUDIT_300),130,CorporateActionService.java:590,Buyback emiten tidak memengaruhi rasio *supply squeeze*.,completed
+MILESTONE-B2-131,Batch 2 (AUDIT_300),131,MarketIndex.java:330,Ketiadaan korelasi independen bursa global.,completed
+MILESTONE-B2-132,Batch 2 (AUDIT_300),132,InstrumentCatalog.java:410,Saham bernilai Rp 10 Triliun terurut di bawah Rp 2 Triliun karena perbandingan teks alfabet.,completed
+MILESTONE-B2-133,Batch 2 (AUDIT_300),133,Instrument.java:345,Rasio keuangan saham tetap menggunakan data masa lalu.,completed
+MILESTONE-B2-134,Batch 2 (AUDIT_300),134,CorporateActionService.java:650,Penawaran tender buy-out merugikan pemegang saham publik.,completed
+MILESTONE-B2-135,Batch 2 (AUDIT_300),135,MarketIndex.java:370,Nilai indeks menjadi null pada akhir pekan alih-alih menggunakan flat hold.,completed
+MILESTONE-B2-136,Batch 2 (AUDIT_300),136,InstrumentCatalog.java:450,Caller luar dapat menghapus saham dari universe aktif sistem.,completed
+MILESTONE-B2-137,Batch 2 (AUDIT_300),137,Instrument.java:375,Ketiadaan parameter *beta* risiko pada emiten lapis tiga.,completed
+MILESTONE-B2-138,Batch 2 (AUDIT_300),138,CorporateActionService.java:710,Kesalahan pengali harga tebusan waran.,completed
+MILESTONE-B2-139,Batch 2 (AUDIT_300),139,MarketIndex.java:410,Konstituen indeks syariah tidak memfilter saham berbasis riba.,completed
+MILESTONE-B2-140,Batch 2 (AUDIT_300),140,InstrumentCatalog.java:490,Profil dewan direksi kosong di halaman ringkasan emiten.,completed
+MILESTONE-B2-141,Batch 2 (AUDIT_300),141,Instrument.java:405,"Kemarin naik +10%, angka +10% tetap terbawa ke pembukaan pagi hari baru.",completed
+MILESTONE-B2-142,Batch 2 (AUDIT_300),142,CorporateActionService.java:770,Persentase kepemilikan pemain tidak terdilusi pasca penerbitan saham baru.,completed
+MILESTONE-B2-143,Batch 2 (AUDIT_300),143,MarketIndex.java:450,Volume transaksi pembeli dan penjual dijumlahkan dua kali lipat.,completed
+MILESTONE-B2-144,Batch 2 (AUDIT_300),144,InstrumentCatalog.java:530,Emiten bertato notasi khusus (seperti keterlambatan laporan atau ekuitas negatif) tidak memiliki tanda visual badge.,completed
+MILESTONE-B2-145,Batch 2 (AUDIT_300),145,Instrument.java:435,Ketiadaan proteksi harga minimum Rp 50 di pasar reguler.,completed
+MILESTONE-B2-146,Batch 2 (AUDIT_300),146,CorporateActionService.java:830,Investor menerima saham gratis tanpa penyesuaian nilai pasar per lembar.,completed
+MILESTONE-B2-147,Batch 2 (AUDIT_300),147,MarketIndex.java:490,Kesalahan pemetaan ID sektor pada rumus agregasi indeks.,completed
+MILESTONE-B2-148,Batch 2 (AUDIT_300),148,InstrumentCatalog.java:570,Informasi tanggal pencatatan perdana emiten hilang setelah IPO selesai.,completed
+MILESTONE-B2-149,Batch 2 (AUDIT_300),149,Instrument.java:465,Nilai buku saham emiten bermodal minus tidak dapat ditampilkan.,completed
+MILESTONE-B2-150,Batch 2 (AUDIT_300),150,CorporateActionService.java:890,Kegagalan rekonsiliasi saham pasca kuasi-reorganisasi.,completed
+MILESTONE-B2-151,Batch 2 (AUDIT_300),151,PlayerProgressManager.java:85,Kenaikan pangkat dari Ritel ke Manajer Investasi tidak memperluas limit fasilitas margin.,completed
+MILESTONE-B2-152,Batch 2 (AUDIT_300),152,BossRival.java:40,Portofolio bos rival dimanipulasi dengan generator angka acak tanpa portofolio saham fisik.,completed
+MILESTONE-B2-153,Batch 2 (AUDIT_300),153,PeriodicMissionManager.java:95,Pembelian berulang pada BBCA dianggap memenuhi kriteria diversifikasi 5 emiten.,completed
+MILESTONE-B2-154,Batch 2 (AUDIT_300),154,CareerManager.java:120,Gelar kehormatan dapat dibuka hanya dari akumulasi volume transaksi kotor.,completed
+MILESTONE-B2-155,Batch 2 (AUDIT_300),155,PlayerProgressManager.java:130,Kesalahan rumus penalti trading yang salah mendeteksi penjualan untung sebagai cut-loss.,completed
+MILESTONE-B2-156,Batch 2 (AUDIT_300),156,BossRival.java:75,Pertandingan duel kekayaan dengan rival berjalan selamanya tanpa akhir sesi.,completed
+MILESTONE-B2-157,Batch 2 (AUDIT_300),157,PeriodicMissionManager.java:150,Misi mingguan mengunci status completed permanen setelah minggu pertama.,completed
+MILESTONE-B2-158,Batch 2 (AUDIT_300),158,CareerManager.java:160,Pemain yang mengalami kebangkrutan total tetap menyandang pangkat Taipan Tertinggi.,completed
+MILESTONE-B2-159,Batch 2 (AUDIT_300),159,PlayerProgressManager.java:175,Pemain dapat mengelola dana pihak ketiga tanpa ujian kualifikasi kompetensi pasar modal.,completed
+MILESTONE-B2-160,Batch 2 (AUDIT_300),160,BossRival.java:110,Logika AI rival secara instan membeli saham yang baru saja dibeli pemain dalam detik yang sama.,completed
+MILESTONE-B2-161,Batch 2 (AUDIT_300),161,PeriodicMissionManager.java:205,Klaim hadiah misi menambah saldo rekening pemain secara siluman tanpa mutasi,completed
+MILESTONE-B2-162,Batch 2 (AUDIT_300),162,CareerManager.java:200,Pemain dapat memaksimalkan reputasi penuh hanya dalam 3 hari bermain aktif.,completed
+MILESTONE-B2-163,Batch 2 (AUDIT_300),163,PlayerProgressManager.java:220,Kriteria piala pencapaian mengabaikan status profitabilitas.,completed
+MILESTONE-B2-164,Batch 2 (AUDIT_300),164,BossRival.java:145,Menang duel melawan bos rival tidak menghasilkan hadiah dividen atau trofi portofolio.,completed
+MILESTONE-B2-165,Batch 2 (AUDIT_300),165,PeriodicMissionManager.java:260,Pengecekan hari mengasumsikan 7 hari kalender berturut-turut tanpa jeda akhir pekan.,completed
+MILESTONE-B2-166,Batch 2 (AUDIT_300),166,CareerManager.java:240,Tidak ada pencegahan benturan kepentingan.,completed
+MILESTONE-B2-167,Batch 2 (AUDIT_300),167,PlayerProgressManager.java:265,Mengganti avatar profil investor kembali ke avatar default saat aplikasi dibuka ulang.,completed
+MILESTONE-B2-168,Batch 2 (AUDIT_300),168,BossRival.java:180,Portofolio bos rival dapat bernilai negatif hingga miliaran rupiah tanpa dinyatakan kalah.,completed
+MILESTONE-B2-169,Batch 2 (AUDIT_300),169,PeriodicMissionManager.java:310,Laba transaksi dihitung sebelum potongan komisi broker dan pajak.,completed
+MILESTONE-B2-170,Batch 2 (AUDIT_300),170,CareerManager.java:280,Pemain yang memegang kas murni ditolak saat hendak menutup sesi harian.,completed
+MILESTONE-B2-171,Batch 2 (AUDIT_300),171,PlayerProgressManager.java:310,Rasio kemenangan salah hitung saat posisi masih mengambang.,completed
+MILESTONE-B2-172,Batch 2 (AUDIT_300),172,BossRival.java:215,Bos rival mengucapkan kalimat ejekan yang sama persis tanpa variasi dinamis.,completed
+MILESTONE-B2-173,Batch 2 (AUDIT_300),173,PeriodicMissionManager.java:360,Ketiadaan validasi nilai nominal pembelian minimum pada target misi.,completed
+MILESTONE-B2-174,Batch 2 (AUDIT_300),174,CareerManager.java:320,Pemain yang menjabat CEO tidak pernah menerima gaji bulanan ke rekening pribadi.,completed
+MILESTONE-B2-175,Batch 2 (AUDIT_300),175,PlayerProgressManager.java:355,Integer overflow pada perhitungan akumulasi EXP pemain veteran.,completed
+MILESTONE-B2-176,Batch 2 (AUDIT_300),176,BossRival.java:250,Bot bos rival dapat memperdagangkan saham yang dihentikan sementara oleh bursa efek.,completed
+MILESTONE-B2-177,Batch 2 (AUDIT_300),177,PeriodicMissionManager.java:410,Banner selamat misi selesai membanjiri layar HP tanpa henti.,completed
+MILESTONE-B2-178,Batch 2 (AUDIT_300),178,CareerManager.java:360,Kriteria misi menuntut kepemilikan saham yang belum terdaftar IPO.,completed
+MILESTONE-B2-179,Batch 2 (AUDIT_300),179,PlayerProgressManager.java:400,Leaderboard offline gagal memuat profil rival fiktif.,completed
+MILESTONE-B2-180,Batch 2 (AUDIT_300),180,BossRival.java:285,"Transaksi rival bebas biaya 100%, menciptakan persaingan yang tidak adil bagi pemain.",completed
+MILESTONE-B2-181,Batch 2 (AUDIT_300),181,PeriodicMissionManager.java:460,Misi harian menjadi mustahil diselesaikan pada bulan tanpa jadwal penawaran umum.,completed
+MILESTONE-B2-182,Batch 2 (AUDIT_300),182,CareerManager.java:400,Mengklaim gelar baru menimpa daftar penghargaan sebelumnya.,completed
+MILESTONE-B2-183,Batch 2 (AUDIT_300),183,PlayerProgressManager.java:445,Statistik jam terbang pemain tidak mencatat sesi permainan di latar belakang.,completed
+MILESTONE-B2-184,Batch 2 (AUDIT_300),184,BossRival.java:320,Pemain yang kalah duel tidak kehilangan reputasi atau uang taruhan.,completed
+MILESTONE-B2-185,Batch 2 (AUDIT_300),185,PeriodicMissionManager.java:510,Transaksi menggunakan uang nasabah klien dihitung sebagai pencapaian misi pribadi.,completed
+MILESTONE-B2-186,Batch 2 (AUDIT_300),186,CareerManager.java:440,Ketiadaan sanksi suspensi dari OJK/Bursa jika pemain melakukan goreng saham (*pump and dump*).,completed
+MILESTONE-B2-187,Batch 2 (AUDIT_300),187,PlayerProgressManager.java:490,Validasi kategori aset properti gagal mengenali ID barang koleksi properti.,completed
+MILESTONE-B2-188,Batch 2 (AUDIT_300),188,BossRival.java:355,Rival dapat membeli 50.000 lot saham gorengan dalam 1 detik meski antrean ask hanya 10 lot.,completed
+MILESTONE-B2-189,Batch 2 (AUDIT_300),189,PeriodicMissionManager.java:560,Potensi eksploitasi klaim hadiah berkali-kali jika koneksi antarmuka lambat.,completed
+MILESTONE-B2-190,Batch 2 (AUDIT_300),190,CareerManager.java:480,Kesalahan logika diskon yang memberikan harga beli saham lebih murah bagi pemain berpangkat tinggi (melanggar aturan harga pasar).,completed
+MILESTONE-B2-191,Batch 2 (AUDIT_300),191,PlayerProgressManager.java:535,Pemain tidak dapat meninjau rekam jejak hak suara voting yang pernah digunakan.,completed
+MILESTONE-B2-192,Batch 2 (AUDIT_300),192,BossRival.java:390,AI bos menyerah secara otomatis tanpa pertandingan duel formal.,completed
+MILESTONE-B2-193,Batch 2 (AUDIT_300),193,PeriodicMissionManager.java:610,Order yang dibatalkan tetap dihitung sebagai transaksi aktif.,completed
+MILESTONE-B2-194,Batch 2 (AUDIT_300),194,CareerManager.java:520,Biaya kursus sertifikasi analis keuangan tidak memberikan efek boost analitik di game.,completed
+MILESTONE-B2-195,Batch 2 (AUDIT_300),195,PlayerProgressManager.java:580,ATH kekayaan bersih dihitung dari aset kotor tanpa mengurangi kewajiban utang.,completed
+MILESTONE-B2-196,Batch 2 (AUDIT_300),196,BossRival.java:425,Tidak ada regenerasi bos rival baru setelah pemain berhasil mengalahkan ketiga bos awal.,completed
+MILESTONE-B2-197,Batch 2 (AUDIT_300),197,PeriodicMissionManager.java:660,Klaim reward tiket gratis tidak menambah saldo tiket di tab Keuangan.,completed
+MILESTONE-B2-198,Batch 2 (AUDIT_300),198,CareerManager.java:560,Ketiadaan opsi memulai game baru dengan bonus warisan kas.,completed
+MILESTONE-B2-199,Batch 2 (AUDIT_300),199,PlayerProgressManager.java:625,Satu transaksi spekulatif langsung mengubah arketipe gaya investasi pemain secara drastis.,completed
+MILESTONE-B2-200,Batch 2 (AUDIT_300),200,BossRival.java:460,Pengumuman hasil duel hanya berupa pop-up teks sederhana tanpa kurva pertumbuhan aset.,completed
+MILESTONE-B2-201,Batch 2 (AUDIT_300),201,MultiAssetTradingService.java:70,Pemain dapat mencairkan deposito tenor 12 bulan di hari ke-2 dengan bunga penuh tanpa denda penalti.,completed
+MILESTONE-B2-202,Batch 2 (AUDIT_300),202,TimeDepositProduct.java:45,Kesalahan konfigurasi suku bunga terbalik (*inverted yield curve*) yang tidak realistis.,completed
+MILESTONE-B2-203,Batch 2 (AUDIT_300),203,LoanProduct.java:80,Bank memberikan pinjaman tanpa jaminan kas atau aset jaminan (*unsecured lending risk*).,completed
+MILESTONE-B2-204,Batch 2 (AUDIT_300),204,FundBuilderService.java:60,Portofolio racikan pemain dapat disahkan dengan total alokasi hanya 70%.,completed
+MILESTONE-B2-205,Batch 2 (AUDIT_300),205,MultiAssetTradingService.java:115,Sistem tetap mentransfer bunga ke rekening yang berstatus sengketa.,completed
+MILESTONE-B2-206,Batch 2 (AUDIT_300),206,TimeDepositProduct.java:90,Tenor 3 hari diformat sebagai produk deposito berjangka resmi tanpa landasan perbankan riil.,completed
+MILESTONE-B2-207,Batch 2 (AUDIT_300),207,LoanProduct.java:125,Bunga pinjaman komersial berhenti berjalan saat akhir pekan kalender.,completed
+MILESTONE-B2-208,Batch 2 (AUDIT_300),208,FundBuilderService.java:110,Terjadi pemotongan ganda pada akun nasabah.,completed
+MILESTONE-B2-209,Batch 2 (AUDIT_300),209,MultiAssetTradingService.java:160,Pembelian emas fisik tidak memiliki selisih harga cetak (*minting fee*).,completed
+MILESTONE-B2-210,Batch 2 (AUDIT_300),210,TimeDepositProduct.java:135,Seluruh bunga deposito diterima utuh tanpa potongan PPh Final perbankan.,completed
+MILESTONE-B2-211,Batch 2 (AUDIT_300),211,LoanProduct.java:170,Rasio utang terhadap modal (DER) diabaikan oleh sistem perbankan.,completed
+MILESTONE-B2-212,Batch 2 (AUDIT_300),212,FundBuilderService.java:160,Input nama dengan emoji merusak format penyimpanan basis data SQLite.,completed
+MILESTONE-B2-213,Batch 2 (AUDIT_300),213,MultiAssetTradingService.java:205,Mengabaikan akad bagi hasil mudharabah/musyarakah syariah.,completed
+MILESTONE-B2-214,Batch 2 (AUDIT_300),214,TimeDepositProduct.java:180,Pemain tidak bisa mengambil kredit dengan jaminan bilyet deposito aktif (*back-to-back loan*).,completed
+MILESTONE-B2-215,Batch 2 (AUDIT_300),215,LoanProduct.java:215,Sisa pokok utang tidak dihitung ulang pasca pembayaran ekstra.,completed
+MILESTONE-B2-216,Batch 2 (AUDIT_300),216,FundBuilderService.java:210,Produk investasi pemain sepi peminat karena tidak ada agen AI yang melirik dana kelolaannya.,completed
+MILESTONE-B2-217,Batch 2 (AUDIT_300),217,MultiAssetTradingService.java:250,Kupon ORI anjlok ke 0% saat suku bunga acuan bank sentral turun drastis.,completed
+MILESTONE-B2-218,Batch 2 (AUDIT_300),218,TimeDepositProduct.java:225,Deposito lenyap dari antarmuka selama 24 jam saat perpanjangan otomatis berlangsung.,completed
+MILESTONE-B2-219,Batch 2 (AUDIT_300),219,LoanProduct.java:260,Ketiadaan simulasi skor kredit (*credit score checking*).,completed
+MILESTONE-B2-220,Batch 2 (AUDIT_300),220,FundBuilderService.java:260,Pemain dapat mendirikan produk reksa dana publik dengan modal Rp 0.,completed
+MILESTONE-B2-221,Batch 2 (AUDIT_300),221,MultiAssetTradingService.java:295,Pembelian saham fraksional Amerika terhambat batas nominal bulat.,completed
+MILESTONE-B2-222,Batch 2 (AUDIT_300),222,TimeDepositProduct.java:270,Deviasi kalkulasi bunga perbankan modern.,completed
+MILESTONE-B2-223,Batch 2 (AUDIT_300),223,LoanProduct.java:305,Bunga kredit komersial tidak pernah naik meski suku bunga acuan makro melonjak ke 12%.,completed
+MILESTONE-B2-224,Batch 2 (AUDIT_300),224,FundBuilderService.java:310,Nasabah tidak mendapatkan informasi alokasi efek pasar modal.,completed
+MILESTONE-B2-225,Batch 2 (AUDIT_300),225,MultiAssetTradingService.java:340,Investor tidak mendapatkan kepastian restrukturisasi utang obligasi swasta.,completed
+MILESTONE-B2-226,Batch 2 (AUDIT_300),226,TimeDepositProduct.java:315,Menutup akses diversifikasi bagi pemain pemula.,completed
+MILESTONE-B2-227,Batch 2 (AUDIT_300),227,LoanProduct.java:350,Pemain yang sudah melunasi seluruh utang tetap diblokir dari pengajuan kredit baru.,completed
+MILESTONE-B2-228,Batch 2 (AUDIT_300),228,FundBuilderService.java:360,Pelanggaran pedoman OJK terhadap instrumen aset dasar reksa dana.,completed
+MILESTONE-B2-229,Batch 2 (AUDIT_300),229,MultiAssetTradingService.java:385,Obligasi negara dapat dibeli setiap saat seperti saham reguler.,completed
+MILESTONE-B2-230,Batch 2 (AUDIT_300),230,TimeDepositProduct.java:360,Bunga harian ditarik lebih cepat sebelum periode 24 jam penuh terpenuhi.,completed
+MILESTONE-B2-231,Batch 2 (AUDIT_300),231,LoanProduct.java:395,Notifikasi peringatan bank bernada ancaman yang tidak profesional.,completed
+MILESTONE-B2-232,Batch 2 (AUDIT_300),232,FundBuilderService.java:410,Nilai NAB bergerak liar di akhir pekan.,completed
+MILESTONE-B2-233,Batch 2 (AUDIT_300),233,MultiAssetTradingService.java:430,Kontrak minyak fisik dapat disimpan tanpa biaya pergudangan.,completed
+MILESTONE-B2-234,Batch 2 (AUDIT_300),234,TimeDepositProduct.java:405,Kas terpotong permanen jika deposito dibatalkan di menit pertama.,completed
+MILESTONE-B2-235,Batch 2 (AUDIT_300),235,LoanProduct.java:440,Bank tidak memotong batas keamanan *haircut* (misal 50% untuk saham lapis dua).,completed
+MILESTONE-B2-236,Batch 2 (AUDIT_300),236,FundBuilderService.java:460,Ketiadaan identitas bank kustodian resmi.,completed
+MILESTONE-B2-237,Batch 2 (AUDIT_300),237,MultiAssetTradingService.java:475,Ketiadaan instrumen lindung nilai (*hedging*) formal bagi trader pro.,completed
+MILESTONE-B2-238,Batch 2 (AUDIT_300),238,TimeDepositProduct.java:450,Pemain melewatkan tanggal pencairan dana.,completed
+MILESTONE-B2-239,Batch 2 (AUDIT_300),239,LoanProduct.java:485,Perusahaan holding terpaksa mengambil kredit berjangka kaku.,completed
+MILESTONE-B2-240,Batch 2 (AUDIT_300),240,FundBuilderService.java:510,Ketiadaan algoritma pemeringkatan independen (seperti Morningstar / Infovesta).,completed
+MILESTONE-B2-241,Batch 2 (AUDIT_300),241,MultiAssetTradingService.java:520,Biaya administrasi transfer dipotong secara tidak wajar.,completed
+MILESTONE-B2-242,Batch 2 (AUDIT_300),242,TimeDepositProduct.java:495,Kesalahan konversi mata uang bunga simpanan valas.,completed
+MILESTONE-B2-243,Batch 2 (AUDIT_300),243,LoanProduct.java:530,Total pokok dan bunga tidak sinkron dengan tenor bulan.,completed
+MILESTONE-B2-244,Batch 2 (AUDIT_300),244,FundBuilderService.java:560,Sisa aset kelolaan lenyap saat produk dibubarkan.,completed
+MILESTONE-B2-245,Batch 2 (AUDIT_300),245,MultiAssetTradingService.java:565,Ketiadaan jadwal pembayaran diskonto surat berharga pasar uang.,completed
+MILESTONE-B2-246,Batch 2 (AUDIT_300),246,TimeDepositProduct.java:540,Pembedaan nasabah baru dan lama gagal terdeteksi sistem.,completed
+MILESTONE-B2-247,Batch 2 (AUDIT_300),247,LoanProduct.java:575,Bank menghapus seluruh kewajiban tanpa analisis restrukturisasi.,completed
+MILESTONE-B2-248,Batch 2 (AUDIT_300),248,FundBuilderService.java:610,Penyimpanan JSON reksa dana kustom tidak tersinkronisasi ke database save.,completed
+MILESTONE-B2-249,Batch 2 (AUDIT_300),249,MultiAssetTradingService.java:610,Kurva bunga obligasi daerah terdistorsi.,completed
+MILESTONE-B2-250,Batch 2 (AUDIT_300),250,LoanProduct.java:620,Ketiadaan fasilitas pinjaman bunga rendah (6%) bagi anak usaha rintisan.,completed
+MILESTONE-B2-251,Batch 2 (AUDIT_300),251,app.js:680,Event Listener Scroll Tab Beranda Mengalami Memory Leak,completed
+MILESTONE-B2-252,Batch 2 (AUDIT_300),252,style.css:320,Munculnya papan ketik Android merusak posisi tengah modal.,completed
+MILESTONE-B2-253,Batch 2 (AUDIT_300),253,index.html:150,Label Elemen Input Tidak Terhubung dengan Tag,completed
+MILESTONE-B2-254,Batch 2 (AUDIT_300),254,app.js:1420,Counter animasi nilai portofolio tidak menggunakan kurva easing kubik yang halus.,completed
+MILESTONE-B2-255,Batch 2 (AUDIT_300),255,style.css:590,Spasi horizontal antar-chip terlalu lebar pada ponsel berlayar panjang.,completed
+MILESTONE-B2-256,Batch 2 (AUDIT_300),256,index.html:280,Ketiadaan Tag,completed
+MILESTONE-B2-257,Batch 2 (AUDIT_300),257,app.js:2180,Pemain harus mengetik ulang angka untuk melihat kalkulasi nilai tukar terbaru.,completed
+MILESTONE-B2-258,Batch 2 (AUDIT_300),258,style.css:870,Jarak baris teks berita terlalu rapat dan sulit dibaca oleh mata lansia.,completed
+MILESTONE-B2-259,Batch 2 (AUDIT_300),259,index.html:410,Tag SVG Ikon Bintang Watchlist Tidak Memiliki Atribut,completed
+MILESTONE-B2-260,Batch 2 (AUDIT_300),260,app.js:3210,Pemain tidak menyadari kas habis sebelum order ditolak.,completed
+MILESTONE-B2-261,Batch 2 (AUDIT_300),261,style.css:1150,Ketiadaan dither noise halus pada gradasi warna gelap.,completed
+MILESTONE-B2-262,Batch 2 (AUDIT_300),262,index.html:530,Menggulir modal profil ikut menggeser halaman di belakangnya.,completed
+MILESTONE-B2-263,Batch 2 (AUDIT_300),263,app.js:4390,Bug status kelas CSS,completed
+MILESTONE-B2-264,Batch 2 (AUDIT_300),264,style.css:1410,Ketiadaan properti CSS,completed
+MILESTONE-B2-265,Batch 2 (AUDIT_300),265,index.html:670,Pemain dapat memasukkan 500 huruf yang merusak tata letak kartu identitas.,completed
+MILESTONE-B2-266,Batch 2 (AUDIT_300),266,app.js:5520,Logika pemetaan kelas CSS warna sentimen terbalik.,completed
+MILESTONE-B2-267,Batch 2 (AUDIT_300),267,style.css:1680,Efek compositing bayangan kartu bocor di atas tab bar.,completed
+MILESTONE-B2-268,Batch 2 (AUDIT_300),268,index.html:790,Ketiadaan Atribut,completed
+MILESTONE-B2-269,Batch 2 (AUDIT_300),269,app.js:6640,Mengetik,completed
+MILESTONE-B2-270,Batch 2 (AUDIT_300),270,style.css:1920,Teks angka poin IHSG sulit dibaca tanpa kaca pembesar di layar tablet.,completed
+MILESTONE-B2-271,Batch 2 (AUDIT_300),271,index.html:910,Tooltip hanya mendukung event hover mouse dan tidak ramah layar sentuh.,completed
+MILESTONE-B2-272,Batch 2 (AUDIT_300),272,app.js:7750,Pemain harus menutup paksa aplikasi jika koneksi WebView tersendat.,completed
+MILESTONE-B2-273,Batch 2 (AUDIT_300),273,style.css:2180,Efek kedip lilin bergetar terlalu kencang dan berisiko memicu pusing/kejang visual.,completed
+MILESTONE-B2-274,Batch 2 (AUDIT_300),274,index.html:1050,Tag,completed
+MILESTONE-B2-275,Batch 2 (AUDIT_300),275,app.js:8820,"Daftar perusahaan anak usaha tidak terurut alfabetik, membingungkan navigasi.",completed
+MILESTONE-B2-276,Batch 2 (AUDIT_300),276,style.css:2410,Garis pemisah kartu lenyap pada setelan tema aksesibilitas kontras tinggi.,completed
+MILESTONE-B2-277,Batch 2 (AUDIT_300),277,index.html:1180,Console browser mencatat error 404 pada request,completed
+MILESTONE-B2-278,Batch 2 (AUDIT_300),278,app.js:9910,"Beberapa modul menampilkan format gaya Amerika ($1,000.00) dan gaya Eropa (1.000,00) secara tidak seragam.",completed
+MILESTONE-B2-279,Batch 2 (AUDIT_300),279,style.css:2650,Rasio padding statis memboroskan 30% area pandang di layar sempit.,completed
+MILESTONE-B2-280,Batch 2 (AUDIT_300),280,index.html:1215,Memutar ponsel ke mode lanskap merusak tata letak antarmuka 2D portrait.,completed
+MILESTONE-B2-281,Batch 2 (AUDIT_300),281,app.js:10120,Panduan bermain muncul berulang kali setiap kali menu dibuka.,completed
+MILESTONE-B2-282,Batch 2 (AUDIT_300),282,style.css:2710,Warna seleksi teks terlalu gelap sehingga teks yang disorot menjadi tidak terbaca.,completed
+MILESTONE-B2-283,Batch 2 (AUDIT_300),283,index.html:1230,Tag,completed
+MILESTONE-B2-284,Batch 2 (AUDIT_300),284,app.js:10340,Menekan tombol minus dapat menurunkan kuantitas ke 0 lot atau nilai negatif.,completed
+MILESTONE-B2-285,Batch 2 (AUDIT_300),285,style.css:2735,Lebar scrollbar buatan menutupi area sentuh tombol aksi pojok.,completed
+MILESTONE-B2-286,Batch 2 (AUDIT_300),286,index.html:1245,Skrip Pustaka Eksternal Dimuat Tanpa Atribut,completed
+MILESTONE-B2-287,Batch 2 (AUDIT_300),287,app.js:10410,Transaksi saham di atas Rp 10 Juta tidak memperhitungkan bea materai regulasi bursa.,completed
+MILESTONE-B2-288,Batch 2 (AUDIT_300),288,style.css:2750,Beberapa perangkat Android lama menampilkan kotak tanda tanya pada simbol mata uang.,completed
+MILESTONE-B2-289,Batch 2 (AUDIT_300),289,index.html:1260,Struktur Dokumen Memiliki Dua Tag,completed
+MILESTONE-B2-290,Batch 2 (AUDIT_300),290,app.js:10460,Layar menjadi gelap dan terkunci permanen pasca penutupan paksa jendela modal.,completed
+MILESTONE-B2-291,Batch 2 (AUDIT_300),291,style.css:2765,Masalah *sticky hover* khas browser seluler yang membuat tombol terlihat selalu ditekan.,completed
+MILESTONE-B2-292,Batch 2 (AUDIT_300),292,index.html:1275,Elemen,completed
+MILESTONE-B2-293,Batch 2 (AUDIT_300),293,app.js:10480,Pengguna kehilangan isian data saat terjadi kegagalan jaringan mendadak.,completed
+MILESTONE-B2-294,Batch 2 (AUDIT_300),294,style.css:2780,Angka tanggal kalender bursa terpotong di tepi atas kontainer.,completed
+MILESTONE-B2-295,Batch 2 (AUDIT_300),295,index.html:1290,Ketiadaan Atribut,completed
+MILESTONE-B2-296,Batch 2 (AUDIT_300),296,app.js:10490,Tombol tab bar tetap menyorot tab Pasar meski pemain sedang berada di Tab Keuangan.,completed
+MILESTONE-B2-297,Batch 2 (AUDIT_300),297,style.css:2795,Penggunaan Properti CSS,completed
+MILESTONE-B2-298,Batch 2 (AUDIT_300),298,index.html:1305,Informasi biaya transaksi tidak transparan bagi pemain pemula.,completed
+MILESTONE-B2-299,Batch 2 (AUDIT_300),299,app.js:10493,Variabel global rentan tertimpa atau diakses oleh injeksi skrip eksternal.,completed
+MILESTONE-B2-300,Batch 2 (AUDIT_300),300,style.css:2810,CSS Media Query Breakpoint Menggunakan Satuan Pixel Statis Alih-alih,completed
+MILESTONE-B3-301,Batch 3 (GELOMBANG_3),301,"Ekspansi, Boss, Mandat, Bank & RUPS",Loop Reset Status Duel Bos Kosong (`MarketBossService.java:48-52`),completed
+MILESTONE-B3-302,Batch 3 (GELOMBANG_3),302,"Ekspansi, Boss, Mandat, Bank & RUPS",Akumulasi Return Pemain pada Duel Bos Menggunakan Penjumlahan Linier (`MarketBoss.java:91`),completed
+MILESTONE-B3-303,Batch 3 (GELOMBANG_3),303,"Ekspansi, Boss, Mandat, Bank & RUPS",Duel Bos Kalah Menjadi Macet Tanpa Status Retry (`MarketBoss.java:95-100`),completed
+MILESTONE-B3-304,Batch 3 (GELOMBANG_3),304,"Ekspansi, Boss, Mandat, Bank & RUPS",File Gambar Avatar Bos Menggunakan Bahasa Asing Turki yang Hilang (`MarketBossService.java:26-29`),completed
+MILESTONE-B3-305,Batch 3 (GELOMBANG_3),305,"Ekspansi, Boss, Mandat, Bank & RUPS",Return Bos Bertumbuh Mulus Setiap Sesi Tanpa Volatilitas Pasar (`MarketBoss.java:93`),completed
+MILESTONE-B3-306,Batch 3 (GELOMBANG_3),306,"Ekspansi, Boss, Mandat, Bank & RUPS",Hadiah Kemenangan Bos Menggunakan Timestamp Sistem Bukan Jam Game (`MarketBossService.java:65`),completed
+MILESTONE-B3-307,Batch 3 (GELOMBANG_3),307,"Ekspansi, Boss, Mandat, Bank & RUPS",Durasi Duel Bos Tetap Dihitung saat Bursa Libur (`MarketBoss.java:90`),completed
+MILESTONE-B3-308,Batch 3 (GELOMBANG_3),308,"Ekspansi, Boss, Mandat, Bank & RUPS",Hadiah Duel Bos Final Terlalu Kecil Dibanding Syarat Modal (`MarketBoss.java:20`),completed
+MILESTONE-B3-309,Batch 3 (GELOMBANG_3),309,"Ekspansi, Boss, Mandat, Bank & RUPS",Bos yang Sudah Dikalahkan Masih Dapat Ditantang Ulang Tanpa Batas (`MarketBossService.java:44`),completed
+MILESTONE-B3-310,Batch 3 (GELOMBANG_3),310,"Ekspansi, Boss, Mandat, Bank & RUPS",Evaluasi Duel Bos Mengabaikan Akun Perusahaan Holding (`MarketBossService.java:57`),completed
+MILESTONE-B3-311,Batch 3 (GELOMBANG_3),311,"Ekspansi, Boss, Mandat, Bank & RUPS",Desinkronisasi Status Duel Bos saat Memuat Save Game (`MarketBoss.java:110`),completed
+MILESTONE-B3-312,Batch 3 (GELOMBANG_3),312,"Ekspansi, Boss, Mandat, Bank & RUPS",Ketiadaan Notifikasi Visual Menang/Kalah Duel Bos di Halaman Utama (`app.js:10100`),completed
+MILESTONE-B3-313,Batch 3 (GELOMBANG_3),313,"Ekspansi, Boss, Mandat, Bank & RUPS",Pilihan Duel Bos Mengizinkan Melompati Tingkat Kesulitan (`MarketBossService.java:44`),completed
+MILESTONE-B3-314,Batch 3 (GELOMBANG_3),314,"Ekspansi, Boss, Mandat, Bank & RUPS",Return Bos Mengizinkan Nilai Infinity saat Tenor Nol (`MarketBoss.java:93`),completed
+MILESTONE-B3-315,Batch 3 (GELOMBANG_3),315,"Ekspansi, Boss, Mandat, Bank & RUPS",Modal Bos Tidak Terpengaruh oleh Kejatuhan Pasar Ekstrem (`MarketBoss.java:93`),completed
+MILESTONE-B3-316,Batch 3 (GELOMBANG_3),316,"Ekspansi, Boss, Mandat, Bank & RUPS",Reset Service Menghapus Riwayat Kemenangan Bos Permanen (`MarketBossService.java:32`),completed
+MILESTONE-B3-317,Batch 3 (GELOMBANG_3),317,"Ekspansi, Boss, Mandat, Bank & RUPS",Nilai Hadiah Bos Disimpan sebagai BigDecimal Tanpa Skala Desimal Terkunci (`MarketBoss.java:65`),completed
+MILESTONE-B3-318,Batch 3 (GELOMBANG_3),318,"Ekspansi, Boss, Mandat, Bank & RUPS",Dialog Profil Bos Menampilkan Teks Kaku Tanpa Kutipan Karakter (`MarketBoss.java:28`),completed
+MILESTONE-B3-319,Batch 3 (GELOMBANG_3),319,"Ekspansi, Boss, Mandat, Bank & RUPS",Tombol Duel Bos di Beranda Tidak Memiliki Indikator Hitung Mundur Sisa Hari (`index.html:85`),completed
+MILESTONE-B3-320,Batch 3 (GELOMBANG_3),320,"Ekspansi, Boss, Mandat, Bank & RUPS",Peringatan Kekalahan Bos Menampilkan Pesan Sukses Palsu (`MarketBoss.java:97`),completed
+MILESTONE-B3-321,Batch 3 (GELOMBANG_3),321,"Ekspansi, Boss, Mandat, Bank & RUPS",Pemain Diblokir 24 Jam Permanen dari Membeli Asuransi Portofolio (`PortfolioInsuranceService.java:105`),completed
+MILESTONE-B3-322,Batch 3 (GELOMBANG_3),322,"Ekspansi, Boss, Mandat, Bank & RUPS",Klaim Asuransi Tidak Berjalan pada Crash Pasar Alami (`TradingFacade.java:3807`),completed
+MILESTONE-B3-323,Batch 3 (GELOMBANG_3),323,"Ekspansi, Boss, Mandat, Bank & RUPS",Pembelian Node Tech Tree Mengabaikan Prasyarat Level Tier (`ResearchTechTreeService.java:104`),completed
+MILESTONE-B3-324,Batch 3 (GELOMBANG_3),324,"Ekspansi, Boss, Mandat, Bank & RUPS",Biaya Upgrade Tech Tree Dicatat sebagai Biaya Pialang Transaksi Saham (`ResearchTechTreeService.java:115`),completed
+MILESTONE-B3-325,Batch 3 (GELOMBANG_3),325,"Ekspansi, Boss, Mandat, Bank & RUPS",Bonus Tech Tree AUM Capacity Boost Pernah Tidak Memiliki Efek Riil (`ResearchTechTreeService.java:86`),completed
+MILESTONE-B3-326,Batch 3 (GELOMBANG_3),326,"Ekspansi, Boss, Mandat, Bank & RUPS",Premi Asuransi Dihitung dari Nilai Kotor Tanpa Mengurangi Kas Tertahan (`PortfolioInsuranceService.java:110`),completed
+MILESTONE-B3-327,Batch 3 (GELOMBANG_3),327,"Ekspansi, Boss, Mandat, Bank & RUPS",Status Klaim Asuransi Portofolio Hilang Pasca Load Game (`PortfolioInsuranceService.java:79`),completed
+MILESTONE-B3-328,Batch 3 (GELOMBANG_3),328,"Ekspansi, Boss, Mandat, Bank & RUPS",Audit Kepatuhan Pajak Mengabaikan Seluruh Pinjaman Bank (`TradingFacade.java:3494`),completed
+MILESTONE-B3-329,Batch 3 (GELOMBANG_3),329,"Ekspansi, Boss, Mandat, Bank & RUPS",Denda Penalti Audit Pajak Bersifat Kosong Tanpa Pemotongan Nyata (`TaxAuditService.java:70`),completed
+MILESTONE-B3-330,Batch 3 (GELOMBANG_3),330,"Ekspansi, Boss, Mandat, Bank & RUPS",Diskon Pajak Dividen Peringkat A Tidak Pernah Diterapkan saat Pembagian Dividen (`CorporateActionService.java:645`),completed
+MILESTONE-B3-331,Batch 3 (GELOMBANG_3),331,"Ekspansi, Boss, Mandat, Bank & RUPS",Durasi Sisa Sesi Polis Asuransi Menghasilkan Nilai Minus (`PortfolioInsuranceService.java:65`),completed
+MILESTONE-B3-332,Batch 3 (GELOMBANG_3),332,"Ekspansi, Boss, Mandat, Bank & RUPS",Node Riset Efisiensi Order Fee Menghasilkan Diskon Melebihi 100% (`Order.java:108`),completed
+MILESTONE-B3-333,Batch 3 (GELOMBANG_3),333,"Ekspansi, Boss, Mandat, Bank & RUPS",Polis Asuransi Tetap Berlaku Pasca Pembayaran Ganti Rugi Penuh (`PortfolioInsuranceService.java:49`),completed
+MILESTONE-B3-334,Batch 3 (GELOMBANG_3),334,"Ekspansi, Boss, Mandat, Bank & RUPS",Ganti Rugi Asuransi Portofolio Dicatat sebagai Dana Talangan Pemerintah (`PortfolioInsuranceService.java:150`),completed
+MILESTONE-B3-335,Batch 3 (GELOMBANG_3),335,"Ekspansi, Boss, Mandat, Bank & RUPS",Algoritma Sinyal Riset Memberikan Rekomendasi Terbalik saat Crash (`TradingFacade.java:3690`),completed
+MILESTONE-B3-336,Batch 3 (GELOMBANG_3),336,"Ekspansi, Boss, Mandat, Bank & RUPS",Pembelian Asuransi Portofolio Mengizinkan Pembelian Polis Ganda (`PortfolioInsuranceService.java:98`),completed
+MILESTONE-B3-337,Batch 3 (GELOMBANG_3),337,"Ekspansi, Boss, Mandat, Bank & RUPS",Pembagian Nol pada Rasio Utang Pajak saat Total Aset Bersih Nol (`TaxAuditService.java:66`),completed
+MILESTONE-B3-338,Batch 3 (GELOMBANG_3),338,"Ekspansi, Boss, Mandat, Bank & RUPS",State Pohon Riset Gagal Dipulihkan jika Ada Node Baru Ditambahkan (`ResearchTechTreeService.java:153`),completed
+MILESTONE-B3-339,Batch 3 (GELOMBANG_3),339,"Ekspansi, Boss, Mandat, Bank & RUPS",Nilai Ambang Batas Sinyal Algoritma Terlalu Sempit pada Pasar Tenang (`TradingFacade.java:3688`),completed
+MILESTONE-B3-340,Batch 3 (GELOMBANG_3),340,"Ekspansi, Boss, Mandat, Bank & RUPS",Ketiadaan Riwayat Klaim Asuransi yang Dapat Dilihat Pemain (`PortfolioInsuranceService.java:56`),completed
+MILESTONE-B3-341,Batch 3 (GELOMBANG_3),341,"Ekspansi, Boss, Mandat, Bank & RUPS",Mustahil Menerima Mandat Klien Pertama (*Mathematical Impossibility Bug*) (`TradingFacade.java:650-690`),completed
+MILESTONE-B3-342,Batch 3 (GELOMBANG_3),342,"Ekspansi, Boss, Mandat, Bank & RUPS",Pembajakan Analis Elit Memotong Uang Kas Tanpa Hasil Nyata (*Ghost Candidate*) (`TradingFacade.java:3713`),completed
+MILESTONE-B3-343,Batch 3 (GELOMBANG_3),343,"Ekspansi, Boss, Mandat, Bank & RUPS",Biaya Jasa Headhunter Dibebankan sebagai Gaji Karyawan Perusahaan pada Akun Pribadi (`HeadhuntingService.java:117`),completed
+MILESTONE-B3-344,Batch 3 (GELOMBANG_3),344,"Ekspansi, Boss, Mandat, Bank & RUPS",Loyalitas Staf yang Dibajak Selalu Maksimal 100% Selamanya (`HeadhuntingService.java:55`),completed
+MILESTONE-B3-345,Batch 3 (GELOMBANG_3),345,"Ekspansi, Boss, Mandat, Bank & RUPS",Penolakan Mandat Klien Mengunci Slot Pencarian Klien Baru (`FirmManager.java:160`),completed
+MILESTONE-B3-346,Batch 3 (GELOMBANG_3),346,"Ekspansi, Boss, Mandat, Bank & RUPS",Pemain Dapat Membeli Saham Menggunakan Uang Klien Tanpa Batasan Mandat (`TradingFacade.java:1095`),completed
+MILESTONE-B3-347,Batch 3 (GELOMBANG_3),347,"Ekspansi, Boss, Mandat, Bank & RUPS",Penarikan Modal Klien Terjadi Seketika di Tengah Jam Perdagangan Aktif (`FirmManager.java:230`),completed
+MILESTONE-B3-348,Batch 3 (GELOMBANG_3),348,"Ekspansi, Boss, Mandat, Bank & RUPS",Ketiadaan Mekanisme Komplain Nasabah Mandat saat Rugi Beruntun (`ClientMandate.java:45`),completed
+MILESTONE-B3-349,Batch 3 (GELOMBANG_3),349,"Ekspansi, Boss, Mandat, Bank & RUPS",Gaji Analis Elit Tidak Pernah Dipotong Pasca Dibajak (`HeadhuntingService.java:48`),completed
+MILESTONE-B3-350,Batch 3 (GELOMBANG_3),350,"Ekspansi, Boss, Mandat, Bank & RUPS",Akun Mandat Klien Tetap Aktif Pasca Masa Kontrak Berakhir (`TradingFacade.java:2077`),completed
+MILESTONE-B3-351,Batch 3 (GELOMBANG_3),351,"Ekspansi, Boss, Mandat, Bank & RUPS",High-Water Mark (HWM) Mengizinkan Pembayaran Fee Performa Ganda (`FirmManager.java:250`),completed
+MILESTONE-B3-352,Batch 3 (GELOMBANG_3),352,"Ekspansi, Boss, Mandat, Bank & RUPS",Daftar Bursa Talenta Headhunter Hanya Berisi 3 Kandidat Statis (`HeadhuntingService.java:86`),completed
+MILESTONE-B3-353,Batch 3 (GELOMBANG_3),353,"Ekspansi, Boss, Mandat, Bank & RUPS",Manajemen Fee Klien Dihitung dari Sisa Kas Bukan Total Portofolio (`FirmManager.java:290`),completed
+MILESTONE-B3-354,Batch 3 (GELOMBANG_3),354,"Ekspansi, Boss, Mandat, Bank & RUPS",Biaya Jasa Bajak Staf Menggunakan Format Kurs Kaku IDR (`HeadhuntingService.java:87`),completed
+MILESTONE-B3-355,Batch 3 (GELOMBANG_3),355,"Ekspansi, Boss, Mandat, Bank & RUPS",Mandat Klien Dapat Mengambil Fasilitas Pinjaman Margin Tanpa Izin Nasabah (`TradingFacade.java:1883`),completed
+MILESTONE-B3-356,Batch 3 (GELOMBANG_3),356,"Ekspansi, Boss, Mandat, Bank & RUPS",Penalti Reputasi Pemutusan Mandat Tidak Mengurangi Skor Karier (`PlayerProfileManager.java:140`),completed
+MILESTONE-B3-357,Batch 3 (GELOMBANG_3),357,"Ekspansi, Boss, Mandat, Bank & RUPS",Nilai Setoran Awal Klien Mengizinkan Nilai Negatif pada Mode Replay (`FirmManager.java:110`),completed
+MILESTONE-B3-358,Batch 3 (GELOMBANG_3),358,"Ekspansi, Boss, Mandat, Bank & RUPS",Pengalihan Akun Aktif ke Klien Membocorkan Opsi Penarikan Modal ke Rekening Pribadi (`app.js:2101`),completed
+MILESTONE-B3-359,Batch 3 (GELOMBANG_3),359,"Ekspansi, Boss, Mandat, Bank & RUPS",Calon Analis Bajakan Tetap Muncul di Daftar Setelah Direkrut (`HeadhuntingService.java:95`),completed
+MILESTONE-B3-360,Batch 3 (GELOMBANG_3),360,"Ekspansi, Boss, Mandat, Bank & RUPS",Penghentian Mandat Klien Tidak Menjual Saham Portofolio Nasabah (`FirmManager.java:315`),completed
+MILESTONE-B3-361,Batch 3 (GELOMBANG_3),361,"Ekspansi, Boss, Mandat, Bank & RUPS",Dialog Android WebView (`prompt`) Macet Total pada Penempatan Deposito (`app.js:4476`),completed
+MILESTONE-B3-362,Batch 3 (GELOMBANG_3),362,"Ekspansi, Boss, Mandat, Bank & RUPS",Dialog Android WebView (`confirm`) Macet Total pada Penarikan Dini Deposito (`app.js:4437`),completed
+MILESTONE-B3-363,Batch 3 (GELOMBANG_3),363,"Ekspansi, Boss, Mandat, Bank & RUPS",Bunga Deposito Anak Usaha Dibayarkan ke Rekening Pribadi Pemain (`TradingFacade.java:2200`),completed
+MILESTONE-B3-364,Batch 3 (GELOMBANG_3),364,"Ekspansi, Boss, Mandat, Bank & RUPS",Cicilan Pinjaman Bank Jatuh Tempo di Hari Sabtu & Minggu saat Bursa Libur (`LoanContract.java:195-207`),completed
+MILESTONE-B3-365,Batch 3 (GELOMBANG_3),365,"Ekspansi, Boss, Mandat, Bank & RUPS",Denda Keterlambatan Pinjaman Ditumpuk 100% pada Cicilan Pertama Saja (`LoanContract.java:131-135`),completed
+MILESTONE-B3-366,Batch 3 (GELOMBANG_3),366,"Ekspansi, Boss, Mandat, Bank & RUPS",Endpoint Pencairan Pinjaman `bridge.disburseLoan` Melempar Exception Kaku (`TradingFacade.java:4019-4021`),completed
+MILESTONE-B3-367,Batch 3 (GELOMBANG_3),367,"Ekspansi, Boss, Mandat, Bank & RUPS",Penalti Penarikan Dini Deposito Menghapus Seluruh Bunga Akrual Tanpa Bukti Potong (`TimeDepositManager.java:178`),completed
+MILESTONE-B3-368,Batch 3 (GELOMBANG_3),368,"Ekspansi, Boss, Mandat, Bank & RUPS",Suku Bunga Pinjaman Bank Tidak Terhubung dengan Suku Bunga Makro (`LoanContract.java:97`),completed
+MILESTONE-B3-369,Batch 3 (GELOMBANG_3),369,"Ekspansi, Boss, Mandat, Bank & RUPS",Pemain Dapat Mengajukan Pinjaman Baru saat Memiliki Pinjaman Macet (`InstallmentLoanManager.java:73`),completed
+MILESTONE-B3-370,Batch 3 (GELOMBANG_3),370,"Ekspansi, Boss, Mandat, Bank & RUPS",Form Pengajuan Pinjaman Perusahaan Mengizinkan Nilai Kosong (`app.js:7344`),completed
+MILESTONE-B3-371,Batch 3 (GELOMBANG_3),371,"Ekspansi, Boss, Mandat, Bank & RUPS",Penempatan Deposito Mengizinkan Jumlah Pecahan Sen Rupiah (`TimeDepositManager.java:100`),completed
+MILESTONE-B3-372,Batch 3 (GELOMBANG_3),372,"Ekspansi, Boss, Mandat, Bank & RUPS",Denda Keterlambatan Pinjaman 24 Jam Tidak Terakumulasi Jika Bermain Kurang dari 24 Jam Sekali Main (`LoanContract.java:158`),completed
+MILESTONE-B3-373,Batch 3 (GELOMBANG_3),373,"Ekspansi, Boss, Mandat, Bank & RUPS",Deposito Berjangka Tetap Menerima Bunga saat Bank Mengalami Krisis Likuiditas (`TimeDepositManager.java:137`),completed
+MILESTONE-B3-374,Batch 3 (GELOMBANG_3),374,"Ekspansi, Boss, Mandat, Bank & RUPS",Pelunasan Pinjaman Lebih Awal Tetap Menghitung Bunga Penuh jika Dilakukan di Hari Jatuh Tempo (`LoanContract.java:215`),completed
+MILESTONE-B3-375,Batch 3 (GELOMBANG_3),375,"Ekspansi, Boss, Mandat, Bank & RUPS",Idempotency ID Pembayaran Cicilan Terkunci Permanen saat Gagal Kirim (`app.js:7472`),completed
+MILESTONE-B3-376,Batch 3 (GELOMBANG_3),376,"Ekspansi, Boss, Mandat, Bank & RUPS",Nilai Sisa Pokok Pinjaman Tidak Pernah Berkurang pada Menu Ringkasan Keuangan (`app.js:7450`),completed
+MILESTONE-B3-377,Batch 3 (GELOMBANG_3),377,"Ekspansi, Boss, Mandat, Bank & RUPS",Produk Deposito Tenor 50 Sesi Memiliki Nama Tenor Hari Bursa yang Membingungkan (`TimeDepositManager.java:70`),completed
+MILESTONE-B3-378,Batch 3 (GELOMBANG_3),378,"Ekspansi, Boss, Mandat, Bank & RUPS",Pembayaran Cicilan Pinjaman Melebihi Total Utang Tidak Mengembalikan Uang Kembalian (`LoanContract.java:340`),completed
+MILESTONE-B3-379,Batch 3 (GELOMBANG_3),379,"Ekspansi, Boss, Mandat, Bank & RUPS",Bukti Tanda Terima Pembayaran Pinjaman Hilang saat Aplikasi Dimuat Ulang (`LoanContract.java:79`),completed
+MILESTONE-B3-380,Batch 3 (GELOMBANG_3),380,"Ekspansi, Boss, Mandat, Bank & RUPS",Bunga Deposito Jatuh Tempo Tidak Menambah Saldo Kas Jika Akun Sedang Mengalami Penahanan Dana (`TimeDepositManager.java:140`),completed
+MILESTONE-B3-381,Batch 3 (GELOMBANG_3),381,"Ekspansi, Boss, Mandat, Bank & RUPS","Hak Suara RUPS Saham US Selalu Nol Akibat Prepend ""IDX:"" Kaku (`ShareholderMeetingAgenda.java:61`)",completed
+MILESTONE-B3-382,Batch 3 (GELOMBANG_3),382,"Ekspansi, Boss, Mandat, Bank & RUPS",Resolusi RUPS Disahkan Tanpa Memenuhi Batas Kuorum Pemegang Saham (`ShareholderMeetingAgenda.java:54`),completed
+MILESTONE-B3-383,Batch 3 (GELOMBANG_3),383,"Ekspansi, Boss, Mandat, Bank & RUPS",Tenggat Waktu Voting RUPS Kadaluwarsa di Hari Libur Bursa (`ShareholderMeetingAgenda.java:52`),completed
+MILESTONE-B3-384,Batch 3 (GELOMBANG_3),384,"Ekspansi, Boss, Mandat, Bank & RUPS",Pelaksanaan Stock Split Terkunci Permanen jika Ada Akun yang Short (`TradingFacade.java:2235`),completed
+MILESTONE-B3-385,Batch 3 (GELOMBANG_3),385,"Ekspansi, Boss, Mandat, Bank & RUPS",Dividen Tunai Diciptakan dari Udara Kosong Tanpa Mendebet Kas Emiten (`CorporateActionService.java:647-655`),completed
+MILESTONE-B3-386,Batch 3 (GELOMBANG_3),386,"Ekspansi, Boss, Mandat, Bank & RUPS",Penjual Short Bebas dari Kewajiban Membayar Dividen Pengganti (`CorporateActionService.java:639`),completed
+MILESTONE-B3-387,Batch 3 (GELOMBANG_3),387,"Ekspansi, Boss, Mandat, Bank & RUPS",Database SQLite 21 Tabel Lengkap Tidak Pernah Diaktifkan (`GameDatabaseHelper.java`),completed
+MILESTONE-B3-388,Batch 3 (GELOMBANG_3),388,"Ekspansi, Boss, Mandat, Bank & RUPS",Tanggal Penjatahan IPO Bentrok dengan Tanggal Terakhir Penawaran (`IpoOffering.java:31`),completed
+MILESTONE-B3-389,Batch 3 (GELOMBANG_3),389,"Ekspansi, Boss, Mandat, Bank & RUPS",Pembaruan Kuotasi Pasar Mati Total pada Tab Kombinasi `pasar_porto` (`app.js:10522`),completed
+MILESTONE-B3-390,Batch 3 (GELOMBANG_3),390,"Ekspansi, Boss, Mandat, Bank & RUPS",Sinkronisasi Portofolio Live Mati Total pada Tab Kombinasi `pasar_porto` (`app.js:10519`),completed
+MILESTONE-B3-391,Batch 3 (GELOMBANG_3),391,"Ekspansi, Boss, Mandat, Bank & RUPS",Stock Split Saham US Menghasilkan Jumlah Lembar Desimal Ilegal (`CorporateActionService.java:678`),completed
+MILESTONE-B3-392,Batch 3 (GELOMBANG_3),392,"Ekspansi, Boss, Mandat, Bank & RUPS",Pembelian Komoditas Emas Mereset Waktu Akrual Bunga Seluruh Obligasi (`MultiAssetTradingService.java:99`),completed
+MILESTONE-B3-393,Batch 3 (GELOMBANG_3),393,"Ekspansi, Boss, Mandat, Bank & RUPS",Transaksi Komoditas Emas Dibatalkan Sepihak jika Kas Dealer Obligasi Kurang (`MultiAssetTradingService.java:85`),completed
+MILESTONE-B3-394,Batch 3 (GELOMBANG_3),394,"Ekspansi, Boss, Mandat, Bank & RUPS",Agenda RUPS yang Ditolak Tetap Memunculkan Berita Persetujuan di Media Pasar (`CorporateActionService.java:55`),completed
+MILESTONE-B3-395,Batch 3 (GELOMBANG_3),395,"Ekspansi, Boss, Mandat, Bank & RUPS",Pemungutan Suara RUPS Mengizinkan Pemain Memilih Dua Opsi Berbeda Bersamaan (`app.js:3010`),completed
+MILESTONE-B3-396,Batch 3 (GELOMBANG_3),396,"Ekspansi, Boss, Mandat, Bank & RUPS",Reverse Stock Split Menghilangkan Lembar Saham di Bawah 1 Lembar Tanpa Kompensasi Uang (`CorporateActionService.java:725`),completed
+MILESTONE-B3-397,Batch 3 (GELOMBANG_3),397,"Ekspansi, Boss, Mandat, Bank & RUPS",Ketiadaan Riwayat Pemungutan Suara Pemain di Layar RUPS Pasca Voting (`app.js:3040`),completed
+MILESTONE-B3-398,Batch 3 (GELOMBANG_3),398,"Ekspansi, Boss, Mandat, Bank & RUPS",Pemesanan Saham IPO Mengunci Saldo Kas Tanpa Konfirmasi Nomor Pemesanan Resmi (`CorporateActionService.java:775`),completed
+MILESTONE-B3-399,Batch 3 (GELOMBANG_3),399,"Ekspansi, Boss, Mandat, Bank & RUPS",Penjatahan IPO Mengizinkan Alokasi Lembar Saham Negatif saat Rasio Ekstrem (`CorporateActionService.java:820`),completed
+MILESTONE-B3-400,Batch 3 (GELOMBANG_3),400,"Ekspansi, Boss, Mandat, Bank & RUPS",Ketiadaan Sinkronisasi Rekening Efek Klien saat Stock Split Terjadi (`CorporateActionService.java:675`),completed
