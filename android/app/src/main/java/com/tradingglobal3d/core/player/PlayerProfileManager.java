@@ -42,7 +42,7 @@ public final class PlayerProfileManager {
     private String textSize = "100%";
     private boolean highContrast = false;
     private boolean reducedMotion = false;
-    private String theme = "EMAS_KLASIK";
+    private String theme = "STOCKBIT_DARK";
     private boolean offlineProgressEnabled = true;
 
     public synchronized void reset() {
@@ -193,7 +193,8 @@ public final class PlayerProfileManager {
         if (textSize != null) this.textSize = textSize;
         this.highContrast = highContrast;
         this.reducedMotion = reducedMotion;
-        if (theme != null && (theme.equalsIgnoreCase("EMAS_KLASIK") || theme.equalsIgnoreCase("MIDNIGHT_NEON"))) {
+        if (theme != null && (theme.equalsIgnoreCase("EMAS_KLASIK") || theme.equalsIgnoreCase("MIDNIGHT_NEON")
+                || theme.equalsIgnoreCase("STOCKBIT_DARK") || theme.equalsIgnoreCase("STOCKBIT_LIGHT"))) {
             this.theme = theme.toUpperCase(java.util.Locale.ROOT);
         }
         if (offlineProgressEnabled != null) {
@@ -269,6 +270,8 @@ public final class PlayerProfileManager {
         obj.put("lifetimeWorstTradePnL", lifetimeWorstTradePnL.getAmount().toPlainString());
         obj.put("prestigeCount", prestigeHistory.size());
         obj.put("prestigeHistory", new JSONArray(exportPrestigeHistory().toString()));
+        obj.put("equippedAvatar", equippedAvatar);
+        obj.put("equippedFrame", equippedFrame);
         obj.put("textSize", textSize);
         obj.put("highContrast", highContrast);
         obj.put("reducedMotion", reducedMotion);
@@ -281,6 +284,8 @@ public final class PlayerProfileManager {
         if (obj == null) return;
         PlayerProfileManager restored = new PlayerProfileManager();
         restored.setPlayerName(obj.optString("playerName", "Trader Nusantara"));
+        restored.equippedAvatar = obj.optString("equippedAvatar", "avatar_trader_muda.png");
+        restored.equippedFrame = obj.optString("equippedFrame", "frame_steel.png");
         restored.totalTradesExecuted = obj.optInt("totalTradesExecuted", 0);
         restored.profitableTradesCount = obj.optInt("profitableTradesCount", 0);
         restored.closedTradesCount = obj.optInt("closedTradesCount", restored.totalTradesExecuted);
@@ -327,6 +332,8 @@ public final class PlayerProfileManager {
             throw new IllegalArgumentException("Jumlah prestige tidak sesuai riwayat");
         this.playerName = restored.playerName;
         this.avatarMonogram = restored.avatarMonogram;
+        this.equippedAvatar = restored.equippedAvatar;
+        this.equippedFrame = restored.equippedFrame;
         this.totalTradesExecuted = restored.totalTradesExecuted;
         this.profitableTradesCount = restored.profitableTradesCount;
         this.closedTradesCount = restored.closedTradesCount;

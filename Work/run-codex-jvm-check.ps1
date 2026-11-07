@@ -7,6 +7,8 @@ try {
     $output = [IO.Path]::GetFullPath((Join-Path $repo $OutputDirectory))
     if (!$output.StartsWith($repo + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Output must stay inside production root' }
     New-Item -ItemType Directory -Force -Path "$output/classes" | Out-Null
+    python "$PSScriptRoot/prepare-host-json-reader.py" "$output/classes"
+    if ($LASTEXITCODE) { throw 'Android JsonReader QA preparation failed' }
     $javaBin = 'C:/Program Files/Android/Android Studio/jbr/bin'
     $jars = @(rg --files "$env:USERPROFILE/.gradle/caches/modules-2/files-2.1" | Where-Object { $_ -match '(junit-4.13.2|hamcrest-core-1.3|json-20240303)\.jar$' })
     if ($jars.Count -ne 3) { throw 'Expected existing JUnit, Hamcrest and JSON jars' }

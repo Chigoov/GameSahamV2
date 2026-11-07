@@ -459,8 +459,15 @@ public final class LeagueManager {
                 if (item.optBoolean("isPlayer", false)) hasPlayer = true;
                 trimmedBoard.put(item);
             }
-            if (!hasPlayer && fullBoard.length() > 0) {
-                trimmedBoard.put(fullBoard.getJSONObject(fullBoard.length() - 1));
+            if (!hasPlayer) {
+                for (int i = 20; i < fullBoard.length(); i++) {
+                    JSONObject item = fullBoard.getJSONObject(i);
+                    if (item.optBoolean("isPlayer", false)) {
+                        trimmedBoard.put(item);
+                        hasPlayer = true;
+                        break;
+                    }
+                }
             }
             archived.put("leaderboard", trimmedBoard);
             periodHistory.add(new JSONObject(archived.toString()));
@@ -494,6 +501,10 @@ public final class LeagueManager {
         if (closest != null) {
             currentRivalId = closest.getId();
         }
+    }
+
+    public synchronized List<JSONObject> getPeriodHistory() {
+        return new ArrayList<>(periodHistory);
     }
 
     public synchronized JSONObject exportState() throws JSONException {

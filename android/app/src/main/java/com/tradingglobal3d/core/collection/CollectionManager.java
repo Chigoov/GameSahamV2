@@ -28,6 +28,32 @@ public final class CollectionManager {
 
     private void initDefaultCatalog() {
         catalog.clear();
+        try {
+            String content = com.tradingglobal3d.core.market.HistoricalDatasetLoader.readAssetString("data/katalog_koleksi_150.json");
+            if (content != null) {
+                JSONArray arr = new JSONArray(content);
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject obj = arr.getJSONObject(i);
+                    String id = obj.getString("id");
+                    String name = obj.getString("name");
+                    CollectibleItem.Category cat = CollectibleItem.Category.fromCode(obj.getString("category"));
+                    CollectibleItem.Rarity rar = CollectibleItem.Rarity.fromCode(obj.getString("rarity"));
+                    long basePrice = obj.getLong("basePrice");
+                    long maintenance = obj.getLong("dailyMaintenance");
+                    int rep = obj.getInt("reputationBonus");
+                    addDefault(new CollectibleItem(
+                            id, name, cat, rar,
+                            Money.of(basePrice, Currency.IDR),
+                            Money.of(maintenance, Currency.IDR),
+                            rep
+                    ));
+                }
+                if (catalog.size() >= 150) return;
+            }
+        } catch (Throwable err) {
+            System.err.println("Gagal memuat katalog_koleksi_150.json: " + err.getMessage());
+        }
+
         java.io.File jsonFile = new java.io.File("src/main/assets/data/katalog_koleksi_150.json");
         if (!jsonFile.exists()) {
             jsonFile = new java.io.File("android/app/src/main/assets/data/katalog_koleksi_150.json");
@@ -264,7 +290,7 @@ public final class CollectionManager {
             Money available = personalAccount.getAvailableCash(Currency.IDR);
             Money payment = (available.isPositive() && due.isLessThan(available)) ? due : (available.isPositive() ? available : Money.zero(Currency.IDR));
             if (payment.isPositive()) {
-                ledger.recordMutation("COL-MAINT:" + item.getId() + ":" + day + ":" + ledger.getEntries().size(),
+                ledger.recordMutation("COL-MAINT:" + item.getId() + ":" + day + ":" + ledger.getEntryCount(),
                         personalAccount, LedgerEntryType.COLLECTION_MAINTENANCE, payment, false, timestamp,
                         "Biaya dan tunggakan pemeliharaan " + item.getName());
                 item.repayMaintenance(payment);

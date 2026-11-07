@@ -131,7 +131,7 @@ public final class MutualFund {
         return poolCash.add(markedSecurities);
     }
     public synchronized Order getEquityRebalanceOrder(InstrumentCatalog catalog, long now) {
-        if (type != FundType.EQUITY_INDEX || poolAccount == null) return null;
+        if (poolAccount == null || (type != FundType.EQUITY_INDEX && type != FundType.EQUITY_ACTIVE && (type != FundType.MIXED || stockPct <= 0))) return null;
         valuationCatalog = catalog;
         Money assets = markAssets();
         Instrument stock = catalog.getById("IDX:BBCA");
@@ -151,7 +151,8 @@ public final class MutualFund {
             quantity = Math.min(owned / lot, shortfall.divide(netLot, 0, RoundingMode.UP).longValueExact()) * lot;
             side = OrderSide.SELL;
         } else {
-            BigDecimal target = assets.getAmount().multiply(new BigDecimal("0.8"));
+            double targetRatio = stockPct > 0 ? (stockPct / 100.0) : 0.8;
+            BigDecimal target = assets.getAmount().multiply(BigDecimal.valueOf(targetRatio));
             BigDecimal gap = target.subtract(price.multiply(BigDecimal.valueOf(owned)));
             BigDecimal budget = poolAccount.getAvailableCash(Currency.IDR).getAmount().subtract(feeRemainder).max(BigDecimal.ZERO).min(gap);
             if (budget.signum() <= 0) return null;
@@ -173,21 +174,46 @@ public final class MutualFund {
     private boolean legacySponsorMigration;
     private BigDecimal feeRemainder = BigDecimal.ZERO;
     private Money managementFeesPaid = Money.zero(Currency.IDR);
+    private BigDecimal managementFeeRate = MANAGEMENT_FEE_RATE;
+    private Money minBuyAmount = Money.of(10_000, Currency.IDR);
+    private int stockPct;
+    private int bondPct;
+    private int cashPct;
 
     public MutualFund(String id, String name, FundType type, String managerName) {
         this.id = Objects.requireNonNull(id); this.name = Objects.requireNonNull(name);
         this.type = Objects.requireNonNull(type); this.managerName = Objects.requireNonNull(managerName);
     }
+
+    public MutualFund(String id, String name, FundType type, String managerName, int stockPct, int bondPct, int cashPct, int managementFeeBps, long minBuyIdr) {
+        this(id, name, type, managerName);
+        this.stockPct = stockPct;
+        this.bondPct = bondPct;
+        this.cashPct = cashPct;
+        if (managementFeeBps >= 0) {
+            this.managementFeeRate = BigDecimal.valueOf(managementFeeBps).divide(BigDecimal.valueOf(10000), 6, RoundingMode.HALF_UP);
+        }
+        if (minBuyIdr > 0) {
+            this.minBuyAmount = Money.of(minBuyIdr, Currency.IDR);
+        }
+    }
+
     public String getId() { return id; }
     public String getName() { return name; }
     public FundType getType() { return type; }
     public String getManagerName() { return managerName; }
+    public Money getMinBuyAmount() { return minBuyAmount; }
+    public BigDecimal getManagementFeeRate() { return managementFeeRate; }
+    public int getStockPct() { return stockPct; }
+    public int getBondPct() { return bondPct; }
+    public int getCashPct() { return cashPct; }
     public BigDecimal getNavPerUnit() {
         return totalUnits.signum() == 0 ? INITIAL_NAV : markAssets().getAmount().subtract(feeRemainder)
                 .divide(totalUnits, 12, RoundingMode.HALF_UP);
     }
     public BigDecimal getTotalUnits() { return totalUnits; }
     public Money getPoolCash() { markAssets(); return poolCash; }
+    public Money getManagementFeesPaid() { return managementFeesPaid; }
     public Money getReservedSubscriptionCash(String accountId) {
         Money reserved = Money.zero(Currency.IDR);
         for (PendingFundOrder order : orders.values())
@@ -320,8 +346,8 @@ public final class MutualFund {
     public synchronized JSONObject submitSubscription(String orderId, Account account, Money grossCash,
                                                        EconomyLedger ledger, long now) throws JSONException {
         Objects.requireNonNull(account); Objects.requireNonNull(grossCash); Objects.requireNonNull(ledger);
-        if (grossCash.getCurrency() != Currency.IDR || grossCash.getAmount().compareTo(BigDecimal.valueOf(10_000)) < 0)
-            throw new IllegalArgumentException("Subscription minimal Rp10.000 dalam IDR");
+        if (grossCash.getCurrency() != Currency.IDR || grossCash.compareTo(minBuyAmount) < 0)
+            throw new IllegalArgumentException("Subscription minimal " + minBuyAmount.format() + " dalam IDR");
         PendingFundOrder prior = duplicate(orderId, account, true, grossCash, BigDecimal.ZERO);
         if (prior != null) return receipt(prior);
         if (now < 0 || now < lastCutoffTimestamp) throw new IllegalArgumentException("Timestamp order mendahului cutoff terakhir");
@@ -395,7 +421,8 @@ public final class MutualFund {
         if (feeAccrualDay == Long.MIN_VALUE) { feeAccrualDay = day; return; }
         long days = Math.max(0, day - feeAccrualDay);
         if (days == 0) return;
-        BigDecimal fee = markAssets().getAmount().subtract(feeRemainder).multiply(MANAGEMENT_FEE_RATE)
+        BigDecimal feeRate = this.managementFeeRate != null ? this.managementFeeRate : MANAGEMENT_FEE_RATE;
+        BigDecimal fee = markAssets().getAmount().subtract(feeRemainder).multiply(feeRate)
                 .multiply(BigDecimal.valueOf(days)).divide(BigDecimal.valueOf(365), 16, RoundingMode.HALF_UP).add(feeRemainder);
         // No fee can consume more than the backed pool; retained fractions remain explicit liabilities.
         fee = fee.min(markAssets().getAmount());
@@ -465,7 +492,7 @@ public final class MutualFund {
                 .put("myHoldingsValue", accountId == null ? Money.zero(Currency.IDR).format() : getHoldingsValue(accountId).format())
                 .put("availableUnits", accountId == null ? "0" : getAvailableUnits(accountId).toPlainString())
                 .put("reservedUnits", accountId == null ? "0" : getReservedUnits(accountId).toPlainString())
-                .put("entryFee", "0.1%").put("exitFee", "0.1%").put("managementFee", "0.75% / tahun")
+                .put("entryFee", "0.1%").put("exitFee", "0.1%").put("managementFee", (managementFeeRate.multiply(BigDecimal.valueOf(100)).stripTrailingZeros().toPlainString()) + "% / tahun")
                 .put("cutoffTime", "16:00 WIB").put("dealingCalendar", "MONDAY_FRIDAY").put("cancelDeadline", "15:30 WIB")
                 .put("poolAccountId", getPoolAccountId()).put("securitiesValue", markedSecurities.getAmount().toPlainString())
                 .put("backingModel", type == FundType.EQUITY_INDEX ? "CANONICAL_EQUITY_POSITIONS" :
@@ -483,6 +510,7 @@ public final class MutualFund {
                 .put("navPerUnit", getNavPerUnit().toPlainString()).put("totalUnits", totalUnits.toPlainString())
                 .put("poolCash", poolCash.getAmount().toPlainString()).put("feeRemainder", feeRemainder.toPlainString())
                 .put("managementFeesPaid", managementFeesPaid.getAmount().toPlainString())
+                .put("managementFeeRate", managementFeeRate.toPlainString())
                 .put("lastCutoffTimestamp", lastCutoffTimestamp).put("feeAccrualDay", feeAccrualDay);
         JSONObject positions = new JSONObject();
         for (Map.Entry<String, BigDecimal> entry : holdings.entrySet()) positions.put(entry.getKey(), entry.getValue().toPlainString());
@@ -550,6 +578,9 @@ public final class MutualFund {
                 || obj.has("managementFeesPaid") || obj.has("feeRemainder") || obj.has("navHistory") || obj.has("legacySponsorMigration")))
             throw new IllegalArgumentException("Metadata state modern tanpa versi");
         canonicalPool = !legacy && obj.optBoolean("canonicalPool", false);
+        if (obj.has("managementFeeRate")) {
+            this.managementFeeRate = new BigDecimal(obj.getString("managementFeeRate"));
+        }
         markedSecurities = new Money(new BigDecimal(obj.optString("markedSecurities", "0")), Currency.IDR);
         if (markedSecurities.isNegative()) throw new IllegalArgumentException("Valuasi aset pool negatif");
         totalUnits = decimal(obj, "totalUnits", 6);

@@ -124,11 +124,16 @@ public final class InstrumentCatalog {
                 .put("previous", inst.getPreviousClosePrice().getAmount().toPlainString())
                 .put("high", inst.getDayHigh().getAmount().toPlainString())
                 .put("low", inst.getDayLow().getAmount().toPlainString()).put("volume", inst.getDayVolume())
+                .put("dayOpen", inst.getDayOpenPrice() == null ? JSONObject.NULL : inst.getDayOpenPrice().getAmount().toPlainString())
+                .put("dayTurnover", inst.getDayTurnover() == null ? JSONObject.NULL : inst.getDayTurnover().toPlainString())
                 .put("intrinsicValue", inst.getIntrinsicValue().toPlainString())
                 .put("trailingEps", inst.getTrailingEps().toPlainString())
                 .put("sectorAvgPer", inst.getSectorAvgPer())
                 .put("shareSupply", inst.exportShareSupply()));
-        return new JSONObject().put("catalogVersion", STATE_VERSION).put("instruments", instruments).put("watchlist", new JSONArray(watchlistIds));
+        JSONArray indices = new JSONArray();
+        for (MarketIndex idx : indicesById.values()) indices.put(idx.exportState());
+        return new JSONObject().put("catalogVersion", STATE_VERSION).put("instruments", instruments)
+                .put("indices", indices).put("watchlist", new JSONArray(watchlistIds));
     }
 
     private List<Instrument> parseMarketState(JSONArray saved) throws JSONException {
@@ -146,7 +151,9 @@ public final class InstrumentCatalog {
             copy.restoreMarketState(new Money(new BigDecimal(item.getString("price")), c),
                     new Money(new BigDecimal(item.getString("previous")), c),
                     new Money(new BigDecimal(item.getString("high")), c),
-                    new Money(new BigDecimal(item.getString("low")), c), item.getLong("volume"));
+                    new Money(new BigDecimal(item.getString("low")), c), item.getLong("volume"),
+                    item.isNull("dayOpen") ? null : new Money(new BigDecimal(item.getString("dayOpen")), c),
+                    item.isNull("dayTurnover") ? null : new BigDecimal(item.getString("dayTurnover")));
             if (item.has("intrinsicValue") || item.has("trailingEps")) {
                 BigDecimal intrinsic = item.has("intrinsicValue") ? new BigDecimal(item.getString("intrinsicValue")) : null;
                 BigDecimal eps = item.has("trailingEps") ? new BigDecimal(item.getString("trailingEps")) : null;
@@ -179,6 +186,9 @@ public final class InstrumentCatalog {
             targetIds.add(instArray.getJSONObject(i).getString("id"));
         }
         instrumentsById.keySet().removeIf(id -> !targetIds.contains(id));
+        for (MarketIndex idx : indicesById.values()) {
+            idx.resetToBase();
+        }
         restoreState(state);
     }
 
@@ -188,8 +198,19 @@ public final class InstrumentCatalog {
         for (Instrument saved : staged) {
             Instrument target = instrumentsById.get(saved.getId());
             target.restoreShareSupply(saved.exportShareSupply());
-            target.restoreMarketState(saved.getCurrentPrice(), saved.getPreviousClosePrice(), saved.getDayHigh(), saved.getDayLow(), saved.getDayVolume());
+            target.restoreMarketState(saved.getCurrentPrice(), saved.getPreviousClosePrice(), saved.getDayHigh(), saved.getDayLow(), saved.getDayVolume(),
+                    saved.getDayOpenPrice(), saved.getDayTurnover());
             target.restoreFundamentalState(saved.getIntrinsicValue(), saved.getTrailingEps(), saved.getSectorAvgPer());
+        }
+        JSONArray savedIndices = state.optJSONArray("indices");
+        if (savedIndices != null) {
+            for (int i = 0; i < savedIndices.length(); i++) {
+                JSONObject obj = savedIndices.getJSONObject(i);
+                MarketIndex target = indicesById.get(obj.optString("id"));
+                if (target != null) {
+                    target.restoreState(obj);
+                }
+            }
         }
         watchlistIds.clear(); watchlistIds.addAll(watchlist);
         recalculateAllIndices();
@@ -199,6 +220,23 @@ public final class InstrumentCatalog {
         for (MarketIndex idx : indicesById.values()) {
             idx.recalculate(instrumentsById);
         }
+    }
+
+    public synchronized void startNewTradingDay(MarketExchange exchange) {
+        for (Instrument inst : instrumentsById.values()) {
+            if (exchange == null || inst.getExchange() == exchange) {
+                inst.startNewTradingDay();
+            }
+        }
+        for (MarketIndex idx : indicesById.values()) {
+            if (exchange == null || idx.getExchange() == exchange) {
+                idx.startNewTradingDay();
+            }
+        }
+    }
+
+    public synchronized void startNewTradingDay() {
+        startNewTradingDay(null);
     }
 
     /**

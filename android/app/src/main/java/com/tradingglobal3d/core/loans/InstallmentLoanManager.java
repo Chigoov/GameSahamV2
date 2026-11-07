@@ -95,18 +95,26 @@ public final class InstallmentLoanManager {
             basis = cashflowLimit.getAmount().toPlainString() + ":" + getTotalOutstandingPrincipal(account.getId()).getAmount().toPlainString();
         }
         Money fee = principal.multiply(LoanContract.DISBURSEMENT_FEE_RATE);
+        BigDecimal dailyRate = BigDecimal.valueOf(currentMacroLoanRateAnnual).divide(BigDecimal.valueOf(36500), 8, RoundingMode.HALF_UP);
         String version;
         try {
-            byte[] hash = java.security.MessageDigest.getInstance("SHA-256").digest((payload(productId, account, principal, tenor, collateral) + "|" + basis).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            byte[] hash = java.security.MessageDigest.getInstance("SHA-256").digest((payload(productId, account, principal, tenor, collateral) + "|" + basis + "|" + dailyRate.toPlainString()).getBytes(java.nio.charset.StandardCharsets.UTF_8));
             StringBuilder hex = new StringBuilder(); for (byte value : hash) hex.append(String.format(java.util.Locale.ROOT, "%02x", value & 255)); version = hex.toString();
         } catch (java.security.NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
+        LoanContract tempContract = new LoanContract("TEMP", productId, account.getId(), principal, tenor, 0, dailyRate);
+        Money dailyEst = tempContract.getDailyInstallmentEstimate();
         return new JSONObject().put("success", true).put("eligible", principal.compareTo(maximum) <= 0)
                 .put("quoteVersion", version).put("productId", productId).put("accountId", account.getId())
                 .put("principalRaw", principal.getAmount().toPlainString()).put("maxPrincipalRaw", maximum.getAmount().toPlainString())
                 .put("feeRaw", fee.getAmount().toPlainString()).put("netCashRaw", principal.subtract(fee).getAmount().toPlainString())
                 .put("tenorDays", tenor).put("collateralId", collateral == null ? JSONObject.NULL : collateral.getId())
                 .put("eligibilityRule", collateral == null ? "ACTUAL_COMPANY_CASHFLOW_LESS_OUTSTANDING" : "HALF_NET_COLLECTION_VALUE")
-                .put("currency", "IDR");
+                .put("currency", "IDR")
+                .put("dailyRateRaw", dailyRate.toPlainString())
+                .put("dailyRate", String.format(Locale.ROOT, "%.3f%% / hari (%.2f%% p.a.)", (currentMacroLoanRateAnnual / 365.0), currentMacroLoanRateAnnual))
+                .put("annualRate", currentMacroLoanRateAnnual)
+                .put("dailyEstimateRaw", dailyEst.getAmount().toPlainString())
+                .put("dailyEstimate", dailyEst.format());
     }
     public synchronized JSONObject disburseReviewedLoan(String requestId, String productId, Account account, Money principal,
             int tenor, CollectibleItem collateral, Money cashflowLimit, String expectedQuoteVersion, EconomyLedger ledger, long now) throws JSONException {

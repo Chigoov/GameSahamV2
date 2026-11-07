@@ -35,6 +35,15 @@ public final class NewsArticle {
     private final long publishedAt;       // Timestamp rilis resmi dalam waktu game
     private long effectStartsRealAt = -1L;
     private int effectDurationMinutes = 60;
+    private String economicEventId;
+
+    public String getEconomicEventId() {
+        return economicEventId;
+    }
+
+    public void setEconomicEventId(String economicEventId) {
+        this.economicEventId = economicEventId;
+    }
 
     public NewsArticle(String id, String headline, String content, Category category,
                        String relatedTicker, double sentimentImpact, long publishedAt, int durationMinutes) {
@@ -123,7 +132,9 @@ public final class NewsArticle {
     }
 
     public JSONObject exportState() throws JSONException {
-        return toJsonObject(publishedAt).put("announcedAt", announcedAt).put("effect", exportEffect());
+        JSONObject obj = toJsonObject(publishedAt).put("announcedAt", announcedAt).put("effect", exportEffect());
+        if (economicEventId != null) obj.put("economicEventId", economicEventId);
+        return obj;
     }
 
     public static NewsArticle fromState(JSONObject state) throws JSONException {
@@ -133,13 +144,19 @@ public final class NewsArticle {
                 state.getInt("horizonDays"), state.getString("confidence"), state.getDouble("sentimentImpact"),
                 state.getLong("announcedAt"), state.getLong("publishedAt"));
         article.restoreEffect(state.getJSONObject("effect"));
+        if (state.has("economicEventId")) {
+            article.setEconomicEventId(state.getString("economicEventId"));
+        }
         return article;
     }
 
     public JSONObject toJsonObject(long gameNow, long realNow, boolean replay) throws JSONException {
         JSONObject obj = toJsonObject(gameNow);
         if (!isPublished(gameNow)) {
-            obj.put("headline", "[Jadwal Rilis] " + affectedSector + ": " + direction);
+            obj.put("headline", "[Jadwal Rilis] " + affectedSector);
+            obj.put("content", "Informasi masih dalam tahap analisis dan belum dirilis ke publik.");
+            obj.put("direction", "BELUM_DIRILIS");
+            obj.put("estimatedRange", "Rahasia");
         }
         long ends = effectStartsRealAt < 0 ? -1 : Math.addExact(effectStartsRealAt, effectDurationMinutes * 60000L);
         long remaining = ends < 0 ? 0 : Math.max(0, ends - realNow);

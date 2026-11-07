@@ -38,6 +38,23 @@ public final class HistoricalDatasetLoader {
         return null;
     }
 
+    /**
+     * Membaca aset teks UTF-8 menggunakan buffer byte stream standar.
+     * Kompatibel dengan seluruh level Android API (termasuk API 26-32 tanpa java.io.InputStream.readAllBytes).
+     */
+    public static String readAssetString(String path) throws IOException {
+        try (InputStream in = openAssetStream(path)) {
+            if (in == null) return null;
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) != -1) {
+                out.write(buf, 0, n);
+            }
+            return out.toString(StandardCharsets.UTF_8.name());
+        }
+    }
+
     public static List<String> availableDatasetIds() { return Collections.singletonList(VERIFIED_DATASET_ID); }
 
     public static String canonicalDatasetId(String id) {

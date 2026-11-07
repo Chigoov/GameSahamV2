@@ -80,4 +80,16 @@ public final class MarketEvent implements Serializable {
         obj.put("isPublished", isPublished);
         return obj;
     }
+
+    public static MarketEvent fromJson(JSONObject obj) throws JSONException {
+        return new MarketEvent(
+                obj.getString("eventId"),
+                obj.getString("headline"),
+                obj.getString("summary"),
+                obj.optString("targetSector", "Semua"),
+                EventImpact.valueOf(obj.getString("impact")),
+                obj.getLong("sessionTimestamp"),
+                obj.getBoolean("isPublished")
+        );
+    }
 }

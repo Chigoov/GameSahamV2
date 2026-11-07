@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-theme="stockbit-dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Game Saham 2D Portrait</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=stockbit-1">
 </head>
 <body>
     <!-- Container Toast Notifikasi Realtime / Feedback Transaksi (Referensi Visual & UX) -->
@@ -17,7 +17,7 @@
         <button id="header-wealth-chip" class="wealth-chip" aria-label="Kas tersedia pribadi, buka portofolio"><small>Kas Tersedia ↗</small><strong id="header-net-worth">Memuat…</strong></button>
     </header>
     <div class="context-strip" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-        <div class="session-indicator" style="display:flex; align-items:center; gap:6px; min-width:0; flex-wrap:nowrap;">
+        <div class="session-indicator" style="display:flex; align-items:center; gap:6px; min-width:0;">
             <span id="session-dot" class="status-dot"></span>
             <span id="session-label">Memuat sesi</span>
             <time id="clock-display" style="white-space:nowrap;"></time>
@@ -114,12 +114,12 @@
 
                 <!-- Search & Filter Controls (Cleaned & Streamlined) -->
                 <div class="market-filter-card" style="margin-bottom:12px;">
-                    <input id="search-stock-input" class="input-field" style="margin:0 0 8px 0;" type="text" placeholder="🔍 Cari kode atau nama emiten…">
+                    <input id="search-stock-input" class="input-field" style="margin:0 0 8px 0;" type="search" aria-label="Cari saham" placeholder="Cari kode atau nama emiten">
                     <div class="filter-chips-bar" style="display:flex; gap:6px; overflow-x:auto; padding-bottom:4px;">
                         <button type="button" class="subtab-pill active" id="chip-filter-all" data-filter="all">Semua</button>
-                        <button type="button" class="subtab-pill" id="chip-filter-idx" data-filter="IDX">IDX (Indonesia)</button>
-                        <button type="button" class="subtab-pill" id="chip-filter-us" data-filter="US">US (Wall St)</button>
-                        <button type="button" class="subtab-pill" id="chip-filter-watch" data-filter="watchlist">Watchlist ★</button>
+                        <button type="button" class="subtab-pill" id="chip-filter-idx" data-filter="IDX">IDX</button>
+                        <button type="button" class="subtab-pill" id="chip-filter-us" data-filter="US">US</button>
+                        <button type="button" class="subtab-pill" id="chip-filter-watch" data-filter="watchlist">Pantauan</button>
                     </div>
                     <div style="display:none !important;">
                         <select id="filter-exchange-select"><option value="">Semua</option><option value="IDX">IDX</option><option value="US">US</option></select>
@@ -153,7 +153,7 @@
         <section id="view-firma" class="screen-view">
             <div class="page-heading">
                 <div>
-                    <h1 style="font-size:1.25rem; font-weight:700; color:#FFF; margin:0 0 10px 0;">Bisnis Saya</h1>
+                    <h1 style="font-size:1.25rem; font-weight:700; color:var(--text-primary); margin:0 0 10px 0;">Bisnis Saya</h1>
                 </div>
             </div>
             <div class="firma-subnav" style="display:flex; gap:8px; margin-bottom:14px;">
@@ -170,12 +170,12 @@
         <section id="view-keuangan" class="screen-view">
             <div class="page-heading">
                 <div>
-                    <h1 style="font-size:1.25rem; font-weight:700; color:#FFF; margin:0 0 10px 0;">Pusat Keuangan</h1>
+                    <h1 style="font-size:1.25rem; font-weight:700; color:var(--text-primary); margin:0 0 10px 0;">Pusat Keuangan</h1>
                 </div>
             </div>
             <div class="keuangan-subnav">
                 <button class="subtab-pill active" id="keuangan-subtab-makro" data-keuangan-subtab="makro">🌐 Iklim & Warta</button>
-                <button class="subtab-pill" id="keuangan-subtab-radar" data-keuangan-subtab="radar">🎯 Radar Saham</button>
+                <button class="subtab-pill" id="keuangan-subtab-radar" data-keuangan-subtab="radar">Riset</button>
                 <button class="subtab-pill" id="keuangan-subtab-bank" data-keuangan-subtab="bank">🏦 Deposito Bank</button>
                 <button class="subtab-pill" id="keuangan-subtab-kalender" data-keuangan-subtab="kalender">📅 Kalender</button>
             </div>
@@ -261,6 +261,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=20261101_0235"></script>
+    <script src="app.js?v=stockbit-1"></script>
 </body>
 </html>

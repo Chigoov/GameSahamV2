@@ -19,6 +19,7 @@ public final class MultiAssetTradingService {
     private BigDecimal referenceFx;
     private long valuationAnchor = -1, valuationAt = -1;
     public MultiAssetTradingService(FundBuilderService products) { this.products = products; }
+    public FundBuilderService getProducts() { return products; }
     public void reset() { receipts.clear(); accrualAt.clear(); accrualRemainders.clear(); referenceStocks.clear(); referenceFx = null; valuationAnchor = -1; valuationAt = -1; }
     private Money price(String id) {
         BondInstrument bond = products.getBond(id);
@@ -128,10 +129,15 @@ public final class MultiAssetTradingService {
         return plan;
     }
     public void settleCoupon(Account owner, Account dealer, EconomyLedger ledger, long now) {
+        if (owner == null || dealer == null || ledger == null) return;
         List<CouponSettlement> plan = couponPlan(owner, dealer, now);
         Money total = Money.zero(Currency.IDR);
         for (CouponSettlement settlement : plan) total = total.add(settlement.due).add(settlement.principal);
-        if (dealer.getAvailableCash(Currency.IDR).isLessThan(total)) throw new IllegalStateException("Kupon/pelunasan tertunda: likuiditas penerbit kurang");
+        if (total.isZero()) return;
+        if (dealer.getAvailableCash(Currency.IDR).isLessThan(total)) {
+            // AU05: Kas penerbit belum cukup -> kewajiban pending dan retry saat kas mencukupi, jangan throw exception yang mem-pause jam dunia
+            return;
+        }
         applyCoupons(owner, dealer, ledger, plan, now);
     }
     private void applyCoupons(Account owner, Account dealer, EconomyLedger ledger, List<CouponSettlement> plan, long now) {

@@ -201,10 +201,10 @@ public class CorporateActionIpoVotingTest {
         );
         facade.getCorporateService().scheduleCorporateAction(divAction);
 
-        // 3. Jadwalkan IPO NCLD dengan tanggal listing besok dan pesan 20 lot
+        // Three ordering days, then allotment, distribution and listing on separate game dates.
         IpoOffering ipo = new IpoOffering(
                 "IPO-AUTO-NCLD", "NCLD", "Nusantara Cloud Tech Tbk", Currency.IDR,
-                Money.of(500, Currency.IDR), 100, 100_000, tomorrow
+                Money.of(500, Currency.IDR), 100, 100_000, today.plusDays(3)
         );
         facade.getCorporateService().registerIpoOffering(ipo);
         IpoSubscription sub = facade.orderIpo("IPO-AUTO-NCLD", 20);
@@ -213,13 +213,9 @@ public class CorporateActionIpoVotingTest {
 
         Money cashBefore = personal.getTotalCash(Currency.IDR);
 
-        // 4. Majukan waktu dan jalankan penutupan hari
-        facade.getClock().play();
-        facade.getClock().tick((int) java.time.Duration.between(facade.getClock().getCurrentTime(), java.time.LocalTime.of(16, 1)).getSeconds());
-        facade.getClock().pause();
-
-        com.tradingglobal3d.core.career.DailySessionReport report = facade.closeDayAndAdvance();
-        assertNotNull(report);
+        // Daily settlement now follows the world clock across midnight, without a player skip.
+        facade.advanceWorldSecondsForTest(86400L - facade.getClock().getCurrentTime().toSecondOfDay());
+        assertFalse(facade.getCareerManager().getSessionReports().isEmpty());
         assertEquals(tomorrow, facade.getClock().getCurrentDate());
 
         // 5. Verifikasi Dividen Tunai dieksekusi otomatis
@@ -233,6 +229,11 @@ public class CorporateActionIpoVotingTest {
         assertTrue(ipo.isAllotted());
         assertEquals(IpoSubscription.SubscriptionStatus.ALLOTTED, sub.getStatus());
         assertEquals(20, sub.getAllottedLots()); // Sesuai REV-03: 20 lot pesanan dipenuhi 100% karena penawaran jauh mencukupi
+        assertFalse(ipo.isDistributed());
+        assertNull(personal.getPosition("NCLD"));
+        assertEquals(Money.of(1_000_000, Currency.IDR), personal.getReservedCash(Currency.IDR));
+        facade.advanceWorldSecondsForTest(86400);
+        assertTrue(ipo.isDistributed());
         Position ncldPos = personal.getPosition("NCLD");
         assertNotNull("Saham IPO harus masuk portofolio pemain", ncldPos);
         assertEquals(2000, ncldPos.getQuantity());

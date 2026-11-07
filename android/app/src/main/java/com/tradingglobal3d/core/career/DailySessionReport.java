@@ -40,4 +40,12 @@ public final class DailySessionReport {
     public Money getSalaryReceived() { return salaryReceived; }
     public int getTotalFillsCount() { return totalFillsCount; }
     public String getSummaryNote() { return summaryNote; }
+
+    public double getReturnPercent() {
+        if (startingNetWorth == null || startingNetWorth.getAmount().signum() <= 0) return 0.0;
+        return dailyPnL.getAmount()
+                .divide(startingNetWorth.getAmount(), 6, java.math.RoundingMode.HALF_UP)
+                .multiply(java.math.BigDecimal.valueOf(100))
+                .doubleValue();
+    }
 }

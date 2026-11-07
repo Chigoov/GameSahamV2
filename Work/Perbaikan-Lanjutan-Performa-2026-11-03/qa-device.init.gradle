@@ -1,0 +1,14 @@
+// QA output and app data are separate; production build.gradle and application ID stay intact.
+def taskRoot = new File(gradle.startParameter.currentDir.parentFile,
+        'Work/Perbaikan-Lanjutan-Performa-2026-11-03')
+gradle.beforeProject { project ->
+    if (project.path == ':app') {
+        project.layout.buildDirectory.set(new File(taskRoot, 'qa-device-build'))
+        project.pluginManager.withPlugin('com.android.application') {
+            project.extensions.getByName('androidComponents').finalizeDsl { android ->
+                android.buildTypes.getByName('debug').applicationIdSuffix = '.qa'
+                android.sourceSets.getByName('debug').manifest.srcFile(new File(taskRoot, 'qa-device-manifest.xml'))
+            }
+        }
+    }
+}

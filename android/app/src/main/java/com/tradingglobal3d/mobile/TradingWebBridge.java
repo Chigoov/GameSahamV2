@@ -27,12 +27,14 @@ import java.util.Objects;
 public final class TradingWebBridge {
     private final TradingFacade facade;
     private java.lang.ref.WeakReference<MainActivity> activityRef;
+    private static final java.util.concurrent.atomic.AtomicLong activeBridgeEpoch = new java.util.concurrent.atomic.AtomicLong(0);
+    private final long myEpoch;
     private volatile String clockSyncResult = "{\"success\":true,\"status\":\"IDLE\"}";
     private volatile boolean clockSyncPending;
     private volatile boolean clockRequestedForeground = true;
     private boolean clockSaveRequested;
     private long lastClockSaveNanos;
-    private boolean destroyed;
+    private volatile boolean destroyed;
 
     private MainActivity getActivity() {
         return activityRef != null ? activityRef.get() : null;
@@ -54,6 +56,7 @@ public final class TradingWebBridge {
 
     public synchronized void destroy() {
         destroyed = true;
+        clockSyncPending = false;
         clockWorker.shutdown();
     }
 
@@ -64,13 +67,18 @@ public final class TradingWebBridge {
         clockSaveRequested |= !foreground;
         if (clockSyncPending) return clockSyncResult;
         clockSyncPending = true;
-        facade.beginWorldReconciliation();
+        boolean reloadCommitted = facade.beginWorldReconciliation();
         clockSyncResult = "{\"success\":true,\"status\":\"PENDING\"}";
         clockWorker.execute(() -> {
+          boolean reload = reloadCommitted;
           while (true) {
             boolean targetForeground;
             boolean saveRequested;
             synchronized (TradingWebBridge.this) {
+                if (destroyed || myEpoch != activeBridgeEpoch.get()) {
+                    debugClockStage("aborted_superseded");
+                    break;
+                }
                 targetForeground = clockRequestedForeground;
                 saveRequested = clockSaveRequested;
                 clockSaveRequested = false;
@@ -78,20 +86,28 @@ public final class TradingWebBridge {
             String result;
             boolean completed = false;
             try {
+                if (destroyed || myEpoch != activeBridgeEpoch.get()) break;
                 debugClockStage("start");
                 if (facade.hasPendingBackupRecoveryOffer()) throw new IllegalStateException("Progres membutuhkan pemulihan");
-                if (facade.getClock() == null) {
+                boolean resumed = reload || facade.getClock() == null;
+                if (resumed) {
                     debugClockStage("startOrResume");
                     if (!facade.startOrResume()) throw new IllegalStateException("Progres membutuhkan pemulihan");
+                    reload = false;
                 }
                 debugClockStage("lifecycle");
                 boolean lifecycleChanged = facade.getClock().isForeground() != targetForeground;
-                facade.onAppLifecycleChanged(targetForeground);
+                JSONObject committedResume = facade.onAppLifecycleChanged(targetForeground);
                 debugClockStage("syncClock");
-                facade.syncClock();
+                if (!resumed && !lifecycleChanged) facade.syncClock();
                 long nanos = System.nanoTime();
-                if (saveRequested || lifecycleChanged || !targetForeground || lastClockSaveNanos == 0
+                if (resumed || committedResume != null) lastClockSaveNanos = nanos;
+                if (saveRequested || (lifecycleChanged && committedResume == null) || !targetForeground || lastClockSaveNanos == 0
                         || nanos - lastClockSaveNanos >= 30_000_000_000L) {
+                    if (destroyed || myEpoch != activeBridgeEpoch.get()) {
+                        debugClockStage("save_aborted_superseded");
+                        break;
+                    }
                     debugClockStage("save");
                     facade.setWorldReconciliationStage("SAVING");
                     facade.save();
@@ -146,6 +162,10 @@ public final class TradingWebBridge {
 
     public TradingWebBridge(TradingFacade facade, MainActivity activity) {
         this.facade = Objects.requireNonNull(facade);
+        synchronized (com.tradingglobal3d.core.storage.SaveManager.class) {
+            myEpoch = activeBridgeEpoch.incrementAndGet();
+        }
+        facade.getSaveManager().setWriteAuthority(() -> myEpoch == activeBridgeEpoch.get());
         this.activityRef = activity != null ? new java.lang.ref.WeakReference<>(activity) : null;
     }
 
@@ -213,6 +233,18 @@ public final class TradingWebBridge {
                 obj.put("lotSize", inst.getLotSize());
                 obj.put("currentPrice", inst.getCurrentPrice().format());
                 obj.put("currentPriceRaw", inst.getCurrentPrice().getAmount().toPlainString());
+                obj.put("previousCloseRaw", inst.getPreviousClosePrice().getAmount().toPlainString());
+                obj.put("dailyChangeRaw", inst.getCurrentPrice().getAmount().subtract(inst.getPreviousClosePrice().getAmount()).toPlainString());
+                obj.put("sparkline", facade.getIntradaySparkline(inst));
+                obj.put("maxLeverage", facade.getStockLeverageLimit(inst.getId()));
+                obj.put("highPriceRaw", inst.getDayVolume() == 0 ? JSONObject.NULL : inst.getDayHigh().getAmount().toPlainString());
+                obj.put("lowPriceRaw", inst.getDayVolume() == 0 ? JSONObject.NULL : inst.getDayLow().getAmount().toPlainString());
+                obj.put("openPriceRaw", inst.getDayOpenPrice() == null ? JSONObject.NULL : inst.getDayOpenPrice().getAmount().toPlainString());
+                obj.put("volumeLots", BigDecimal.valueOf(inst.getDayVolume()).divide(BigDecimal.valueOf(inst.getLotSize())).toPlainString());
+                obj.put("dayValueRaw", inst.getDayTurnover() == null ? JSONObject.NULL : inst.getDayTurnover().toPlainString());
+                obj.put("avgPriceRaw", inst.getDayAveragePrice() == null ? JSONObject.NULL : inst.getDayAveragePrice().toPlainString());
+                obj.put("dailyCeilingRaw", inst.getDailyCeilingPrice() == null ? JSONObject.NULL : inst.getDailyCeilingPrice().getAmount().toPlainString());
+                obj.put("dailyFloorRaw", inst.getDailyFloorPrice() == null ? JSONObject.NULL : inst.getDailyFloorPrice().getAmount().toPlainString());
                 obj.put("dailyChangePercent", String.format(java.util.Locale.US, "%.2f", inst.getDailyChangePercent()));
                 obj.put("isActiveTrading", inst.isActiveTrading());
                 obj.put("isWatchlist", facade.getCatalog().isInWatchlist(inst.getId()));
@@ -247,7 +279,7 @@ public final class TradingWebBridge {
                     o.put("price", inst.getCurrentPrice().format());
                     o.put("rawPrice", inst.getCurrentPrice().getAmount().toPlainString());
                     o.put("dailyChangePercent", String.format(java.util.Locale.US, "%.2f", inst.getDailyChangePercent()));
-                    o.put("volumeLots", inst.getDayVolume());
+                    o.put("volumeLots", BigDecimal.valueOf(inst.getDayVolume()).divide(BigDecimal.valueOf(inst.getLotSize())));
                     return o.toString();
                 }
                 return "{}";
@@ -262,7 +294,7 @@ public final class TradingWebBridge {
                 sb.append("[\"").append(inst.getTicker()).append("\",")
                   .append(inst.getCurrentPrice().getAmount().toPlainString()).append(",")
                   .append(String.format(java.util.Locale.US, "%.2f", inst.getDailyChangePercent())).append(",")
-                  .append(inst.getDayVolume()).append("]");
+                  .append(BigDecimal.valueOf(inst.getDayVolume()).divide(BigDecimal.valueOf(inst.getLotSize())).toPlainString()).append("]");
             }
             sb.append("]");
             return sb.toString();
@@ -737,8 +769,22 @@ public final class TradingWebBridge {
         }
     }
 
+    public static long parseExactPositiveLong(Object raw, String fieldName) {
+        if (raw == null) throw new IllegalArgumentException(fieldName + " wajib diisi");
+        try {
+            BigDecimal bd = new BigDecimal(raw.toString().trim());
+            long val = bd.longValueExact();
+            if (val <= 0) throw new IllegalArgumentException(fieldName + " harus berupa bilangan bulat positif");
+            return val;
+        } catch (ArithmeticException | NumberFormatException e) {
+            throw new IllegalArgumentException(fieldName + " harus berupa bilangan bulat (bukan pecahan): " + raw);
+        }
+    }
+
     private Order parseOrder(String json) throws JSONException {
         JSONObject obj = new JSONObject(json);
+        String requestId = obj.getString("requestId");
+        if (requestId.startsWith("MARGIN-LIQ-")) throw new IllegalArgumentException("ID order dicadangkan untuk likuidasi sistem");
         String accountId = obj.optString("accountId", facade.getPersonalAccount().getId());
         requirePlayerAccount(accountId);
         Instrument instrument = facade.getCatalog().getById(obj.getString("instrumentId"));
@@ -747,8 +793,9 @@ public final class TradingWebBridge {
         Money limit = type == OrderType.LIMIT ? new Money(new BigDecimal(obj.getString("limitPrice")), instrument.getCurrency()) : null;
         Money trigger = type == OrderType.STOP_LOSS || type == OrderType.TAKE_PROFIT
                 ? new Money(new BigDecimal(obj.getString("triggerPrice")), instrument.getCurrency()) : null;
-        return new Order("ORD-" + java.util.UUID.randomUUID(), obj.getString("requestId"), accountId, instrument.getId(),
-                OrderSide.valueOf(obj.getString("side")), type, limit, trigger, obj.getLong("quantity"), facade.getClock().getGameTimestamp(), null);
+        long qty = parseExactPositiveLong(obj.get("quantity"), "Jumlah lembar (quantity)");
+        return new Order("ORD-" + java.util.UUID.randomUUID(), requestId, accountId, instrument.getId(),
+                OrderSide.valueOf(obj.getString("side")), type, limit, trigger, qty, facade.getClock().getGameTimestamp(), null);
     }
 
     private Account requirePlayerAccount(String id) {
@@ -762,7 +809,13 @@ public final class TradingWebBridge {
 
     @JavascriptInterface
     public String previewOrder(String json) {
-        try { return facade.previewOrder(parseOrder(json)).toString(); }
+        try {
+            Order order = parseOrder(json);
+            JSONObject request = new JSONObject(json);
+            return (request.has("leverageMultiplier")
+                    ? facade.previewLeveragedBuy(order, Math.toIntExact(parseExactPositiveLong(request.get("leverageMultiplier"), "Leverage")))
+                    : facade.previewOrder(order)).toString();
+        }
         catch (Exception error) {
             try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
             catch (JSONException impossible) { return "{\"success\":false}"; }
@@ -778,12 +831,30 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String getLeveragedOrderCapacity(String accountId, String instrumentId, int multiplier) {
+        try {
+            requirePlayerAccount(accountId);
+            return facade.getOrderCapacity(accountId, instrumentId, "BUY", "MARKET", "", multiplier).toString();
+        } catch (Exception error) { return bridgeError(error); }
+    }
+
+    @JavascriptInterface
     public String submitOrder(String jsonOrderStr) {
         try {
             Order order = parseOrder(jsonOrderStr);
 
-            MatchingEngine.OrderResult res = facade.submitOrder(order);
-            JSONObject result = new JSONObject();
+            JSONObject request = new JSONObject(jsonOrderStr);
+            MatchingEngine.OrderResult res;
+            if (request.has("leverageMultiplier")) {
+                int multiplier = Math.toIntExact(parseExactPositiveLong(request.get("leverageMultiplier"), "Leverage"));
+                Currency currency = facade.getCatalog().getById(order.getInstrumentId()).getCurrency();
+                BigDecimal amount = new BigDecimal(request.getString("marginPrincipalRaw"));
+                Money principal = new Money(amount, currency);
+                if (!principal.isPositive() || amount.compareTo(principal.getAmount()) != 0)
+                    throw new IllegalArgumentException("Pokok pinjaman tidak valid");
+                res = facade.confirmLeveragedBuy(order, multiplier, principal);
+            } else res = facade.submitOrder(order);
+            JSONObject result = new JSONObject(getOrderStatus(res.order.getRequestId()));
             result.put("success", res.isSuccess);
             result.put("message", res.message);
             result.put("orderId", res.order.getId());
@@ -791,9 +862,7 @@ public final class TradingWebBridge {
             result.put("filledQuantity", res.order.getFilledQuantity());
             result.put("remainingQuantity", res.order.getRemainingQuantity());
             return result.toString();
-        } catch (Exception e) {
-            return "{\"success\":false,\"message\":\"" + e.getMessage() + "\"}";
-        }
+        } catch (Exception e) { return bridgeError(e); }
     }
 
     private String fxCommand(String json, boolean confirm) {
@@ -885,6 +954,10 @@ public final class TradingWebBridge {
                 default: statusLabel = health.getStatus().name();
             }
             result.put("statusLabel", statusLabel);
+            long marginDeadline = facade.getRiskService().getMarginCallDeadline(personal.getId());
+            result.put("marginCallDeadlineRealAt", marginDeadline);
+            result.put("marginCallRemainingRealMs", facade.getMarginCallRemainingRealMs());
+            result.put("marginCallGraceRealMinutes", 120);
             result.put("valuationRateUsdIdr", facade.getFxService().getMidRate().toPlainString());
             result.put("availableCashIdr", personal.getAvailableCash(Currency.IDR).format());
             result.put("availableCashUsd", personal.getAvailableCash(Currency.USD).format());
@@ -1086,7 +1159,8 @@ public final class TradingWebBridge {
     public String multiAssetOrder(String jsonRequest) {
         try {
             JSONObject r = new JSONObject(jsonRequest);
-            return facade.multiAssetOrder(r.optString("requestId", null), r.getString("instrumentId"), r.getBoolean("buy"), r.getLong("quantity"), r.optString("quoteVersion", null)).toString();
+            long quantity = parseExactPositiveLong(r.get("quantity"), "Jumlah unit multi-aset");
+            return facade.multiAssetOrder(r.optString("requestId", null), r.getString("instrumentId"), r.getBoolean("buy"), quantity, r.optString("quoteVersion", null)).toString();
         } catch (Exception error) { return bridgeError(error); }
     }
 
@@ -1448,7 +1522,7 @@ public final class TradingWebBridge {
             String textSize = prefs != null ? prefs.optString("textSize", "100%") : "100%";
             boolean hc = prefs != null && prefs.optBoolean("highContrast", false);
             boolean rm = prefs != null && prefs.optBoolean("reducedMotion", false);
-            String theme = prefs != null ? prefs.optString("theme", "EMAS_KLASIK") : "EMAS_KLASIK";
+            String theme = prefs != null ? prefs.optString("theme", null) : null;
             Boolean offlineProgress = (prefs != null && prefs.has("offlineProgressEnabled"))
                     ? prefs.getBoolean("offlineProgressEnabled") : null;
             return facade.updatePlayerProfile(name, textSize, hc, rm, theme, offlineProgress).toString();
@@ -1510,12 +1584,15 @@ public final class TradingWebBridge {
             boolean hasPro = facade.getResearchService().hasAccess(com.tradingglobal3d.core.research.TerminalTier.PRO, facade.getClock().getGameTimestamp());
             JSONArray list = new JSONArray();
             int totalUndervalued = 0;
+            int totalEligible = 0;
             if (facade.getCatalog() != null) {
                 for (com.tradingglobal3d.core.market.Instrument inst : facade.getCatalog().getAllInstruments()) {
-                    if (!inst.isTradable()) continue;
+                    if (!inst.isTradable() || !facade.isSectorUnlocked(inst.getSector(), inst.getExchange())) continue;
+                    totalEligible++;
                     double gapRate = facade.getResearchService().calculateGapRate(inst);
                     String signal = facade.getResearchService().getFundamentalSignal(gapRate);
-                    if (gapRate > 0) totalUndervalued++;
+                    if (!(gapRate > 0)) continue;
+                    totalUndervalued++;
 
                     // Jika pemain belum berlangganan PRO di menu Riset, berikan 2 saham teaser
                     if (!hasPro && list.length() >= 2) continue;
@@ -1537,6 +1614,7 @@ public final class TradingWebBridge {
                     .put("success", true)
                     .put("hasProAccess", hasPro)
                     .put("totalUndervalued", totalUndervalued)
+                    .put("totalEligible", totalEligible)
                     .put("items", list)
                     .toString();
         } catch (Exception e) {
@@ -1583,7 +1661,7 @@ public final class TradingWebBridge {
         try {
             JSONObject req = new JSONObject(jsonRequest);
             String ticker = req.getString("ticker");
-            long shares = req.getLong("shares");
+            long shares = parseExactPositiveLong(req.get("shares"), "Jumlah lembar short");
             com.tradingglobal3d.core.risk.ShortPosition sp = facade.openShortPosition(ticker, shares);
             return new JSONObject().put("success", true)
                     .put("ticker", sp.getTicker())
@@ -1601,7 +1679,7 @@ public final class TradingWebBridge {
         try {
             JSONObject req = new JSONObject(jsonRequest);
             String ticker = req.getString("ticker");
-            long shares = req.getLong("shares");
+            long shares = parseExactPositiveLong(req.get("shares"), "Jumlah lembar short");
             facade.closeShortPosition(ticker, shares);
             return new JSONObject().put("success", true)
                     .put("ticker", ticker)
@@ -1631,14 +1709,28 @@ public final class TradingWebBridge {
                         .put("offeringPriceRaw", ipo.getOfferingPrice().getAmount().toPlainString())
                         .put("lotSize", ipo.getLotSize())
                         .put("sharesOffered", ipo.getSharesOffered())
+                        .put("bookbuildingDate", ipo.getOfferingStartDate().minusDays(1).toString())
                         .put("offeringStartDate", ipo.getOfferingStartDate().toString())
                         .put("offeringEndDate", ipo.getOfferingEndDate().toString())
                         .put("allotmentDate", ipo.getAllotmentDate().toString())
                         .put("listingDate", ipo.getListingDate().toString())
-                        .put("isAllotted", ipo.isAllotted()));
+                        .put("isAllotted", ipo.isAllotted())
+                        .put("distributionDate", ipo.getDistributionDate().toString())
+                        .put("isDistributed", ipo.isDistributed())
+                        .put("isListed", ipo.isDistributed() && !ipo.getListingDate().isAfter(facade.getClock().getCurrentDate()))
+                        .put("isWatched", facade.getCorporateService().isIpoWatched(ipo.getId()))
+                        .put("canSubscribe", !ipo.isAllotted() && ipo.isOfferingPeriod(facade.getClock().getCurrentDate()))
+                        .put("isUpcoming", facade.getClock().getCurrentDate().isBefore(ipo.getOfferingStartDate())));
             }
             return result.toString();
         } catch (Exception error) { return "[]"; }
+    }
+
+    @JavascriptInterface
+    public String toggleIpoWatch(String ipoId) {
+        try {
+            return new JSONObject().put("success", true).put("isWatched", facade.toggleIpoWatch(ipoId)).toString();
+        } catch (Exception error) { return bridgeError(error); }
     }
 
     @JavascriptInterface
@@ -1646,8 +1738,7 @@ public final class TradingWebBridge {
         try {
             JSONObject req = new JSONObject(jsonRequest);
             String ipoId = req.getString("ipoId");
-            long lots = req.getLong("lots");
-            if (lots <= 0) return new JSONObject().put("success", false).put("message", "Jumlah lot harus positif").toString();
+            long lots = parseExactPositiveLong(req.get("lots"), "Jumlah lot pemesanan e-IPO");
             com.tradingglobal3d.core.corporate.IpoSubscription sub = facade.orderIpo(ipoId, lots, req.getString("requestId"));
             return new JSONObject().put("success", true)
                     .put("subscriptionId", sub.getId())
@@ -1702,19 +1793,16 @@ public final class TradingWebBridge {
             }
             JSONArray arr = new JSONArray();
             for (com.tradingglobal3d.core.economy.LedgerEntry entry : facade.getLedger().getEntries()) {
-                if (entry.getType() == com.tradingglobal3d.core.economy.LedgerEntryType.TRADE_BUY || entry.getType() == com.tradingglobal3d.core.economy.LedgerEntryType.TRADE_SELL) {
-                    Account acc = facade.getAccount(entry.getAccountId());
-                    if (acc != null && acc.getType() == com.tradingglobal3d.core.model.AccountType.FIRM) {
-                        if (entry.getAmount().getAmount().compareTo(new BigDecimal("500000000")) >= 0) {
-                            arr.put(new JSONObject()
-                                    .put("id", entry.getId())
-                                    .put("accountName", acc.getName())
-                                    .put("type", entry.getType().name())
-                                    .put("amount", entry.getAmount().format())
-                                    .put("description", entry.getDescription())
-                                    .put("timestamp", entry.getTimestamp()));
-                        }
-                    }
+                if (!com.tradingglobal3d.core.economy.EconomyLedger.isLargeNpcTrade(entry)) continue;
+                Account acc = facade.getAccount(entry.getAccountId());
+                if (acc != null && acc.getType() == com.tradingglobal3d.core.model.AccountType.FIRM) {
+                    arr.put(new JSONObject()
+                            .put("id", entry.getId())
+                            .put("accountName", acc.getName())
+                            .put("type", entry.getType().name())
+                            .put("amount", entry.getAmount().format())
+                            .put("description", entry.getDescription())
+                            .put("timestamp", entry.getTimestamp()));
                 }
             }
             return new JSONObject().put("success", true).put("transactions", arr).toString();
@@ -2025,6 +2113,18 @@ public final class TradingWebBridge {
     }
 
     @JavascriptInterface
+    public String resumeTerminalAutoRenewal() {
+        try {
+            boolean ok = facade.resumeTerminalAutoRenewal();
+            return new JSONObject().put("success", ok)
+                    .put("message", ok ? "Perpanjangan otomatis aktif." : "Masa aktif paket sudah berakhir.").toString();
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
+    }
+
+    @JavascriptInterface
     public String getPendingBackupRecoveryOffer() {
         try {
             if (!facade.hasPendingBackupRecoveryOffer()) {
@@ -2087,6 +2187,11 @@ public final class TradingWebBridge {
         try {
             Account account = requirePlayerAccount(accountId);
             if (account == null) return new JSONObject().put("success", false).put("message", "Akun tidak ditemukan").toString();
+            account = account.copy();
+            for (Position position : account.getPositions().values()) {
+                Instrument instrument = facade.getCatalog().getById(position.getExchange() + ":" + position.getTicker());
+                if (instrument != null) position.updateMarketPrice(instrument.getCurrentPrice().getAmount());
+            }
             JSONObject result = new JSONObject().put("success", true).put("accountId", account.getId())
                     .put("accountName", account.getName()).put("accountType", account.getType().name());
             BigDecimal rate = facade.getFxService().getMidRate();
@@ -2117,9 +2222,17 @@ public final class TradingWebBridge {
             result.put("cash", cash);
             JSONArray positions = new JSONArray();
             for (Position p : account.getPositions().values()) {
-                Instrument inst = facade.getCatalog().getById(p.getExchange() + ":" + p.getTicker());
+                Instrument inst = facade.getCatalog() != null ? facade.getCatalog().getById(p.getExchange() + ":" + p.getTicker()) : null;
                 long lotSize = inst != null ? inst.getLotSize() : ("US".equalsIgnoreCase(p.getExchange()) ? 1 : 100);
                 String name = inst != null ? inst.getName() : p.getTicker();
+                if (inst == null && facade.getMultiAssetTrading() != null) {
+                    com.tradingglobal3d.core.multiasset.BondInstrument bond = facade.getMultiAssetTrading().getProducts().getBond("BOND:" + p.getTicker());
+                    if (bond != null) name = bond.getName();
+                    else {
+                        com.tradingglobal3d.core.multiasset.CommodityInstrument comm = facade.getMultiAssetTrading().getProducts().getCommodity("COMM:" + p.getTicker());
+                        if (comm != null) name = comm.getName();
+                    }
+                }
                 BigDecimal cost = p.getAverageCost();
                 BigDecimal current = p.getCurrentPrice();
                 BigDecimal pnlRaw = p.getUnrealizedPnL().getAmount();
@@ -2127,7 +2240,7 @@ public final class TradingWebBridge {
                         ? current.subtract(cost).divide(cost, 4, java.math.RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)).doubleValue()
                         : 0.0;
                 String instrumentId = p.getExchange() + ":" + p.getTicker();
-                long committedShares = facade.getCommittedShares(account.getId(), instrumentId);
+                long committedShares = inst != null ? facade.getCommittedShares(account.getId(), instrumentId) : 0L;
                 long reservedShares = Math.min(Math.max(0, p.getQuantity()), committedShares);
                 positions.put(new JSONObject()
                         .put("instrumentId", p.getExchange() + ":" + p.getTicker())
@@ -2150,7 +2263,10 @@ public final class TradingWebBridge {
             }
             return result.put("positions", positions).put("valuationRateUsdIdr", facade.getFxService().getMidRate().toPlainString())
                     .put("timestamp", System.currentTimeMillis()).toString();
-        } catch (Exception error) { return "{\"success\":false}"; }
+        } catch (Exception error) {
+            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
+            catch (JSONException impossible) { return "{\"success\":false}"; }
+        }
     }
 
     @JavascriptInterface
@@ -2216,6 +2332,14 @@ public final class TradingWebBridge {
                     .put("side", order.getSide().name()).put("type", order.getType().name())
                     .put("quantity", order.getTotalQuantity()).put("createdAt", order.getCreatedAt())
                     .put("currency", currency.name()).put("feeDataAvailable", feeDataAvailable);
+            String[] funding = order.getId().split("-", 4);
+            if (funding.length == 4 && "LEVERAGE".equals(funding[0])
+                    && ("2".equals(funding[1]) || "3".equals(funding[1])) && funding[3].equals(order.getRequestId())) {
+                BigDecimal principal = new BigDecimal(funding[2]);
+                result.put("leverageMultiplier", Integer.parseInt(funding[1]))
+                        .put("marginPrincipalRaw", principal.toPlainString())
+                        .put("ownCashRaw", feeDataAvailable ? filledValue.add(actualFee).subtract(principal).toPlainString() : JSONObject.NULL);
+            }
             if (filledQuantity > 0) {
                 result.put("filledValueRaw", filledValue.toPlainString())
                         .put("filledValue", new Money(filledValue, currency).format())
@@ -2298,11 +2422,11 @@ public final class TradingWebBridge {
             facade.save();
             MainActivity act = getActivity();
             if (act != null) act.notifySaveFailed(false);
-            return "{\"success\":true,\"message\":\"Game berhasil disimpan secara atomik\"}";
+            return new JSONObject().put("success", true).put("message", "Game berhasil disimpan secara atomik").toString();
         } catch (Exception e) {
             MainActivity act = getActivity();
             if (act != null) act.notifySaveFailed(true);
-            return "{\"success\":false,\"message\":\"" + e.getMessage() + "\"}";
+            return bridgeError(e);
         }
     }
 
@@ -2311,9 +2435,9 @@ public final class TradingWebBridge {
         try {
             boolean exists = facade.getSaveManager().getSaveFile().exists() || facade.getSaveManager().getBackupFile().exists();
             boolean ok = exists && facade.startOrResume();
-            return "{\"success\":" + ok + "}";
+            return new JSONObject().put("success", ok).toString();
         } catch (Exception e) {
-            return "{\"success\":false,\"message\":\"" + e.getMessage() + "\"}";
+            return bridgeError(e);
         }
     }
 
@@ -2422,8 +2546,13 @@ public final class TradingWebBridge {
                         .put("message", "Fitur replay historis telah dinonaktifkan sesuai keputusan produk terbaru. Silakan mainkan pasar utama.").toString();
             }
 
-            facade.startInternalGame(BigDecimal.valueOf(capital));
             String playerName = cfg.optString("playerName", "").trim();
+            if (!playerName.isEmpty()) {
+                // AU37: Validasi nama sebelum mereset atau menyentuh progres game yang sedang berjalan
+                new com.tradingglobal3d.core.player.PlayerProfileManager().setPlayerName(playerName);
+            }
+
+            facade.startInternalGame(BigDecimal.valueOf(capital));
             if (!playerName.isEmpty() && facade.getPlayerProfileManager() != null) {
                 facade.getPlayerProfileManager().setPlayerName(playerName);
             }
@@ -2433,8 +2562,7 @@ public final class TradingWebBridge {
                     .put("initialCapital", capital)
                     .put("message", "Permainan baru berhasil dimulai dengan modal awal " + Money.of(capital, Currency.IDR).format()).toString();
         } catch (Exception error) {
-            try { return new JSONObject().put("success", false).put("message", error.getMessage()).toString(); }
-            catch (JSONException impossible) { return "{\"success\":false}"; }
+            return bridgeError(error);
         }
     }
 }

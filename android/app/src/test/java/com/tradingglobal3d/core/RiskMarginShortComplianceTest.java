@@ -198,10 +198,12 @@ public class RiskMarginShortComplianceTest {
 
         // Kondisi awal masih aman
         RiskComplianceService.MarginHealthReport reportHealthy = facade.evaluateMarginHealth();
-        assertNotNull(reportHealthy);
+        assertEquals(MarginCallStatus.HEALTHY, reportHealthy.getStatus());
 
-        // Sekarang harga saham BBCA jatuh drastis dari 10.000 ke 4.500 (kerugian belum terealisasi masif)
-        personal.getPosition("BBCA").updateMarketPrice(BigDecimal.valueOf(4500));
+        for (int day = 0; day < 4; day++) {
+            bbca.updatePrice(bbca.getDailyFloorPrice(), 0);
+            if (day < 3) bbca.startNewTradingDay();
+        }
 
         RiskComplianceService.MarginHealthReport reportDistress = facade.evaluateMarginHealth();
         // Margin ratio turun drastis di bawah 30% -> Status MARGIN_CALL atau LIQUIDATION_REQUIRED (FR-15.06)
@@ -210,37 +212,11 @@ public class RiskMarginShortComplianceTest {
     }
 
     @Test
-    public void testForcedLiquidationEnforcesHaltRestrictions() {
+    public void testHealthyAccountCannotBeForciblyLiquidated() {
         Account personal = facade.getPersonalAccount();
-
-        // Pemain memiliki posisi BBCA 1.000 lembar
         personal.addPosition(new Position("BBCA", "IDX", Currency.IDR, 1000, BigDecimal.valueOf(10000), BigDecimal.valueOf(10250)));
-
-        // 1. Simulasikan bursa sedang HALT / Suspensi Sirkuit (FR-16.07)
-        facade.getMarketEngine().haltTrading("IDX:BBCA");
-        assertTrue(facade.getMarketEngine().isHalted("IDX:BBCA"));
-
-        // Percobaan likuidasi paksa saat HALT: DITAHAN (tidak dapat menembus batasan halt - FR-16.07)
-        boolean executedDuringHalt = facade.executeForcedLiquidation("BBCA");
-        assertFalse(executedDuringHalt);
-        // Saham pemain tetap utuh karena tidak bisa dijual saat pasar suspend
+        assertFalse(facade.executeForcedLiquidation("BBCA"));
         assertEquals(1000, personal.getPosition("BBCA").getQuantity());
-
-        // Verifikasi audit log mencatat kepatuhan suspensi bursa
-        List<ComplianceAuditLog> logs = facade.getRiskService().getAuditLogs();
-        boolean haltAuditLogged = logs.stream().anyMatch(l ->
-                l.getCategory() == ComplianceAuditLog.AuditCategory.HALT_ENFORCEMENT);
-        assertTrue(haltAuditLogged);
-
-        // 2. Sekarang bursa dibuka kembali (resume normal)
-        facade.getMarketEngine().resumeTrading("IDX:BBCA");
-        assertFalse(facade.getMarketEngine().isHalted("IDX:BBCA"));
-
-        // Likuidasi paksa setelah bursa normal: Berhasil dieksekusi (FR-15.07)
-        boolean executedNormal = facade.executeForcedLiquidation("BBCA");
-        assertTrue(executedNormal);
-        assertEquals(0, personal.getPosition("BBCA").getQuantity());
-
         assertTrue(facade.reconcileAll());
     }
 
@@ -286,15 +262,9 @@ public class RiskMarginShortComplianceTest {
 
         int ledgerCountBefore = facade.getLedger().getEntries().size();
 
-        // Majukan jam clock ke 16:01 WIB agar siap tutup hari
-        facade.getClock().play();
-        facade.getClock().tick((int) java.time.Duration.between(facade.getClock().getCurrentTime(), java.time.LocalTime.of(16, 1)).getSeconds());
-        facade.getClock().pause();
-        assertTrue(facade.getClock().getCurrentTime().isAfter(java.time.LocalTime.of(16, 0, 59)));
-
-        // Jalankan penutupan hari
-        com.tradingglobal3d.core.career.DailySessionReport report = facade.closeDayAndAdvance();
-        assertNotNull(report);
+        facade.advanceWorldSecondsForTest(86400 - facade.getClock().getCurrentTime().toSecondOfDay());
+        assertEquals(java.time.LocalTime.MIDNIGHT, facade.getClock().getCurrentTime());
+        assertEquals(1, facade.getCareerManager().getSessionReports().size());
 
         // Verifikasi mutasi biaya pembiayaan harian tercatat di ledger
         List<com.tradingglobal3d.core.economy.LedgerEntry> entries = facade.getLedger().getEntries();

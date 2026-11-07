@@ -73,13 +73,16 @@ public final class TradingFacade {
     private volatile boolean worldReconciliationPending;
     private volatile boolean worldReconciliationFailed;
     private volatile String worldProgressJson = "{\"stage\":\"IDLE\"}";
+    private static final long OFFLINE_CHECKPOINT_REAL_MS = 7L * 86_400_000;
 
     public String getWorldReconciliationProgress() { return worldProgressJson; }
 
-    public void beginWorldReconciliation() {
+    public boolean beginWorldReconciliation() {
+        boolean reloadCommitted = worldReconciliationFailed;
         worldReconciliationPending = true;
         worldReconciliationFailed = false;
         worldProgressJson = "{\"stage\":\"PENDING\"}";
+        return reloadCommitted;
     }
 
     public void endWorldReconciliation(boolean success) {
@@ -115,6 +118,7 @@ public final class TradingFacade {
             boolean loaded = load();
             recoveryRequired = !loaded;
             if (loaded) {
+                saveWriteFailure = null;
                 resumeWorld();
             }
             return loaded;
@@ -126,7 +130,9 @@ public final class TradingFacade {
 
     private void resumeWorld() {
         long now = realTimeClock.millis();
-        if (lastRealTimeAnchor > 0 && now > lastRealTimeAnchor) reconcileOfflineElapsed(now - lastRealTimeAnchor);
+        if (lastRealTimeAnchor > 0 && now > lastRealTimeAnchor)
+            reconcileOfflineElapsed(now - lastRealTimeAnchor, now, true);
+        if (gameMode == GameMode.INTERNAL_MARKET) settleDueIpoListings(clock.getCurrentDate());
         this.lastRealTimeAnchor = Math.max(lastRealTimeAnchor, now);
         installmentLoanManager.processRealTimeAccrual(now);
         clock.setForeground(true);
@@ -252,16 +258,12 @@ public final class TradingFacade {
         }
     }
 
+    private double lastClosingMacroChg = 0.0;
+
     private void evaluateQuarterlyMacroShift() {
         int delta = 0;
-        if (catalog != null) {
-            Instrument bbca = catalog.getById("IDX:BBCA");
-            if (bbca != null) {
-                double chg = bbca.getDailyChangePercent();
-                if (chg > 1.5) delta = 2;
-                else if (chg < -1.5) delta = -2;
-            }
-        }
+        if (lastClosingMacroChg > 1.5) delta = 2;
+        else if (lastClosingMacroChg < -1.5) delta = -2;
         stepQuarterlyMacro(delta);
     }
 
@@ -300,6 +302,33 @@ public final class TradingFacade {
         this.primarySaveManager = saveManager;
         this.saveManager = Objects.requireNonNull(saveManager);
         configureSaveValidation();
+        marketEngine.getMatchingEngine().setFeeSettlementHook(this::resolveOrderFeeRate);
+    }
+
+    private BigDecimal resolveOrderFeeRate(Order order, Account account, Instrument instrument, BigDecimal baseRate, boolean recordUsage) {
+        if (account == null || account.getType() != AccountType.PERSONAL) {
+            return order.getEffectiveFeeRate(baseRate);
+        }
+        boolean canUseBooster = order.isBoosterApplied();
+        if (!canUseBooster && researchService != null && researchService.hasActiveBooster(ResearchBooster.BoosterType.FEE_DISCOUNT)) {
+            if (recordUsage) {
+                researchService.consumeBoosterUse(ResearchBooster.BoosterType.FEE_DISCOUNT);
+                order.setBoosterApplied(true);
+                canUseBooster = true;
+            } else {
+                canUseBooster = true;
+            }
+        }
+
+        if (canUseBooster) {
+            if (baseRate.compareTo(MatchingEngine.SELL_FEE_RATE) == 0) {
+                return new BigDecimal("0.0010"); // Pajak bursa tetap berlaku, komisi broker 0%
+            } else {
+                return BigDecimal.ZERO; // Komisi broker beli 0%
+            }
+        }
+
+        return order.getEffectiveFeeRate(baseRate);
     }
 
     private final java.util.function.Consumer<SaveState> savedStateValidator = state -> {
@@ -314,6 +343,10 @@ public final class TradingFacade {
     public synchronized JSONObject getLastOfflineCatchupReport() { return lastOfflineCatchupReport; }
 
     public synchronized JSONObject reconcileOfflineElapsed(long elapsedRealMs) {
+        return reconcileOfflineElapsed(elapsedRealMs, realTimeClock.millis(), false);
+    }
+
+    private JSONObject reconcileOfflineElapsed(long elapsedRealMs, long target, boolean checkpoint) {
         if (elapsedRealMs <= 0 || clock == null) return null;
 
         // B03: Dunia berjalan otomatis 48x seragam tanpa toggle pause pemain
@@ -324,10 +357,26 @@ public final class TradingFacade {
         LocalDate startDate = clock.getCurrentDate();
 
         // Di luar aplikasi / ditutup: selalu rasio inactive 48x (30 menit nyata = 1 hari game)
-        long gameSeconds = clock.advanceRealMs(elapsedRealMs, false);
-        if (gameSeconds > 0) {
-            advanceWorldSeconds(gameSeconds);
-            // B02: Penghapusan simulateDailyMarketMovement dari resume agar tidak ada drift per klik
+        long gameSeconds = 0;
+        long cursor = target - elapsedRealMs;
+        while (cursor < target) {
+            long span = target - cursor;
+            if (checkpoint && span > OFFLINE_CHECKPOINT_REAL_MS + GameClock.MS_PER_GAME_DAY / 48) {
+                long secondsAfterBudget = OFFLINE_CHECKPOINT_REAL_MS * 48 / 1000;
+                long afterBudget = (clock.getCurrentTime().toSecondOfDay() + secondsAfterBudget) % GameClock.SECONDS_PER_GAME_DAY;
+                long boundary = secondsAfterBudget + (GameClock.SECONDS_PER_GAME_DAY - afterBudget) % GameClock.SECONDS_PER_GAME_DAY;
+                span = (boundary * 1000 - clock.getGameMsRemainder() + 47) / 48;
+            }
+            long batchTarget = cursor + span;
+            long batchSeconds = clock.advanceRealMs(span, false);
+            if (batchSeconds > 0) advanceWorldSeconds(batchSeconds, batchTarget, checkpoint);
+            gameSeconds += batchSeconds;
+            cursor = batchTarget;
+            if (checkpoint && cursor < target) {
+                installmentLoanManager.processRealTimeAccrual(cursor);
+                lastRealTimeAnchor = cursor;
+                persistFinancialMutation();
+            }
         }
 
         Money endNetWorth = getPersonalNetWorth();
@@ -350,11 +399,11 @@ public final class TradingFacade {
             report.put("pnl", (pnl.isPositive() ? "+" : "") + pnl.format());
             report.put("pnlPositive", pnl.isPositive());
             report.put("cashAvailable", getPersonalAccount() != null ? getPersonalAccount().getAvailableCash(Currency.IDR).format() : "Rp 0");
-            report.put("timestamp", realTimeClock.millis());
+            report.put("timestamp", target);
         } catch (JSONException ignored) {}
 
         this.lastOfflineCatchupReport = report;
-        this.lastRealTimeAnchor = Math.max(lastRealTimeAnchor, realTimeClock.millis());
+        this.lastRealTimeAnchor = Math.max(lastRealTimeAnchor, target);
         return report;
     }
 
@@ -378,7 +427,7 @@ public final class TradingFacade {
         long now = realTimeClock.millis();
         JSONObject result = null;
         if (!foreground) {
-            if (now > lastRealTimeAnchor) advanceRealMs(now - lastRealTimeAnchor, true);
+            if (now > lastRealTimeAnchor) advanceRealMs(now - lastRealTimeAnchor, true, now);
             this.lastRealTimeAnchor = Math.max(lastRealTimeAnchor, now);
             clock.setForeground(false);
             try {
@@ -386,10 +435,11 @@ public final class TradingFacade {
             } catch (Exception ignored) {}
         } else {
             if (!clock.isForeground() && lastRealTimeAnchor > 0 && now > lastRealTimeAnchor) {
-                result = reconcileOfflineElapsed(now - lastRealTimeAnchor);
+                result = reconcileOfflineElapsed(now - lastRealTimeAnchor, now, true);
             }
             this.lastRealTimeAnchor = Math.max(lastRealTimeAnchor, now);
             clock.setForeground(true);
+            if (result != null) persistFinancialMutation();
         }
         return result;
     }
@@ -645,6 +695,11 @@ public final class TradingFacade {
         JSONArray mandates = new JSONArray();
         for (ClientMandate mandate : firmManager.getAllMandates()) {
             Account account = accounts.get(mandate.getClientAccountId());
+            Currency mandateCurrency = mandate.getInitialDeposit().getCurrency();
+            Money feesPaid = Money.zero(mandateCurrency);
+            if (account != null) for (LedgerEntry entry : ledger.getEntriesForAccount(account.getId()))
+                if (entry.getType() == LedgerEntryType.MANAGEMENT_FEE && !entry.isCredit()
+                        && entry.getCurrency() == mandateCurrency) feesPaid = feesPaid.add(entry.getAmount());
             if (mandate.getStatus() == ClientMandate.MandateStatus.ACTIVE) {
                 if (account == null) throw new IllegalStateException("Akun mandat aktif tidak tersedia");
                 aum = aum.add(account.getTotalPortfolioValue(Currency.IDR, fxService.getMidRate()));
@@ -655,6 +710,8 @@ public final class TradingFacade {
                     .put("accountId", mandate.getClientAccountId() == null ? JSONObject.NULL : mandate.getClientAccountId())
                     .put("riskProfile", mandate.getRiskProfile().name()).put("benchmark", mandate.getBenchmarkIndexId())
                     .put("initialDeposit", mandate.getInitialDeposit().format()).put("highWaterMark", mandate.getHighWaterMark().format())
+                    .put("currentValue", account == null ? JSONObject.NULL : account.getTotalPortfolioValue(mandateCurrency, fxService.getMidRate()).format())
+                    .put("feesPaid", feesPaid.format()).put("feesPaidRaw", feesPaid.getAmount().toPlainString())
                     .put("trust", mandate.getTrustScore()).put("managementFeeAnnualRate", mandate.getManagementFeeAnnualRate().toPlainString())
                     .put("performanceFeeRate", mandate.getPerformanceFeeRate().toPlainString())
                     .put("maxConcentration", mandate.getRiskProfile().getMaxConcentrationPerStock())
@@ -744,8 +801,14 @@ public final class TradingFacade {
         return catalog;
     }
 
+    private void bindResearchInstrumentAccess() {
+        researchService.setInstrumentAccess(catalog, instrument -> progressManager.getCurrentLevel()
+                >= getRequiredLevelForSector(instrument.getSector(), instrument.getExchange()));
+    }
+
     public synchronized void setCatalog(InstrumentCatalog catalog) {
         this.catalog = Objects.requireNonNull(catalog);
+        bindResearchInstrumentAccess();
         saveManager.invalidateValidatedPrimary();
         corporateService.bindShareSupplyCatalog(catalog);
         try { initialCatalogState = catalog.exportState(); }
@@ -772,7 +835,7 @@ public final class TradingFacade {
         initializeNewGame(mode, initialIdrCapital, GameClock.createDefault());
     }
 
-    private void initializeNewGame(GameMode mode, BigDecimal initialIdrCapital, GameClock startClock) {
+    public synchronized void initializeNewGame(GameMode mode, BigDecimal initialIdrCapital, GameClock startClock) {
         if (initialIdrCapital == null || initialIdrCapital.signum() <= 0)
             throw new IllegalArgumentException("Modal awal harus positif");
         this.gameMode = Objects.requireNonNull(mode);
@@ -783,7 +846,6 @@ public final class TradingFacade {
         this.skipDayReceipts.clear();
         this.strategyLabs.clear();
         this.runId = java.util.UUID.randomUUID().toString();
-        setMacroIndex(5);
         this.firmManager.reset();
         this.corporateService.reset(clock.getCurrentDate());
         this.riskService.reset();
@@ -791,6 +853,7 @@ public final class TradingFacade {
         this.multiAssetTrading.reset();
         this.orderManager.reset();
         this.marketEngine.reset();
+        this.marketBossService.reset();
         this.progressManager.reset();
         this.careerManager.reset();
         this.fxService.reset();
@@ -810,6 +873,8 @@ public final class TradingFacade {
         this.periodicMissionManager.reset();
         this.leagueManager.reset();
         this.playerProfileManager.reset();
+        // AU38: Terapkan setMacroIndex setelah seluruh manager di-reset agar penawaran produk konsisten sebelum/sesudah save-load
+        setMacroIndex(5);
         evaluatedFillCounts.clear();
         lastEvaluatedPersonalLedgerSize = 0;
         if (this.clock != null) {
@@ -822,6 +887,7 @@ public final class TradingFacade {
                     catalog.resetToInitialState(initialCatalogState);
                 } else {
                     catalog = catalogForSave(new JSONObject().put("catalog", initialCatalogState));
+                    bindResearchInstrumentAccess();
                     catalog.restoreState(initialCatalogState);
                 }
             }
@@ -899,6 +965,7 @@ public final class TradingFacade {
         runPerformance = weeklyPerformance;
         performanceHistory = new JSONArray();
         recoveryRequired = false;
+        if (mode == GameMode.INTERNAL_MARKET) settleDueIpoListings(clock.getCurrentDate());
     }
 
     public synchronized JSONObject startHistoricalReplay(String datasetId, BigDecimal initialCapital) {
@@ -933,7 +1000,6 @@ public final class TradingFacade {
                 BigDecimal usdAmount = (initialCapital != null ? initialCapital : BigDecimal.valueOf(50_000_000))
                         .divide(usdRate, 2, java.math.RoundingMode.HALF_UP);
                 Money usdMoney = new Money(usdAmount, Currency.USD);
-                personalAcc.creditCash(usdMoney);
                 ledger.recordMutation("INIT-REPLAY-USD-" + personalAccountId, personalAcc,
                         LedgerEntryType.INITIAL_CAPITAL, usdMoney, true, clock.getGameTimestamp(), "Modal kas USD Replay " + ds);
             }
@@ -1004,6 +1070,7 @@ public final class TradingFacade {
     public synchronized GameClock getClock() { return clock; }
     public synchronized EconomyLedger getLedger() { return ledger; }
     public synchronized SaveManager getSaveManager() { return saveManager; }
+    public synchronized MultiAssetTradingService getMultiAssetTrading() { return multiAssetTrading; }
 
     public synchronized Account getPersonalAccount() {
         return accounts.get(personalAccountId);
@@ -1015,6 +1082,10 @@ public final class TradingFacade {
 
     public synchronized List<Account> getAllAccounts() {
         return Collections.unmodifiableList(new ArrayList<>(accounts.values()));
+    }
+
+    public synchronized Map<String, Account> getAccountsMap() {
+        return accounts;
     }
 
     public synchronized Account createClientAccount(String name, String clientMandateId, Money initialDeposit) {
@@ -1058,7 +1129,7 @@ public final class TradingFacade {
 
     public synchronized long getCommittedShares(String accountId, String instrumentId) {
         if (!accounts.containsKey(accountId)) throw new IllegalArgumentException("Akun tidak ditemukan: " + accountId);
-        requireInstrument(instrumentId);
+        if (catalog == null || catalog.getById(instrumentId) == null) return 0L;
         long committed = corporateService.reservedCorporateShares(accountId, instrumentId);
         for (Order order : orderManager.getOrdersForAccount(accountId))
             if (order.isSell() && (order.getStatus() == OrderStatus.PENDING_TRIGGER || order.isAwaitingMarketOpen())
@@ -1071,14 +1142,35 @@ public final class TradingFacade {
         return committed;
     }
 
+    public synchronized long getPendingBuyShares(String accountId, String instrumentId, String excludeOrderId) {
+        long pending = 0L;
+        if (orderManager != null) {
+            for (Order o : orderManager.getOrdersForAccount(accountId)) {
+                if (o.isBuy() && !o.getStatus().isFinal() && instrumentId.equals(o.getInstrumentId())
+                        && (excludeOrderId == null || !excludeOrderId.equals(o.getId()))) {
+                    pending = Math.addExact(pending, o.getRemainingQuantity());
+                }
+            }
+        }
+        return pending;
+    }
+
     public synchronized JSONObject getOrderCapacity(String accountId, String instrumentId, String sideName,
                                                      String typeName, String priceText) throws JSONException {
+        return getOrderCapacity(accountId, instrumentId, sideName, typeName, priceText, 1);
+    }
+
+    public synchronized JSONObject getOrderCapacity(String accountId, String instrumentId, String sideName,
+                                                     String typeName, String priceText, int multiplier) throws JSONException {
         Account account = accounts.get(accountId);
         Instrument instrument = requireInstrument(instrumentId);
         if (account == null || (account.getType() != AccountType.PERSONAL && account.getType() != AccountType.CLIENT))
             throw new IllegalArgumentException("Akun transaksi tidak tersedia");
         OrderSide side = OrderSide.valueOf(sideName);
         OrderType type = OrderType.valueOf(typeName);
+        if (multiplier != 1 && (multiplier < 2 || multiplier > getStockLeverageLimit(instrumentId)
+                || account.getType() != AccountType.PERSONAL || side != OrderSide.BUY || type != OrderType.MARKET))
+            throw new IllegalArgumentException("Pilihan leverage tidak tersedia");
         long lot = instrument.getLotSize();
         BigDecimal price = type == OrderType.LIMIT ? new BigDecimal(priceText) : instrument.getCurrentPrice().getAmount();
         if (price.signum() <= 0 || lot <= 0) throw new IllegalArgumentException("Harga atau ukuran lot tidak tersedia");
@@ -1086,6 +1178,8 @@ public final class TradingFacade {
                 type == OrderType.LIMIT ? new Money(price, instrument.getCurrency()) : null,
                 type == OrderType.STOP_LOSS || type == OrderType.TAKE_PROFIT ? new Money(new BigDecimal(priceText), instrument.getCurrency()) : null,
                 lot, clock.getGameTimestamp(), null);
+        String accessError = orderSectorAccessError(sample, account, instrument);
+        if (accessError != null) throw new IllegalArgumentException(accessError);
         applySectorFeeDiscount(sample, account, instrument);
         Money cash = account.getAvailableCash(instrument.getCurrency());
         Position position = account.getPosition(instrumentId);
@@ -1099,18 +1193,29 @@ public final class TradingFacade {
             BigDecimal fee = unit.multiply(sample.getEffectiveFeeRate(MatchingEngine.BUY_FEE_RATE))
                     .setScale(instrument.getCurrency().getDecimalPlaces(), java.math.RoundingMode.CEILING);
             maxLots = cash.getAmount().divide(unit.add(fee), 0, java.math.RoundingMode.DOWN).min(BigDecimal.valueOf(Long.MAX_VALUE / lot)).longValueExact();
+            if (multiplier > 1) {
+                BigDecimal minimumLotCost = instrument.getDailyFloorPrice().getAmount().multiply(BigDecimal.valueOf(lot));
+                maxLots = cash.getAmount().multiply(BigDecimal.valueOf(multiplier))
+                        .divide(minimumLotCost, 0, java.math.RoundingMode.DOWN)
+                        .min(BigDecimal.valueOf(Long.MAX_VALUE / lot)).longValueExact();
+            }
             if (type == OrderType.MARKET && clock.isTradingOpenFor(instrument.getExchange())) {
-                long low = 0, high = maxLots;
+                long low = 0, high = maxLots, best = 0;
                 while (low < high) {
-                    long middle = low + (high - low + 1) / 2;
+                    long middle = high - (high - low) / 2;
                     Order candidate = new Order("CAPACITY", "CAPACITY", accountId, instrumentId, side, type, null, null,
                             middle * lot, clock.getGameTimestamp(), null);
                     candidate.setFeeDiscountPercent(sample.getFeeDiscountPercent());
-                    JSONObject quote = previewOrder(candidate);
-                    if (quote.optBoolean("success") && quote.optLong("estimatedFillQuantity") == middle * lot) low = middle;
-                    else high = middle - 1;
+                    JSONObject quote = multiplier == 1 ? previewOrder(candidate) : previewLeveragedBuy(candidate, multiplier);
+                    if (quote.optBoolean("success") && quote.optLong("estimatedFillQuantity") == middle * lot) {
+                        low = best = middle;
+                    } else if (quote.optBoolean("belowMinimumLoan")) {
+                        low = middle;
+                    } else {
+                        high = middle - 1;
+                    }
                 }
-                maxLots = low;
+                maxLots = best;
             }
         }
         return new JSONObject().put("success", true).put("accountId", accountId).put("instrumentId", instrumentId)
@@ -1119,10 +1224,20 @@ public final class TradingFacade {
                 .put("asOf", clock.getGameTimestamp());
     }
 
+    private String orderSectorAccessError(Order order, Account account, Instrument instrument) {
+        if (account.getType() != AccountType.PERSONAL || gameMode == GameMode.HISTORICAL_REPLAY
+                || isSectorUnlocked(instrument.getSector(), instrument.getExchange())
+                || (order.isSell() && order.getRequestId().startsWith("MARGIN-LIQ-"))) return null;
+        return "Sektor " + instrument.getSector() + " terkunci. Capai Level "
+                + getRequiredLevelForSector(instrument.getSector(), instrument.getExchange()) + " untuk membuka transaksi di sektor ini.";
+    }
+
     public synchronized JSONObject previewOrder(Order order) throws JSONException {
         Account account = accounts.get(order.getAccountId());
         Instrument instrument = catalog.getById(order.getInstrumentId());
         if (account == null || instrument == null) return new JSONObject().put("success", false).put("message", "Akun atau instrumen tidak ditemukan");
+        String accessError = orderSectorAccessError(order, account, instrument);
+        if (accessError != null) return new JSONObject().put("success", false).put("message", accessError);
         String validationError = MatchingEngine.validateOrder(order, account, instrument);
         if (validationError != null) return new JSONObject().put("success", false).put("message", validationError);
         if (order.isSell()) {
@@ -1135,7 +1250,8 @@ public final class TradingFacade {
         if (account.getType() == AccountType.CLIENT && account.getClientMandateId() != null) {
             ClientMandate mandate = firmManager.getMandate(account.getClientMandateId());
             if (mandate != null) {
-                FirmManager.ValidationResult val = firmManager.validateOrder(mandate, account, order, instrument, fxService.getMidRate());
+                long pendingBuys = getPendingBuyShares(account.getId(), instrument.getId(), order.getId());
+                FirmManager.ValidationResult val = firmManager.validateOrder(mandate, account, order, instrument, fxService.getMidRate(), pendingBuys);
                 if (!val.isValid) {
                     return new JSONObject().put("success", false).put("message", "Ditolak Mandat Klien: " + val.reason);
                 }
@@ -1191,10 +1307,10 @@ public final class TradingFacade {
     }
 
     public synchronized MatchingEngine.OrderResult submitOrder(Order order) {
-        return submitOrder(order, false);
+        return submitOrder(order, false, false);
     }
 
-    private MatchingEngine.OrderResult submitOrder(Order order, boolean openingQueuedOrder) {
+    private MatchingEngine.OrderResult submitOrder(Order order, boolean openingQueuedOrder, boolean systemLiquidation) {
         Order existing = orderManager.getOrderByRequest(order.getRequestId());
         if (existing != null && !(openingQueuedOrder && existing == order)) {
             if (!existing.getAccountId().equals(order.getAccountId())
@@ -1216,7 +1332,8 @@ public final class TradingFacade {
                     "Penyimpanan data memerlukan pemulihan; transaksi baru diblokir sementara.", Collections.emptyList());
         }
         Account acc = accounts.get(order.getAccountId());
-        if (!openingQueuedOrder && MatchingEngine.isPlayerAccount(acc)) requirePlayerFinancialWritesAvailable();
+        if (!openingQueuedOrder && !systemLiquidation && MatchingEngine.isPlayerAccount(acc))
+            requirePlayerFinancialWritesAvailable();
         if (acc == null) throw new IllegalArgumentException("Akun tidak ditemukan: " + order.getAccountId());
         if (acc.getType() == AccountType.CLIENT) careerManager.requireRank(CareerRank.PORTFOLIO_MANAGER, "Trading klien");
         Instrument inst = catalog.getById(order.getInstrumentId());
@@ -1227,16 +1344,11 @@ public final class TradingFacade {
                     || clock.getCurrentTime().isBefore(LocalTime.of(9, 0)) || !clock.getCurrentTime().isBefore(LocalTime.of(16, 0)))
                 throw new IllegalStateException("Instrumen atau sesi replay tidak tersedia pada waktu ini");
         }
-        // Validasi gembok sektor berdasarkan Level Pangkat Investor (Tahap E1 / Fitur 4)
-        if (order.isBuy() && acc.getType() == AccountType.PERSONAL && gameMode != GameMode.HISTORICAL_REPLAY) {
-            int playerLevel = progressManager != null ? progressManager.getCurrentLevel() : 1;
-            int reqLevel = getRequiredLevelForSector(inst.getSector(), inst.getExchange());
-            if (playerLevel < reqLevel) {
-                order.setStatus(OrderStatus.REJECTED);
-                if (!openingQueuedOrder) orderManager.registerOrder(order);
-                return new MatchingEngine.OrderResult(order, false,
-                        "Sektor " + inst.getSector() + " terkunci. Capai Level " + reqLevel + " untuk membuka transaksi di sektor ini.", Collections.emptyList());
-            }
+        String accessError = orderSectorAccessError(order, acc, inst);
+        if (accessError != null) {
+            order.setStatus(OrderStatus.REJECTED);
+            if (!openingQueuedOrder) orderManager.registerOrder(order);
+            return new MatchingEngine.OrderResult(order, false, accessError, Collections.emptyList());
         }
         if (order.isSell()) {
             Position position = acc.getPosition(inst.getId());
@@ -1261,7 +1373,8 @@ public final class TradingFacade {
         if (acc.getType() == AccountType.CLIENT && acc.getClientMandateId() != null) {
             ClientMandate mandate = firmManager.getMandate(acc.getClientMandateId());
             if (mandate != null) {
-                FirmManager.ValidationResult val = firmManager.validateOrder(mandate, acc, order, inst, fxService.getMidRate());
+                long pendingBuys = getPendingBuyShares(acc.getId(), inst.getId(), order.getId());
+                FirmManager.ValidationResult val = firmManager.validateOrder(mandate, acc, order, inst, fxService.getMidRate(), pendingBuys);
                 if (!val.isValid) {
                     mandate.adjustTrust(-5);
                     order.setStatus(OrderStatus.REJECTED);
@@ -1278,11 +1391,11 @@ public final class TradingFacade {
 
         if (gameMode == GameMode.HISTORICAL_REPLAY) {
             if (!replayEngine.supportsInstrument(inst.getId())) throw new IllegalArgumentException("Instrumen tidak termasuk dataset replay aktif");
-            var replayBar = replayEngine.getCurrentBar();
-            if (replayBar != null && replayEngine.canFillOrderOnHistoricalBar(order, replayBar)) {
+            BigDecimal execPrice = replayEngine.executablePrice(order, clock.getCurrentDate(), clock.getCurrentTime());
+            if (execPrice != null) {
                 Account dealer = accounts.get("ACC-NPC-MM-01");
                 if (dealer != null) {
-                    Money matchPrice = order.getLimitPrice() != null ? order.getLimitPrice() : new Money(replayBar.getOpen(), inst.getCurrency());
+                    Money matchPrice = new Money(execPrice, inst.getCurrency());
                     OrderSide counterSide = order.getSide() == OrderSide.BUY ? OrderSide.SELL : OrderSide.BUY;
                     String reqId = "REPLAY-FILL-" + order.getId();
                     Order counterOrder = new Order(reqId, reqId, dealer.getId(), inst.getId(), counterSide, OrderType.LIMIT,
@@ -1327,7 +1440,8 @@ public final class TradingFacade {
         }
 
         // Bagian 12 Handoff: Dukungan Adaptif Order Besar (10.000 - 50.000 lot) untuk akun pemain
-        if (isMarketOpen && (acc.getType() == AccountType.PERSONAL || acc.getType() == AccountType.CLIENT)) {
+        if (isMarketOpen && !order.getRequestId().startsWith("MARGIN-LIQ-")
+                && (acc.getType() == AccountType.PERSONAL || acc.getType() == AccountType.CLIENT)) {
             ensureAdaptiveLargeOrderLiquidity(order, acc, inst);
         }
 
@@ -1515,7 +1629,13 @@ public final class TradingFacade {
     }
 
     public synchronized boolean cancelOrder(Order order) {
+        if (order != null && order.getRequestId().startsWith("MARGIN-LIQ-")
+                && riskService.isMarginCallDue(order.getAccountId(), Math.max(lastRealTimeAnchor, realTimeClock.millis()))) return false;
         if (order != null && MatchingEngine.isPlayerAccount(accounts.get(order.getAccountId()))) requirePlayerFinancialWritesAvailable();
+        return cancelOrderInternal(order);
+    }
+
+    private boolean cancelOrderInternal(Order order) {
         Account acc = accounts.get(order.getAccountId());
         if (acc == null) return false;
         if (order.isAwaitingMarketOpen() && !order.getStatus().isFinal()) {
@@ -1534,12 +1654,27 @@ public final class TradingFacade {
 
     public synchronized int expireDayOrders() {
         int count = 0;
-        for (Order order : orderManager.getAllOrders()) {
+        Map<String, Order> candidateOrders = new LinkedHashMap<>();
+        for (Order o : orderManager.getAllOrders()) {
+            if (o != null && !o.getStatus().isFinal()) {
+                candidateOrders.put(o.getId(), o);
+            }
+        }
+        for (Order o : marketEngine.getRestingOrders()) {
+            if (o != null && !o.getStatus().isFinal()) {
+                candidateOrders.put(o.getId(), o);
+            }
+        }
+        for (Order order : candidateOrders.values()) {
             if (!order.getStatus().isFinal()) {
                 Account account = accounts.get(order.getAccountId());
                 if (account != null) {
                     // Order pemain (pribadi maupun klien) tetap aktif sampai dibatalkan (GTC) sesuai keputusan pemilik
                     if (account.getType() == AccountType.PERSONAL || account.getType() == AccountType.CLIENT) {
+                        continue;
+                    }
+                    // AT02: Order rebalance reksa dana indeks tidak boleh kedaluwarsa sebelum mendapat kesempatan eksekusi di sesi bursa sah
+                    if (order.getRequestId().contains(":REBALANCE:") || (account.getId().startsWith("ACC-FUND-") && order.getType() == OrderType.LIMIT)) {
                         continue;
                     }
                     if (order.getStatus() == OrderStatus.PENDING_TRIGGER) {
@@ -1673,7 +1808,7 @@ public final class TradingFacade {
             if (retail != null) {
                 NpcAgent taker = new NpcAgent("NPC-RETAIL-01", "Investor Ritel Mandiri", NpcStrategyType.RETAIL_NOISE, retail);
                 taker.ensureLiquidity(inst, book, ledger, now, 0L, Money.zero(inst.getCurrency()),
-                        "RETAIL-" + inst.getId() + "-" + now + "-" + inst.getIssuedShares() + "-" + ledger.getEntries().size());
+                        "RETAIL-" + inst.getId() + "-" + now + "-" + inst.getIssuedShares() + "-" + ledger.getEntryCount());
                 List<Order> orders = taker.generateOrders(inst, book, now, newsImpact);
                 for (Order o : orders) {
                     marketEngine.submitOrder(o, retail, inst, ledger, accounts, now);
@@ -1697,6 +1832,9 @@ public final class TradingFacade {
 
     public synchronized String getNewsFeedJson() {
         try {
+            if (researchService != null) {
+                researchService.processDailyAutoRenewal(getPersonalAccount(), ledger, clock.getGameTimestamp());
+            }
             return researchService.getNewsFeed(clock.getGameTimestamp(), Math.max(lastRealTimeAnchor, realTimeClock.millis())).toString();
         } catch (Exception e) {
             return "[]";
@@ -1740,6 +1878,13 @@ public final class TradingFacade {
     public synchronized boolean cancelTerminalAutoRenewal() {
         requirePlayerFinancialWritesAvailable();
         boolean result = researchService.cancelAutoRenewal();
+        if (result) persistFinancialMutation();
+        return result;
+    }
+
+    public synchronized boolean resumeTerminalAutoRenewal() {
+        requirePlayerFinancialWritesAvailable();
+        boolean result = researchService.resumeAutoRenewal(clock.getGameTimestamp());
         if (result) persistFinancialMutation();
         return result;
     }
@@ -1893,7 +2038,12 @@ public final class TradingFacade {
     public synchronized void allotIpo(String ipoId, double ratio) {
         IpoOffering ipo = corporateService.getIpo(ipoId);
         if (ipo == null) throw new IllegalArgumentException("IPO tidak ditemukan: " + ipoId);
+        corporateService.bindShareSupplyCatalog(catalog);
         corporateService.allotIpo(ipo, ratio, accounts, ledger, clock.getGameTimestamp());
+        listIpo(ipo);
+    }
+
+    private void listIpo(IpoOffering ipo) {
         String exchange = ipo.getCurrency() == Currency.USD ? "US" : "IDX";
         if (catalog.getById(exchange + ":" + ipo.getTicker()) == null) {
             Money openPrice = ipo.getOfferingPrice();
@@ -1902,9 +2052,22 @@ public final class TradingFacade {
                 BigDecimal surged = openPrice.getAmount().multiply(BigDecimal.valueOf(gainMult)).setScale(openPrice.getCurrency().getDecimalPlaces(), java.math.RoundingMode.HALF_UP);
                 openPrice = new Money(surged, openPrice.getCurrency());
             }
+            BigDecimal tick = com.tradingglobal3d.core.market.MarketExchange.valueOf(exchange).getTickSize(openPrice.getAmount());
+            openPrice = new Money(openPrice.getAmount().divide(tick, 0, java.math.RoundingMode.HALF_UP).multiply(tick), ipo.getCurrency());
             catalog.registerInstrument(new Instrument(exchange + ":" + ipo.getTicker(), ipo.getTicker(), ipo.getCompanyName(),
                     com.tradingglobal3d.core.market.MarketExchange.valueOf(exchange), "IPO", ipo.getCurrency(), ipo.getLotSize(),
                     ipo.getSharesOffered(), true, openPrice));
+        }
+    }
+
+    private void settleDueIpoListings(LocalDate date) {
+        corporateService.bindShareSupplyCatalog(catalog);
+        for (IpoOffering ipo : corporateService.getIpoOfferings()) {
+            if (!ipo.isAllotted() && !ipo.getAllotmentDate().isAfter(date))
+                corporateService.allocateIpo(ipo, 1.0, accounts, ledger, clock.getGameTimestamp());
+            if (ipo.isAllotted() && !ipo.isDistributed() && !ipo.getDistributionDate().isAfter(date))
+                corporateService.distributeIpo(ipo, accounts, ledger, clock.getGameTimestamp());
+            if (ipo.isDistributed() && !ipo.getListingDate().isAfter(date)) listIpo(ipo);
         }
     }
 
@@ -1936,27 +2099,52 @@ public final class TradingFacade {
                         allotmentValStr = sub.getReservedMoney().subtract(sub.getRefundMoney()).format();
                     }
                 }
+                if (sub.getStatus() == IpoSubscription.SubscriptionStatus.REFUNDED)
+                    allotmentValStr = Money.zero(sub.getReservedMoney().getCurrency()).format();
+                Money refund = sub.getRefundMoney() != null ? sub.getRefundMoney() : Money.zero(sub.getReservedMoney().getCurrency());
+                if (sub.getStatus() == IpoSubscription.SubscriptionStatus.CANCELLED) refund = sub.getReservedMoney();
+                Money held = Money.zero(sub.getReservedMoney().getCurrency());
+                if (sub.getStatus() == IpoSubscription.SubscriptionStatus.PENDING) {
+                    held = sub.getReservedMoney();
+                } else if (sub.getStatus() == IpoSubscription.SubscriptionStatus.ALLOTTED && ipo != null && !ipo.isDistributed()
+                        && !ledger.isRequestProcessed("IPO-PAY-" + sub.getId())) {
+                    held = sub.getReservedMoney().subtract(refund);
+                }
                 arr.put(new JSONObject()
                         .put("id", sub.getId())
                         .put("ipoId", sub.getIpoId())
                         .put("ticker", ipo != null ? ipo.getTicker() : sub.getIpoId())
                         .put("companyName", ipo != null ? ipo.getCompanyName() : "")
+                        .put("currency", ipo != null ? ipo.getCurrency().name() : "IDR")
                         .put("orderedLots", sub.getOrderedLots())
                         .put("allottedLots", sub.getAllottedLots())
                         .put("price", priceStr)
                         .put("allotmentValue", allotmentValStr)
                         .put("reservedMoney", sub.getReservedMoney().format())
-                        .put("refundMoney", sub.getRefundMoney() != null ? sub.getRefundMoney().format() : "Rp 0")
+                        .put("refundMoney", refund.format())
+                        .put("heldMoney", held.format())
                         .put("status", sub.getStatus().name())
                         .put("statusLabel", sub.getStatus().getLabel())
+                        .put("bookbuildingDate", ipo != null ? ipo.getOfferingStartDate().minusDays(1).toString() : "")
                         .put("offeringStartDate", ipo != null ? ipo.getOfferingStartDate().toString() : "")
                         .put("offeringEndDate", ipo != null ? ipo.getOfferingEndDate().toString() : "")
                         .put("allotmentDate", ipo != null ? ipo.getAllotmentDate().toString() : "")
+                        .put("distributionDate", ipo != null ? ipo.getDistributionDate().toString() : "")
+                        .put("isAllotted", ipo != null && ipo.isAllotted())
+                        .put("isDistributed", ipo != null && ipo.isDistributed())
+                        .put("isListed", ipo != null && ipo.isDistributed() && !ipo.getListingDate().isAfter(clock.getCurrentDate()))
                         .put("listingDate", ipo != null ? ipo.getListingDate().toString() : "")
                         .put("canCancel", canCancel));
             }
         }
         return arr;
+    }
+
+    public synchronized boolean toggleIpoWatch(String ipoId) {
+        requirePlayerFinancialWritesAvailable();
+        boolean watched = corporateService.toggleIpoWatch(ipoId);
+        persistFinancialMutation();
+        return watched;
     }
 
     public synchronized JSONObject getNpcProfile(String npcId) throws JSONException {
@@ -2064,13 +2252,65 @@ public final class TradingFacade {
         persistFinancialMutation();
     }
 
+    public synchronized int getStockLeverageLimit(String instrumentId) {
+        Instrument stock = catalog.getById(instrumentId);
+        if (gameMode != GameMode.INTERNAL_MARKET || stock == null || !stock.isTradable()
+                || marketEngine.isHalted(instrumentId) || !isSectorUnlocked(stock.getSector(), stock.getExchange())
+                || !careerManager.hasRank(CareerRank.PORTFOLIO_MANAGER)) return 1;
+        long lots = stock.getDayVolume() / stock.getLotSize();
+        if (lots < 1000) return 1;
+        BigDecimal spread = stock.getDayHigh().getAmount().subtract(stock.getDayLow().getAmount());
+        BigDecimal reference = stock.getPreviousClosePrice().getAmount();
+        if (spread.compareTo(reference.movePointLeft(1)) > 0) return 1;
+        return lots >= 5000 && spread.compareTo(reference.multiply(new BigDecimal("0.05"))) <= 0
+                && careerManager.hasRank(CareerRank.CHIEF_INVESTMENT_OFFICER) ? 3 : 2;
+    }
+
+    public synchronized JSONObject previewLeveragedBuy(Order order, int multiplier) throws JSONException {
+        if (multiplier < 2 || multiplier > getStockLeverageLimit(order.getInstrumentId())
+                || !getPersonalAccount().getId().equals(order.getAccountId())
+                || !order.isBuy() || order.getType() != OrderType.MARKET)
+            return new JSONObject().put("success", false).put("message", "Leverage hanya tersedia untuk pembelian market akun pribadi yang memenuhi syarat");
+        Instrument stock = catalog.getById(order.getInstrumentId());
+        Account account = getPersonalAccount();
+        applySectorFeeDiscount(order, account, stock);
+        JSONObject quote = marketEngine.getMatchingEngine().previewOrder(order, account, stock,
+                marketEngine.getOrCreateBook(stock), clock.getGameTimestamp(), accounts);
+        // The matching preview reports full-cash affordability separately from fill and cost.
+        if (!quote.has("requiredCashRaw")) return quote;
+        if (quote.optLong("estimatedFillQuantity") != order.getTotalQuantity())
+            return quote.put("success", false).put("message", "Antrean belum cukup untuk mengisi seluruh pembelian leverage");
+        BigDecimal cost = new BigDecimal(quote.getString("estimatedCashImpactRaw")).abs();
+        Currency currency = stock.getCurrency();
+        Money own = new Money(cost.divide(BigDecimal.valueOf(multiplier), currency.getDecimalPlaces(), java.math.RoundingMode.CEILING), currency);
+        Money debt = new Money(cost, currency).subtract(own);
+        if (!debt.isPositive())
+            return quote.put("success", false).put("belowMinimumLoan", true).put("message", "Nilai pembelian terlalu kecil untuk leverage");
+        if (account.getAvailableCash(currency).isLessThan(own))
+            return quote.put("success", false).put("message", "Modal sendiri untuk pembelian leverage tidak mencukupi");
+        try {
+            validateMarginLoan(debt);
+        } catch (IllegalStateException limit) {
+            return quote.put("success", false).put("message", limit.getMessage());
+        }
+        quote.remove("message");
+        return quote.put("success", true).put("leverageMultiplier", multiplier).put("ownCashRaw", own.getAmount().toPlainString())
+                .put("marginPrincipalRaw", debt.getAmount().toPlainString());
+    }
+
     public synchronized void takeMarginLoan(Money amount) {
         requirePlayerFinancialWritesAvailable();
+        validateMarginLoan(amount);
+        riskService.takeMarginLoan(getPersonalAccount(), amount, ledger, clock.getGameTimestamp());
+        persistFinancialMutation();
+    }
+
+    private void validateMarginLoan(Money amount) {
         careerManager.requireRank(CareerRank.PORTFOLIO_MANAGER, "Pinjaman margin");
         Account personal = getPersonalAccount();
         Money netWorth = getPersonalNetWorth();
-        double multiplier = careerManager.hasRank(CareerRank.CHIEF_INVESTMENT_OFFICER) ? 3.0 : 2.0;
-        Money maxMargin = netWorth.multiply(multiplier);
+        int buyingPowerMultiplier = careerManager.hasRank(CareerRank.CHIEF_INVESTMENT_OFFICER) ? 3 : 2;
+        Money maxMargin = netWorth.multiply(buyingPowerMultiplier - 1);
         BigDecimal usdRate = fxService != null ? fxService.getMidRate() : BigDecimal.valueOf(15800);
         Money currentDebtIdr = riskService.getMarginDebt(personal.getId(), Currency.IDR);
         Money currentDebtUsd = riskService.getMarginDebt(personal.getId(), Currency.USD);
@@ -2080,10 +2320,50 @@ public final class TradingFacade {
                 : amount;
         Money totalDebtInIdr = existingTotalDebtIdr.add(newLoanIdr);
         if (totalDebtInIdr.compareTo(maxMargin) > 0) {
-            throw new IllegalStateException("Plafon fasilitas margin terlampaui (Maksimal " + (int)multiplier + "x Net Worth: " + maxMargin.format() + ")");
+            throw new IllegalStateException("Plafon pinjaman terlampaui (daya beli total maksimal " + buyingPowerMultiplier
+                    + "x modal sendiri; batas utang " + maxMargin.format() + ")");
         }
-        riskService.takeMarginLoan(personal, amount, ledger, clock.getGameTimestamp());
-        persistFinancialMutation();
+    }
+
+    public synchronized MatchingEngine.OrderResult confirmLeveragedBuy(Order request, int multiplier, Money approvedPrincipal) throws JSONException {
+        requirePlayerFinancialWritesAvailable();
+        String id = "LEVERAGE-" + multiplier + "-" + approvedPrincipal.getAmount().toPlainString() + "-" + request.getRequestId();
+        Order existing = orderManager.getOrderByRequest(request.getRequestId());
+        if (existing != null) {
+            if (!existing.getId().equals(id) || !existing.getInstrumentId().equals(request.getInstrumentId())
+                    || !existing.getAccountId().equals(request.getAccountId()) || existing.getTotalQuantity() != request.getTotalQuantity()
+                    || !request.isBuy() || request.getType() != OrderType.MARKET)
+                throw new IllegalArgumentException("ID permintaan sudah digunakan");
+            return new MatchingEngine.OrderResult(existing, true, "Pembelian leverage sudah tersimpan", Collections.emptyList());
+        }
+        JSONObject quote = previewLeveragedBuy(request, multiplier);
+        if (!quote.optBoolean("success")) throw new IllegalStateException(quote.optString("message"));
+        Currency currency = catalog.getById(request.getInstrumentId()).getCurrency();
+        Money principal = new Money(new BigDecimal(quote.getString("marginPrincipalRaw")), currency);
+        if (!principal.equals(approvedPrincipal)) throw new IllegalStateException("Nilai pinjaman berubah. Tinjau ulang pembelian.");
+        validateMarginLoan(principal);
+        SaveState before = captureRuntimeState(true);
+        try {
+            Account personal = getPersonalAccount();
+            riskService.takeMarginLoan(personal, principal, ledger, clock.getGameTimestamp());
+            Order order = new Order(id, request.getRequestId(), request.getAccountId(), request.getInstrumentId(),
+                    OrderSide.BUY, OrderType.MARKET, null, null, request.getTotalQuantity(), clock.getGameTimestamp(), null);
+            MatchingEngine.OrderResult result = submitOrder(order);
+            Money actualCost = Money.zero(currency);
+            for (TradeFill fill : result.fills) actualCost = actualCost.add(fill.getTotalAmount()).add(fill.getBuyerFee());
+            if (!result.isSuccess || order.getStatus() != OrderStatus.FILLED
+                    || !actualCost.getAmount().equals(new BigDecimal(quote.getString("estimatedCashImpactRaw"))))
+                throw new IllegalStateException("Eksekusi berubah. Tinjau ulang pembelian leverage.");
+            persistFinancialMutation();
+            return result;
+        } catch (RuntimeException error) {
+            if (!restoreSaveState(before, false)) {
+                recoveryRequired = true;
+                throw new IllegalStateException("Pemulihan pembelian leverage gagal", error);
+            }
+            saveWriteFailure = null;
+            throw error;
+        }
     }
 
     public synchronized void repayMarginLoan(Money amount) {
@@ -2100,8 +2380,23 @@ public final class TradingFacade {
         Instrument inst = catalog.getById("IDX:" + ticker);
         if (inst == null) inst = catalog.getById("US:" + ticker);
         if (inst == null) throw new IllegalArgumentException("Saham tidak ditemukan: " + ticker);
+        if (gameMode != GameMode.HISTORICAL_REPLAY && !isSectorUnlocked(inst.getSector(), inst.getExchange()))
+            throw new IllegalArgumentException("Emiten terkunci sampai Level " + getRequiredLevelForSector(inst.getSector(), inst.getExchange()));
+
+        if (clock != null && !clock.isTradingOpenFor(inst.getExchange())) {
+            throw new IllegalStateException("Bursa " + inst.getExchange() + " sedang tutup. Transaksi short hanya dapat dilakukan saat sesi bursa aktif.");
+        }
+        OrderBook book = marketEngine.getOrCreateBook(inst);
+        if (book != null && book.getHaltState() != TradingHaltState.NORMAL) {
+            throw new IllegalStateException("Saham " + inst.getTicker() + " sedang disuspensi / halt; transaksi short tidak diizinkan");
+        }
+        if (!inst.isTradable()) {
+            throw new IllegalStateException("Saham " + inst.getTicker() + " tidak aktif untuk perdagangan");
+        }
+
         Account mm = accounts.get("ACC-NPC-MM-01");
-        ShortPosition position = riskService.openShortPosition(personal, inst, shares, mm, ledger, clock.getGameTimestamp());
+        long committed = mm != null ? getCommittedShares(mm.getId(), inst.getId()) : 0L;
+        ShortPosition position = riskService.openShortPosition(personal, inst, shares, mm, ledger, clock.getGameTimestamp(), committed);
         persistFinancialMutation();
         return position;
     }
@@ -2112,6 +2407,18 @@ public final class TradingFacade {
         Instrument inst = catalog.getById("IDX:" + ticker);
         if (inst == null) inst = catalog.getById("US:" + ticker);
         if (inst == null) throw new IllegalArgumentException("Saham tidak ditemukan: " + ticker);
+
+        if (clock != null && !clock.isTradingOpenFor(inst.getExchange())) {
+            throw new IllegalStateException("Bursa " + inst.getExchange() + " sedang tutup. Transaksi short hanya dapat dilakukan saat sesi bursa aktif.");
+        }
+        OrderBook book = marketEngine.getOrCreateBook(inst);
+        if (book != null && book.getHaltState() != TradingHaltState.NORMAL) {
+            throw new IllegalStateException("Saham " + inst.getTicker() + " sedang disuspensi / halt; transaksi short tidak diizinkan");
+        }
+        if (!inst.isTradable()) {
+            throw new IllegalStateException("Saham " + inst.getTicker() + " tidak aktif untuk perdagangan");
+        }
+
         Account mm = accounts.get("ACC-NPC-MM-01");
         riskService.closeShortPosition(personal, inst, shares, mm, ledger, clock.getGameTimestamp());
         persistFinancialMutation();
@@ -2122,13 +2429,81 @@ public final class TradingFacade {
         return riskService.evaluateMarginHealth(personal, catalog, fxService.getMidRate());
     }
 
+    public synchronized long getMarginCallRemainingRealMs() {
+        return riskService.getMarginCallRemainingRealMs(personalAccountId, Math.max(lastRealTimeAnchor, realTimeClock.millis()));
+    }
+
     public synchronized boolean executeForcedLiquidation(String ticker) {
         requirePlayerFinancialWritesAvailable();
         Account personal = getPersonalAccount();
         Instrument inst = catalog.getById("IDX:" + ticker);
         if (inst == null) inst = catalog.getById("US:" + ticker);
         if (inst == null) throw new IllegalArgumentException("Saham tidak ditemukan: " + ticker);
-        return riskService.executeForcedLiquidation(personal, inst, marketEngine.isHalted(inst.getId()), ledger, clock.getGameTimestamp());
+        long realNow = Math.max(lastRealTimeAnchor, realTimeClock.millis());
+        boolean changed = riskService.observeMarginCall(personal, catalog, fxService.getMidRate(), realNow, clock.getGameTimestamp());
+        boolean submitted = submitMarginLiquidation(inst, realNow);
+        if (changed || submitted) persistFinancialMutation();
+        return submitted;
+    }
+
+    private boolean submitMarginLiquidation(Instrument instrument, long realNow) {
+        Account personal = getPersonalAccount();
+        if (!riskService.isMarginCallDue(personal.getId(), realNow) || !instrument.isTradable()) return false;
+        boolean halted = marketEngine.isHalted(instrument.getId());
+        if (halted) { riskService.recordLiquidationAttempt(personal, instrument, true, clock.getGameTimestamp()); return false; }
+        Position position = personal.getPosition(instrument.getId());
+        if (position == null || position.getQuantity() <= 0) return false;
+        long shares = Math.max(0, position.getQuantity() - getCommittedShares(personal.getId(), instrument.getId()));
+        shares -= shares % instrument.getLotSize();
+        if (shares == 0) return false;
+        String id = "MARGIN-LIQ-" + riskService.getMarginCallDeadline(personal.getId()) + "-" + instrument.getId() + "-" + clock.getCurrentDate();
+        if (orderManager.getOrderByRequest(id) != null) return false;
+        Order order = new Order(id, id, personal.getId(), instrument.getId(), OrderSide.SELL, OrderType.LIMIT,
+                instrument.getDailyFloorPrice(), null, shares, clock.getGameTimestamp(), Money.zero(instrument.getCurrency()));
+        MatchingEngine.OrderResult result = submitOrder(order, false, true);
+        riskService.recordLiquidationAttempt(personal, instrument, false, clock.getGameTimestamp());
+        if (!result.fills.isEmpty()) repayAvailableMarginCash();
+        return result.isSuccess;
+    }
+
+    private boolean repayAvailableMarginCash() {
+        Account personal = getPersonalAccount();
+        boolean changed = false;
+        for (Currency currency : Currency.values()) {
+            Money debt = riskService.getMarginDebt(personal.getId(), currency), available = personal.getAvailableCash(currency);
+            Money repay = debt.compareTo(available) <= 0 ? debt : available;
+            if (repay.isPositive()) { riskService.repayMarginLoan(personal, repay, ledger, clock.getGameTimestamp()); changed = true; }
+        }
+        return changed;
+    }
+
+    private boolean processMarginRisk(long realNow) {
+        if (gameMode != GameMode.INTERNAL_MARKET || areFinancialWritesBlocked()) return false;
+        Account personal = getPersonalAccount();
+        boolean changed = riskService.isMarginCallDue(personal.getId(), realNow) && repayAvailableMarginCash();
+        changed |= riskService.observeMarginCall(personal, catalog, fxService.getMidRate(), realNow, clock.getGameTimestamp());
+        if (riskService.isMarginCallDue(personal.getId(), realNow)) {
+            for (Order order : new ArrayList<>(orderManager.getAllOrders())) {
+                if (personal.getId().equals(order.getAccountId()) && !order.getStatus().isFinal()
+                        && !order.getRequestId().startsWith("MARGIN-LIQ-")) changed |= cancelOrderInternal(order);
+            }
+            changed |= repayAvailableMarginCash();
+            changed |= riskService.observeMarginCall(personal, catalog, fxService.getMidRate(), realNow, clock.getGameTimestamp());
+            if (riskService.isMarginCallDue(personal.getId(), realNow)) {
+                for (Position position : new ArrayList<>(personal.getPositions().values())) {
+                    Instrument instrument = catalog.getById(position.getExchange() + ":" + position.getTicker());
+                    if (instrument != null) changed |= submitMarginLiquidation(instrument, realNow);
+                    changed |= riskService.observeMarginCall(personal, catalog, fxService.getMidRate(), realNow, clock.getGameTimestamp());
+                    if (!riskService.isMarginCallDue(personal.getId(), realNow)) break;
+                }
+            }
+        }
+        if (riskService.getMarginCallDeadline(personal.getId()) == 0) {
+            for (Order order : new ArrayList<>(orderManager.getAllOrders()))
+                if (personal.getId().equals(order.getAccountId()) && !order.getStatus().isFinal()
+                        && order.getRequestId().startsWith("MARGIN-LIQ-")) changed |= cancelOrderInternal(order);
+        }
+        return changed;
     }
 
     public synchronized StrategyLabSandbox createStrategySandbox(String sandboxId) {
@@ -2176,8 +2551,10 @@ public final class TradingFacade {
 
     public synchronized StressTestResult runStressTest(StressTestScenario scenario) {
         Account personal = getPersonalAccount();
-        Money marginDebt = riskService.getMarginDebt(personal.getId(), Currency.IDR);
-        return replayEngine.runStressTest(personal, scenario, catalog, fxService.getMidRate(), marginDebt);
+        Money marginDebtIdr = personal != null ? riskService.getMarginDebt(personal.getId(), Currency.IDR) : Money.zero(Currency.IDR);
+        Money marginDebtUsd = personal != null ? riskService.getMarginDebt(personal.getId(), Currency.USD) : Money.zero(Currency.USD);
+        Money totalMarginDebt = marginDebtIdr.add(new Money(marginDebtUsd.getAmount().multiply(fxService.getMidRate()), Currency.IDR));
+        return replayEngine.runStressTest(personal, scenario, catalog, fxService.getMidRate(), totalMarginDebt);
     }
 
     public synchronized Money claimMission(String missionId) {
@@ -2243,60 +2620,30 @@ public final class TradingFacade {
         }
     }
 
-    private void simulateDailyMarketMovement(LocalDate date) {
-        if (catalog == null) return;
-        java.util.Random rnd = new java.util.Random(Objects.hash(date.toString(), "MARKET_DRIFT_2026"));
-        for (Instrument inst : catalog.getActiveUniverse()) {
-            if (!inst.isTradable() || !inst.getCurrentPrice().isPositive()) continue;
-            double newsImpact = (researchService != null && clock != null)
-                    ? researchService.getActiveNewsImpact(inst.getTicker(), inst.getSector(), clock.getGameTimestamp())
-                    : 0.0;
-            BigDecimal current = inst.getCurrentPrice().getAmount();
-            BigDecimal intrinsic = inst.getIntrinsicValue();
-            if (intrinsic == null) intrinsic = current;
-
-            // 1. Sentimen Berita (+/- 2% s/d 5%)
-            double newsDeltaPct = newsImpact * 4.0;
-
-            // 2. Gravitasi Nilai Wajar
-            double gravityDeltaPct = 0.0;
-            if (intrinsic.compareTo(current) > 0) {
-                gravityDeltaPct = 1.2;
-            } else if (intrinsic.compareTo(current) < 0) {
-                gravityDeltaPct = -1.2;
-            }
-
-            // 3. Fluktuasi Pasar Normal (-3.0% s.d. +3.5%)
-            double noisePct = (rnd.nextDouble() * 6.5) - 3.0;
-
-            double totalDriftPct = Math.max(-20.0, Math.min(20.0, newsDeltaPct + gravityDeltaPct + noisePct));
-            BigDecimal driftMultiplier = BigDecimal.ONE.add(BigDecimal.valueOf(totalDriftPct / 100.0));
-            BigDecimal targetPrice = current.multiply(driftMultiplier).setScale(inst.getCurrency().getDecimalPlaces(), java.math.RoundingMode.HALF_UP);
-
-            Money newPrice = inst.roundUpToIdxTick(targetPrice);
-            long volumeLots = 5000L + rnd.nextInt(45000);
-            inst.updatePrice(newPrice, volumeLots);
-            syncInstrumentPriceToPositions(inst, newPrice);
-            OrderBook book = marketEngine.getOrCreateBook(inst);
-            if (book != null) {
-                String tid = "FILL-DRIFT-" + System.nanoTime();
-                book.recordFill(new TradeFill(tid, "ORD-B-" + tid, "ORD-S-" + tid, "ACC-NPC-RETAIL-01", "ACC-NPC-MM-01", inst.getId(), newPrice, volumeLots, clock.getGameTimestamp()));
-            }
-        }
+    private DailySessionReport settleDay(boolean advanceToMorning) {
+        return settleDay(advanceToMorning, realTimeClock.millis());
     }
 
-    private DailySessionReport settleDay(boolean advanceToMorning) {
+    private DailySessionReport settleDay(boolean advanceToMorning, long realBoundary) {
         Account personal = getPersonalAccount();
         if (personal == null) throw new IllegalStateException("Akun personal belum dibuat");
         // Validate before financing, fees or ledger mutations can occur.
-        if (!clock.getCurrentTime().isAfter(LocalTime.of(16, 0, 59)))
-            throw new IllegalStateException("Penutupan hari belum tersedia sebelum sesi selesai (16:01 WIB pada aturan sementara)");
+        if (!clock.getCurrentTime().equals(LocalTime.of(23, 59, 59)))
+            throw new IllegalStateException("Penyelesaian harian berlangsung otomatis pada pergantian hari WIB");
         for (DailySessionReport existing : careerManager.getSessionReports())
             if (existing.getDate().equals(clock.getCurrentDate())) return existing;
         long now = clock.getGameTimestamp();
 
+        if (researchService != null && catalog != null) {
+            marketEngine.processEssentialNewsTargets(clock, now, catalog, ledger, accounts,
+                    researchService, null, true);
+        }
+
         // Batalkan/kedaluwarsa sisa antrean order harian yang belum match
         expireDayOrders();
+
+        if (gameMode == GameMode.INTERNAL_MARKET)
+            marketEngine.completeDailyActivity(now, catalog, ledger, accounts, macroIndex);
 
         // 1. Bebankan biaya pembiayaan harian (short borrow fee & bunga pinjaman margin)
         riskService.accrueDailyFinancingCosts(personal, catalog, ledger, fxService.getMidRate(), now);
@@ -2325,7 +2672,7 @@ public final class TradingFacade {
         mutualFundManager.advanceDay(0.0, ledger, now);
 
         // Akrual bunga dan penalti harian pinjaman tenor
-        installmentLoanManager.processRealTimeAccrual(realTimeClock.millis());
+        installmentLoanManager.processRealTimeAccrual(realBoundary);
         installmentLoanManager.processDailyAccrual(now);
 
         // Perpanjangan otomatis paket terminal riset jika jatuh tempo (A05)
@@ -2337,6 +2684,14 @@ public final class TradingFacade {
         DailySessionReport report = careerManager.closeDayAndAdvance(
                 clock, personal, catalog, ledger, fxService.getMidRate(), now, getPersonalNetWorth()
         );
+        // ponytail: compact once per game week to avoid scanning retained history at every settlement.
+        if (gameMode == GameMode.INTERNAL_MARKET && Math.floorMod(clock.getCurrentDate().toEpochDay(), 7) == 0) {
+            ledger.compactNpcTrades(npcLedgerAccounts(accounts.values()));
+            careerManager.beginDay(personal, fxService.getMidRate(), ledger);
+        }
+        if (marketBossService != null) {
+            marketBossService.processSessionUpdate(report.getReturnPercent(), personal, ledger, now);
+        }
         evaluateRecordedCareerProgress();
         evaluateCareerPromotion();
 
@@ -2353,21 +2708,22 @@ public final class TradingFacade {
         // Evaluasi pencapaian net worth
         progressManager.onNetWorthEvaluated(getPersonalNetWorth().getAmount().longValue(), now);
 
+        if (catalog != null) {
+            Instrument bbca = catalog.getById("IDX:BBCA");
+            if (bbca != null) {
+                lastClosingMacroChg = bbca.getDailyChangePercent();
+            }
+        }
+
         if (!advanceToMorning) {
-            // Pada midnight rollover: reset instrumen IDX (IDX buka 24 jam, reset harian di midnight)
-            // Sesi US sedang berjalan di 00:00 WIB sehingga tidak direset di tengah malam.
-            for (Instrument inst : catalog.getAllInstruments()) {
-                if (inst.getExchange() == com.tradingglobal3d.core.market.MarketExchange.IDX) {
-                    inst.startNewTradingDay();
-                }
+            if (catalog != null) {
+                catalog.startNewTradingDay();
             }
             return report;
         }
         LocalDate nextDate = clock.getCurrentDate().plusDays(1);
         this.clock = new GameClock(nextDate, java.time.LocalTime.of(8, 30, 0));
-        for (Instrument inst : catalog.getAllInstruments()) {
-            inst.startNewTradingDay();
-        }
+        catalog.startNewTradingDay();
         processCalendarActions(nextDate);
         return report;
     }
@@ -2401,6 +2757,7 @@ public final class TradingFacade {
             weeklyBaselineNetWorth = getPersonalNetWorth();
             weeklyPerformance = new com.tradingglobal3d.core.career.PerformancePeriod(clock.getGameTimestamp(), weeklyBaselineNetWorth,
                     ledger.getEntriesForAccount(personalAccountId).size());
+            progressManager.onLeagueParticipated(clock.getGameTimestamp());
             if (leagueManager.getCurrentTier().ordinal() > previousTier.ordinal())
                 progressManager.onLeaguePromoted(clock.getGameTimestamp());
         }
@@ -2423,11 +2780,7 @@ public final class TradingFacade {
         }
 
         // 3. Eksekusi otomatis penjatahan IPO yang jatuh tempo pada hari listing
-        for (com.tradingglobal3d.core.corporate.IpoOffering ipo : corporateService.getIpoOfferings()) {
-            if (!ipo.isAllotted() && !ipo.getListingDate().isAfter(nextDate)) {
-                allotIpo(ipo.getId(), 1.0); // Eksekusi penjatahan IPO penuh sesuai kuota penawaran dan aturan 60:40
-            }
-        }
+        settleDueIpoListings(nextDate);
 
         // 4. Update Rasio Pasokan Terkunci (Supply Squeeze) secara Riil dari Kepemilikan Pemain & Klien
         if (catalog != null) {
@@ -2466,6 +2819,7 @@ public final class TradingFacade {
             if (gameMode == GameMode.HISTORICAL_REPLAY && (!replayEngine.supportsInstrument(inst.getId())
                     || replayEngine.getCurrentBar() == null || !replayEngine.getCurrentBar().getDate().equals(clock.getCurrentDate())
                     || clock.getCurrentTime().isBefore(LocalTime.of(9, 0)) || !clock.getCurrentTime().isBefore(LocalTime.of(16, 0)))) continue;
+            if (clock != null && !clock.isTradingOpenFor(inst.getExchange())) continue;
             orderManager.checkAndActivateTriggers(inst, marketEngine, ledger, accounts, now);
         }
         if (clock != null && clock.isForeground()) evaluateRecordedCareerProgress();
@@ -2475,10 +2829,11 @@ public final class TradingFacade {
         if (realSeconds < 0) throw new IllegalArgumentException("Waktu tidak boleh negatif");
         if (clock == null || !clock.isForeground() || clock.isPaused() || realSeconds == 0) return false;
         try {
+            long now = realTimeClock.millis();
             long gameSeconds = clock.advanceRealMs(realSeconds * 1000L, true);
-            this.lastRealTimeAnchor = Math.max(lastRealTimeAnchor, realTimeClock.millis());
+            this.lastRealTimeAnchor = Math.max(lastRealTimeAnchor, now);
             if (gameSeconds <= 0) return false;
-            return advanceWorldSeconds(gameSeconds);
+            return advanceWorldSeconds(gameSeconds, lastRealTimeAnchor, false);
         } catch (RuntimeException error) {
             clock.pause();
             throw error;
@@ -2488,18 +2843,22 @@ public final class TradingFacade {
     public synchronized boolean syncClock() {
         long now = realTimeClock.millis();
         if (clock == null || now <= lastRealTimeAnchor) return false;
-        return advanceRealMs(now - lastRealTimeAnchor, clock.isForeground());
+        return advanceRealMs(now - lastRealTimeAnchor, clock.isForeground(), now);
     }
 
     public synchronized boolean advanceRealMs(long realMs, boolean isForeground) {
+        return advanceRealMs(realMs, isForeground, realTimeClock.millis());
+    }
+
+    private boolean advanceRealMs(long realMs, boolean isForeground, long target) {
         if (realMs < 0) throw new IllegalArgumentException("Waktu tidak boleh negatif");
         if (clock == null || realMs == 0) return false;
         if (isForeground && clock.isPaused()) return false;
         try {
             long gameSeconds = clock.advanceRealMs(realMs, isForeground);
-            this.lastRealTimeAnchor = Math.max(lastRealTimeAnchor, realTimeClock.millis());
+            this.lastRealTimeAnchor = Math.max(lastRealTimeAnchor, target);
             if (gameSeconds <= 0) return false;
-            return advanceWorldSeconds(gameSeconds);
+            return advanceWorldSeconds(gameSeconds, lastRealTimeAnchor, false);
         } catch (RuntimeException error) {
             clock.pause();
             throw error;
@@ -2519,21 +2878,31 @@ public final class TradingFacade {
                 order.setReservedMoney(Money.zero(reserved.getCurrency()));
             }
             order.setAwaitingMarketOpen(false);
-            try { submitOrder(order, true); }
+            try { submitOrder(order, true, false); }
             catch (IllegalArgumentException | IllegalStateException invalidOrder) {
                 order.setStatus(OrderStatus.REJECTED);
             }
         }
     }
 
+    public boolean advanceWorldSecondsForTest(long seconds) {
+        return advanceWorldSeconds(seconds);
+    }
+
     private boolean advanceWorldSeconds(long remaining) {
+        return advanceWorldSeconds(remaining, Math.max(lastRealTimeAnchor, realTimeClock.millis()), false);
+    }
+
+    private boolean advanceWorldSeconds(long remaining, long realEnd, boolean deferSave) {
         long total = remaining;
         boolean fastForward = !clock.isForeground() || total > 3600;
         long startTimestamp = clock.getGameTimestamp();
+        multiAssetTrading.updateValuations(catalog, fxService, accounts, startTimestamp);
         publishWorldProgress(startTimestamp, total, remaining, "PROCESSING");
         // Lifecycle cannot change event boundaries or trigger outcomes.
         LocalDate initialDate = clock.getCurrentDate();
-        long realEnd = Math.max(lastRealTimeAnchor, realTimeClock.millis());
+        boolean marginChanged = processMarginRisk(Math.max(0, realEnd - Math.floorDiv(
+                Math.addExact(Math.multiplyExact(total, 1000L), clock.getGameMsRemainder()), GameClock.FOREGROUND_GAME_SECONDS_PER_REAL_SECOND)));
 
         while (remaining > 0) {
             if (gameMode == GameMode.HISTORICAL_REPLAY && replayEngine.isReplayCompleted(clock.getCurrentDate(), clock.getCurrentTime())) {
@@ -2545,7 +2914,7 @@ public final class TradingFacade {
             if (fastForward) {
                 // Fast-Forward Batas Harian Esensial saat offline atau lompatan waktu ekstrem (A06 / A07)
                 step = Math.min(remaining, midnight);
-                for (long boundary : new long[]{4*3600, 9*3600, 12*3600, 13*3600+30*60, 16*3600, 21*3600+30*60}) {
+                for (long boundary : new long[]{16*3600}) {
                     if (boundary > currentSecOfDay) { step = Math.min(step, boundary - currentSecOfDay); break; }
                 }
             } else {
@@ -2553,11 +2922,20 @@ public final class TradingFacade {
                 long secondsToNextEvent = eventInterval - currentSecOfDay % eventInterval;
                 step = Math.min(remaining, Math.min(secondsToNextEvent, midnight));
             }
+            long currentReal = realEnd - Math.floorDiv(Math.addExact(Math.multiplyExact(remaining, 1000L), clock.getGameMsRemainder()),
+                    GameClock.FOREGROUND_GAME_SECONDS_PER_REAL_SECOND);
+            long deadline = riskService.getMarginCallDeadline(personalAccountId);
+            if (deadline > currentReal && deadline - currentReal <= RiskComplianceService.MARGIN_CALL_GRACE_REAL_MS) {
+                long toDeadline = Math.floorDiv((deadline - currentReal) * GameClock.FOREGROUND_GAME_SECONDS_PER_REAL_SECOND + 999, 1000);
+                step = Math.min(step, Math.max(1, toDeadline));
+            }
 
             LocalTime timeBefore = clock.getCurrentTime();
+            long eventReal = realEnd - Math.floorDiv(Math.addExact(Math.multiplyExact(remaining - step, 1000L),
+                    clock.getGameMsRemainder()), GameClock.FOREGROUND_GAME_SECONDS_PER_REAL_SECOND);
             if (step == midnight) {
                 clock.advanceGameSeconds(step - 1);
-                settleDay(false);
+                settleDay(false, Math.max(0, eventReal));
                 clock.advanceGameSeconds(1);
                 processCalendarActions(clock.getCurrentDate());
                 if (gameMode == GameMode.HISTORICAL_REPLAY && replayEngine.isReplayActive()) {
@@ -2567,21 +2945,13 @@ public final class TradingFacade {
                 clock.advanceGameSeconds(step);
             }
 
-            // A06: Reset sesi US pada penutupan bursa Wall St (04:00 WIB) tepat sekali per sesi
-            if (timeBefore.isBefore(LocalTime.of(4, 0)) && !clock.getCurrentTime().isBefore(LocalTime.of(4, 0))) {
-                if (catalog != null) {
-                    for (Instrument inst : catalog.getAllInstruments()) {
-                        if (inst.getExchange() == com.tradingglobal3d.core.market.MarketExchange.US) {
-                            inst.startNewTradingDay();
-                        }
-                    }
-                }
-            }
             remaining -= step;
             publishWorldProgress(startTimestamp, total, remaining, "PROCESSING");
-            long eventReal = realEnd - Math.floorDiv(Math.addExact(Math.multiplyExact(remaining, 1000L), clock.getGameMsRemainder()), GameClock.FOREGROUND_GAME_SECONDS_PER_REAL_SECOND);
             researchService.observeWorldTime(clock.getGameTimestamp(), Math.max(0, eventReal), gameMode == GameMode.HISTORICAL_REPLAY);
-            if (clock.getCurrentTime().equals(LocalTime.of(16, 0))) {
+            if (researchService != null) {
+                researchService.processDailyAutoRenewal(getPersonalAccount(), ledger, clock.getGameTimestamp());
+            }
+            if (clock.getCurrentTime().equals(LocalTime.of(16, 0)) || (timeBefore.isBefore(LocalTime.of(16, 0)) && !clock.getCurrentTime().isBefore(LocalTime.of(16, 0)))) {
                 try {
                     mutualFundManager.processCutoff(accounts, ledger, clock.getGameTimestamp());
                     for (MutualFund fund : mutualFundManager.getAllFunds()) {
@@ -2599,6 +2969,11 @@ public final class TradingFacade {
 
                 // Equity rebalance: fund EQ index menjaga rasio BBCA/kas sesuai NAB
                 try {
+                    for (Order oldOrder : orderManager.getAllOrders()) {
+                        if (oldOrder != null && !oldOrder.getStatus().isFinal() && oldOrder.getRequestId().contains(":REBALANCE:")) {
+                            cancelOrder(oldOrder);
+                        }
+                    }
                     List<Order> rebalanceOrders = mutualFundManager.getEquityRebalanceOrders(catalog, clock.getGameTimestamp());
                     for (Order rebalOrder : rebalanceOrders) {
                         submitOrder(rebalOrder);
@@ -2631,8 +3006,10 @@ public final class TradingFacade {
             if (clock.getCurrentTime().getMinute() % 15 == 0 || remaining == 0) {
                 multiAssetTrading.updateValuations(catalog, fxService, accounts, clock.getGameTimestamp());
             }
+            marginChanged |= processMarginRisk(Math.max(0, eventReal));
         }
         publishWorldProgress(startTimestamp, total, remaining, "PROCESSED");
+        if (marginChanged && !deferSave) persistFinancialMutation();
         return !initialDate.equals(clock.getCurrentDate());
     }
 
@@ -2672,6 +3049,16 @@ public final class TradingFacade {
     /**
      * Memvalidasi bahwa seluruh saldo akun cocok dengan audit ledger.
      */
+    private static Set<String> npcLedgerAccounts(Collection<Account> accounts) {
+        Set<String> ids = new HashSet<>();
+        for (Account account : accounts) {
+            String id = account.getId();
+            if (account.getType() == AccountType.FIRM && (id.startsWith("ACC-LEAGUE-NPC-")
+                    || id.equals("ACC-NPC-MM-01") || id.equals("ACC-NPC-RETAIL-01"))) ids.add(id);
+        }
+        return ids;
+    }
+
     public synchronized boolean reconcileAll() {
         for (Account acc : accounts.values()) {
             // NPC/Market Maker menggunakan auto-replenish tanpa ledger; lewati rekonsiliasi mereka
@@ -2693,7 +3080,21 @@ public final class TradingFacade {
         configureSaveValidation();
         if (recoveryRequired || clock == null || getPersonalAccount() == null)
             throw new IOException("Save belum dapat ditulis; pulihkan salinan valid terlebih dahulu");
-        SaveState state = SaveState.capture(gameMode, clock, accounts.values(), ledger, lastRealTimeAnchor, lastOfflineCatchupReport);
+        saveManager.save(captureRuntimeState(false));
+        saveWriteFailure = null;
+        } catch (Exception error) {
+            saveWriteFailure = error.getMessage() == null ? error.toString() : error.getMessage();
+            throw error;
+        }
+    }
+
+    private SaveState captureRuntimeState(boolean detachAccounts) throws JSONException {
+        Collection<Account> capturedAccounts = accounts.values();
+        if (detachAccounts) {
+            capturedAccounts = new ArrayList<>();
+            for (Account account : accounts.values()) capturedAccounts.add(account.copy());
+        }
+        SaveState state = SaveState.capture(gameMode, clock, capturedAccounts, ledger, lastRealTimeAnchor, lastOfflineCatchupReport);
         OrderManager savedOrders = new OrderManager();
         Set<String> savedIds = new HashSet<>();
         for (Account account : accounts.values()) {
@@ -2710,6 +3111,8 @@ public final class TradingFacade {
             if (savedIds.add(order.getId())) savedOrders.registerOrder(order);
         }
         JSONObject runtime = new JSONObject();
+        JSONObject npcLedgerSummary = ledger.exportNpcSummary();
+        if (npcLedgerSummary != null) runtime.put("npcLedgerSummary", npcLedgerSummary);
         runtime.put("runId", runId);
         runtime.put("macroIndex", macroIndex);
         if (weeklyPerformance != null) runtime.put("weeklyPerformance", weeklyPerformance.exportState());
@@ -2743,6 +3146,7 @@ public final class TradingFacade {
         runtime.put("installmentLoans", installmentLoanManager.exportState());
         runtime.put("periodicMissions", periodicMissionManager.exportState());
         runtime.put("league", leagueManager.exportState());
+        runtime.put("bosses", marketBossService.exportState());
         runtime.put("playerProfile", playerProfileManager.exportState());
         runtime.put("strategicTimeDeposits", timeDepositManager.exportState());
         runtime.put("strategicPortfolioInsurance", portfolioInsuranceService.exportState());
@@ -2760,12 +3164,7 @@ public final class TradingFacade {
         if (dailySponsorLastClaimedRealDate != null) runtime.put("dailySponsorLastClaimedRealDate", dailySponsorLastClaimedRealDate);
         runtime.put("dailySponsorLastClaimedRealTimestamp", dailySponsorLastClaimedRealTimestamp);
         state.setRuntimeState(runtime);
-        saveManager.save(state);
-                saveWriteFailure = null;
-        } catch (Exception error) {
-            saveWriteFailure = error.getMessage() == null ? error.toString() : error.getMessage();
-            throw error;
-        }
+        return state;
     }
 
     private boolean pendingBackupRecoveryOffer = false;
@@ -2849,14 +3248,33 @@ public final class TradingFacade {
             validatedClock.setSpeedMultiplier(state.getSpeedMultiplier());
             validatedClock.setGameMsRemainder(state.getGameMsRemainder());
             Set<String> accountIds = new HashSet<>();
+            Set<String> reconciledAccountIds = new HashSet<>();
             int personalAccounts = 0;
             for (Account account : state.getAccounts()) {
                 if (account.getId().trim().isEmpty() || !accountIds.add(account.getId())) throw new IllegalArgumentException("ID akun save duplikat atau kosong");
                 if (account.getType() == AccountType.PERSONAL) personalAccounts++;
+                if (account.getType() == AccountType.PERSONAL || account.getType() == AccountType.CLIENT)
+                    reconciledAccountIds.add(account.getId());
             }
             if (personalAccounts != 1) throw new IllegalArgumentException("Save harus memiliki satu akun personal");
-            new EconomyLedger().restoreEntries(state.getLedgerEntries());
             JSONObject runtime = state.getRuntimeState();
+            EconomyLedger validationLedger = new EconomyLedger();
+            List<LedgerEntry> reconciledEntries = new ArrayList<>();
+            for (LedgerEntry entry : state.getLedgerEntries())
+                if (reconciledAccountIds.contains(entry.getAccountId())) reconciledEntries.add(entry);
+            validationLedger.restoreEntries(reconciledEntries);
+            if (runtime.has("npcLedgerSummary")) {
+                JSONObject summary = runtime.getJSONObject("npcLedgerSummary");
+                Math.addExact(state.getLedgerEntries().size(), summary.getInt("count"));
+                validationLedger.restoreNpcSummary(summary, npcLedgerAccounts(state.getAccounts()));
+            }
+            for (Account account : state.getAccounts()) {
+                if (account.getType() != AccountType.PERSONAL && account.getType() != AccountType.CLIENT) continue;
+                for (Currency currency : Currency.values()) {
+                    if (!validationLedger.reconcile(account, currency))
+                        throw new IllegalArgumentException("Kas save tidak cocok dengan ledger untuk akun " + account.getId() + " (" + currency + ")");
+                }
+            }
             if (runtime.has("weeklyBaselineNetWorth")) new Money(new BigDecimal(runtime.getString("weeklyBaselineNetWorth")), Currency.IDR);
             if (runtime.has("macroIndex")) runtime.getInt("macroIndex");
             if (runtime.has("dailySponsorLastClaimedRealDate")) LocalDate.parse(runtime.getString("dailySponsorLastClaimedRealDate"));
@@ -2941,11 +3359,22 @@ public final class TradingFacade {
                 if (entry.getType() == LedgerEntryType.FX_CONVERSION_DEBIT || entry.getType() == LedgerEntryType.FX_CONVERSION_CREDIT)
                     throw new IllegalArgumentException("Save FX lama memerlukan migrasi receipt; tidak boleh membuat hasil kurs baru");
             }
-            new RiskComplianceService().restoreState(runtime.optJSONObject("risk") != null ? runtime.getJSONObject("risk") : new JSONObject());
+            JSONObject riskState = runtime.optJSONObject("risk") != null ? runtime.getJSONObject("risk") : new JSONObject();
+            new RiskComplianceService().restoreState(riskState);
+            for (String key : new String[]{"debts", "shorts", "marginCalls", "financingDays"}) {
+                JSONArray rows = riskState.optJSONArray(key);
+                if (rows == null) continue;
+                for (int i = 0; i < rows.length(); i++) {
+                    if (!accountIds.contains(rows.getJSONObject(i).getString("accountId")))
+                        throw new IllegalArgumentException("Akun risiko pada save tidak ditemukan");
+                    if ("financingDays".equals(key) && rows.getJSONObject(i).getLong("day") > state.getGameDate().toEpochDay())
+                        throw new IllegalArgumentException("Tanggal pembiayaan save melampaui waktu game");
+                }
+            }
             OrderManager stagedOrders = new OrderManager();
             MarketEngine stagedMarket = new MarketEngine();
             stagedOrders.restoreState(runtime.optJSONArray("orders") != null ? runtime.getJSONArray("orders") : new JSONArray(), restoredCatalog, stagedMarket);
-            if (runtime.has("books")) stagedMarket.restoreState(runtime.getJSONArray("books"), restoredCatalog, stagedOrders);
+            if (runtime.has("books")) stagedMarket.validateState(runtime.getJSONArray("books"), restoredCatalog, stagedOrders);
             FundBuilderService stagedFunds = new FundBuilderService();
             stagedFunds.restoreState(runtime.has("fundPlans") ? runtime.getJSONArray("fundPlans") : new JSONArray());
             for (FundAllocationPlan plan : stagedFunds.getAllPlans()) {
@@ -3013,6 +3442,7 @@ public final class TradingFacade {
             }
             if (runtime.has("periodicMissions")) new PeriodicMissionManager().restoreState(runtime.getJSONObject("periodicMissions"));
             if (runtime.has("league")) new LeagueManager().restoreState(runtime.getJSONObject("league"));
+            if (runtime.has("bosses")) new com.tradingglobal3d.core.boss.MarketBossService().restoreState(runtime.getJSONArray("bosses"));
             if (runtime.has("playerProfile")) new PlayerProfileManager().restoreState(runtime.getJSONObject("playerProfile"));
             if (runtime.has("strategicTimeDeposits")) new com.tradingglobal3d.core.multiasset.TimeDepositManager()
                     .restoreState(runtime.getJSONObject("strategicTimeDeposits"));
@@ -3037,6 +3467,7 @@ public final class TradingFacade {
         if (validationOnly) return true;
         this.runId = state.getRuntimeState().optString("runId", "LEGACY-" + java.util.UUID.nameUUIDFromBytes((state.getGameDate() + ":" + state.getLedgerEntries().size()).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         this.catalog = restoredCatalog;
+        bindResearchInstrumentAccess();
         corporateService.bindShareSupplyCatalog(restoredCatalog);
         this.strategyLabs.clear(); this.strategyLabs.putAll(restoredLabs);
         String savedBaseline = state.getRuntimeState().optString("weeklyBaselineNetWorth", null);
@@ -3059,6 +3490,8 @@ public final class TradingFacade {
         this.ledger.restoreEntries(state.getLedgerEntries());
         try {
             JSONObject runtime = state.getRuntimeState();
+            if (runtime.has("npcLedgerSummary"))
+                ledger.restoreNpcSummary(runtime.getJSONObject("npcLedgerSummary"), npcLedgerAccounts(state.getAccounts()));
             if (runtime.has("catalog")) catalog.restoreState(runtime.getJSONObject("catalog"));
             if (runtime.has("career")) careerManager.restoreState(runtime.getJSONObject("career"));
             if (runtime.has("mandates")) firmManager.restoreState(runtime.getJSONArray("mandates"));
@@ -3085,6 +3518,7 @@ public final class TradingFacade {
             if (runtime.has("installmentLoans")) installmentLoanManager.restoreState(runtime.getJSONArray("installmentLoans"), clock.getGameTimestamp());
             if (runtime.has("periodicMissions")) periodicMissionManager.restoreState(runtime.getJSONObject("periodicMissions"));
             if (runtime.has("league")) leagueManager.restoreState(runtime.getJSONObject("league"));
+            if (runtime.has("bosses")) marketBossService.restoreState(runtime.getJSONArray("bosses"));
             if (runtime.has("playerProfile")) playerProfileManager.restoreState(runtime.getJSONObject("playerProfile"));
             if (runtime.has("strategicTimeDeposits")) timeDepositManager.restoreState(runtime.getJSONObject("strategicTimeDeposits"));
             if (runtime.has("strategicPortfolioInsurance")) portfolioInsuranceService.restoreState(runtime.getJSONObject("strategicPortfolioInsurance"));
@@ -3104,6 +3538,7 @@ public final class TradingFacade {
             marketEngine.clearState();
             orderManager.restoreState(runtime.optJSONArray("orders") != null ? runtime.getJSONArray("orders") : new JSONArray(), catalog, marketEngine);
             if (runtime.has("books")) marketEngine.restoreState(runtime.getJSONArray("books"), catalog, orderManager);
+            restoreMissingDayStatistics();
             if (runtime.has("macroIndex")) {
                 setMacroIndex(runtime.getInt("macroIndex"));
             } else {
@@ -3149,6 +3584,29 @@ public final class TradingFacade {
         }
         recoveryRequired = false;
         return true;
+    }
+
+    private void restoreMissingDayStatistics() {
+        long now = clock.getGameTimestamp();
+        long start = clock.getCurrentDate().atStartOfDay(java.time.ZoneId.of("Asia/Jakarta")).toInstant().toEpochMilli();
+        for (Instrument instrument : catalog.getAllInstruments()) {
+            if (instrument.getDayVolume() == 0 || instrument.getDayTurnover() != null) continue;
+            OrderBook book = marketEngine.getBook(instrument.getId());
+            if (book == null) continue;
+            List<TradeFill> fills = new ArrayList<>();
+            long quantity = 0;
+            BigDecimal turnover = BigDecimal.ZERO;
+            for (TradeFill fill : book.getTradeHistory()) if (fill.getTimestamp() >= start && fill.getTimestamp() <= now) {
+                fills.add(fill); quantity = Math.addExact(quantity, fill.getQuantity());
+                turnover = turnover.add(fill.getPrice().getAmount().multiply(BigDecimal.valueOf(fill.getQuantity())));
+            }
+            // ponytail: retained history is capped; recover legacy totals only when it covers the complete daily volume.
+            if (quantity != instrument.getDayVolume() || fills.isEmpty()) continue;
+            fills.sort(Comparator.comparingLong(TradeFill::getTimestamp));
+            Money open = fills.get(0).getPrice();
+            if (open.compareTo(instrument.getDayHigh()) <= 0 && open.compareTo(instrument.getDayLow()) >= 0)
+                instrument.restoreMissingDayStatistics(open, turnover);
+        }
     }
 
     /** Restore only catalog additions proven by persisted IPO allotment; never accept unknown save symbols. */
@@ -3269,8 +3727,16 @@ public final class TradingFacade {
             Money netWorth = personalNetWorth();
             personalObj.put("netWorth", netWorth.format());
             personalObj.put("netWorthRaw", netWorth.getAmount().toPlainString());
+            Money loanDebt = riskService.getMarginDebt(personal.getId(), Currency.IDR)
+                    .add(new Money(riskService.getMarginDebt(personal.getId(), Currency.USD).getAmount().multiply(fxService.getMidRate()), Currency.IDR))
+                    .add(installmentLoanManager.getTotalOutstandingLiability(personal.getId()));
+            personalObj.put("loanDebt", loanDebt.format());
+            personalObj.put("loanDebtRaw", loanDebt.getAmount().toPlainString());
 
             root.put("personalAccount", personalObj);
+            root.put("marginCall", new JSONObject()
+                    .put("deadlineRealAt", riskService.getMarginCallDeadline(personal.getId()))
+                    .put("remainingRealMs", getMarginCallRemainingRealMs()));
         }
 
         JSONArray accountsArray = new JSONArray();
@@ -3314,7 +3780,7 @@ public final class TradingFacade {
                 .put("short", careerAccess(CareerRank.PORTFOLIO_MANAGER)));
         root.put("playerProgress", progressManager.toSnapshotJson());
         root.put("accountCount", accounts.size());
-        root.put("ledgerEntryCount", ledger.getEntries().size());
+        root.put("ledgerEntryCount", ledger.getEntryCount());
         if (saveManager != null) {
             root.put("saveMetadata", saveManager.getSaveMetadata());
             java.io.File pFile = saveManager.getSaveFile();
@@ -3668,6 +4134,27 @@ public final class TradingFacade {
         return result;
     }
 
+    public synchronized JSONArray getIntradaySparkline(Instrument instrument) throws JSONException {
+        JSONArray points = new JSONArray();
+        if (gameMode == GameMode.HISTORICAL_REPLAY || clock == null) return points;
+        OrderBook book = marketEngine.getBook(instrument.getId());
+        if (book == null) return points;
+        long start = clock.getCurrentDate().atStartOfDay(java.time.ZoneId.of("Asia/Jakarta")).toInstant().toEpochMilli();
+        long end = clock.getGameTimestamp();
+        Map<Long, TradeFill> buckets = new TreeMap<>();
+        for (TradeFill fill : book.getTradeHistory()) {
+            if (fill.getTimestamp() < start || fill.getTimestamp() > end) continue;
+            long bucket = (fill.getTimestamp() - start) / 1800000L;
+            TradeFill previous = buckets.get(bucket);
+            if (previous == null || fill.getTimestamp() >= previous.getTimestamp()) buckets.put(bucket, fill);
+        }
+        if (buckets.isEmpty()) return points;
+        points.put(new JSONObject().put("timestamp", start).put("price", instrument.getPreviousClosePrice().getAmount()));
+        for (TradeFill fill : buckets.values()) points.put(new JSONObject()
+                .put("timestamp", fill.getTimestamp()).put("price", fill.getPrice().getAmount()));
+        return points;
+    }
+
     private JSONObject getChartRange(Instrument instrument, String range) throws JSONException {
         long duration = "R6H".equals(range) ? 21600000L : "R1D".equals(range) ? 86400000L
                 : "R7D".equals(range) ? 604800000L : 2592000000L;
@@ -3749,6 +4236,13 @@ public final class TradingFacade {
         Account personal = getPersonalAccount();
         Money netWorth = getPersonalNetWorth();
         Money liabilities = personal != null ? riskService.getMarginDebt(personal.getId(), Currency.IDR) : Money.zero(Currency.IDR);
+        if (personal != null) {
+            Money usdMargin = riskService.getMarginDebt(personal.getId(), Currency.USD);
+            if (usdMargin.isPositive()) {
+                BigDecimal usdRate = fxService != null ? fxService.getMidRate() : BigDecimal.valueOf(15800);
+                liabilities = liabilities.add(new Money(usdMargin.getAmount().multiply(usdRate), Currency.IDR));
+            }
+        }
         if (personal != null && installmentLoanManager != null) {
             liabilities = liabilities.add(installmentLoanManager.getTotalOutstandingLiability(personal.getId()));
         }
@@ -3892,11 +4386,17 @@ public final class TradingFacade {
     public synchronized JSONObject createCustomMutualFund(String fundName, double eqPct, double commPct, double cryptoPct, double cashPct, BigDecimal aum) throws JSONException {
         requirePlayerFinancialWritesAvailable();
         if (fundName == null || fundName.trim().isEmpty()) throw new IllegalArgumentException("Nama reksa dana wajib diisi");
+        for (double w : new double[]{eqPct, commPct, cryptoPct, cashPct}) {
+            if (!Double.isFinite(w) || w < 0.0 || w > 100.0) {
+                throw new IllegalArgumentException("Setiap bobot alokasi aset harus 0–100%: " + w);
+            }
+        }
         double totalPct = eqPct + commPct + cryptoPct + cashPct;
         if (Math.abs(totalPct - 100.0) > 0.01) throw new IllegalArgumentException("Total alokasi aset harus 100%");
 
         String fundId = "FUND-CUST-" + (customMutualFunds.size() + 1);
         JSONObject obj = new JSONObject();
+        obj.put("success", true);
         obj.put("fundId", fundId);
         obj.put("fundName", fundName);
         obj.put("equityWeightPct", eqPct);
@@ -4264,24 +4764,27 @@ public final class TradingFacade {
     // =========================================================================
 
     public synchronized JSONObject getLoanProductsJson() throws JSONException {
+        double macroRate = installmentLoanManager != null ? installmentLoanManager.getCurrentMacroLoanRateAnnual() : 10.75;
+        String rateLabel = String.format(java.util.Locale.ROOT, "%.3f%% / hari (%.2f%% p.a.)", (macroRate / 365.0), macroRate);
+
         JSONArray arr = new JSONArray();
         JSONObject p1 = new JSONObject();
         p1.put("productId", "LOAN-PERS-01");
         p1.put("name", "Pinjaman Pribadi Multiguna");
-        p1.put("description", "Pembiayaan kas pribadi dengan bunga harian 0.05% atas sisa pokok.");
+        p1.put("description", "Pembiayaan kas pribadi dengan suku bunga mengacu pada kondisi makroekonomi (" + rateLabel + ").");
         p1.put("minPrincipal", "Rp 1.000.000");
         p1.put("availableTenors", new JSONArray().put(7).put(14).put(30));
-        p1.put("dailyInterestRate", "0.05% / hari");
+        p1.put("dailyInterestRate", rateLabel);
         p1.put("disbursementFee", "0.5% (provisi cair)");
         arr.put(p1);
 
         JSONObject p2 = new JSONObject();
         p2.put("productId", "LOAN-CORP-01");
         p2.put("name", "Kredit Modal Kerja Operasional");
-        p2.put("description", "Pembiayaan kas anak usaha untuk ekspansi atau modal kerja.");
+        p2.put("description", "Pembiayaan kas anak usaha untuk ekspansi atau modal kerja (" + rateLabel + ").");
         p2.put("minPrincipal", "Rp 1.000.000");
         p2.put("availableTenors", new JSONArray().put(7).put(14).put(30));
-        p2.put("dailyInterestRate", "0.05% / hari");
+        p2.put("dailyInterestRate", rateLabel);
         p2.put("disbursementFee", "0.5% (provisi cair)");
         arr.put(p2);
 
@@ -4516,8 +5019,10 @@ public final class TradingFacade {
         }
         int days = playerProfileManager.getRunDaysPlayed();
         Money netWorth = getPersonalNetWorth();
-        Money marginDebt = personal != null ? riskService.getMarginDebt(personal.getId(), Currency.IDR) : Money.zero(Currency.IDR);
-        return InvestorArchetypeService.evaluateArchetype(fills, days, personal, netWorth, marginDebt, fxService.getMidRate(), clock.getGameTimestamp());
+        Money marginDebtIdr = personal != null ? riskService.getMarginDebt(personal.getId(), Currency.IDR) : Money.zero(Currency.IDR);
+        Money marginDebtUsd = personal != null ? riskService.getMarginDebt(personal.getId(), Currency.USD) : Money.zero(Currency.USD);
+        Money totalMarginDebt = marginDebtIdr.add(new Money(marginDebtUsd.getAmount().multiply(fxService.getMidRate()), Currency.IDR));
+        return InvestorArchetypeService.evaluateArchetype(fills, days, personal, netWorth, totalMarginDebt, fxService.getMidRate(), clock.getGameTimestamp());
     }
 
     public synchronized JSONObject getPlayerProfileJson() throws JSONException {
@@ -4548,8 +5053,13 @@ public final class TradingFacade {
         fin.put("securitiesValueIdr", secVal.format());
         fin.put("collectionsValueIdr", collectionManager.calculateTotalValuation().format());
         fin.put("mutualFundsValueIdr", mutualFundManager.calculateTotalHoldingsValue(personal != null ? personal.getId() : "").format());
-        Money marginDebt = personal != null ? riskService.getMarginDebt(personal.getId(), Currency.IDR) : Money.zero(Currency.IDR);
-        fin.put("liabilitiesIdr", marginDebt.format());
+        Money marginDebtIdr = personal != null ? riskService.getMarginDebt(personal.getId(), Currency.IDR) : Money.zero(Currency.IDR);
+        Money marginDebtUsd = personal != null ? riskService.getMarginDebt(personal.getId(), Currency.USD) : Money.zero(Currency.USD);
+        Money totalDebt = marginDebtIdr.add(new Money(marginDebtUsd.getAmount().multiply(usdRate), Currency.IDR));
+        if (personal != null && installmentLoanManager != null) {
+            totalDebt = totalDebt.add(installmentLoanManager.getTotalOutstandingLiability(personal.getId()));
+        }
+        fin.put("liabilitiesIdr", totalDebt.format());
         Money clientAum = Money.zero(Currency.IDR);
         for (ClientMandate mandate : firmManager.getAllMandates()) {
             Account account = accounts.get(mandate.getClientAccountId());
@@ -4745,13 +5255,17 @@ public final class TradingFacade {
             }
         }
 
-        Money marginDebt = personal != null ? riskService.getMarginDebt(personal.getId(), Currency.IDR) : Money.zero(Currency.IDR);
+        Money marginDebtIdr = personal != null ? riskService.getMarginDebt(personal.getId(), Currency.IDR) : Money.zero(Currency.IDR);
+        Money marginDebtUsd = personal != null ? riskService.getMarginDebt(personal.getId(), Currency.USD) : Money.zero(Currency.USD);
+        Money marginDebt = marginDebtIdr.add(new Money(marginDebtUsd.getAmount().multiply(usdRate), Currency.IDR));
         Money installmentDebt = personal != null ? installmentLoanManager.getTotalOutstandingLiability(personal.getId()) : Money.zero(Currency.IDR);
-        Money totalLiabilities = marginDebt.add(installmentDebt).add(collectionManager.getTotalMaintenanceLiability());
+        Money collectionMaintenance = collectionManager.getTotalMaintenanceLiability();
+        Money shortLiability = personal != null ? riskService.getTotalShortLiability(personal.getId(), catalog, usdRate) : Money.zero(Currency.IDR);
+        Money totalLiabilities = marginDebt.add(installmentDebt).add(collectionMaintenance).add(shortLiability);
 
         Money grossAssets = personalCash.add(securitiesVal).add(fundUnitsVal).add(collectionVal).add(companyEquityVal).add(timeDepositVal);
         Money netWorth = getPersonalNetWorth();
-        totalLiabilities = grossAssets.subtract(netWorth);
+        boolean isReconciled = grossAssets.subtract(totalLiabilities).equals(netWorth);
 
         JSONObject res = new JSONObject();
         res.put("success", true);
@@ -4774,10 +5288,11 @@ public final class TradingFacade {
         JSONObject liabObj = new JSONObject();
         liabObj.put("marginDebt", marginDebt.format());
         liabObj.put("installmentDebt", installmentDebt.format());
-        liabObj.put("collectionMaintenance", collectionManager.getTotalMaintenanceLiability().format());
+        liabObj.put("collectionMaintenance", collectionMaintenance.format());
+        liabObj.put("shortLiability", shortLiability.format());
         res.put("liabilities", liabObj);
 
-        res.put("isReconciled", true);
+        res.put("isReconciled", isReconciled);
         return res;
     }
 

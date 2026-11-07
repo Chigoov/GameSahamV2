@@ -50,3 +50,12 @@ Repo mempunyai source produksi Java + native Android WebView dan UI HTML/CSS/JS 
 Pahami alur lengkap dan telusuri semua caller sebelum mengubah fungsi. Urutan: perlu dibangun -> existing -> standard library -> native platform -> dependency terpasang -> minimum code baru. Tanpa abstraksi/framework/dependency spekulatif. Tandai shortcut disengaja dengan ponytail: dan sebut batas serta upgrade path bila ada.
 
 Jangan memangkas validasi batas input, keamanan uang, penanganan data loss, aksesibilitas atau scope eksplisit. Nontrivial logic menyisakan satu runnable check minimum menggunakan runner yang ada; tanpa framework/fixture baru hanya untuk checklist.
+
+## Gerbang penyerahan Hermes/Codex untuk plan lanjutan performa
+
+- Sebelum menyerahkan hasil plan `Work/Perbaikan-Lanjutan-Performa-2026-11-03/plan.md`, jalankan `python Work/Perbaikan-Lanjutan-Performa-2026-11-03/quality_gate.py run`. Simpan lokasi `gate.json` yang dihasilkan beserta exit code. Ini perintah manual, bukan izin membuat scheduler atau menjalankan tindakan perangkat.
+- Verifikasi ulang bukti dengan `quality_gate.py check <path-gate.json>` dari folder skrip yang sama atau menggunakan path lengkap skrip. Perubahan source, tes, runner atau artefak setelah pengujian membuat bukti lama tidak berlaku.
+- Exit 0 membuktikan lingkup regresi yang disebut pada hasil, bukan seluruh plan, kelancaran Android atau kesiapan rilis. Klaim penuh harus diperiksa dengan `check <path-gate.json> --claim full`; exit 2 berarti gate lain masih membutuhkan bukti/review. Jangan mengganti status itu dengan PASS buatan di laporan.
+- Reproduksi bug dengan assertion perilaku sebelum perbaikan bila memungkinkan, lalu jalankan kembali sesudahnya. Jika tidak direproduksi, nyatakan batasnya. Tes keberadaan field/elemen tidak boleh dianggap membuktikan perubahan nilai, retry, penolakan stale snapshot atau kelancaran.
+- Perubahan assertion, expected value, daftar kasus, gate, dan alat ukur wajib dijelaskan serta ditinjau bersama diff aplikasi; jangan melonggarkan verifier untuk meluluskan pekerjaan. Pemeriksa berikutnya harus membaca cakupan tes dan menjalankan ulang, bukan hanya mempercayai angka PASS.
+- Pisahkan bukti domain Java, browser QA, build APK dan perangkat Poco X8 Pro. Gunakan status NEEDS_VALIDATION/MENUNGGU_KEPUTUSAN untuk bukti atau keputusan yang masih kurang. Aturan izin UI/perangkat dan perlindungan save di atas tetap berlaku.

@@ -122,6 +122,65 @@ public class BacklogReviewB01B05Test {
     }
 
     @Test
+    public void testB02_StaleQuoteRejectedWhenMacroRateChangesBeforeDisbursement() throws Exception {
+        InstallmentLoanManager manager = new InstallmentLoanManager();
+        manager.updateMacroLoanRate(10.75); // 10.75% p.a.
+        Account acc = new Account("ACC-TEST-STALE", "Peminjam Stale", AccountType.PERSONAL, null);
+        acc.creditCash(Money.of(20_000_000L, Currency.IDR));
+        EconomyLedger ledger = new EconomyLedger();
+
+        Money principal = Money.of(10_000_000L, Currency.IDR);
+        long now = 1700000000000L;
+
+        // 1. Get quote under 10.75%
+        JSONObject quote = manager.getLoanQuote("LOAN-PERS-02", acc, principal, 14, null, null);
+        String initialQuoteVersion = quote.getString("quoteVersion");
+        Assert.assertTrue(quote.getBoolean("eligible"));
+        Assert.assertEquals("10.75", String.valueOf(quote.getDouble("annualRate")));
+
+        // 2. Macro rate changes to 14.50% while quote is open
+        manager.updateMacroLoanRate(14.50);
+
+        // 3. Attempt disbursement with previous quoteVersion -> MUST throw STALE_QUOTE
+        boolean staleCaught = false;
+        try {
+            manager.disburseReviewedLoan("REQ-STALE-01", "LOAN-PERS-02", acc, principal, 14, null, null, initialQuoteVersion, ledger, now);
+        } catch (IllegalStateException e) {
+            if (e.getMessage().contains("STALE_QUOTE")) {
+                staleCaught = true;
+            }
+        }
+        Assert.assertTrue("STALE_QUOTE exception must be thrown when macro rate changed before confirmation!", staleCaught);
+
+        // 4. Re-request quote under new rate -> succeeds
+        JSONObject newQuote = manager.getLoanQuote("LOAN-PERS-02", acc, principal, 14, null, null);
+        String newQuoteVersion = newQuote.getString("quoteVersion");
+        Assert.assertNotEquals(initialQuoteVersion, newQuoteVersion);
+        JSONObject receipt = manager.disburseReviewedLoan("REQ-STALE-01", "LOAN-PERS-02", acc, principal, 14, null, null, newQuoteVersion, ledger, now);
+        Assert.assertTrue(receipt.getBoolean("success"));
+        Assert.assertEquals(newQuoteVersion, receipt.getString("quoteVersion"));
+    }
+
+    @Test
+    public void testB02_LegacyContractWithoutRateRestoresWithDailyRateFallback() throws Exception {
+        InstallmentLoanManager manager = new InstallmentLoanManager();
+        Account acc = new Account("ACC-TEST-LEGACY", "Peminjam Legacy", AccountType.PERSONAL, null);
+        acc.creditCash(Money.of(20_000_000L, Currency.IDR));
+        EconomyLedger ledger = new EconomyLedger();
+        JSONObject res = manager.disburseLoan("LOAN-PERS-02", acc, Money.of(5_000_000L, Currency.IDR), 14, ledger, 1700000000000L);
+        LoanContract c = manager.getLoan(res.getString("loanId"));
+        JSONObject state = c.exportState();
+        // Remove dailyInterestRate to simulate old save file
+        state.remove("dailyInterestRate");
+        Assert.assertFalse(state.has("dailyInterestRate"));
+
+        LoanContract restored = LoanContract.restoreFromState(state);
+        Assert.assertNotNull(restored);
+        // Fallback rate must equal LoanContract.DAILY_RATE (0.0005)
+        Assert.assertEquals(LoanContract.DAILY_RATE, restored.getDailyInterestRate());
+    }
+
+    @Test
     public void testB03_WhaleFollowUpLinksToOriginAndDoublesTarget() throws Exception {
         String catJson = Files.readString(new File("android/app/src/main/assets/data/market_universe.json").toPath());
         InstrumentCatalog catalog = InstrumentCatalog.fromJsonString(catJson);

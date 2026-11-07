@@ -43,7 +43,12 @@ public final class MutualFundManager {
                     String name = obj.getString("name");
                     MutualFund.FundType type = MutualFund.FundType.fromPolicy(obj.getString("enginePolicy"));
                     String manager = obj.getString("manager");
-                    funds.put(id, new MutualFund(id, name, type, manager));
+                    int stockPct = obj.optInt("stockPct", 0);
+                    int bondPct = obj.optInt("bondPct", 0);
+                    int cashPct = obj.optInt("cashPct", 100);
+                    int mgmtFeeBps = obj.optInt("managementFeeBps", 75);
+                    long minBuy = obj.optLong("minBuyIdr", 10000L);
+                    funds.put(id, new MutualFund(id, name, type, manager, stockPct, bondPct, cashPct, mgmtFeeBps, minBuy));
                 }
                 if (funds.size() >= 24) return;
             }

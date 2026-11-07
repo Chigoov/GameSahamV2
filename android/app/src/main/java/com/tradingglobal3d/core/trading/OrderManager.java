@@ -45,6 +45,7 @@ public final class OrderManager {
                     .put("trigger", o.getTriggerPrice() == null ? org.json.JSONObject.NULL : o.getTriggerPrice().getAmount().toPlainString())
                     .put("quantity", o.getTotalQuantity()).put("filled", o.getFilledQuantity()).put("createdAt", o.getCreatedAt())
                     .put("status", o.getStatus().name()).put("awaitingMarketOpen", o.isAwaitingMarketOpen()).put("feeDiscountPercent", o.getFeeDiscountPercent())
+                    .put("boosterApplied", o.isBoosterApplied())
                     .put("reserved", o.getReservedMoney() == null ? org.json.JSONObject.NULL : o.getReservedMoney().getAmount().toPlainString()));
         }
         return result;
@@ -64,6 +65,7 @@ public final class OrderManager {
                     p.getLong("quantity"), p.getLong("createdAt"),
                     p.isNull("reserved") ? null : new Money(new java.math.BigDecimal(p.getString("reserved")), c));
             order.setFeeDiscountPercent(p.optDouble("feeDiscountPercent", 0.0));
+            order.setBoosterApplied(p.optBoolean("boosterApplied", false));
             order.applyFill(p.getLong("filled"));
             order.setStatus(OrderStatus.valueOf(p.getString("status")));
             boolean legacyWaitingMarket = order.getType() == OrderType.MARKET && order.getStatus() == OrderStatus.OPEN;

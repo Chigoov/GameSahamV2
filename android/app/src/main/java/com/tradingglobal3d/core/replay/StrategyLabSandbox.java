@@ -52,7 +52,7 @@ public final class StrategyLabSandbox {
         }
         for (Position position : source.getPositions().values()) clone.addPosition(new Position(position.getTicker(), position.getExchange(),
                 position.getCurrency(), position.getQuantity(), position.getAverageCost(), position.getCurrentPrice(),
-                position.getRealizedPnL() == null ? null : position.getRealizedPnL().getAmount(), position.getAcquisitionFeesRemaining(), position.getAcquisitionFeeQuantity()));
+                position.getRealizedPnLAmount(), position.getAcquisitionFeesRemaining(), position.getAcquisitionFeeQuantity()));
         return clone;
     }
 
@@ -130,7 +130,7 @@ public final class StrategyLabSandbox {
         for (Position position : initialAccount.getPositions().values()) positions.put(new JSONObject().put("ticker", position.getTicker())
                 .put("exchange", position.getExchange()).put("currency", position.getCurrency().name()).put("quantity", position.getQuantity())
                 .put("averageCost", position.getAverageCost().toPlainString()).put("currentPrice", position.getCurrentPrice().toPlainString())
-                .put("realizedPnL", position.getRealizedPnL() == null ? JSONObject.NULL : position.getRealizedPnL().getAmount().toPlainString())
+                .put("realizedPnL", position.getRealizedPnLAmount() == null ? JSONObject.NULL : position.getRealizedPnLAmount().toPlainString())
                 .put("acquisitionFeesRemaining", position.getAcquisitionFeesRemaining().getAmount().toPlainString())
                 .put("acquisitionFeeQuantity", position.getAcquisitionFeeQuantity()));
         return new JSONObject().put("sandboxId", sandboxId).put("initialTimestamp", initialTimestamp).put("fxUsdIdr", usdIdr.toPlainString())

@@ -116,51 +116,8 @@ public final class GameClock {
     }
 
     public MarketSession getMarketSession(MarketExchange exchange) {
-        int hour = currentTime.getHour();
-        int minute = currentTime.getMinute();
-        int totalMinutes = hour * 60 + minute;
-
-        if (exchange == MarketExchange.US) {
-            // US Markets (NYSE/NASDAQ) pada waktu simulasi game WIB
-            // Sesi reguler 21:30 - 04:00 WIB (09:30 - 16:00 New York Time)
-            // 21:00 - 21:29: Pre-opening
-            if (totalMinutes >= 1260 && totalMinutes < 1290) {
-                return MarketSession.PRE_OPENING;
-            }
-            // 21:30 - 23:59 dan 00:00 - 03:59: Sesi Perdagangan US Aktif
-            if (totalMinutes >= 1290 || totalMinutes < 240) {
-                return MarketSession.SESSION_1;
-            }
-            // 04:00 - 04:30: Post-closing
-            if (totalMinutes >= 240 && totalMinutes <= 270) {
-                return MarketSession.POST_CLOSING;
-            }
-            return MarketSession.CLOSED;
-        }
-
-        // IDX (WIB) — Sesi perdagangan reguler
-        // 08:45 - 08:59: Pra-Pembukaan
-        if (totalMinutes >= 525 && totalMinutes < 540) {
-            return MarketSession.PRE_OPENING;
-        }
-        // 09:00 - 11:59: Sesi I
-        if (totalMinutes >= 540 && totalMinutes < 720) {
-            return MarketSession.SESSION_1;
-        }
-        // 12:00 - 13:29: Istirahat Siang
-        if (totalMinutes >= 720 && totalMinutes < 810) {
-            return MarketSession.BREAK;
-        }
-        // 13:30 - 15:59: Sesi II
-        if (totalMinutes >= 810 && totalMinutes < 960) {
-            return MarketSession.SESSION_2;
-        }
-        // 16:00 - 16:15: Pra-Penutupan
-        if (totalMinutes >= 960 && totalMinutes <= 975) {
-            return MarketSession.POST_CLOSING;
-        }
-        // Luar jam perdagangan: Tutup
-        return MarketSession.CLOSED;
+        Objects.requireNonNull(exchange, "exchange");
+        return MarketSession.SESSION_1;
     }
 
     public boolean isTradingOpenFor(MarketExchange exchange) {
@@ -172,7 +129,7 @@ public final class GameClock {
     }
 
     public String getFormattedDate() {
-        return currentDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy"));
+        return currentDate.format(DateTimeFormatter.ofPattern("dd MMMM yyyy", java.util.Locale.forLanguageTag("id-ID")));
     }
 
     public String getFormattedTime() {

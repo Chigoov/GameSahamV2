@@ -23,12 +23,12 @@ public final class IpoOffering {
     private final LocalDate listingDate;
 
     private boolean isAllotted;
+    private boolean isDistributed;
 
     public IpoOffering(String id, String ticker, String companyName, Currency currency,
                        Money offeringPrice, int lotSize, long sharesOffered, LocalDate listingDate) {
-        // Durasi penawaran 3 hari game: Hari -3 s.d. -1, Penjatahan: Hari -1, Pencatatan Perdana: Hari Listing (Bug #388)
         this(id, ticker, companyName, currency, offeringPrice, lotSize, sharesOffered,
-                listingDate.minusDays(3), listingDate.minusDays(1), listingDate.minusDays(1), listingDate);
+                listingDate.minusDays(5), listingDate.minusDays(3), listingDate.minusDays(2), listingDate);
     }
 
     public IpoOffering(String id, String ticker, String companyName, Currency currency,
@@ -60,7 +60,13 @@ public final class IpoOffering {
     public long getSharesOffered() { return sharesOffered; }
     public LocalDate getOfferingStartDate() { return offeringStartDate; }
     public LocalDate getOfferingEndDate() { return offeringEndDate; }
-    public LocalDate getAllotmentDate() { return allotmentDate; }
+    public LocalDate getAllotmentDate() {
+        return allotmentDate.isAfter(offeringEndDate) ? allotmentDate : offeringEndDate.plusDays(1);
+    }
+    public LocalDate getDistributionDate() {
+        LocalDate nextDay = getAllotmentDate().plusDays(1);
+        return nextDay.isBefore(listingDate) ? nextDay : listingDate;
+    }
     public LocalDate getListingDate() { return listingDate; }
     public boolean isAllotted() { return isAllotted; }
 
@@ -68,6 +74,9 @@ public final class IpoOffering {
         if (date == null) return false;
         return !date.isBefore(offeringStartDate) && !date.isAfter(offeringEndDate);
     }
+
+    public boolean isDistributed() { return isDistributed; }
+    public void markDistributed() { this.isDistributed = true; }
 
     public void markAllotted() {
         this.isAllotted = true;

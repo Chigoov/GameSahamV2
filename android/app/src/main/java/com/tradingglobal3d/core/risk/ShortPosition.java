@@ -19,6 +19,7 @@ public final class ShortPosition {
     private BigDecimal averageShortPrice;
     private Money collateralLocked;
     private BigDecimal annualBorrowFeeRate; // e.g. 0.025 (2.5% p.a.)
+    private Money accruedUnpaidFee;
 
     public ShortPosition(String ticker, String exchange, Currency currency,
                          long borrowedShares, BigDecimal shortPrice, Money initialProceeds,
@@ -30,6 +31,7 @@ public final class ShortPosition {
         this.averageShortPrice = Objects.requireNonNull(shortPrice);
         this.collateralLocked = Objects.requireNonNull(initialProceeds);
         this.annualBorrowFeeRate = Objects.requireNonNull(annualBorrowFeeRate);
+        this.accruedUnpaidFee = Money.zero(currency);
     }
 
     public String getTicker() { return ticker; }
@@ -39,13 +41,23 @@ public final class ShortPosition {
     public BigDecimal getAverageShortPrice() { return averageShortPrice; }
     public Money getCollateralLocked() { return collateralLocked; }
     public BigDecimal getAnnualBorrowFeeRate() { return annualBorrowFeeRate; }
+    public Money getAccruedUnpaidFee() { return accruedUnpaidFee; }
+    public void addUnpaidFee(Money fee) { if (fee != null && fee.isPositive()) this.accruedUnpaidFee = this.accruedUnpaidFee.add(fee); }
+    public void payUnpaidFee(Money fee) { if (fee != null && fee.isPositive()) this.accruedUnpaidFee = this.accruedUnpaidFee.subtract(fee); }
 
     /**
-     * Nilai kewajiban pengembalian saham pada harga pasar saat ini.
+     * Nilai pasar saham yang sedang dipinjam (pokok kewajiban saham).
      */
-    public Money calculateLiability(BigDecimal currentPrice) {
+    public Money calculateBorrowedStockValue(BigDecimal currentPrice) {
         BigDecimal liabilityAmt = currentPrice.multiply(BigDecimal.valueOf(borrowedShares));
         return new Money(liabilityAmt, currency);
+    }
+
+    /**
+     * Nilai total kewajiban pengembalian saham dan tunggakan biaya sewa terutang.
+     */
+    public Money calculateLiability(BigDecimal currentPrice) {
+        return calculateBorrowedStockValue(currentPrice).add(accruedUnpaidFee);
     }
 
     /**
@@ -60,11 +72,16 @@ public final class ShortPosition {
 
     /**
      * Hitung biaya sewa pinjaman saham harian.
+     * Biaya sewa HANYA dihitung atas nilai pasar saham yang sedang dipinjam.
+     * Tidak mengenakan bunga atas tunggakan biaya (no compounding on arrears).
      */
     public Money calculateDailyBorrowFee(BigDecimal currentPrice) {
-        Money liability = calculateLiability(currentPrice);
+        if (borrowedShares <= 0) {
+            return Money.zero(currency);
+        }
+        Money stockVal = calculateBorrowedStockValue(currentPrice);
         BigDecimal dailyRate = annualBorrowFeeRate.divide(BigDecimal.valueOf(360), 6, RoundingMode.HALF_UP);
-        BigDecimal feeAmt = liability.getAmount().multiply(dailyRate);
+        BigDecimal feeAmt = stockVal.getAmount().multiply(dailyRate);
         return new Money(feeAmt, currency);
     }
 

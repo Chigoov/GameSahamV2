@@ -62,6 +62,7 @@ public final class Position {
     public BigDecimal getAverageCost() { return averageCost; }
     public BigDecimal getCurrentPrice() { return currentPrice; }
     public Money getRealizedPnL() { return realizedPnL == null ? null : new Money(realizedPnL, currency); }
+    public BigDecimal getRealizedPnLAmount() { return realizedPnL; }
     public Money getAcquisitionFeesRemaining() { return acquisitionFeesRemaining; }
     public long getAcquisitionFeeQuantity() { return acquisitionFeeQuantity; }
     public Money previewAcquisitionFeeAllocation(long soldQty) {

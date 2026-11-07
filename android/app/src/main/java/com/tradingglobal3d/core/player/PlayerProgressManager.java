@@ -275,16 +275,26 @@ public final class PlayerProgressManager {
         boolean isNew = readArticleIds.add(articleId.trim());
         if (!isNew) return false;
 
+        boolean anyUnlocked = false;
         Achievement reader = achievements.get("reader");
         if (reader != null && !reader.isUnlocked()) {
             reader.setProgress(readArticleIds.size());
             if (readArticleIds.size() >= reader.getTargetProgress()) {
                 reader.unlock(timestamp);
                 currentXp += reader.getXpReward();
-                return true;
+                anyUnlocked = true;
             }
         }
-        return false;
+        Achievement elite = achievements.get("research_elite");
+        if (elite != null && !elite.isUnlocked()) {
+            elite.setProgress(readArticleIds.size());
+            if (readArticleIds.size() >= elite.getTargetProgress()) {
+                elite.unlock(timestamp);
+                currentXp += elite.getXpReward();
+                anyUnlocked = true;
+            }
+        }
+        return anyUnlocked;
     }
 
     /**
@@ -385,6 +395,16 @@ public final class PlayerProgressManager {
 
     public synchronized boolean onLoanPaidOff(long timestamp) {
         Achievement a = achievements.get("loan_responsible");
+        if (a != null && !a.isUnlocked()) {
+            a.unlock(timestamp);
+            currentXp += a.getXpReward();
+            return true;
+        }
+        return false;
+    }
+
+    public synchronized boolean onLeagueParticipated(long timestamp) {
+        Achievement a = achievements.get("league_competitor");
         if (a != null && !a.isUnlocked()) {
             a.unlock(timestamp);
             currentXp += a.getXpReward();

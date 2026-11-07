@@ -1,0 +1,11 @@
+# Checkpoint12
+
+Goal not complete. Previous11 and this12 progressed asset source/APK. Live CUA listTabs again reports Local browser use is disabled in Work settings; same condition now repeated on10,11,12 after earlier successful browser work. Remaining rendered QA cannot be completed through authorized tools until access changes. Do not bypass using another browser mechanism.
+
+Downloaded six remaining PD-metadata candidates batch3: IBM,INDF,INTC,KLBF,MA,WMT. New batch4 queried exact Commons file names in one call; metadata/descriptions retained in logo-batch4.json. Excluded Johnson&Johnson candidate explicitly dated1886–2023. Downloaded ABBV,BAC,BRK.B,BLK,SCHW,CVX, spaced2seconds. COP then returnedHTTP429 and batch stopped; no retries or evasion. Other batch4 candidates are metadata only, not enabled or bundled. No claim all logos finished.
+
+All12new SVGs passed same parse/resource/event/active-content guards, provenance and original SHA recorded in SOURCES.json. Current31SVG+5reference=36emiten. Shared row map includes exactly bundled additions; unknowns retain initials. check-market-ipo-ui.cjs checks each provenance record→actual row asset and hash; passed. Node syntax and relevantdiffcheck passed. No domainJava changed, so no redundant domain suite run.
+
+Final build exit0, BUILD SUCCESSFUL9s. source-apk-parity-12.json stores APKhash and37byte-identical assets. Player save still SHA25659B41E24C5A0A3B6F87D127D41C18B7F3F0EBE371F4DD2D277A31CA4B5F867ED. No build/test session pending. No server restart this turn; live handles need inspection before further use (see10 for latest source/classes/path distinctions).
+
+Goal BLOCKED after completing available independent additions: remaining browser QA requires local access; further reviewed logo downloads currently rate-limited. This is not COMPLETE or scope reduction. On resume, start fresh blocker audit, check browser availability and source service condition, continue full E01–E11. Main source/APK includes margin-call warning/countdown and memoryfix from10; warning rendering remains unverified. Device/pinch evidence separate, noADB/install permission inferred. No commit/push/publish/global settings/save-player mutations.

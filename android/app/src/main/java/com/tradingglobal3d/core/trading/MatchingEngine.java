@@ -22,6 +22,24 @@ public final class MatchingEngine {
     public static final BigDecimal BUY_FEE_RATE = new BigDecimal("0.0015");   // 0.15%
     public static final BigDecimal SELL_FEE_RATE = new BigDecimal("0.0025");  // 0.25% (termasuk pajak game)
 
+    @FunctionalInterface
+    public interface FillFeeSettlementHook {
+        BigDecimal resolveEffectiveFeeRate(Order order, Account account, Instrument instrument, BigDecimal baseRate, boolean recordUsage);
+    }
+
+    private FillFeeSettlementHook feeHook;
+
+    public void setFeeSettlementHook(FillFeeSettlementHook feeHook) {
+        this.feeHook = feeHook;
+    }
+
+    public BigDecimal resolveFeeRate(Order order, Account account, Instrument instrument, BigDecimal baseRate, boolean recordUsage) {
+        if (feeHook != null) {
+            return feeHook.resolveEffectiveFeeRate(order, account, instrument, baseRate, recordUsage);
+        }
+        return order.getEffectiveFeeRate(baseRate);
+    }
+
     public static final class OrderResult {
         public final Order order;
         public final boolean isSuccess;
@@ -101,7 +119,7 @@ public final class MatchingEngine {
                     long units = Math.min(remaining, maker.getRemainingQuantity());
                     Money value = new Money(level.getKey().multiply(BigDecimal.valueOf(units)), currency);
                     nominal = nominal.add(value.getAmount());
-                    fee = fee.add(new Money(value.getAmount().multiply(order.getEffectiveFeeRate(order.isBuy() ? BUY_FEE_RATE : SELL_FEE_RATE)), currency));
+                    fee = fee.add(new Money(value.getAmount().multiply(resolveFeeRate(order, account, instrument, order.isBuy() ? BUY_FEE_RATE : SELL_FEE_RATE, false)), currency));
                     remaining -= units;
                     if (remaining == 0) break;
                 }
@@ -241,15 +259,16 @@ public final class MatchingEngine {
         List<TradeFill> fills = new ArrayList<>();
         boolean isPlayerAccount = isPlayerAccount(account);
         if (isPlayerAccount) {
-            if (order.getType() == OrderType.MARKET) {
-                // Preserve the existing market-order cancellation policy without partial settlement.
+            boolean marketStyle = order.getType() != OrderType.LIMIT;
+            if (marketStyle) {
+                // AU28: Preflight full-fill AON also for triggered orders (STOP_LOSS & TAKE_PROFIT) and MARKET orders
                 if (!canFillPlayerGreedily(order, instrument, book, allAccounts)) {
                     order.cancel();
                     if (order.isBuy() && order.getReservedMoney() != null && order.getReservedMoney().isPositive()) {
                         account.releaseReservedCash(order.getReservedMoney());
                         order.setReservedMoney(Money.zero(currency));
                     }
-                    return new OrderResult(order, true, "Likuiditas pasar tidak mencukupi untuk memenuhi order market", fills);
+                    return new OrderResult(order, true, "Likuiditas pasar tidak mencukupi untuk memenuhi order", fills);
                 }
                 if (order.isBuy()) {
                     matchBuyOrder(order, account, instrument, book, ledger, allAccounts, fills, gameTimestamp);
@@ -267,7 +286,7 @@ public final class MatchingEngine {
                     }
                 }
                 boolean hasFill = !fills.isEmpty();
-                return new OrderResult(order, true, hasFill ? "Order market berhasil diproses" : "Likuiditas pasar tidak mencukupi untuk memenuhi order market", fills);
+                return new OrderResult(order, true, hasFill ? "Order berhasil diproses" : "Likuiditas pasar tidak mencukupi untuk memenuhi order", fills);
             } else {
                 // ponytail: wait rather than partially settle until a validated
                 // alternative full-fill plan is available for mixed counterparties.
@@ -423,8 +442,8 @@ public final class MatchingEngine {
 
             if (buyer == null || seller == null) continue;
 
-            Money buyFee = new Money(tradeValue.getAmount().multiply(buyerOrder.getEffectiveFeeRate(BUY_FEE_RATE)), cur);
-            Money sellFee = new Money(tradeValue.getAmount().multiply(sellerOrder.getEffectiveFeeRate(SELL_FEE_RATE)), cur);
+            Money buyFee = new Money(tradeValue.getAmount().multiply(resolveFeeRate(buyerOrder, buyer, instrument, BUY_FEE_RATE, true)), cur);
+            Money sellFee = new Money(tradeValue.getAmount().multiply(resolveFeeRate(sellerOrder, seller, instrument, SELL_FEE_RATE, true)), cur);
 
             // 1. Settlement Buyer (Ledger debits first)
             Money releasedFromReserve = tradeValue.add(buyFee);
@@ -606,8 +625,8 @@ public final class MatchingEngine {
                 long matchQty = Math.min(buyOrder.getRemainingQuantity(), makerSell.getRemainingQuantity());
                 Money execPrice = new Money(askPrice, cur);
                 Money tradeValue = new Money(execPrice.getAmount().multiply(BigDecimal.valueOf(matchQty)), cur);
-                Money buyFee = new Money(tradeValue.getAmount().multiply(buyOrder.getEffectiveFeeRate(BUY_FEE_RATE)), cur);
-                Money sellFee = new Money(tradeValue.getAmount().multiply(makerSell.getEffectiveFeeRate(SELL_FEE_RATE)), cur);
+                Money buyFee = new Money(tradeValue.getAmount().multiply(resolveFeeRate(buyOrder, buyer, instrument, BUY_FEE_RATE, true)), cur);
+                Money sellFee = new Money(tradeValue.getAmount().multiply(resolveFeeRate(makerSell, seller, instrument, SELL_FEE_RATE, true)), cur);
 
                 // 1. Settlement Buyer (Ledger debits first)
                 Money releasedFromReserve = tradeValue.add(buyFee);
@@ -728,8 +747,8 @@ public final class MatchingEngine {
                 long matchQty = Math.min(sellOrder.getRemainingQuantity(), makerBuy.getRemainingQuantity());
                 Money execPrice = new Money(bidPrice, cur);
                 Money tradeValue = new Money(execPrice.getAmount().multiply(BigDecimal.valueOf(matchQty)), cur);
-                Money buyFee = new Money(tradeValue.getAmount().multiply(makerBuy.getEffectiveFeeRate(BUY_FEE_RATE)), cur);
-                Money sellFee = new Money(tradeValue.getAmount().multiply(sellOrder.getEffectiveFeeRate(SELL_FEE_RATE)), cur);
+                Money buyFee = new Money(tradeValue.getAmount().multiply(resolveFeeRate(makerBuy, buyer, instrument, BUY_FEE_RATE, true)), cur);
+                Money sellFee = new Money(tradeValue.getAmount().multiply(resolveFeeRate(sellOrder, seller, instrument, SELL_FEE_RATE, true)), cur);
 
                 // 1. Settlement Buyer (Ledger debits first)
                 Money releasedFromReserve = tradeValue.add(buyFee);

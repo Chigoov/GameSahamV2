@@ -23,6 +23,7 @@ public final class Order {
     private Money reservedMoney;             // Kas tertahan (untuk BUY)
     private double feeDiscountPercent;
     private boolean awaitingMarketOpen;
+    private boolean boosterApplied;
 
     private long filledQuantity;
     private OrderStatus status;
@@ -50,6 +51,9 @@ public final class Order {
 
     public boolean isAwaitingMarketOpen() { return awaitingMarketOpen; }
     public void setAwaitingMarketOpen(boolean waiting) { awaitingMarketOpen = waiting; }
+
+    public boolean isBoosterApplied() { return boosterApplied; }
+    public void setBoosterApplied(boolean boosterApplied) { this.boosterApplied = boosterApplied; }
 
     public String getId() { return id; }
     public String getRequestId() { return requestId; }
@@ -108,10 +112,17 @@ public final class Order {
     public void setFeeDiscountPercent(double discountPercent) {
         if (!Double.isFinite(discountPercent) || discountPercent < 0.0)
             throw new IllegalArgumentException("Diskon komisi order tidak valid");
-        feeDiscountPercent = Math.min(75.0, discountPercent); // Maksimal diskon 75% (Bug #332)
+        feeDiscountPercent = Math.min(100.0, discountPercent);
     }
 
     public java.math.BigDecimal getEffectiveFeeRate(java.math.BigDecimal baseRate) {
+        if (baseRate.compareTo(new java.math.BigDecimal("0.0025")) == 0) {
+            java.math.BigDecimal brokerRate = new java.math.BigDecimal("0.0015");
+            java.math.BigDecimal taxRate = new java.math.BigDecimal("0.0010");
+            java.math.BigDecimal disc = java.math.BigDecimal.valueOf(feeDiscountPercent).movePointLeft(2);
+            java.math.BigDecimal discountedBroker = brokerRate.multiply(java.math.BigDecimal.ONE.subtract(disc));
+            return discountedBroker.add(taxRate);
+        }
         return baseRate.multiply(java.math.BigDecimal.ONE.subtract(java.math.BigDecimal.valueOf(feeDiscountPercent)
                 .movePointLeft(2)));
     }

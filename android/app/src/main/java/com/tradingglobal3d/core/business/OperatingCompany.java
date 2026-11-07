@@ -170,7 +170,7 @@ public final class OperatingCompany {
         String normalized = sector.toLowerCase(Locale.ROOT);
         if (normalized.contains("energi") || normalized.contains("energy")) return "ENERGY";
         if (normalized.contains("manufaktur")) return "MANUFAKTUR";
-        if (normalized.contains("ritel")) return "RITEL";
+        if (normalized.contains("ritel") || normalized.contains("consumer") || normalized.contains("konsumer")) return "RITEL";
         return "JASA";
     }
 

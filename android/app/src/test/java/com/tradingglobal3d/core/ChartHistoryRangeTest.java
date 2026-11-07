@@ -17,6 +17,75 @@ import java.nio.file.Paths;
 import static org.junit.Assert.*;
 
 public class ChartHistoryRangeTest {
+    @Test public void dailyStatisticsUseActualTurnoverSurviveLoadAndResetSafely() throws Exception {
+        TradingFacade game = game();
+        var bridge = new com.tradingglobal3d.mobile.TradingWebBridge(game);
+        try {
+            var instrument = game.getCatalog().getById("IDX:BBCA");
+            Money first = instrument.getCurrentPrice().multiply(new java.math.BigDecimal("1.02"));
+            Money second = instrument.getCurrentPrice().multiply(new java.math.BigDecimal("1.01"));
+            instrument.updatePrice(first, 100); instrument.updatePrice(second, 200);
+            java.math.BigDecimal turnover = first.getAmount().multiply(java.math.BigDecimal.valueOf(100))
+                    .add(second.getAmount().multiply(java.math.BigDecimal.valueOf(200)));
+            JSONObject quote = new JSONArray(bridge.getInstruments("BBCA", "IDX", null, true)).getJSONObject(0);
+            assertEquals(first.getAmount().toPlainString(), quote.getString("openPriceRaw"));
+            assertEquals(0, turnover.compareTo(new java.math.BigDecimal(quote.getString("dayValueRaw"))));
+            assertEquals("3", new java.math.BigDecimal(quote.getString("volumeLots")).stripTrailingZeros().toPlainString());
+            assertEquals(0, turnover.divide(java.math.BigDecimal.valueOf(300), 4, java.math.RoundingMode.HALF_UP)
+                    .compareTo(new java.math.BigDecimal(quote.getString("avgPriceRaw"))));
+            assertEquals(instrument.getDailyCeilingPrice().getAmount().toPlainString(), quote.getString("dailyCeilingRaw"));
+            assertEquals(instrument.getDailyFloorPrice().getAmount().toPlainString(), quote.getString("dailyFloorRaw"));
+            game.save(); instrument.updatePrice(first, 100);
+            assertTrue(game.load());
+            JSONObject loaded = new JSONArray(bridge.getInstruments("BBCA", "IDX", null, true)).getJSONObject(0);
+            for (String field : new String[]{"openPriceRaw", "volumeLots", "dayValueRaw", "avgPriceRaw"})
+                assertEquals("Daily statistic lost after save/load: " + field, quote.getString(field), loaded.getString(field));
+            JSONObject invalid = game.getCatalog().exportState();
+            JSONArray invalidItems = invalid.getJSONArray("instruments");
+            for (int i = 0; i < invalidItems.length(); i++) if ("IDX:BBCA".equals(invalidItems.getJSONObject(i).getString("id")))
+                invalidItems.getJSONObject(i).put("dayOpen", "999999999999");
+            assertThrows(IllegalArgumentException.class, () -> game.getCatalog().restoreState(invalid));
+            assertEquals(loaded.getString("openPriceRaw"), new JSONArray(bridge.getInstruments("BBCA", "IDX", null, true)).getJSONObject(0).getString("openPriceRaw"));
+            JSONObject legacy = game.getCatalog().exportState();
+            JSONArray items = legacy.getJSONArray("instruments");
+            for (int i = 0; i < items.length(); i++) { items.getJSONObject(i).remove("dayOpen"); items.getJSONObject(i).remove("dayTurnover"); }
+            game.getCatalog().restoreState(legacy);
+            JSONObject unknown = new JSONArray(bridge.getInstruments("BBCA", "IDX", null, true)).getJSONObject(0);
+            assertTrue(unknown.isNull("openPriceRaw")); assertTrue(unknown.isNull("dayValueRaw")); assertTrue(unknown.isNull("avgPriceRaw"));
+            long now = game.getGameTimestamp();
+            OrderBook book = game.getMarketEngine().getOrCreateBook(game.getCatalog().getById("IDX:BBCA"));
+            book.recordFill(new TradeFill("QA-DAY-SECOND", "QA-B2", "QA-S2", "ACC-NPC-RETAIL-01", "ACC-NPC-MM-01", "IDX:BBCA", second, 200, now));
+            game.save(); assertTrue(game.load());
+            assertTrue(new JSONArray(bridge.getInstruments("BBCA", "IDX", null, true)).getJSONObject(0).isNull("dayValueRaw"));
+            book = game.getMarketEngine().getOrCreateBook(game.getCatalog().getById("IDX:BBCA"));
+            book.recordFill(new TradeFill("QA-DAY-FIRST", "QA-B1", "QA-S1", "ACC-NPC-RETAIL-01", "ACC-NPC-MM-01", "IDX:BBCA", first, 100, now - 1000));
+            game.save(); assertTrue(game.load());
+            JSONObject recovered = new JSONArray(bridge.getInstruments("BBCA", "IDX", null, true)).getJSONObject(0);
+            assertEquals(quote.getString("openPriceRaw"), recovered.getString("openPriceRaw"));
+            assertEquals(quote.getString("dayValueRaw"), recovered.getString("dayValueRaw"));
+            instrument = game.getCatalog().getById("IDX:BBCA"); instrument.startNewTradingDay();
+            instrument.updatePrice(first, 100);
+            JSONObject nextDay = new JSONArray(bridge.getInstruments("BBCA", "IDX", null, true)).getJSONObject(0);
+            assertEquals(first.getAmount().toPlainString(), nextDay.getString("openPriceRaw"));
+            assertEquals(0, first.getAmount().multiply(java.math.BigDecimal.valueOf(100)).compareTo(new java.math.BigDecimal(nextDay.getString("dayValueRaw"))));
+        } finally { bridge.destroy(); }
+    }
+
+    @Test public void quoteCarriesActualDailyPricesAndUpdatesThem() throws Exception {
+        TradingFacade game = game();
+        var bridge = new com.tradingglobal3d.mobile.TradingWebBridge(game);
+        try {
+            var instrument = game.getCatalog().getById("IDX:BBCA");
+            JSONObject before = new JSONArray(bridge.getInstruments("BBCA", "IDX", null, true)).getJSONObject(0);
+            instrument.updatePrice(instrument.getCurrentPrice().multiply(new java.math.BigDecimal("1.02")), 100);
+            JSONObject after = new JSONArray(bridge.getInstruments("BBCA", "IDX", null, true)).getJSONObject(0);
+            assertTrue(before.isNull("highPriceRaw"));
+            assertNotEquals(before.opt("highPriceRaw"), after.opt("highPriceRaw"));
+            assertEquals(instrument.getDayHigh().getAmount().toPlainString(), after.getString("highPriceRaw"));
+            assertEquals(instrument.getDayLow().getAmount().toPlainString(), after.getString("lowPriceRaw"));
+            assertEquals(instrument.getPreviousClosePrice().getAmount().toPlainString(), after.getString("previousCloseRaw"));
+        } finally { bridge.destroy(); }
+    }
     @Rule public TemporaryFolder temp = new TemporaryFolder();
     private TradingFacade game() throws Exception {
         TradingFacade game = new TradingFacade(SaveManager.forDirectory(temp.newFolder()));

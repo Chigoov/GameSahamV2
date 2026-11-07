@@ -140,11 +140,11 @@ public class NewsRealDeadlineTest {
         game = open(saves, migratedAt + 1000);
         assertEquals(deadline, find(game.getResearchService(), "NEWS-02", game.getGameTimestamp()).getLong("effectEndsRealAt"));
         byte[] durable = java.nio.file.Files.readAllBytes(saves.getSaveFile().toPath());
-        var blocked = saves.getTempFile().toPath(); java.nio.file.Files.createDirectory(blocked);
-        java.nio.file.Files.write(blocked.resolve("block"), new byte[]{1});
-        try { game.save(); fail("write must fail"); } catch (java.io.IOException expected) { }
+        saves.setWriteAuthority(() -> false);
+        try { game.save(); fail("write must fail"); } catch (IllegalStateException expected) {
+            assertTrue(expected.getMessage().contains("penulisan ditolak"));
+        } finally { saves.setWriteAuthority(() -> true); }
         assertArrayEquals(durable, java.nio.file.Files.readAllBytes(saves.getSaveFile().toPath()));
-        java.nio.file.Files.delete(blocked.resolve("block")); java.nio.file.Files.delete(blocked);
         java.nio.file.Files.writeString(saves.getSaveFile().toPath(), "{broken");
         game = open(saves, migratedAt + 2000);
         assertEquals(deadline, find(game.getResearchService(), "NEWS-02", game.getGameTimestamp()).getLong("effectEndsRealAt"));

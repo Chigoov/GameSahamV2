@@ -112,7 +112,7 @@ public class LoanAccountingRegressionTest {
             for (int action = 0; action < 100; action++) {
                 if (random.nextInt(4) == 0) {
                     manager.processDailyAccrual();
-                    BigDecimal daily = principal.multiply(new BigDecimal("0.0005")).setScale(0, RoundingMode.HALF_UP);
+                    BigDecimal daily = principal.multiply(loan.getDailyInterestRate()).setScale(0, RoundingMode.HALF_UP);
                     interest = interest.add(daily);
                     elapsedDays++;
                     days = Math.max(0, days - 1);

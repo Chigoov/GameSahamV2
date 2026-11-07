@@ -128,6 +128,26 @@ public final class MarketBoss implements Serializable {
         return obj;
     }
 
+    public JSONObject exportState() throws JSONException {
+        JSONObject obj = new JSONObject();
+        obj.put("bossId", bossId);
+        obj.put("elapsedSessions", elapsedSessions);
+        obj.put("bossCurrentReturn", bossCurrentReturn);
+        obj.put("playerCurrentReturn", playerCurrentReturn);
+        obj.put("active", active);
+        obj.put("defeated", defeated);
+        return obj;
+    }
+
+    public void restoreState(JSONObject state) {
+        if (state == null) return;
+        this.elapsedSessions = state.optInt("elapsedSessions", 0);
+        this.bossCurrentReturn = state.optDouble("bossCurrentReturn", 0.0);
+        this.playerCurrentReturn = state.optDouble("playerCurrentReturn", 0.0);
+        this.active = state.optBoolean("active", false);
+        this.defeated = state.optBoolean("defeated", false);
+    }
+
     private static String NumberFormat(BigDecimal bd) {
         return bd.setScale(0, java.math.RoundingMode.HALF_UP).toPlainString();
     }

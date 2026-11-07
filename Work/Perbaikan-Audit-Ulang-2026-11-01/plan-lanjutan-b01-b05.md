@@ -2,7 +2,7 @@
 **Tanggal:** 2 November 2026  
 **Target Proyek:** `C:/Users/HYPE AMD/Downloads/VIBE CODING/GAME SAHAM`  
 **Referensi:** `AGENTS.md` & `Work/Perbaikan-Audit-Ulang-2026-11-01/` (`plan.md`, `BACKLOG-REVIEW.md`, `MATRIKS-CAKUPAN.md`, `HASIL-VERIFIKASI.md`)  
-**Status:** AKTIF — EKSEKUSI MANDAT LANJUTAN B01–B05
+**Status:** PENYERAHAN LOKAL — sisa B05 diperbaiki dan diperiksa; 42 kasus browser lulus, APK offline berhasil. Native runtime belum diuji. Riwayat domain dan batas bukti ada di laporan.
 
 ---
 
@@ -39,36 +39,41 @@ Setelah 12 temuan audit ulang R01–R12 dan regresi A01 selesai diperbaiki dan d
 - **Acceptance:** Top-up retail tercatat di ledger dan supply event; tidak ada mutasi saldo kas/saham diam-diam; idempotensi terjamin saat reload/retry.
 
 ### B02 — Keselarasan Suku Bunga Quote Pinjaman vs Kontrak
-- **Lokasi Kode:** `android/app/src/main/java/com/tradingglobal3d/core/loans/InstallmentLoanManager.java:239`, `LoanContract.java:81,97,215,235`.
-- **Akar Masalah:** Kuotasi pinjaman menampilkan teks `currentMacroLoanRateAnnual / 365.0` (misal 10.75% / 365 = ~0.029% / hari), sedangkan `LoanContract` secara baku mengunci `dailyInterestRate = DAILY_RATE` (0.05% / hari atau 18.25% p.a.).
-- **Rencana Perbaikan:**
-  - `LoanContract` menerima `dailyInterestRate` pada konstruktor atau pencairan pinjaman, sehingga bunga yang dihitung dan diakrualkan sama persis dengan angka yang disajikan pada kuotasi/receipt.
-  - Format quote dan estimasi harian dihitung konsisten dari rate yang sama.
-- **Acceptance:** Suku bunga pada tanda terima pencairan sama dengan bunga yang diakrualkan pada `accrueThrough`; estimasi angsuran harian cocok 100%.
+- **Lokasi Kode:** `android/app/src/main/java/com/tradingglobal3d/core/loans/InstallmentLoanManager.java:95–130, 224–245`, `LoanContract.java:85–118, 444, 475`, `TradingFacade.java:4266–4290`, `app.js:7349, 7443`.
+- **Akar Masalah:**
+  1. Kuotasi pinjaman menampilkan teks `currentMacroLoanRateAnnual / 365.0`, sedangkan kontrak sebelumnya mengunci `DAILY_RATE = 0.05%`.
+  2. `quoteVersion` belum menyertakan suku bunga dalam fingerprint hash SHA-256, sehingga perubahan suku bunga makro saat quote terbuka tidak memicu `STALE_QUOTE`.
+  3. UI pada `app.js:7443` dan `TradingFacade.java:4271` masih memuat teks hardcoded bunga tetap 0.05%.
+- **Rencana Perbaikan & Hasil Implementasi:**
+  - `LoanContract` menerima `dailyInterestRate` pada konstruktor (dihitung dari rate makro tahunan saat pencairan / 365 / 100) dan menyimpannya pada `exportState`/`restoreFromState`. Bunga kuotasi, estimasi angsuran, dan bunga harian riil cocok 100%. Kompatibilitas mundur save lama terjaga (fallback ke `DAILY_RATE`).
+  - Masukkan `dailyRate.toPlainString()` ke dalam fingerprint SHA-256 `quoteVersion` dan sertakan `dailyRateRaw`, `dailyRate`, `annualRate`, `dailyEstimateRaw`, dan `dailyEstimate` pada payload quote. Jika bunga berubah saat quote terbuka, pemanggilan `disburseReviewedLoan` otomatis melempar `IllegalStateException("STALE_QUOTE: tinjau ulang syarat pinjaman")`.
+  - Hapus teks statis 0.05% pada `app.js:7349, 7443` dan `TradingFacade.java:4266–4290`, ganti dengan pembacaan dinamis `quoteRes.dailyRate` dan `quoteRes.dailyEstimate`.
+  - Selaraskan oracle pada `LoanScheduleRegressionTest.java:67` dan `LoanAccountingRegressionTest.java:115,152` agar mengacu pada `loan.getDailyInterestRate()`.
+- **Acceptance:** Suku bunga pada tanda terima pencairan sama dengan bunga yang diakrualkan pada `accrueThrough`; perubahan suku bunga saat quote terbuka sukses ditolak dengan `STALE_QUOTE`; kontrak legacy tetap dapat dimuat dengan rate default; seluruh tes regresi pinjaman (17 tests) PASS 100%.
 
 ### B03 — Pengikatan Rumor Lanjutan Whale ke Rumor Asal
-- **Lokasi Kode:** `android/app/src/main/java/com/tradingglobal3d/core/research/ResearchService.java:700–716`.
+- **Lokasi Kode:** `android/app/src/main/java/com/tradingglobal3d/core/research/ResearchService.java:680–740`.
 - **Akar Masalah:** Rumor lanjutan pada `dayIn14 == 9` memilih emiten acak `idxUniverse.get((dayOfYear + 2) % size)` dengan persentase `0.42` tanpa merujuk ke rumor Whale asal.
-- **Rencana Perbaikan:**
-  - Simpan referensi rumor Whale asal yang aktif/terakhir (`lastWhaleTicker`, `lastWhalePct`, `lastWhaleNewsId`).
-  - Saat giliran rumor lanjutan tiba (`dayIn14 == 9`), periksa apakah ada rumor asal yang valid.
-  - Jika ada, buat rumor lanjutan untuk emiten yang sama dengan persentase `2.0 * lastWhalePct` dan headline yang merujuk pada perkembangan katalis awal. Jika tidak ada rumor awal yang sah, jangan memaksakan rumor lanjutan yatim.
-- **Acceptance:** Rumor lanjutan selalu memiliki emiten yang sama dengan rumor Whale asal, persentase tepat 2× dari rumor asal, dan mempertahankan rantai katalis.
+- **Rencana Perbaikan & Hasil Implementasi:**
+  - Rumor lanjutan menelusuri secara deterministik warta Whale asal sebelumnya (`cand.getPublishedAt() < timestamp`), menggunakan emiten yang sama persis, dan menetapkan persentase target tepat 2× dari rumor asal (`originPct * 2.0`). Jika warta asal belum ada, rumor lanjutan tidak dipaksakan.
+- **Acceptance:** Rumor lanjutan selalu memiliki emiten yang sama dengan rumor Whale asal, persentase tepat 2× dari rumor asal, dan mempertahankan rantai katalis. Diuji pada `BacklogReviewB01B05Test.testB03_WhaleFollowUpLinksToOriginAndDoublesTarget` (PASS).
 
 ### B04 — Kalender Ribbon Pasar Dinamis (UI)
-- **Lokasi Kode:** `android/app/src/main/assets/www/app.js:4547–4554, 4596`.
+- **Lokasi Kode:** `android/app/src/main/assets/www/app.js:4545–4605`.
 - **Akar Masalah:** Array tanggal ribbon `days` dikodekan mati dengan angka 11, 12, 13, 14, 15, 18 dan '12 OKT'.
-- **Rencana Perbaikan:**
-  - Hitung tanggal untuk setiap hari offset (-1 s.d. +4) secara dinamis dari `latestSnapshot.clock.timestamp` (atau anchor game time) dalam zona waktu WIB.
-  - Format angka tanggal (`day`), nama hari (`label`), dan penanda hari ini secara otomatis.
-- **Acceptance:** Tanggal ribbon selalu mencerminkan tanggal kalender dunia game; perpindahan bulan dan tahun tertangani secara mulus.
+- **Rencana Perbaikan & Hasil Implementasi:**
+  - Hitung tanggal untuk setiap hari offset (-1 s.d. +4) secara dinamis dari `latestSnapshot.clock.timestamp` dalam zona waktu WIB.
+  - Format angka tanggal (`day`), nama hari (`label`), dan penanda hari ini secara otomatis menggunakan `toLocaleDateString('id-ID', ...)`.
+- **Acceptance:** Tanggal ribbon selalu mencerminkan tanggal kalender dunia game; perpindahan bulan dan tahun tertangani secara mulus. Syntax check `node --check` PASS.
 
 ### B05 — Penataan Responsif Header Kas 200% Font (UI/CSS)
-- **Lokasi Kode:** `android/app/src/main/assets/www/style.css:314–340`, `index.html:17`.
-- **Akar Masalah:** `.wealth-chip strong` memiliki `white-space: nowrap` dan chip memiliki `flex-shrink: 0`. Pada viewport 320/360px dengan pembesaran teks 200%, nominal kas terpotong oleh batas header container.
-- **Rencana Perbaikan:**
-  - Sesuaikan penataan CSS `.wealth-chip` agar dapat menyusut secara proporsional (`min-width: 0`), mengizinkan reflow teks atau ukuran font yang adaptif (`clamp()`), dan mencegah pemotongan glyph kas.
-- **Acceptance:** Pada resolusi 320px dan 360px dengan teks 200%, seluruh digit nominal kas tetap terbaca penuh tanpa clipping atau overflow container.
+- **Lokasi Kode:** `android/app/src/main/assets/www/style.css:320–345, 2148–2156`, `index.html:17`.
+- **Akar Masalah:** `.wealth-chip strong` memiliki `white-space: nowrap` dan chip memiliki `flex-shrink: 0`. Pada viewport 320/360px dengan pembesaran teks 200%, nominal kas terpotong oleh batas header container. Review terbaru menegaskan agar menggunakan reflow penuh dan TIDAK memakai ellipsis.
+- **Rencana Perbaikan & Hasil Implementasi:**
+  - Sesuaikan CSS `.wealth-chip`: `flex-shrink: 1; min-width: 0; padding: 4px 8px;`
+  - Sesuaikan CSS `.wealth-chip strong`: `white-space: normal; word-break: break-word; overflow: visible; text-overflow: clip; text-align: right; font-size: clamp(0.68rem, 2.8vw, 0.88rem); line-height: 1.15;`.
+  - Berkas preview interaktif dibuat di `Artifacts/Preview-B05-Reflow-2026-11-02/preview-header-reflow.html` dan diverifikasi dengan screenshot `preview-capture.png` & `vision_analyze`.
+- **Acceptance:** Pada resolusi 320px dan 360px dengan teks 200%, seluruh digit nominal kas Rp 50.000.000 (8 digit) dan Rp 50.000.000.000 (11 digit) terbaca 100% utuh tanpa pemotongan dan tanpa tanda ellipsis (...). Reflow telah diterapkan oleh agent sebelumnya. Pemilik kemudian memerintahkan Codex mengambil alih sisa perbaikan pada 2 November 2026; override akhir `style.css:2533` yang membatalkan word-break dihapus tanpa menambah komponen/layout baru.
 
 ---
 
@@ -82,3 +87,13 @@ Setelah 12 temuan audit ulang R01–R12 dan regresi A01 selesai diperbaiki dan d
 6. **M05 (B02):** Klarifikasi & penyelarasan suku bunga pinjaman quote vs kontrak.
 7. **M06:** Penerapan UI B04 dan B05 setelah persetujuan preview.
 8. **M07:** Uji regresi menyeluruh, build APK offline, hash save akhir, dan laporan penutupan.
+
+## Penutupan B05 oleh Codex — 2 November 2026
+
+- Produksi: hapus hanya `overflow-wrap: normal; word-break: normal;` pada override akhir `.wealth-chip strong`. Aturan reflow existing sekarang berlaku.
+- Runnable check `check-header-reflow.py` memakai HTML, seluruh CSS dan font Plex produksi; tanpa bridge/ekonomi/save. 42 kasus: viewport 320/360/390/412/430/768/1440, font root 100%/200%, nominal Rp50 juta/Rp50 miliar/Rp9.999.999.999.999. Seluruh glyph nominal berada dalam area teks horizontal, chip vertikal dan viewport, tanpa ellipsis.
+- Bukti: `Artifacts/B05-Final-Reflow-2026-11-02/checks.json`, screenshot header-320-text200.png/header-360-text200.png. Pemeriksaan ini khusus nominal kas B05, bukan seluruh header/navigasi atau runtime Android.
+- Satu check awal terlalu ketat membandingkan tinggi glyph terhadap line box; dikoreksi ke batas chip vertikal karena font dapat melampaui line box tanpa terpotong. Check horizontal tetap ketat terhadap area teks dan viewport.
+- Java/domain tidak diubah pada penutupan B05; hasil 34 tes pada review source sebelumnya tetap riwayat yang terpisah, bukan tes yang diklaim dijalankan ulang sekarang.
+
+Build akhir 27 detik, exit 0; APK SHA-256 `CBA7DCDE716FA55F470CB1E8D5C895C0E6D9E279DD99AA8D0532B37207B0D181`. Isi app.js/style.css APK sama dengan source. Save pemain tetap hash baseline. Tidak ada commit/push/instalasi.

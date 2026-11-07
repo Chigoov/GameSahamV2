@@ -9,7 +9,15 @@ import com.tradingglobal3d.core.model.*;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.JSONTokener;
 
+import java.io.IOException;
+import java.io.StringWriter;
+import java.io.Writer;
+import java.io.Reader;
+import android.util.JsonReader;
+import android.util.JsonToken;
+import android.util.JsonWriter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -21,6 +29,11 @@ import java.util.*;
  */
 public final class SaveState {
     public static final int SCHEMA_VERSION = 2;
+    public static final int COMPACTED_SCHEMA_VERSION = 3;
+
+    static boolean supportsVersion(int version) {
+        return version == SCHEMA_VERSION || version == COMPACTED_SCHEMA_VERSION;
+    }
 
     private final int schemaVersion;
     private final GameMode gameMode;
@@ -73,7 +86,7 @@ public final class SaveState {
                                    long lastRealTimeAnchor, JSONObject offlineCatchupReport) {
         long now = System.currentTimeMillis();
         return new SaveState(
-                SCHEMA_VERSION,
+                ledger.hasCompactedNpcTrades() ? COMPACTED_SCHEMA_VERSION : SCHEMA_VERSION,
                 mode,
                 now,
                 clock.getCurrentDate(),
@@ -102,18 +115,74 @@ public final class SaveState {
     public JSONObject getOfflineCatchupReport() { return offlineCatchupReport; }
     public void setOfflineCatchupReport(JSONObject report) { this.offlineCatchupReport = report; }
 
+    SaveState compactValidatedNpcLedger() throws JSONException {
+        if (schemaVersion != SCHEMA_VERSION || gameMode != GameMode.INTERNAL_MARKET) return this;
+        Set<String> npcAccounts = new HashSet<>();
+        for (Account account : accounts) {
+            String id = account.getId();
+            if (account.getType() == AccountType.FIRM && (id.startsWith("ACC-LEAGUE-NPC-")
+                    || id.equals("ACC-NPC-MM-01") || id.equals("ACC-NPC-RETAIL-01"))) npcAccounts.add(id);
+        }
+        EconomyLedger compacted = new EconomyLedger();
+        compacted.restoreAndCompactValidatedEntries(ledgerEntries, npcAccounts);
+        if (!compacted.hasCompactedNpcTrades()) return this;
+        List<LedgerEntry> retained = compacted.getEntries();
+        JSONObject career = runtimeState.optJSONObject("career");
+        if (career != null) {
+            int oldIndex = Math.min(career.optInt("ledgerIndex", 0), ledgerEntries.size());
+            int newIndex = 0;
+            for (int i = 0; i < oldIndex && newIndex < retained.size(); i++)
+                if (ledgerEntries.get(i) == retained.get(newIndex)) newIndex++;
+            career.put("ledgerIndex", newIndex);
+        }
+        runtimeState.put("npcLedgerSummary", compacted.exportNpcSummary());
+        SaveState migrated = new SaveState(COMPACTED_SCHEMA_VERSION, gameMode, savedTimestamp, gameDate, gameTime,
+                speedMultiplier, accounts, retained, lastRealTimeAnchor, gameMsRemainder, lifecycleState, offlineCatchupReport);
+        migrated.setRuntimeState(runtimeState);
+        return migrated;
+    }
+
     SaveState detachedCopy() throws JSONException {
         List<Account> copiedAccounts = new ArrayList<>();
         for (Account account : accounts) copiedAccounts.add(account.copy());
         // LedgerEntry and Money are immutable; copying their references avoids a second full ledger JSON graph.
         SaveState copy = new SaveState(schemaVersion, gameMode, savedTimestamp, gameDate, gameTime, speedMultiplier,
                 copiedAccounts, new ArrayList<>(ledgerEntries), lastRealTimeAnchor, gameMsRemainder, lifecycleState,
-                offlineCatchupReport == null ? null : new JSONObject(offlineCatchupReport.toString()));
-        copy.setRuntimeState(new JSONObject(runtimeState.toString()));
+                offlineCatchupReport == null ? null : (JSONObject) copyJson(offlineCatchupReport));
+        copy.setRuntimeState((JSONObject) copyJson(runtimeState));
         return copy;
     }
 
+    private static Object copyJson(Object value) throws JSONException {
+        if (value instanceof JSONObject source) {
+            JSONObject copy = new JSONObject();
+            for (Iterator<String> keys = source.keys(); keys.hasNext();) {
+                String key = keys.next();
+                copy.put(key, copyJson(source.get(key)));
+            }
+            return copy;
+        }
+        if (value instanceof JSONArray source) {
+            JSONArray copy = new JSONArray();
+            for (int i = 0; i < source.length(); i++) copy.put(copyJson(source.opt(i)));
+            return copy;
+        }
+        if (value == null || value == JSONObject.NULL || value instanceof String
+                || value instanceof Number || value instanceof Boolean) return value;
+        return value.toString();
+    }
+
     public String toJsonString() throws JSONException {
+        StringWriter json = new StringWriter();
+        try {
+            writeJson(json);
+        } catch (IOException impossible) {
+            throw new AssertionError(impossible);
+        }
+        return json.toString();
+    }
+
+    void writeJson(Writer output) throws IOException, JSONException {
         JSONObject root = new JSONObject();
         root.put("schemaVersion", schemaVersion);
         root.put("gameMode", gameMode.name());
@@ -156,7 +225,7 @@ public final class SaveState {
                 posObj.put("quantity", p.getQuantity());
                 posObj.put("averageCost", p.getAverageCost().toPlainString());
                 posObj.put("currentPrice", p.getCurrentPrice().toPlainString());
-                posObj.put("realizedPnL", p.getRealizedPnL() == null ? JSONObject.NULL : p.getRealizedPnL().getAmount().toPlainString());
+                posObj.put("realizedPnL", p.getRealizedPnLAmount() == null ? JSONObject.NULL : p.getRealizedPnLAmount().toPlainString());
                 posObj.put("acquisitionFeesRemaining", p.getAcquisitionFeesRemaining().getAmount().toPlainString());
                 posObj.put("acquisitionFeeQuantity", p.getAcquisitionFeeQuantity());
 
@@ -167,8 +236,14 @@ public final class SaveState {
         }
         root.put("accounts", accountsArray);
 
-        // Ledger entries
-        JSONArray ledgerArray = new JSONArray();
+        JsonWriter writer = new JsonWriter(output);
+        writer.beginObject();
+        for (Iterator<String> keys = root.keys(); keys.hasNext();) {
+            String key = keys.next();
+            writer.name(key);
+            writeJsonValue(writer, root.get(key));
+        }
+        writer.name("ledger").beginArray();
         for (LedgerEntry entry : ledgerEntries) {
             JSONObject entryObj = new JSONObject();
             entryObj.put("id", entry.getId());
@@ -181,17 +256,97 @@ public final class SaveState {
             entryObj.put("isCredit", entry.isCredit());
             entryObj.put("balanceAfter", entry.getBalanceAfter().getAmount().toPlainString());
             entryObj.put("description", entry.getDescription());
-            ledgerArray.put(entryObj);
+            writeJsonValue(writer, entryObj);
         }
-        root.put("ledger", ledgerArray);
+        writer.endArray().endObject();
+        writer.flush();
+    }
 
-        return root.toString();
+    private static void writeJsonValue(JsonWriter writer, Object value) throws IOException, JSONException {
+        if (value instanceof JSONObject object) {
+            writer.beginObject();
+            for (Iterator<String> keys = object.keys(); keys.hasNext();) {
+                String key = keys.next();
+                writer.name(key);
+                writeJsonValue(writer, object.get(key));
+            }
+            writer.endObject();
+        } else if (value instanceof JSONArray array) {
+            writer.beginArray();
+            for (int i = 0; i < array.length(); i++) writeJsonValue(writer, array.get(i));
+            writer.endArray();
+        } else if (value == null || value == JSONObject.NULL) {
+            writer.nullValue();
+        } else if (value instanceof Number number) {
+            writer.value(number);
+        } else if (value instanceof Boolean bool) {
+            writer.value(bool);
+        } else {
+            writer.value(value.toString());
+        }
     }
 
     public static SaveState fromJsonString(String jsonStr) throws JSONException {
-        JSONObject root = new JSONObject(jsonStr);
+        List<LedgerEntry> entries = new ArrayList<>();
+        JSONObject root = readRoot(new JSONTokener(jsonStr), entries);
+        return fromRoot(root, entries);
+    }
+
+    static SaveState fromReader(Reader input) throws IOException, JSONException {
+        JsonReader reader = new JsonReader(input);
+        JSONObject root = new JSONObject();
+        List<LedgerEntry> entries = new ArrayList<>();
+        Map<String, String> ledgerText = new HashMap<>();
+        reader.beginObject();
+        while (reader.hasNext()) {
+            String key = reader.nextName();
+            if (root.has(key)) throw new JSONException("Field save duplikat");
+            if ("ledger".equals(key)) {
+                reader.beginArray();
+                while (reader.hasNext()) entries.add(readLedgerEntry((JSONObject) readJsonValue(reader), ledgerText));
+                reader.endArray();
+                root.put(key, true);
+            } else {
+                root.put(key, readJsonValue(reader));
+            }
+        }
+        reader.endObject();
+        if (reader.peek() != JsonToken.END_DOCUMENT || !root.has("ledger"))
+            throw new JSONException("Akhir objek save atau ledger tidak valid");
+        return fromRoot(root, entries);
+    }
+
+    private static Object readJsonValue(JsonReader reader) throws IOException, JSONException {
+        switch (reader.peek()) {
+            case BEGIN_OBJECT:
+                JSONObject object = new JSONObject();
+                reader.beginObject();
+                while (reader.hasNext()) {
+                    String key = reader.nextName();
+                    if (object.has(key)) throw new JSONException("Field save duplikat");
+                    object.put(key, readJsonValue(reader));
+                }
+                reader.endObject();
+                return object;
+            case BEGIN_ARRAY:
+                JSONArray array = new JSONArray();
+                reader.beginArray();
+                while (reader.hasNext()) array.put(readJsonValue(reader));
+                reader.endArray();
+                return array;
+            case STRING: return reader.nextString();
+            case NUMBER: return new JSONTokener(reader.nextString()).nextValue();
+            case BOOLEAN: return reader.nextBoolean();
+            case NULL:
+                reader.nextNull();
+                return JSONObject.NULL;
+            default: throw new JSONException("Nilai save tidak valid");
+        }
+    }
+
+    private static SaveState fromRoot(JSONObject root, List<LedgerEntry> entries) throws JSONException {
         int version = root.getInt("schemaVersion");
-        if (version != SCHEMA_VERSION) throw new JSONException("Versi save belum didukung: " + version);
+        if (!supportsVersion(version)) throw new JSONException("Versi save belum didukung: " + version);
         GameMode mode = GameMode.valueOf(root.getString("gameMode"));
         long timestamp = root.getLong("savedTimestamp");
         LocalDate date = LocalDate.parse(root.getString("gameDate"));
@@ -243,32 +398,6 @@ public final class SaveState {
             accounts.add(acc);
         }
 
-        // Deserialisasi Ledger
-        List<LedgerEntry> entries = new ArrayList<>();
-        JSONArray ledgerArray = root.getJSONArray("ledger");
-        for (int i = 0; i < ledgerArray.length(); i++) {
-            JSONObject entryObj = ledgerArray.getJSONObject(i);
-            String id = entryObj.getString("id");
-            long ts = entryObj.getLong("timestamp");
-            String reqId = entryObj.getString("requestId");
-            String accId = entryObj.getString("accountId");
-            LedgerEntryType type = LedgerEntryType.valueOf(entryObj.getString("type"));
-            Currency cur = Currency.valueOf(entryObj.getString("currency"));
-            BigDecimal amount = new BigDecimal(entryObj.getString("amount"));
-            boolean isCredit = entryObj.getBoolean("isCredit");
-            BigDecimal balAfter = new BigDecimal(entryObj.getString("balanceAfter"));
-            String desc = entryObj.getString("description");
-
-            LedgerEntry entry = new LedgerEntry(
-                    id, ts, reqId, accId, type,
-                    new Money(amount, cur),
-                    isCredit,
-                    new Money(balAfter, cur),
-                    desc
-            );
-            entries.add(entry);
-        }
-
         SaveState state = new SaveState(version, mode, timestamp, date, time, speed, accounts, entries,
                 root.optLong("lastRealTimeAnchor", timestamp),
                 root.optInt("gameMsRemainder", 0),
@@ -276,6 +405,60 @@ public final class SaveState {
                 root.optJSONObject("offlineCatchupReport"));
         JSONObject runtime = root.optJSONObject("runtimeState");
         if (runtime != null) state.setRuntimeState(runtime);
+        if ((version == COMPACTED_SCHEMA_VERSION) != state.getRuntimeState().has("npcLedgerSummary"))
+            throw new JSONException("Versi save dan ringkasan ledger NPC tidak cocok");
         return state;
+    }
+
+    private static JSONObject readRoot(JSONTokener reader, List<LedgerEntry> entries) throws JSONException {
+        if (reader.nextClean() != '{') throw new JSONException("Objek save tidak valid");
+        JSONObject root = new JSONObject();
+        char separator;
+        do {
+            Object name = reader.nextValue();
+            if (!(name instanceof String key) || root.has(key) || reader.nextClean() != ':')
+                throw new JSONException("Field save tidak valid atau duplikat");
+            if ("ledger".equals(key)) {
+                readLedger(reader, entries);
+                root.put(key, true);
+            } else {
+                root.put(key, reader.nextValue());
+            }
+            separator = reader.nextClean();
+        } while (separator == ',');
+        if (separator != '}' || reader.nextClean() != 0 || !root.has("ledger"))
+            throw new JSONException("Akhir objek save atau ledger tidak valid");
+        return root;
+    }
+
+    private static void readLedger(JSONTokener reader, List<LedgerEntry> entries) throws JSONException {
+        if (reader.nextClean() != '[') throw new JSONException("Ledger save bukan array");
+        if (reader.nextClean() == ']') return;
+        reader.back();
+        Map<String, String> ledgerText = new HashMap<>();
+        char separator;
+        do {
+            if (!(reader.nextValue() instanceof JSONObject row)) throw new JSONException("Baris ledger tidak valid");
+            entries.add(readLedgerEntry(row, ledgerText));
+            separator = reader.nextClean();
+        } while (separator == ',');
+        if (separator != ']') throw new JSONException("Akhir ledger save tidak valid");
+    }
+
+    private static LedgerEntry readLedgerEntry(JSONObject row, Map<String, String> ledgerText) throws JSONException {
+        Currency currency = Currency.valueOf(row.getString("currency"));
+        return new LedgerEntry(row.getString("id"), row.getLong("timestamp"), row.getString("requestId"),
+                sharedLedgerText(row.getString("accountId"), ledgerText), LedgerEntryType.valueOf(row.getString("type")),
+                new Money(new BigDecimal(row.getString("amount")), currency), row.getBoolean("isCredit"),
+                new Money(new BigDecimal(row.getString("balanceAfter")), currency),
+                sharedLedgerText(row.getString("description"), ledgerText));
+    }
+
+    private static String sharedLedgerText(String value, Map<String, String> ledgerText) {
+        String existing = ledgerText.get(value);
+        if (existing != null) return existing;
+        // ponytail: bound parse-local sharing to 4096 repeated labels, so unique descriptions cannot grow a second index.
+        if (ledgerText.size() < 4096) ledgerText.put(value, value);
+        return value;
     }
 }

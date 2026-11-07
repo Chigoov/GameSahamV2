@@ -31,6 +31,8 @@ public final class Instrument {
     private Money dayHigh;
     private Money dayLow;
     private long dayVolume;
+    private Money dayOpenPrice;
+    private BigDecimal dayTurnover = BigDecimal.ZERO;
 
     // Sintesa 5 Masterpiece: Nilai Intrinsik & Fundamental
     private BigDecimal intrinsicValue;
@@ -141,9 +143,20 @@ public final class Instrument {
     public Money getDayHigh() { return dayHigh; }
     public Money getDayLow() { return dayLow; }
     public long getDayVolume() { return dayVolume; }
+    public Money getDayOpenPrice() { return dayOpenPrice; }
+    public BigDecimal getDayTurnover() { return dayTurnover; }
+    public void restoreMissingDayStatistics(Money open, BigDecimal turnover) {
+        if (dayVolume > 0 && dayTurnover == null)
+            restoreMarketState(currentPrice, previousClosePrice, dayHigh, dayLow, dayVolume, open, turnover);
+    }
+    public BigDecimal getDayAveragePrice() {
+        return dayVolume > 0 && dayTurnover != null
+                ? dayTurnover.divide(BigDecimal.valueOf(dayVolume), 4, RoundingMode.HALF_UP) : null;
+    }
     public void resetReferencePrice(Money price) {
         if (price == null || price.getCurrency() != currency || !price.isPositive()) throw new IllegalArgumentException("Harga referensi tidak valid");
         currentPrice = price; previousClosePrice = price; dayHigh = price; dayLow = price; dayVolume = 0;
+        dayOpenPrice = null; dayTurnover = BigDecimal.ZERO;
     }
 
     public Money getMarketCap() {
@@ -158,6 +171,8 @@ public final class Instrument {
     }
 
     public void updatePrice(Money newPrice, long volumeDelta) {
+        if (volumeDelta < 0) throw new IllegalArgumentException("Volume transaksi tidak boleh negatif");
+        long volume = Math.addExact(dayVolume, volumeDelta);
         Money boundedPrice = newPrice;
         if (currency == Currency.IDR && exchange == MarketExchange.IDX) {
             BigDecimal minNominal = new BigDecimal("50");
@@ -174,17 +189,28 @@ public final class Instrument {
         this.currentPrice = boundedPrice;
         if (boundedPrice.compareTo(dayHigh) > 0) dayHigh = boundedPrice;
         if (boundedPrice.compareTo(dayLow) < 0) dayLow = boundedPrice;
-        this.dayVolume += volumeDelta;
+        if (volumeDelta > 0) {
+            if (dayVolume == 0) { dayOpenPrice = boundedPrice; dayHigh = boundedPrice; dayLow = boundedPrice; }
+            if (dayTurnover != null) dayTurnover = dayTurnover.add(boundedPrice.getAmount().multiply(BigDecimal.valueOf(volumeDelta)));
+        }
+        this.dayVolume = volume;
     }
 
-    void restoreMarketState(Money price, Money previous, Money high, Money low, long volume) {
+    void restoreMarketState(Money price, Money previous, Money high, Money low, long volume, Money open, BigDecimal turnover) {
         for (Money value : new Money[]{price, previous, high, low}) {
             if (value == null || value.getCurrency() != currency || !value.isPositive())
                 throw new IllegalArgumentException("Harga save tidak valid: " + id);
         }
         if (volume < 0 || high.compareTo(price) < 0 || low.compareTo(price) > 0 || low.compareTo(high) > 0)
             throw new IllegalArgumentException("Statistik pasar save tidak valid: " + id);
+        if (open != null && (open.getCurrency() != currency || !open.isPositive() || volume == 0 || open.compareTo(high) > 0 || open.compareTo(low) < 0)
+                || turnover != null && (turnover.signum() < 0 || volume > 0 && turnover.signum() == 0 || volume == 0 && turnover.signum() != 0)
+                || volume > 0 && ((open == null) != (turnover == null)))
+            throw new IllegalArgumentException("Statistik transaksi harian save tidak valid: " + id);
         currentPrice = price; previousClosePrice = previous; dayHigh = high; dayLow = low; dayVolume = volume;
+        dayOpenPrice = open;
+        // ponytail: legacy saves with volume lack exact turnover; keep it unknown until the next day rather than estimate it.
+        dayTurnover = volume == 0 ? BigDecimal.ZERO : turnover;
     }
 
     public synchronized void adjustSplitReferencePrices(BigDecimal ratio) {
@@ -192,6 +218,7 @@ public final class Instrument {
         previousClosePrice = new Money(previousClosePrice.getAmount().divide(ratio, 8, RoundingMode.HALF_UP), currency);
         dayHigh = new Money(dayHigh.getAmount().divide(ratio, 8, RoundingMode.HALF_UP), currency);
         dayLow = new Money(dayLow.getAmount().divide(ratio, 8, RoundingMode.HALF_UP), currency);
+        if (dayOpenPrice != null) dayOpenPrice = new Money(dayOpenPrice.getAmount().divide(ratio, 8, RoundingMode.HALF_UP), currency);
     }
 
     public void startNewTradingDay() {
@@ -199,6 +226,8 @@ public final class Instrument {
         this.dayHigh = this.currentPrice;
         this.dayLow = this.currentPrice;
         this.dayVolume = 0;
+        this.dayOpenPrice = null;
+        this.dayTurnover = BigDecimal.ZERO;
     }
 
     public boolean isTradable() {

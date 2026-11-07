@@ -21,6 +21,7 @@ public final class MarketIndex {
     private final CalculationMethod method;
     private final List<String> memberIds;
     private double currentValue;
+    private double previousCloseValue;
 
     public MarketIndex(String id, String ticker, String name, MarketExchange exchange,
                        double baseValue, CalculationMethod method, List<String> memberIds) {
@@ -32,6 +33,7 @@ public final class MarketIndex {
         this.method = method;
         this.memberIds = Collections.unmodifiableList(new ArrayList<>(memberIds));
         this.currentValue = baseValue;
+        this.previousCloseValue = baseValue;
     }
 
     public String getId() { return id; }
@@ -42,12 +44,36 @@ public final class MarketIndex {
     public CalculationMethod getMethod() { return method; }
     public List<String> getMemberIds() { return memberIds; }
     public double getCurrentValue() { return currentValue; }
+    public double getPreviousCloseValue() { return previousCloseValue; }
+
+    public synchronized void startNewTradingDay() {
+        this.previousCloseValue = this.currentValue;
+    }
+
+    public synchronized void resetToBase() {
+        this.currentValue = this.baseValue;
+        this.previousCloseValue = this.baseValue;
+    }
+
+    public synchronized org.json.JSONObject exportState() throws org.json.JSONException {
+        return new org.json.JSONObject()
+                .put("id", id)
+                .put("currentValue", currentValue)
+                .put("previousCloseValue", previousCloseValue);
+    }
+
+    public synchronized void restoreState(org.json.JSONObject obj) {
+        if (obj == null) return;
+        this.currentValue = obj.optDouble("currentValue", this.baseValue);
+        this.previousCloseValue = obj.optDouble("previousCloseValue", this.currentValue);
+    }
 
     /**
      * Menghitung nilai terkini indeks berdasarkan kapitalisasi pasar atau bobot anggota.
      */
     public synchronized double recalculate(Map<String, Instrument> instrumentMap) {
-        if (memberIds.isEmpty()) return baseValue;
+        double anchor = previousCloseValue > 0.0 ? previousCloseValue : baseValue;
+        if (memberIds.isEmpty()) return anchor;
 
         if (method == CalculationMethod.EQUAL_WEIGHTED) {
             double totalReturn = 0.0;
@@ -60,7 +86,7 @@ public final class MarketIndex {
                 }
             }
             if (count > 0) {
-                this.currentValue = baseValue * (totalReturn / count);
+                this.currentValue = anchor * (totalReturn / count);
             }
             return currentValue;
         }
@@ -82,9 +108,9 @@ public final class MarketIndex {
 
         if (totalBaseCap.compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal ratio = totalCurrentCap.divide(totalBaseCap, 6, RoundingMode.HALF_UP);
-            this.currentValue = baseValue * ratio.doubleValue();
+            this.currentValue = anchor * ratio.doubleValue();
         } else if (this.currentValue <= 0.0) {
-            this.currentValue = baseValue;
+            this.currentValue = anchor;
         }
         return currentValue;
     }

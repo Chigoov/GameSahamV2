@@ -265,10 +265,13 @@ public class DomainAccountSaveTest {
     public void testWriteFailurePreservesLastAcknowledgedSave() throws Exception {
         facade.save();
         byte[] before = java.nio.file.Files.readAllBytes(saveManager.getSaveFile().toPath());
-        assertTrue(saveManager.getTempFile().mkdir());
+        var backup = saveManager.getBackupFile().toPath();
+        java.nio.file.Files.deleteIfExists(backup);
+        java.nio.file.Files.createDirectory(backup);
+        java.nio.file.Files.write(backup.resolve("block"), new byte[]{1});
         try {
             facade.save();
-            fail("A directory at the temporary path must make the write fail");
+            fail("An occupied backup path must prevent replacement of the primary");
         } catch (java.io.IOException expected) {
             assertArrayEquals(before, java.nio.file.Files.readAllBytes(saveManager.getSaveFile().toPath()));
             assertTrue(saveManager.load().isSuccess());

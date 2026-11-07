@@ -105,7 +105,8 @@ public class CareerAccessTest {
         JSONObject state = game.getCareerManager().exportState();
         state.put("rank", "PORTFOLIO_MANAGER").put("days", 7).put("reputation", 80);
         game.getCareerManager().restoreState(state);
-        game.takeMarginLoan(Money.of(100_000_000, Currency.IDR));
+        game.takeMarginLoan(Money.of(50_000_000, Currency.IDR));
+        assertEquals(Money.of(100_000_000, Currency.IDR), game.getPersonalAccount().getTotalCash(Currency.IDR));
         game.evaluateTriggers();
         assertFalse(game.getCareerManager().getMission("MIS-03").isCompleted());
         assertEquals(CareerRank.PORTFOLIO_MANAGER, game.evaluateCareerPromotion());

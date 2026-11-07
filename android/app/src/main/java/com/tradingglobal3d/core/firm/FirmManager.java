@@ -122,6 +122,16 @@ public final class FirmManager {
             Order order,
             Instrument instrument,
             BigDecimal fxRate) {
+        return validateOrder(mandate, clientAccount, order, instrument, fxRate, 0L);
+    }
+
+    public ValidationResult validateOrder(
+            ClientMandate mandate,
+            Account clientAccount,
+            Order order,
+            Instrument instrument,
+            BigDecimal fxRate,
+            long pendingBuyShares) {
 
         if (order.getSide() == OrderSide.SELL) {
             return ValidationResult.pass(); // Penjualan meningkatkan kas dan mengurangi konsentrasi
@@ -146,10 +156,10 @@ public final class FirmManager {
                     (mandate.getRiskProfile().getMinCashReserve() * 100) + "% dari AUM)");
         }
 
-        // 2. Validasi Batas Konsentrasi Saham
+        // 2. Validasi Batas Konsentrasi Saham (termasuk pending buy shares akun klien pada instrumen ini - AU14)
         Position currentPos = clientAccount.getPosition(instrument.getId());
         long currentQty = currentPos != null ? currentPos.getQuantity() : 0;
-        long totalQtyAfter = currentQty + order.getTotalQuantity();
+        long totalQtyAfter = Math.addExact(currentQty, Math.addExact(Math.max(0L, pendingBuyShares), order.getTotalQuantity()));
         BigDecimal postValue = inBase(estPrice.multiply(BigDecimal.valueOf(totalQtyAfter)), instrument.getCurrency(), baseCur, fxRate);
         BigDecimal maxConcentrationAllowed = totalAum.getAmount().multiply(BigDecimal.valueOf(mandate.getRiskProfile().getMaxConcentrationPerStock()));
 

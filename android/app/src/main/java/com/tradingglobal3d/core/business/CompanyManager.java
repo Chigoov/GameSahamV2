@@ -179,6 +179,19 @@ public final class CompanyManager {
         }
     }
 
+    public static String resolveHoldingSector(OperatingCompany company) {
+        if (company == null) return null;
+        String raw = company.getSector().trim().toUpperCase(Locale.ROOT);
+        if (HOLDING_SECTORS.contains(raw)) return raw;
+        String model = company.getSectorModel().trim().toUpperCase(Locale.ROOT);
+        if (HOLDING_SECTORS.contains(model)) return model;
+        if (raw.contains("FINANC") || raw.contains("KEUANGAN") || raw.contains("JASA") || raw.contains("BANK")) return "FINANCIAL";
+        if (raw.contains("ENERG")) return "ENERGY";
+        if (raw.contains("CONSUM") || raw.contains("KONSUM") || raw.contains("RITEL") || raw.contains("MANUFAKTUR")) return "CONSUMER";
+        if (raw.contains("TECH") || raw.contains("TEKNO") || raw.contains("DIGITAL")) return "TECHNOLOGY";
+        return raw;
+    }
+
     public synchronized JSONObject createHoldingCompany(String holdingId, String holdingName, JSONArray subsidiaries)
             throws JSONException {
         if (holdingId == null || holdingId.trim().isEmpty() || holdingName == null || holdingName.trim().isEmpty())
@@ -194,8 +207,13 @@ public final class CompanyManager {
             String companyId = entry.getString("companyId").trim();
             if (!HOLDING_SECTORS.contains(sector) || staged.containsKey(sector))
                 throw new IllegalArgumentException("Sektor holding tidak valid atau berulang: " + sector);
-            if (!companies.containsKey(companyId) || !seenCompanies.add(companyId) || holdingByCompany.containsKey(companyId))
+            OperatingCompany company = companies.get(companyId);
+            if (company == null || !seenCompanies.add(companyId) || holdingByCompany.containsKey(companyId))
                 throw new IllegalArgumentException("Anak usaha holding tidak dikenal, duplikat, atau sudah berada dalam holding");
+            String canonicalSector = resolveHoldingSector(company);
+            if (!sector.equalsIgnoreCase(canonicalSector)) {
+                throw new IllegalArgumentException("Sektor riil perusahaan " + company.getName() + " (" + canonicalSector + ") tidak cocok dengan sektor holding yang diajukan (" + sector + ")");
+            }
             staged.put(sector, companyId);
         }
         HoldingGroup group = new HoldingGroup(holdingId, holdingName.trim(), staged);
@@ -222,14 +240,29 @@ public final class CompanyManager {
         String creditId = "HOLDING-" + requestId + "-CREDIT";
         boolean debitDone = ledger.isRequestProcessed(debitId);
         boolean creditDone = ledger.isRequestProcessed(creditId);
-        if (debitDone || creditDone) {
-            if (debitDone && creditDone) return new JSONObject().put("success", true).put("alreadyProcessed", true)
-                    .put("holdingId", holdingId).put("amount", amount.format()).put("transferType", transferType);
-            throw new IllegalStateException("Receipt transfer holding tidak lengkap; perlu rekonsiliasi sebelum retry");
-        }
         OperatingCompany from = companies.get(fromCompanyId), to = companies.get(toCompanyId);
         Account fromAccount = allAccounts.get(from.getAccountId()), toAccount = allAccounts.get(to.getAccountId());
         if (fromAccount == null || toAccount == null) throw new IllegalStateException("Akun anak usaha holding tidak tersedia");
+
+        if (debitDone || creditDone) {
+            if (debitDone && creditDone) {
+                com.tradingglobal3d.core.economy.LedgerEntry debitEntry = ledger.getProcessedEntry(debitId);
+                com.tradingglobal3d.core.economy.LedgerEntry creditEntry = ledger.getProcessedEntry(creditId);
+                LedgerEntryType expectedType = "DIVIDEND".equals(transferType)
+                        ? LedgerEntryType.COMPANY_CAPITAL_WITHDRAWAL : LedgerEntryType.COMPANY_CAPITAL_INJECTION;
+                if (debitEntry == null || creditEntry == null
+                        || !debitEntry.getAccountId().equals(fromAccount.getId())
+                        || !creditEntry.getAccountId().equals(toAccount.getId())
+                        || debitEntry.getType() != expectedType
+                        || !debitEntry.getAmount().equals(amount)) {
+                    throw new IllegalArgumentException("Payload retry transfer holding berbeda dari transaksi yang sudah tercatat dengan requestId: " + requestId);
+                }
+                return new JSONObject().put("success", true).put("alreadyProcessed", true)
+                        .put("holdingId", holdingId).put("amount", debitEntry.getAmount().format()).put("transferType", transferType)
+                        .put("fromCompanyId", fromCompanyId).put("toCompanyId", toCompanyId);
+            }
+            throw new IllegalStateException("Receipt transfer holding tidak lengkap; perlu rekonsiliasi sebelum retry");
+        }
         Money reserve = from.getPayrollArrears().add(from.calculateDailyPayroll()).add(from.calculateDailyOperatingCost());
         if (fromAccount.getAvailableCash(Currency.IDR).subtract(amount).isLessThan(reserve))
             throw new IllegalStateException("Transfer akan mengurangi cadangan payroll atau biaya operasi satu hari");
@@ -346,7 +379,7 @@ public final class CompanyManager {
     private Money settlePayrollArrears(Account account, OperatingCompany company, EconomyLedger ledger, long timestamp) {
         Money payment = minimum(account.getAvailableCash(Currency.IDR), company.getPayrollArrears());
         if (payment.isPositive()) {
-            ledger.recordMutation("PAYROLL-" + company.getId() + "-" + timestamp + "-" + ledger.getEntries().size(),
+            ledger.recordMutation("PAYROLL-" + company.getId() + "-" + timestamp + "-" + ledger.getEntryCount(),
                     account, LedgerEntryType.COMPANY_PAYROLL, payment, false, timestamp,
                     "Pembayaran gaji dan tunggakan " + company.getName());
             company.setPayrollArrears(company.getPayrollArrears().subtract(payment));
@@ -567,12 +600,12 @@ public final class CompanyManager {
                 .put("dailyCapacityAfter", projected.calculateDailyCapacity().getAmount().toPlainString())
                 .put("dailyOperatingCostBefore", company.calculateDailyOperatingCost().getAmount().toPlainString())
                 .put("dailyOperatingCostAfter", projected.calculateDailyOperatingCost().getAmount().toPlainString())
-                .put("projectedDailyRevenueBefore", company.calculateDailyCapacity().getAmount().toPlainString())
-                .put("projectedDailyRevenueAfter", projected.calculateDailyCapacity().getAmount().toPlainString())
+                .put("projectedDailyRevenueBefore", company.calculateDailyRevenue().getAmount().toPlainString())
+                .put("projectedDailyRevenueAfter", projected.calculateDailyRevenue().getAmount().toPlainString())
                 .put("projectedDailyCostBefore", company.calculateDailyPayroll().add(company.calculateDailyOperatingCost()).getAmount().toPlainString())
                 .put("projectedDailyCostAfter", projected.calculateDailyPayroll().add(projected.calculateDailyOperatingCost()).getAmount().toPlainString())
-                .put("projectedDailyProfitBefore", company.calculateDailyCapacity().subtract(company.calculateDailyPayroll().add(company.calculateDailyOperatingCost())).getAmount().toPlainString())
-                .put("projectedDailyProfitAfter", projected.calculateDailyCapacity().subtract(projected.calculateDailyPayroll().add(projected.calculateDailyOperatingCost())).getAmount().toPlainString())
+                .put("projectedDailyProfitBefore", company.calculateDailyNetProfit().getAmount().toPlainString())
+                .put("projectedDailyProfitAfter", projected.calculateDailyNetProfit().getAmount().toPlainString())
                 .put("durationGameSeconds", 0).put("effectiveRule", "NEXT_DAILY_SETTLEMENT");
     }
 

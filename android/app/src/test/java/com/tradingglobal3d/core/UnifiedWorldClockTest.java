@@ -71,14 +71,12 @@ public class UnifiedWorldClockTest {
         TradingFacade game = open(directory, START);
         long initial = game.getGameTimestamp();
         byte[] durable = Files.readAllBytes(game.getSaveManager().getSaveFile().toPath());
-        File temp = game.getSaveManager().getTempFile();
-        assertTrue(temp.mkdir());
-        Files.write(temp.toPath().resolve("block"), new byte[]{1});
+        game.getSaveManager().setWriteAuthority(() -> false);
         time(game, START + 1900); game.syncClock();
-        try { game.save(); fail("blocked temporary path must fail save"); }
-        catch (java.io.IOException expected) { }
+        try { game.save(); fail("revoked write authority must fail save"); }
+        catch (IllegalStateException expected) { assertTrue(expected.getMessage().contains("penulisan ditolak")); }
+        finally { game.getSaveManager().setWriteAuthority(() -> true); }
         assertArrayEquals(durable, Files.readAllBytes(game.getSaveManager().getSaveFile().toPath()));
-        Files.delete(temp.toPath().resolve("block")); Files.delete(temp.toPath());
         game.save(); game.save();
         game = open(directory, START + 2000);
         assertEquals(initial + 96000, game.getGameTimestamp());

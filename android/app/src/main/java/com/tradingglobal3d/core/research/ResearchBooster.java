@@ -71,6 +71,12 @@ public final class ResearchBooster implements Serializable {
         }
     }
 
+    public void restoreState(JSONObject obj) {
+        if (obj == null) return;
+        this.remainingUses = Math.max(0, obj.optInt("remainingUses", this.remainingUses));
+        this.active = obj.optBoolean("isActive", false) && this.remainingUses > 0;
+    }
+
     public JSONObject toJsonObject() throws JSONException {
         JSONObject obj = new JSONObject();
         obj.put("boosterId", boosterId);

@@ -115,7 +115,7 @@ public final class NpcAgent {
                 instrument.validateShareSupplyEvent(supplyId, BigDecimal.ONE, issued, 0);
             }
             Money minCash = currency == Currency.USD ? Money.of(200_000.0, currency) : Money.of(2_000_000_000L, currency);
-            Money cashTarget = minCash;
+            Money cashTarget = minCash.compareTo(requiredAvailableCash) >= 0 ? minCash : requiredAvailableCash;
             Money available = account.getAvailableCash(currency);
             if (available.isLessThan(cashTarget)) {
                 ledger.recordMutation("RETAIL-CAPITAL-" + eventId + "-" + currency, account,
@@ -261,7 +261,7 @@ public final class NpcAgent {
             if (seed % 10 < activityThreshold) {
                 boolean isBuy = (seed % 100) < buyProbabilityPercent;
 
-                long lotMultiplier = 1 + (seed % 4); // 1 - 4 lot
+                long lotMultiplier = 20 + (seed % 181);
                 if (isBuy && deeplyUndervalued) {
                     lotMultiplier *= 2;
                 }

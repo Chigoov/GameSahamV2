@@ -89,6 +89,33 @@ public final class WireQaServer {
                             facade.getClock().play();
                             facade.tick(1800);
                             response = new JSONObject().put("success", true).toString().getBytes(StandardCharsets.UTF_8);
+                        } else if ("seedPortfolioManager".equals(action) || "seedLeverageEligibility".equals(action)) {
+                            JSONObject career = facade.getCareerManager().exportState();
+                            boolean leverage = "seedLeverageEligibility".equals(action);
+                            career.put("rank", leverage ? "CHIEF_INVESTMENT_OFFICER" : "PORTFOLIO_MANAGER").put("days", 7).put("reputation", 80);
+                            facade.getCareerManager().restoreState(career);
+                            if (leverage) {
+                                Instrument stock = facade.getCatalog().getById("IDX:BBCA");
+                                stock.updatePrice(stock.getCurrentPrice(), Math.multiplyExact(stock.getLotSize(), 5000L));
+                                facade.generateNpcLiquidity(); facade.save();
+                            }
+                            response = new JSONObject().put("success", true).put("fixture", leverage
+                                    ? "QA synthetic career and daily-volume prerequisites; not market-volume evidence"
+                                    : "QA synthetic career prerequisite").toString().getBytes(StandardCharsets.UTF_8);
+                        } else if ("seedMarginCall".equals(action)) {
+                            Account personal = facade.getPersonalAccount();
+                            if (facade.getRiskService().getMarginDebt(personal.getId(), com.tradingglobal3d.core.model.Currency.IDR).isPositive())
+                                throw new IllegalStateException("Margin fixture requires a fresh debt-free QA account");
+                            facade.getCareerManager().restoreState(facade.getCareerManager().exportState().put("rank", "CHIEF_INVESTMENT_OFFICER"));
+                            facade.takeMarginLoan(com.tradingglobal3d.core.model.Money.of(100000000, com.tradingglobal3d.core.model.Currency.IDR));
+                            facade.getLedger().recordMutation("QA-DISTRESSED-HOLDING", personal, com.tradingglobal3d.core.economy.LedgerEntryType.TRADE_BUY,
+                                    com.tradingglobal3d.core.model.Money.of(150000000, com.tradingglobal3d.core.model.Currency.IDR), false,
+                                    facade.getGameTimestamp(), "QA synthetic distressed holding");
+                            personal.addPosition(new com.tradingglobal3d.core.model.Position("BBCA", "IDX", com.tradingglobal3d.core.model.Currency.IDR,
+                                    15000, new java.math.BigDecimal("10000"), new java.math.BigDecimal("10000")));
+                            facade.getCatalog().getById("IDX:BBCA").updatePrice(com.tradingglobal3d.core.model.Money.of(9000, com.tradingglobal3d.core.model.Currency.IDR), 0);
+                            facade.executeForcedLiquidation("BBCA"); facade.save();
+                            response = new JSONObject().put("success", true).put("fixture", "QA synthetic distress; not player progression evidence").toString().getBytes(StandardCharsets.UTF_8);
                         } else if ("injectPosition".equals(action)) {
                             Account p = facade.getPersonalAccount();
                             Instrument inst = facade.getCatalog().getById(request.optString("instrumentId", "IDX:BBCA"));
@@ -131,8 +158,18 @@ public final class WireQaServer {
                     if (!file.startsWith(web) || !Files.isRegularFile(file)) throw new IllegalArgumentException("Not found");
                     response = Files.readAllBytes(file);
                     String filename = file.getFileName().toString();
-                    if (filename.equals("index.html")) response = new String(response, StandardCharsets.UTF_8).replace("</head>", "<script src=\"/browser-bridge.js\"></script></head>").getBytes(StandardCharsets.UTF_8);
-                    mime = filename.endsWith(".js") ? "text/javascript; charset=utf-8" : filename.endsWith(".css") ? "text/css; charset=utf-8" : filename.endsWith(".ttf") ? "font/ttf" : "text/html; charset=utf-8";
+                    if (filename.equals("index.html")) {
+                        String textScale = "qaTextScale=200".equals(exchange.getRequestURI().getQuery())
+                                ? "<style>html{font-size:200% !important}</style>" : "";
+                        response = new String(response, StandardCharsets.UTF_8).replace("</head>", textScale + "<script src=\"/browser-bridge.js\"></script></head>").getBytes(StandardCharsets.UTF_8);
+                    }
+                    mime = filename.endsWith(".js") ? "text/javascript; charset=utf-8"
+                            : filename.endsWith(".css") ? "text/css; charset=utf-8"
+                            : filename.endsWith(".ttf") ? "font/ttf"
+                            : filename.endsWith(".svg") ? "image/svg+xml"
+                            : filename.endsWith(".png") ? "image/png"
+                            : filename.endsWith(".jpg") || filename.endsWith(".jpeg") ? "image/jpeg"
+                            : filename.endsWith(".webp") ? "image/webp" : "text/html; charset=utf-8";
                 }
             } catch (Exception error) {
                 status = 400;

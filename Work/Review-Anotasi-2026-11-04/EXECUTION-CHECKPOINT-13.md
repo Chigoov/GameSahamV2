@@ -1,0 +1,11 @@
+# Eksekusi lanjutan revisi Game Saham
+
+Rujukan aktif: implementation-plan.md, E03/E04/E05/E07/E08/E09/E11. Status NEEDS_VALIDATION untuk pemeriksaan tampilan dan perangkat.
+
+- E03/E04/E08: app.js dan style.css menerapkan palet Stockbit pada detail saham, indeks dan formulir order. Handler harga order book tunggal memeriksa aksi yang sedang aktif. Logo COST, LLY, GE dan GS ditambah ke app.js dan SOURCES.json, sehingga 35 SVG ditambah 5 logo dari referensi tersedia. COP/XOM gagal pemeriksaan SVG dan HON mengembalikan HTTP 429, sehingga batch dihentikan. Emiten lain memakai inisial.
+- E05: IpoOffering, CorporateActionService, TradingFacade dan TradingWebBridge memisahkan tanggal serta status penjatahan, distribusi dan listing. Jadwal IPO baru memiliki tiga hari pemesanan. Tanggal pemesanan save lama dipertahankan dan distribusi yang sudah dilakukan dianggap selesai. app.js menampilkan timeline dalam detail IPO, dengan aksi saham setelah pencatatan.
+- E07: app.js menjelaskan pembukaan otomatis pada Portfolio Manager. OwnerAnnotationPolicyTest menjalankan evaluasi promosi, verifikasi akses sebelum/sesudah, penerimaan klien dan pemuatan ulang. Suite Firma menguji mandat, isolasi dan fee.
+- E09: TradingFacade menutup jalur short saham terkunci dan TradingWebBridge menghubungkan porsi cepat order leverage dengan estimasi daya beli dan antrean aktual.
+- E11: python Work/Review-Anotasi-2026-11-04/run-policy-check.py OrderCapacityQuoteTest RiskMarginShortComplianceTest OwnerMarginDeadlineTest IpoScheduleAndAllotmentTest IpoAllotment6040AndCancellationTest FirmCompanyMandateCriticalSequenceTest FirmClientMandateFeeTest lulus 61 tes. Log di Artifacts/Annotation-Execution/1793789202982236500/test.log. Keempat check-*.cjs, node --check, git diff --check dan gradlew.bat --offline :app:assembleDebug lulus. 39 aset cocok dengan APK. SHA256 APK C22C631702ACF1093F749FB6589F72739EDC453D164E74213B77D995145AEC45. SHA256 save pemain 59B41E24C5A0A3B6F87D127D41C18B7F3F0EBE371F4DD2D277A31CA4B5F867ED.
+
+Preview Java host di http://127.0.0.1:64224/, save terisolasi qa-save-staged-ipo-01, 160 metode, halaman HTTP 200. next_action: verifikasi tampilan detail saham, order, indeks, Firma, IPO dan margin call melalui browser lokal setelah akses Work tersedia. Pinch fisik tetap memerlukan pengujian perangkat.

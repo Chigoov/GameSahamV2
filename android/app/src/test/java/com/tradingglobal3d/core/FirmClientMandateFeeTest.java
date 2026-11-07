@@ -261,19 +261,26 @@ public class FirmClientMandateFeeTest {
         Account client1 = facade.acceptClientMandate("MANDATE-01"); // Rp 100.000.000
         Money initialManagerCash = facade.getPersonalAccount().getTotalCash(Currency.IDR);
 
-        // Majukan jam clock ke 16:01 WIB agar siap tutup hari
-        facade.getClock().play();
-        facade.getClock().tick((int) java.time.Duration.between(facade.getClock().getCurrentTime(), java.time.LocalTime.of(16, 1)).getSeconds());
-        facade.getClock().pause();
-
-        com.tradingglobal3d.core.career.DailySessionReport report = facade.closeDayAndAdvance();
-        assertNotNull(report);
+        facade.advanceWorldSecondsForTest(86400 - facade.getClock().getCurrentTime().toSecondOfDay());
+        assertEquals(java.time.LocalTime.MIDNIGHT, facade.getClock().getCurrentTime());
+        assertEquals(1, facade.getCareerManager().getSessionReports().size());
 
         // Verifikasi fee manajemen klien otomatis ditarik dan dikreditkan ke manajer
         boolean hasClientMgmtFee = facade.getLedger().getEntries().stream().anyMatch(e ->
                 e.getType() == com.tradingglobal3d.core.economy.LedgerEntryType.MANAGEMENT_FEE &&
                 e.getAccountId().equals(facade.getPersonalAccount().getId()));
         assertTrue("Fee manajemen klien harus dikreditkan ke manajer pada penutupan hari", hasClientMgmtFee);
+        assertTrue(client1.getTotalCash(Currency.IDR).compareTo(Money.of(100000000, Currency.IDR)) < 0);
+        try {
+            org.json.JSONArray reports = new org.json.JSONArray(new com.tradingglobal3d.mobile.TradingWebBridge(facade).getClientReports());
+            org.json.JSONObject report = reports.getJSONObject(0);
+            assertEquals(client1.getTotalPortfolioValue(Currency.IDR, facade.getFxService().getMidRate()).format(), report.getString("currentValue"));
+            BigDecimal paid = facade.getLedger().getEntriesForAccount(client1.getId()).stream()
+                    .filter(entry -> entry.getType() == com.tradingglobal3d.core.economy.LedgerEntryType.MANAGEMENT_FEE && !entry.isCredit())
+                    .map(entry -> entry.getAmount().getAmount()).reduce(BigDecimal.ZERO, BigDecimal::add);
+            assertTrue(paid.signum() > 0);
+            assertEquals(0, paid.compareTo(new BigDecimal(report.getString("feesPaidRaw"))));
+        } catch (org.json.JSONException error) { throw new AssertionError(error); }
 
         assertTrue("Kas manajer harus bertambah dari perolehan fee klien",
                 facade.getPersonalAccount().getTotalCash(Currency.IDR).compareTo(initialManagerCash) > 0);

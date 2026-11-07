@@ -85,4 +85,25 @@ public final class MarketBossService {
         }
         return arr;
     }
+
+    public synchronized JSONArray exportState() throws JSONException {
+        JSONArray arr = new JSONArray();
+        for (MarketBoss b : bosses.values()) {
+            arr.put(b.exportState());
+        }
+        return arr;
+    }
+
+    public synchronized void restoreState(JSONArray arr) throws JSONException {
+        reset();
+        if (arr == null) return;
+        for (int i = 0; i < arr.length(); i++) {
+            JSONObject obj = arr.getJSONObject(i);
+            String id = obj.optString("bossId");
+            MarketBoss b = bosses.get(id);
+            if (b != null) {
+                b.restoreState(obj);
+            }
+        }
+    }
 }

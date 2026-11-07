@@ -19,6 +19,7 @@ import java.util.*;
 public final class RiskComplianceService {
     public static final BigDecimal MAINTENANCE_MARGIN_RATIO = new BigDecimal("0.30"); // 30%
     public static final BigDecimal LIQUIDATION_MARGIN_RATIO = new BigDecimal("0.20");  // 20%
+    public static final long MARGIN_CALL_GRACE_REAL_MS = 120L * 60_000L;
 
     public static final class MarginHealthReport {
         private final String accountId;
@@ -47,6 +48,9 @@ public final class RiskComplianceService {
     }
 
     private final Map<String, Map<Currency, Money>> marginDebts = new HashMap<>();
+    private final Map<String, Long> marginCallDeadlines = new HashMap<>();
+    private final Map<String, Long> financingDays = new HashMap<>();
+    private long observedMarginRealTime;
 
     private void setMarginDebt(String accountId, Money debt) {
         marginDebts.computeIfAbsent(accountId, key -> new EnumMap<>(Currency.class)).put(debt.getCurrency(), debt);
@@ -56,6 +60,8 @@ public final class RiskComplianceService {
 
     public synchronized void reset() {
         marginDebts.clear();
+        marginCallDeadlines.clear(); observedMarginRealTime = 0;
+        financingDays.clear();
         shortPositions.clear();
         auditLogs.clear();
     }
@@ -71,6 +77,14 @@ public final class RiskComplianceService {
             }
         }
         state.put("debts", debts);
+        org.json.JSONArray calls = new org.json.JSONArray();
+        for (Map.Entry<String, Long> call : marginCallDeadlines.entrySet())
+            calls.put(new org.json.JSONObject().put("accountId", call.getKey()).put("deadlineRealAt", call.getValue()));
+        state.put("marginCalls", calls).put("observedMarginRealTime", observedMarginRealTime);
+        org.json.JSONArray chargedDays = new org.json.JSONArray();
+        for (Map.Entry<String, Long> entry : financingDays.entrySet()) chargedDays.put(new org.json.JSONObject()
+                .put("accountId", entry.getKey()).put("day", entry.getValue()));
+        state.put("financingDays", chargedDays);
         org.json.JSONArray shorts = new org.json.JSONArray();
         for (Map.Entry<String, Map<String, ShortPosition>> entry : shortPositions.entrySet()) {
             for (ShortPosition p : entry.getValue().values()) {
@@ -78,7 +92,8 @@ public final class RiskComplianceService {
                         .put("exchange", p.getExchange()).put("currency", p.getCurrency().name())
                         .put("shares", p.getBorrowedShares()).put("price", p.getAverageShortPrice().toPlainString())
                         .put("collateral", p.getCollateralLocked().getAmount().toPlainString())
-                        .put("rate", p.getAnnualBorrowFeeRate().toPlainString()));
+                        .put("rate", p.getAnnualBorrowFeeRate().toPlainString())
+                        .put("unpaidFee", p.getAccruedUnpaidFee().getAmount().toPlainString()));
             }
         }
         state.put("shorts", shorts);
@@ -87,6 +102,28 @@ public final class RiskComplianceService {
 
     public synchronized void restoreState(org.json.JSONObject state) throws org.json.JSONException {
         marginDebts.clear(); shortPositions.clear(); auditLogs.clear();
+        marginCallDeadlines.clear();
+        financingDays.clear();
+        org.json.JSONArray chargedDays = state.optJSONArray("financingDays");
+        if (chargedDays != null) for (int i = 0; i < chargedDays.length(); i++) {
+            org.json.JSONObject charged = chargedDays.getJSONObject(i);
+            String accountId = charged.getString("accountId");
+            long day = charged.getLong("day");
+            java.time.LocalDate.ofEpochDay(day);
+            if (accountId.trim().isEmpty() || financingDays.putIfAbsent(accountId, day) != null)
+                throw new IllegalArgumentException("Tanggal pembiayaan save duplikat atau tidak valid");
+        }
+        observedMarginRealTime = state.optLong("observedMarginRealTime", 0);
+        if (observedMarginRealTime < 0) throw new IllegalArgumentException("Waktu margin save tidak valid");
+        org.json.JSONArray calls = state.optJSONArray("marginCalls");
+        if (calls != null) for (int i = 0; i < calls.length(); i++) {
+            org.json.JSONObject call = calls.getJSONObject(i);
+            String accountId = call.getString("accountId");
+            long deadline = call.getLong("deadlineRealAt");
+            if (accountId.trim().isEmpty() || deadline <= 0 || deadline - observedMarginRealTime > MARGIN_CALL_GRACE_REAL_MS
+                    || marginCallDeadlines.putIfAbsent(accountId, deadline) != null)
+                throw new IllegalArgumentException("Deadline margin save tidak valid atau duplikat");
+        }
         org.json.JSONArray debts = state.optJSONArray("debts");
         if (debts != null) for (int i = 0; i < debts.length(); i++) {
             org.json.JSONObject d = debts.getJSONObject(i);
@@ -104,12 +141,50 @@ public final class RiskComplianceService {
             ShortPosition position = new ShortPosition(p.getString("ticker"), p.getString("exchange"), currency,
                     p.getLong("shares"), new BigDecimal(p.getString("price")),
                     new Money(new BigDecimal(p.getString("collateral")), currency), new BigDecimal(p.getString("rate")));
+            if (p.has("unpaidFee")) {
+                position.addUnpaidFee(new Money(new BigDecimal(p.getString("unpaidFee")), currency));
+            }
             shortPositions.computeIfAbsent(p.getString("accountId"), k -> new HashMap<>()).put(position.getTicker(), position);
         }
     }
 
     public List<ComplianceAuditLog> getAuditLogs() {
         return Collections.unmodifiableList(auditLogs);
+    }
+
+    public synchronized boolean observeMarginCall(Account account, InstrumentCatalog catalog, BigDecimal rate,
+                                                   long realNow, long gameNow) {
+        if (realNow < 0) throw new IllegalArgumentException("Waktu nyata margin tidak valid");
+        observedMarginRealTime = Math.max(observedMarginRealTime, realNow);
+        MarginHealthReport health = evaluateMarginHealth(account, catalog, rate);
+        if (!health.getMarginDebt().isPositive() || health.getMarginRatio().compareTo(MAINTENANCE_MARGIN_RATIO) >= 0)
+            return marginCallDeadlines.remove(account.getId()) != null;
+        if (marginCallDeadlines.containsKey(account.getId())) return false;
+        long deadline = Math.addExact(observedMarginRealTime, MARGIN_CALL_GRACE_REAL_MS);
+        marginCallDeadlines.put(account.getId(), deadline);
+        auditLogs.add(new ComplianceAuditLog("MARGIN-CALL-" + account.getId() + "-" + deadline, gameNow, account.getId(),
+                ComplianceAuditLog.AuditCategory.MARGIN_CALL, "Jaminan margin di bawah 30%",
+                "Tambah jaminan atau kurangi utang sebelum " + deadline + " (120 menit nyata)"));
+        return true;
+    }
+
+    public synchronized long getMarginCallDeadline(String accountId) { return marginCallDeadlines.getOrDefault(accountId, 0L); }
+
+    public synchronized long getMarginCallRemainingRealMs(String accountId, long realNow) {
+        return Math.max(0, getMarginCallDeadline(accountId) - Math.max(observedMarginRealTime, realNow));
+    }
+
+    public synchronized boolean isMarginCallDue(String accountId, long realNow) {
+        return getMarginCallDeadline(accountId) > 0 && getMarginCallRemainingRealMs(accountId, realNow) == 0;
+    }
+
+    public synchronized void recordLiquidationAttempt(Account account, Instrument instrument, boolean halted, long gameNow) {
+        String id = "MARGIN-LIQ-" + account.getId() + "-" + instrument.getId() + "-" + getMarginCallDeadline(account.getId()) + "-" + halted;
+        if (auditLogs.stream().anyMatch(log -> log.getId().equals(id))) return;
+        auditLogs.add(new ComplianceAuditLog(id, gameNow, account.getId(), halted
+                ? ComplianceAuditLog.AuditCategory.HALT_ENFORCEMENT : ComplianceAuditLog.AuditCategory.FORCED_LIQUIDATION,
+                (halted ? "Likuidasi menunggu suspensi berakhir: " : "Order likuidasi setelah tenggat margin: ") + instrument.getTicker(),
+                "Tetap mengikuti likuiditas dan aturan order AON"));
     }
 
     public synchronized Money getMarginDebt(String accountId, Currency currency) {
@@ -210,51 +285,72 @@ public final class RiskComplianceService {
      * Hasil penjualan short ditahan sebagai jaminan (Collateral Locked) (FR-15.05).
      * Memeriksa ketersediaan saham pinjaman pada lender pool (Shared Liquidity).
      */
-    public synchronized ShortPosition openShortPosition(
+    public ShortPosition openShortPosition(
             Account account,
             Instrument instrument,
             long sharesToShort,
             Account lenderPool,
             EconomyLedger ledger,
             long timestamp) {
+        return openShortPosition(account, instrument, sharesToShort, lenderPool, ledger, timestamp, 0L);
+    }
+
+    public ShortPosition openShortPosition(
+            Account account,
+            Instrument instrument,
+            long sharesToShort,
+            Account lenderPool,
+            EconomyLedger ledger,
+            long timestamp,
+            long lenderCommittedShares) {
 
         if (sharesToShort <= 0) throw new IllegalArgumentException("Jumlah lembar short harus positif");
         if (getShortPosition(account.getId(), instrument.getTicker()) != null) {
             throw new IllegalStateException("Posisi short masih aktif; tutup kewajiban sebelum membuka pinjaman baru");
         }
 
-        // 0. Validasi ketersediaan inventori pinjaman pada lender pool
+        // 0. Hitung nominal dan fee secara konsisten terhadap pembulatan mata uang (AT01)
+        BigDecimal currentPrice = instrument.getCurrentPrice().getAmount();
+        BigDecimal grossProceeds = currentPrice.multiply(BigDecimal.valueOf(sharesToShort));
+        Money grossMoney = new Money(grossProceeds, instrument.getCurrency());
+        BigDecimal fee = grossProceeds.multiply(new BigDecimal("0.0025")); // 0.25% fee jual
+        Money feeMoney = new Money(fee, instrument.getCurrency());
+        Money proceedsMoney = grossMoney.subtract(feeMoney);
+
+        if (proceedsMoney.isNegative()) {
+            throw new IllegalStateException("Hasil bersih penjualan short tidak boleh negatif");
+        }
+
+        // 1. Validasi ketersediaan inventori pinjaman pada lender pool sebelum mutasi apa pun (Preflight)
+        Position lenderPos = null;
         if (lenderPool != null) {
-            Position lenderPos = lenderPool.getPosition(instrument.getId());
+            lenderPos = lenderPool.getPosition(instrument.getId());
             if (lenderPos == null) lenderPos = lenderPool.getPosition(instrument.getTicker());
-            long availableLendable = (lenderPos != null) ? lenderPos.getQuantity() : 0;
+            long totalQuantity = (lenderPos != null) ? lenderPos.getQuantity() : 0L;
+            long availableLendable = Math.max(0L, totalQuantity - lenderCommittedShares);
             if (sharesToShort > availableLendable) {
                 throw new IllegalStateException("Stok pinjaman saham (lendable inventory) tidak mencukupi untuk short: "
-                        + instrument.getTicker() + " (diminta: " + sharesToShort + ", tersedia: " + availableLendable + ")");
+                        + instrument.getTicker() + " (diminta: " + sharesToShort + ", tersedia bebas: " + availableLendable + ")");
             }
+        }
+
+        // Lakukan pemotongan saham pinjaman hanya setelah seluruh validasi preflight lulus
+        if (lenderPos != null) {
             lenderPos.borrowShares(sharesToShort);
         }
 
-        BigDecimal currentPrice = instrument.getCurrentPrice().getAmount();
-        BigDecimal grossProceeds = currentPrice.multiply(BigDecimal.valueOf(sharesToShort));
-        BigDecimal fee = grossProceeds.multiply(new BigDecimal("0.0025")); // 0.25% fee jual
-        BigDecimal netProceeds = grossProceeds.subtract(fee);
-
-        Money proceedsMoney = new Money(netProceeds, instrument.getCurrency());
-        Money feeMoney = new Money(fee, instrument.getCurrency());
-
-        // 1. Catat kas masuk hasil penjualan short via ledger
+        // 2. Catat kas masuk hasil penjualan short via ledger
         ledger.recordMutation(
                 "SHORT-PROCEEDS-" + System.nanoTime(),
                 account,
                 LedgerEntryType.TRADE_SELL,
-                new Money(grossProceeds, instrument.getCurrency()),
+                grossMoney,
                 true,
                 timestamp,
                 "Hasil penjualan short " + instrument.getTicker() + " " + sharesToShort + " lembar"
         );
 
-        // 2. Potong fee transaksi
+        // 3. Potong fee transaksi
         ledger.recordMutation(
                 "SHORT-FEE-" + System.nanoTime(),
                 account,
@@ -265,7 +361,7 @@ public final class RiskComplianceService {
                 "Fee bursa penjualan short " + instrument.getTicker()
         );
 
-        // 3. TAHAN SELURUH HASIL PENJUALAN SEBAGAI JAMINAN (Collateral Locked) - FR-15.05
+        // 4. TAHAN SELURUH HASIL PENJUALAN SEBAGAI JAMINAN (Collateral Locked) - FR-15.05
         account.reserveCash(proceedsMoney);
 
         ShortPosition shortPos = new ShortPosition(
@@ -279,7 +375,7 @@ public final class RiskComplianceService {
                 "LOG-" + System.nanoTime(), timestamp, account.getId(),
                 ComplianceAuditLog.AuditCategory.SHORT_BORROW,
                 "Pembukaan posisi short " + instrument.getTicker() + " " + sharesToShort + " lembar @" + currentPrice,
-                "Hasil penjualan Rp " + netProceeds + " dikunci sebagai jaminan kas tertahan"
+                "Hasil penjualan " + proceedsMoney + " dikunci sebagai jaminan kas tertahan"
         ));
 
         return shortPos;
@@ -351,7 +447,27 @@ public final class RiskComplianceService {
         );
 
         shortPos.coverShares(sharesToCover, coverPrice);
-        if (shortPos.getBorrowedShares() == 0) {
+
+        // Lunasi sisa tunggakan sewa short jika kas tersedia mencukupi (QC03)
+        if (shortPos.getAccruedUnpaidFee().isPositive()) {
+            Money unpaid = shortPos.getAccruedUnpaidFee();
+            Money avail = account.getAvailableCash(instrument.getCurrency());
+            if (avail.isGreaterThanOrEqual(unpaid)) {
+                ledger.recordMutation(
+                        "SHORT-COVER-ARREARS-" + System.nanoTime(),
+                        account,
+                        LedgerEntryType.TRANSACTION_FEE,
+                        unpaid,
+                        false,
+                        timestamp,
+                        "Pelunasan sisa tunggakan sewa short saat penutupan " + instrument.getTicker()
+                );
+                shortPos.payUnpaidFee(unpaid);
+            }
+        }
+
+        // Hapus posisi hanya jika kuantitas saham 0 DAN tunggakan biaya sewa sudah lunas (QC03)
+        if (shortPos.getBorrowedShares() == 0 && shortPos.getAccruedUnpaidFee().isZero()) {
             userShorts.remove(instrument.getTicker());
         }
 
@@ -381,7 +497,7 @@ public final class RiskComplianceService {
         closeShortPosition(account, instrument, sharesToCover, null, ledger, timestamp);
     }
 
-    public static final BigDecimal ANNUAL_MARGIN_LOAN_INTEREST_RATE = new BigDecimal("0.18"); // 18% p.a.
+    public static final BigDecimal ANNUAL_MARGIN_LOAN_INTEREST_RATE = new BigDecimal("0.072"); // 0.02% per game day on a 360-day basis.
 
     /**
      * Membebankan biaya pembiayaan harian (Daily Financing Costs):
@@ -395,35 +511,76 @@ public final class RiskComplianceService {
             BigDecimal usdRate,
             long timestamp) {
 
+        long day = java.time.Instant.ofEpochMilli(timestamp).atZone(java.time.ZoneId.of("Asia/Jakarta")).toLocalDate().toEpochDay();
+        Long previous = financingDays.get(account.getId());
+        if (previous != null && day <= previous) return;
+
         // 1. Biaya pinjaman short harian (Borrow fee)
         Map<String, ShortPosition> userShorts = shortPositions.get(account.getId());
         if (userShorts != null) {
+            List<String> clearedTickers = new ArrayList<>();
             for (ShortPosition sp : userShorts.values()) {
                 Instrument inst = catalog.getById("IDX:" + sp.getTicker());
                 if (inst == null) inst = catalog.getById("US:" + sp.getTicker());
                 BigDecimal px = (inst != null) ? inst.getCurrentPrice().getAmount() : sp.getAverageShortPrice();
                 Money dailyFee = sp.calculateDailyBorrowFee(px);
-                if (dailyFee.isPositive() && account.getAvailableCash(dailyFee.getCurrency()).isGreaterThanOrEqual(dailyFee)) {
-                    ledger.recordMutation(
-                            "SHORT-BORROW-FEE-" + sp.getTicker() + "-" + timestamp,
-                            account,
-                            LedgerEntryType.TRANSACTION_FEE,
-                            dailyFee,
-                            false,
-                            timestamp,
-                            "Biaya sewa pinjaman short harian " + sp.getTicker()
-                    );
-                    auditLogs.add(new ComplianceAuditLog(
-                            "LOG-BORROW-FEE-" + System.nanoTime(), timestamp, account.getId(),
-                            ComplianceAuditLog.AuditCategory.SHORT_BORROW,
-                            "Debet biaya sewa short " + sp.getTicker() + ": " + dailyFee,
-                            "Dipotong dari kas tersedia harian"
-                    ));
+                if (dailyFee.isPositive()) {
+                    Money available = account.getAvailableCash(dailyFee.getCurrency());
+                    Money feePaid = available.compareTo(dailyFee) >= 0 ? dailyFee : (available.isPositive() ? available : Money.zero(dailyFee.getCurrency()));
+                    Money unpaid = dailyFee.subtract(feePaid);
+                    if (feePaid.isPositive()) {
+                        ledger.recordMutation(
+                                "SHORT-BORROW-FEE-" + sp.getTicker() + "-" + timestamp,
+                                account,
+                                LedgerEntryType.TRANSACTION_FEE,
+                                feePaid,
+                                false,
+                                timestamp,
+                                "Biaya sewa pinjaman short harian " + sp.getTicker()
+                        );
+                        auditLogs.add(new ComplianceAuditLog(
+                                "LOG-BORROW-FEE-" + System.nanoTime(), timestamp, account.getId(),
+                                ComplianceAuditLog.AuditCategory.SHORT_BORROW,
+                                "Debet biaya sewa short " + sp.getTicker() + ": " + feePaid,
+                                "Dipotong dari kas tersedia harian"
+                        ));
+                    }
+                    if (unpaid.isPositive()) {
+                        sp.addUnpaidFee(unpaid);
+                        auditLogs.add(new ComplianceAuditLog(
+                                "LOG-BORROW-FEE-UNPAID-" + System.nanoTime(), timestamp, account.getId(),
+                                ComplianceAuditLog.AuditCategory.SHORT_BORROW,
+                                "Tunggakan biaya sewa short " + sp.getTicker() + ": " + unpaid,
+                                "Kas tidak mencukupi, dicatat sebagai kewajiban terutang"
+                        ));
+                    }
                 }
+                if (sp.getAccruedUnpaidFee().isPositive()) {
+                    Money availForArrears = account.getAvailableCash(sp.getCurrency());
+                    if (availForArrears.isPositive()) {
+                        Money arrearsPaid = availForArrears.compareTo(sp.getAccruedUnpaidFee()) >= 0 ? sp.getAccruedUnpaidFee() : availForArrears;
+                        ledger.recordMutation(
+                                "SHORT-ARREARS-PAY-" + sp.getTicker() + "-" + timestamp,
+                                account,
+                                LedgerEntryType.TRANSACTION_FEE,
+                                arrearsPaid,
+                                false,
+                                timestamp,
+                                "Pelunasan tunggakan biaya sewa short " + sp.getTicker()
+                        );
+                        sp.payUnpaidFee(arrearsPaid);
+                    }
+                }
+                if (sp.getBorrowedShares() == 0 && sp.getAccruedUnpaidFee().isZero()) {
+                    clearedTickers.add(sp.getTicker());
+                }
+            }
+            for (String ticker : clearedTickers) {
+                userShorts.remove(ticker);
             }
         }
 
-        // 2. Bunga harian pinjaman margin (18% p.a.)
+        // 2. Bunga harian pinjaman margin: 0,02% dari utang berjalan.
         Map<Currency, Money> debts = marginDebts.get(account.getId());
         if (debts != null) {
             for (Map.Entry<Currency, Money> entry : debts.entrySet()) {
@@ -457,6 +614,7 @@ public final class RiskComplianceService {
                 }
             }
         }
+        financingDays.put(account.getId(), day);
     }
 
     /**
@@ -479,7 +637,9 @@ public final class RiskComplianceService {
         BigDecimal longValIdr = BigDecimal.ZERO;
         for (Position p : account.getPositions().values()) {
             if (p.getQuantity() > 0) {
-                BigDecimal val = p.getCurrentPrice().multiply(BigDecimal.valueOf(p.getQuantity()));
+                Instrument instrument = catalog.getById(p.getExchange() + ":" + p.getTicker());
+                BigDecimal mark = instrument == null ? p.getCurrentPrice() : instrument.getCurrentPrice().getAmount();
+                BigDecimal val = mark.multiply(BigDecimal.valueOf(p.getQuantity()));
                 if (p.getCurrency() == Currency.USD) val = val.multiply(usdRate);
                 longValIdr = longValIdr.add(val);
             }
@@ -493,7 +653,7 @@ public final class RiskComplianceService {
                 Instrument inst = catalog.getById("IDX:" + sp.getTicker());
                 if (inst == null) inst = catalog.getById("US:" + sp.getTicker());
                 BigDecimal curPx = (inst != null) ? inst.getCurrentPrice().getAmount() : sp.getAverageShortPrice();
-                BigDecimal liab = curPx.multiply(BigDecimal.valueOf(sp.getBorrowedShares()));
+                BigDecimal liab = curPx.multiply(BigDecimal.valueOf(sp.getBorrowedShares())).add(sp.getAccruedUnpaidFee().getAmount());
                 if (sp.getCurrency() == Currency.USD) liab = liab.multiply(usdRate);
                 shortLiabIdr = shortLiabIdr.add(liab);
             }
@@ -524,57 +684,19 @@ public final class RiskComplianceService {
         return new MarginHealthReport(account.getId(), equity, marginDebt, totalExposure, marginRatio, status);
     }
 
-    /**
-     * Eksekusi Likuidasi Paksa dengan kepatuhan penuh terhadap status suspensi/halt bursa (FR-15.07, FR-16.07).
-     */
-    public synchronized boolean executeForcedLiquidation(
-            Account account,
-            Instrument instrument,
-            boolean isMarketHalted,
-            EconomyLedger ledger,
-            long timestamp) {
-
-        // Proteksi Hard: Likuidasi TIDAK BISA menembus status halt bursa (FR-16.07)
-        if (isMarketHalted) {
-            auditLogs.add(new ComplianceAuditLog(
-                    "LOG-HALT-" + System.nanoTime(), timestamp, account.getId(),
-                    ComplianceAuditLog.AuditCategory.HALT_ENFORCEMENT,
-                    "Permintaan likuidasi paksa untuk " + instrument.getTicker() + " tertahan: Bursa sedang disuspensi (HALT)",
-                    "Posisi ditangguhkan dalam status HALTED_PENDING_LIQUIDATION hingga pasar dibuka kembali"
-            ));
-            return false;
+    public synchronized Money getTotalShortLiability(String accountId, InstrumentCatalog catalog, BigDecimal usdRate) {
+        Map<String, ShortPosition> userShorts = shortPositions.get(accountId);
+        if (userShorts == null || userShorts.isEmpty()) return Money.zero(Currency.IDR);
+        BigDecimal totalIdr = BigDecimal.ZERO;
+        for (ShortPosition sp : userShorts.values()) {
+            Instrument inst = catalog != null ? catalog.getById("IDX:" + sp.getTicker()) : null;
+            if (inst == null && catalog != null) inst = catalog.getById("US:" + sp.getTicker());
+            BigDecimal curPx = inst != null ? inst.getCurrentPrice().getAmount() : sp.getAverageShortPrice();
+            BigDecimal liab = curPx.multiply(BigDecimal.valueOf(sp.getBorrowedShares())).add(sp.getAccruedUnpaidFee().getAmount());
+            if (sp.getCurrency() == Currency.USD && usdRate != null) liab = liab.multiply(usdRate);
+            totalIdr = totalIdr.add(liab);
         }
-
-        // Likuidasi posisi long untuk menutup kewajiban
-        Position p = account.getPosition(instrument.getId());
-        if (p != null && p.getQuantity() > 0) {
-            long sellShares = p.getQuantity();
-            BigDecimal price = instrument.getCurrentPrice().getAmount();
-            BigDecimal gross = price.multiply(BigDecimal.valueOf(sellShares));
-            BigDecimal fee = gross.multiply(new BigDecimal("0.0025"));
-            BigDecimal net = gross.subtract(fee);
-
-            ledger.recordMutation(
-                    "FORCED-LIQ-" + System.nanoTime(),
-                    account,
-                    LedgerEntryType.TRADE_SELL,
-                    new Money(net, instrument.getCurrency()),
-                    true,
-                    timestamp,
-                    "Likuidasi paksa posisi long " + instrument.getTicker() + " " + sellShares + " lembar"
-            );
-
-            p.addSell(sellShares, price);
-
-            auditLogs.add(new ComplianceAuditLog(
-                    "LOG-LIQ-" + System.nanoTime(), timestamp, account.getId(),
-                    ComplianceAuditLog.AuditCategory.FORCED_LIQUIDATION,
-                    "Eksekusi likuidasi paksa berhasil pada " + instrument.getTicker(),
-                    "Kas hasil likuidasi bersih " + net + " dikreditkan ke saldo akun"
-            ));
-            return true;
-        }
-
-        return false;
+        return new Money(totalIdr, Currency.IDR);
     }
+
 }

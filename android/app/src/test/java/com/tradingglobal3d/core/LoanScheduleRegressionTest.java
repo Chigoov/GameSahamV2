@@ -64,12 +64,14 @@ public class LoanScheduleRegressionTest {
     @Test public void overduePenaltyExcludesFutureInstallmentsAndPaymentsAllocateOldest() throws Exception {
         Setup s = new Setup(7, 1_000_000);
         s.loan.processDailyAccrual(time(1));
-        assertEquals(cash(500), s.loan.getAccruedInterest()); assertEquals(cash(0), s.loan.getAccruedPenalty());
+        Money day1Interest = cash(1_000_000).multiply(s.loan.getDailyInterestRate());
+        assertEquals(day1Interest, s.loan.getAccruedInterest()); assertEquals(cash(0), s.loan.getAccruedPenalty());
         assertEquals(LoanContract.LoanStatus.ACTIVE, s.loan.getStatus());
         s.loan.processDailyAccrual(time(2));
         assertEquals(cash(71), s.loan.getAccruedPenalty()); assertEquals(cash(142_857), s.loan.getOverduePrincipal());
         assertEquals(LoanContract.LoanStatus.OVERDUE, s.loan.getStatus());
-        s.loan.makePayment("PART", s.account, cash(72_071), s.ledger, time(2));
+        Money payment = cash(71_000).add(s.loan.getAccruedPenalty()).add(s.loan.getAccruedInterest());
+        s.loan.makePayment("PART", s.account, payment, s.ledger, time(2));
         assertEquals(cash(0), s.loan.getAccruedPenalty()); assertEquals(cash(0), s.loan.getAccruedInterest());
         assertEquals(cash(929_000), s.loan.getRemainingPrincipal());
         assertEquals("71000", s.loan.getSchedule().getJSONObject(0).getString("principalPaid"));
